@@ -32,28 +32,86 @@ import java.util.Arrays;
  */
 public class MonteCarlo {
 	
+	private final double foilDistance; // z coordinate of midplane of foil [m]
+	private final double foilThickness; // thickness of foil [m]
+	
+	private final double probHitsFoil; // probability that the neutron hits the foil
+	
 	/**
 	 * perform some preliminary calculations for the provided configuration.
 	 */
-	public MonteCarlo() {
+	public MonteCarlo(double foilDistance, double foilRadius, double foilThickness) {
+		this.foilDistance = foilDistance;
+		this.foilThickness = foilThickness;
 		
+		double foilMaxAngle = Math.atan(foilRadius/foilDistance);
+		this.probHitsFoil = (1 - Math.cos(foilMaxAngle))/2;
 	}
 	
 	/**
-	 * simulate a single random neutron emitted from TCC at the given energy and determine the position and velocity at which it crosses the focal plane.
-	 * @param energy in MeV.
-	 * @return {x, y, z, vx, vy, vz} in m.
+	 * simulate a single random neutron emitted from TCC at the given energy and determine the position and velocity at which its child deuteron crosses the focal plane.
+	 * @param energy initial energy of released neutron [eV].
+	 * @return {x, y, z, vx, vy, vz} [m].
 	 */
 	public double[] response(double energy) {
-		return new double[] {0, 0, 0, 0, 0, 0};
+		System.out.print("[");
+		
+		double[] rCollision = chooseCollisionPosition();
+		System.out.print(String.format("%f, %f, %f,", rCollision[0], rCollision[1], rCollision[2]));
+		
+		double[] vInitial = computeInitialVelocity(energy, rCollision);
+		
+		double[] rAperture = chooseAperturePosition();
+		
+		double[] vFinal = computeFinalVelocity(vInitial, rCollision, rAperture);
+		
+		double[] rFocal = computeFocusedPosition(rAperture, vFinal);
+		
+		System.out.println("],");
+		return rFocal;
 	}
 	
+	/**
+	 * choose a random location in the foil for the neutron to collide.
+	 * @return {x, y, z}
+	 */
+	private double[] chooseCollisionPosition() {
+		double θ = Math.acos(1 - 2*Math.random()*probHitsFoil);
+		double r = foilDistance*Math.tan(θ); // NOTE: original code assumes uniform distribution within foil; I account for nonzero solid angle subtended at TCC.
+		double φ = Math.random()*2*Math.PI;
+		double z = foilDistance + (2*Math.random()-1)*foilThickness/2; // assume foil is thin, so every z coordinate is equally likely
+		return new double[] { r*Math.cos(φ), r*Math.sin(φ), z };
+	}
+
+	private double[] computeInitialVelocity(double energy, double[] rCollision) {
+		// TODO: Implement this
+		return null;
+	}
+
+	private double[] chooseAperturePosition() {
+		// TODO: Implement this
+		return null;
+	}
+
+	private double[]
+			computeFinalVelocity(double[] vInitial, double[] rCollision, double[] rAperture) {
+		// TODO: Implement this
+		return null;
+	}
+
+	private double[] computeFocusedPosition(double[] rAperture, double[] vFinal) {
+		// TODO: Implement this
+		return null;
+	}
+
 	/**
 	 * @param args
 	 */
 	public static void main(String[] args) {
-		MonteCarlo sim = new MonteCarlo();
-		System.out.println(Arrays.toString(sim.response(14)));
+		MonteCarlo sim = new MonteCarlo(3.0e-3, 3.0e-4, 80e-6);
+		for (int i = 0; i < 10000; i ++)
+			sim.response(14.2e6);
+//		System.out.println(Arrays.toString(sim.response(14)));
 	}
 	
 }
