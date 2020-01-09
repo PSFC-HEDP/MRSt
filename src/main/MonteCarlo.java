@@ -34,18 +34,35 @@ public class MonteCarlo {
 	
 	private final double foilDistance; // z coordinate of midplane of foil [m]
 	private final double foilThickness; // thickness of foil [m]
+	private final double apertureDistance; // distance from TCC to aperture [m]
+	private final double apertureWidth; // horizontal dimension of aperture [m]
+	private final double apertureHeight; // vertical dimension of aperture [m]
 	
-	private final double probHitsFoil; // probability that the neutron hits the foil
+	private final double probHitsFoil; // probability that the neutron goes through the foil
+	private final double probMakesDeuteron; // probability that the neutron interacts with the foil and releases a deuteron
+	private final double probHitsAperture; // probability that a secondary deuteron goes through the aperture
 	
 	/**
 	 * perform some preliminary calculations for the provided configuration.
 	 */
-	public MonteCarlo(double foilDistance, double foilRadius, double foilThickness) {
+	public MonteCarlo(
+			double foilDistance, double foilRadius, double foilThickness,
+			double foilDensity, double foilCrossSection,
+			double apertureDistance, double apertureWidth, double apertureHeight) {
 		this.foilDistance = foilDistance;
 		this.foilThickness = foilThickness;
+		this.apertureDistance = apertureDistance;
+		this.apertureWidth = apertureWidth;
+		this.apertureHeight = apertureHeight;
 		
 		double foilMaxAngle = Math.atan(foilRadius/foilDistance);
 		this.probHitsFoil = (1 - Math.cos(foilMaxAngle))/2;
+		this.probMakesDeuteron = foilDensity*foilCrossSection*foilThickness; // TODO: this should be a function of energy
+		this.probHitsAperture = apertureWidth*apertureHeight / (4*Math.PI*Math.pow(apertureDistance,2));
+	}
+	
+	public double efficiency(double energy) {
+		return probHitsFoil * probMakesDeuteron * probHitsAperture;
 	}
 	
 	/**
@@ -57,11 +74,12 @@ public class MonteCarlo {
 		System.out.print("[");
 		
 		double[] rCollision = chooseCollisionPosition();
-		System.out.print(String.format("%f, %f, %f,", rCollision[0], rCollision[1], rCollision[2]));
+		System.out.print(String.format("%f, %f, %f, ", rCollision[0], rCollision[1], rCollision[2]));
 		
 		double[] vInitial = computeInitialVelocity(energy, rCollision);
 		
 		double[] rAperture = chooseAperturePosition();
+		System.out.print(String.format("%f, %f, %f, ", rAperture[0], rAperture[1], rAperture[2]));
 		
 		double[] vFinal = computeFinalVelocity(vInitial, rCollision, rAperture);
 		
@@ -82,13 +100,15 @@ public class MonteCarlo {
 		double z = foilDistance + (2*Math.random()-1)*foilThickness/2; // assume foil is thin, so every z coordinate is equally likely
 		return new double[] { r*Math.cos(φ), r*Math.sin(φ), z };
 	}
-
-	private double[] computeInitialVelocity(double energy, double[] rCollision) {
-		// TODO: Implement this
-		return null;
-	}
-
+	
 	private double[] chooseAperturePosition() {
+		double x = (2*Math.random()-1)*apertureWidth/2; // assume aperture is far away, so every point in it is equally likely to be hit
+		double y = (2*Math.random()-1)*apertureHeight/2;
+		double z = apertureDistance;
+		return new double[] { x, y, z };
+	}
+	
+	private double[] computeInitialVelocity(double energy, double[] rCollision) {
 		// TODO: Implement this
 		return null;
 	}
@@ -108,8 +128,11 @@ public class MonteCarlo {
 	 * @param args
 	 */
 	public static void main(String[] args) {
-		MonteCarlo sim = new MonteCarlo(3.0e-3, 3.0e-4, 80e-6);
-		for (int i = 0; i < 10000; i ++)
+		MonteCarlo sim = new MonteCarlo(
+				3.0e-3, 0.3e-3, 80e-6,
+				10, 10,
+				6e0, 4.0e-3, 20.0e-3);
+		for (int i = 0; i < 1000; i ++)
 			sim.response(14.2e6);
 //		System.out.println(Arrays.toString(sim.response(14)));
 	}
