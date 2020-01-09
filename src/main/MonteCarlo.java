@@ -77,7 +77,8 @@ public class MonteCarlo {
 		System.out.print(String.format("%f, %f, %f, ", rCollision[0], rCollision[1], rCollision[2]));
 		
 		double[] vInitial = computeInitialVelocity(energy, rCollision);
-		
+		System.out.print(String.format("%f, %f, %f, ", vInitial[0], vInitial[1], vInitial[2]));
+
 		double[] rAperture = chooseAperturePosition();
 		System.out.print(String.format("%f, %f, %f, ", rAperture[0], rAperture[1], rAperture[2]));
 		
@@ -91,7 +92,7 @@ public class MonteCarlo {
 	
 	/**
 	 * choose a random location in the foil for the neutron to collide.
-	 * @return {x, y, z}
+	 * @return { x, y, z } [m]
 	 */
 	private double[] chooseCollisionPosition() {
 		double θ = Math.acos(1 - 2*Math.random()*probHitsFoil);
@@ -101,6 +102,29 @@ public class MonteCarlo {
 		return new double[] { r*Math.cos(φ), r*Math.sin(φ), z };
 	}
 	
+	/**
+	 * compute the initial velocity of a neutron given the point at which it hits the foil and its initial energy.
+	 * @param energy initial energy of neutron [eV].
+	 * @param rCollision {x,y,z} at which it dies in the foil [m].
+	 * @return { vx, vy, vz } [m/s]
+	 */
+	private double[] computeInitialVelocity(double energy, double[] rCollision) {
+		energy = -Particle.E.charge*energy; // convert energy from eV to J
+		double vx = rCollision[0]; // assume emitted from TCC
+		double vy = rCollision[1];
+		double vz = rCollision[2];
+		double r = Math.sqrt(vx*vx + vy*vy + vz*vz);
+		double v = Math.sqrt(2*energy/Particle.N.mass); // assume nonrelativistic
+		vx *= v/r;
+		vy *= v/r;
+		vz *= v/r;
+		return new double[] { vx, vy, vz };
+	}
+	
+	/**
+	 * choose a random location in the aperture plane for the deuteron to pass through.
+	 * @return { x, y, z } [m]
+	 */
 	private double[] chooseAperturePosition() {
 		double x = (2*Math.random()-1)*apertureWidth/2; // assume aperture is far away, so every point in it is equally likely to be hit
 		double y = (2*Math.random()-1)*apertureHeight/2;
@@ -108,11 +132,6 @@ public class MonteCarlo {
 		return new double[] { x, y, z };
 	}
 	
-	private double[] computeInitialVelocity(double energy, double[] rCollision) {
-		// TODO: Implement this
-		return null;
-	}
-
 	private double[]
 			computeFinalVelocity(double[] vInitial, double[] rCollision, double[] rAperture) {
 		// TODO: Implement this
