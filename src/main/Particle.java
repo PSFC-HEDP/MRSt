@@ -31,10 +31,14 @@ package main;
  */
 public enum Particle {
 	
-	E(9.10938356e-31, -1.60217662e-19), // electron
-	P(1.67262192e-27,  1.60217662e-19), // proton
-	N(1.67492750e-27,  0.0           ), // neutron
-	D(3.34449463e-27,  1.60217662e-19); // deuteron
+	/** electron */
+	E(9.10938356e-31, -1.60217662e-19),
+	/** proton */
+	P(1.67262192e-27,  1.60217662e-19),
+	/** neutron */
+	N(1.67492750e-27,  0.0           ),
+	/** deuteron */
+	D(3.34449463e-27,  1.60217662e-19);
 	
 	public final double mass; // [kg]
 	public final double charge; // [C]

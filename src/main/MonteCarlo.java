@@ -23,8 +23,6 @@
  */
 package main;
 
-import java.util.Arrays;
-
 /**
  * the class where all the math is.
  * 
@@ -58,7 +56,8 @@ public class MonteCarlo {
 		double foilMaxAngle = Math.atan(foilRadius/foilDistance);
 		this.probHitsFoil = (1 - Math.cos(foilMaxAngle))/2;
 		this.probMakesDeuteron = foilDensity*foilCrossSection*foilThickness; // TODO: this should be a function of energy
-		this.probHitsAperture = apertureWidth*apertureHeight / (4*Math.PI*Math.pow(apertureDistance,2));
+		this.probHitsAperture = apertureWidth*apertureHeight /
+				(4*Math.PI*Math.pow(apertureDistance,2)); // TODO: account for anisotropic scattering
 	}
 	
 	public double efficiency(double energy) {
@@ -68,21 +67,20 @@ public class MonteCarlo {
 	/**
 	 * simulate a single random neutron emitted from TCC at the given energy and determine the position and velocity at which its child deuteron crosses the focal plane.
 	 * @param energy initial energy of released neutron [eV].
+	 * @param ion either Particle.P or Particle.D depending on the type of foil.
 	 * @return {x, y, z, vx, vy, vz} [m].
 	 */
-	public double[] response(double energy) {
+	public double[] response(double energy, Particle ion) {
 		System.out.print("[");
 		
 		double[] rCollision = chooseCollisionPosition();
-		System.out.print(String.format("%f, %f, %f, ", rCollision[0], rCollision[1], rCollision[2]));
 		
-		double[] vInitial = computeInitialVelocity(energy, rCollision);
-		System.out.print(String.format("%f, %f, %f, ", vInitial[0], vInitial[1], vInitial[2]));
-
 		double[] rAperture = chooseAperturePosition();
-		System.out.print(String.format("%f, %f, %f, ", rAperture[0], rAperture[1], rAperture[2]));
 		
-		double[] vFinal = computeFinalVelocity(vInitial, rCollision, rAperture);
+		double[] vFinal = computeFinalVelocity(energy, ion, rCollision, rAperture);
+		double v2 = vFinal[0]*vFinal[0] + vFinal[1]*vFinal[1] + vFinal[2]*vFinal[2];
+		double E = 1/2.*ion.mass*v2;
+		System.out.print(-E/Particle.E.charge);
 		
 		double[] rFocal = computeFocusedPosition(rAperture, vFinal);
 		
@@ -103,25 +101,6 @@ public class MonteCarlo {
 	}
 	
 	/**
-	 * compute the initial velocity of a neutron given the point at which it hits the foil and its initial energy.
-	 * @param energy initial energy of neutron [eV].
-	 * @param rCollision {x,y,z} at which it dies in the foil [m].
-	 * @return { vx, vy, vz } [m/s]
-	 */
-	private double[] computeInitialVelocity(double energy, double[] rCollision) {
-		energy = -Particle.E.charge*energy; // convert energy from eV to J
-		double vx = rCollision[0]; // assume emitted from TCC
-		double vy = rCollision[1];
-		double vz = rCollision[2];
-		double r = Math.sqrt(vx*vx + vy*vy + vz*vz);
-		double v = Math.sqrt(2*energy/Particle.N.mass); // assume nonrelativistic
-		vx *= v/r;
-		vy *= v/r;
-		vz *= v/r;
-		return new double[] { vx, vy, vz };
-	}
-	
-	/**
 	 * choose a random location in the aperture plane for the deuteron to pass through.
 	 * @return { x, y, z } [m]
 	 */
@@ -132,10 +111,38 @@ public class MonteCarlo {
 		return new double[] { x, y, z };
 	}
 	
+	/**
+	 * compute the velocity with which the deuteron passes through the aperture.
+	 * @param vInitial {vx,vy,vz} of the neutron as it enters the foil [m/s].
+	 * @param A ratio of charged particle mass to neutron mass.
+	 * @param rFoil {x,y,z} of the point at which the neutron strikes the deuteron [m].
+	 * @param rAperture {x,y,z} of the point where the deuteron passes through the aperture [m].
+	 * @return { vx, vy, vz } [m]
+	 */
 	private double[]
-			computeFinalVelocity(double[] vInitial, double[] rCollision, double[] rAperture) {
-		// TODO: Implement this
-		return null;
+			computeFinalVelocity(double energy, Particle ion, double[] rFoil, double[] rAperture) {
+		double E0 = -Particle.E.charge*energy; // convert energy from [eV] to [J]
+		double d0x = rFoil[0];
+		double d0y = rFoil[1];
+		double d0z = rFoil[2];
+		double norm = Math.sqrt(d0x*d0x + d0y*d0y + d0z*d0z);
+		d0x /= norm;
+		d0y /= norm;
+		d0z /= norm;
+		
+		double d1x = rAperture[0] - rFoil[0];
+		double d1y = rAperture[1] - rFoil[1];
+		double d1z = rAperture[2] - rFoil[2];
+		norm = Math.sqrt(d1x*d1x + d1y*d1y + d1z*d1z);
+		d1x /= norm;
+		d1y /= norm;
+		d1z /= norm;
+		
+		double cosθ = d0x*d1x + d0y*d1y + d0z*d1z;
+		double A = ion.mass/Particle.N.mass; // assume elastic collision between neutron and ion
+		double E1 = 4*A/Math.pow(A + 1, 2)*E0*cosθ*cosθ; // TODO this is a little redundant; see if it's worth computing ahead of time
+		double v = Math.sqrt(2*E1/ion.mass); // TODO: lose energy by dragging in foil
+		return new double[] { v*d1x, v*d1y, v*d1z };
 	}
 
 	private double[] computeFocusedPosition(double[] rAperture, double[] vFinal) {
@@ -151,8 +158,8 @@ public class MonteCarlo {
 				3.0e-3, 0.3e-3, 80e-6,
 				10, 10,
 				6e0, 4.0e-3, 20.0e-3);
-		for (int i = 0; i < 1000; i ++)
-			sim.response(14.2e6);
+		for (int i = 0; i < 10; i ++)
+			sim.response(14e6, Particle.D);
 //		System.out.println(Arrays.toString(sim.response(14)));
 	}
 	
