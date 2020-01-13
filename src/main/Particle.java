@@ -25,7 +25,7 @@ package main;
 
 
 /**
- * TODO: Write description
+ * a simple enum to store various particle parameters in a relatively readable way.
  * 
  * @author Justin Kunimune
  */

@@ -23,12 +23,20 @@
  */
 package main;
 
+import java.io.File;
+import java.io.IOException;
+import java.util.Arrays;
+
+import main.NumericalMethods.DiscreteFunction;
+
 /**
  * the class where all the math is.
  * 
  * @author Justin Kunimune
  */
 public class MonteCarlo {
+	
+	private static final int STOPPING_DISTANCE_RESOLUTION = 36;
 	
 	private final double foilDistance; // z coordinate of midplane of foil [m]
 	private final double foilThickness; // thickness of foil [m]
@@ -40,12 +48,18 @@ public class MonteCarlo {
 	private final double probMakesDeuteron; // probability that the neutron interacts with the foil and releases a deuteron
 	private final double probHitsAperture; // probability that a secondary deuteron goes through the aperture
 	
+	private final DiscreteFunction distanceVsEnergy;
+	private final DiscreteFunction energyVsDistance;
+	
 	/**
 	 * perform some preliminary calculations for the provided configuration.
+	 * @param stoppingPower a double[][] containing two columns and n rows. the zeroth column is
+	 * the reference values of E in [keV] and the last column is the corresponding values of
+	 * dE/dx in [keV/μm].
 	 */
 	public MonteCarlo(
 			double foilDistance, double foilRadius, double foilThickness,
-			double foilDensity, double foilCrossSection,
+			double foilDensity, double foilCrossSection, double[][] stoppingPowerData,
 			double apertureDistance, double apertureWidth, double apertureHeight) {
 		this.foilDistance = foilDistance;
 		this.foilThickness = foilThickness;
@@ -58,6 +72,16 @@ public class MonteCarlo {
 		this.probMakesDeuteron = foilDensity*foilCrossSection*foilThickness; // TODO: this should be a function of energy
 		this.probHitsAperture = apertureWidth*apertureHeight /
 				(4*Math.PI*Math.pow(apertureDistance,2)); // TODO: account for anisotropic scattering
+		
+		double[] dxdE = new double[stoppingPowerData.length]; // integrate the stopping power to get stopping distance
+		double[] E = new double[stoppingPowerData.length];
+		for (int i = 0; i < stoppingPowerData.length; i ++) {
+			dxdE[i] = 1/(stoppingPowerData[i][1]*1e9*(-Particle.E.charge)); // converting from [GeV/m] to [m/J]
+			E[i] = stoppingPowerData[i][0]*1e3*(-Particle.E.charge); // and from [keV] to [J]
+		}
+		DiscreteFunction distanceVsEnergyRaw = new DiscreteFunction(E, dxdE).antiderivative();
+		this.distanceVsEnergy = distanceVsEnergyRaw.indexed(STOPPING_DISTANCE_RESOLUTION);
+		this.energyVsDistance = distanceVsEnergyRaw.inv().indexed(STOPPING_DISTANCE_RESOLUTION);
 	}
 	
 	public double efficiency(double energy) {
@@ -141,22 +165,26 @@ public class MonteCarlo {
 		double cosθ = d0x*d1x + d0y*d1y + d0z*d1z;
 		double A = ion.mass/Particle.N.mass; // assume elastic collision between neutron and ion
 		double E1 = 4*A/Math.pow(A + 1, 2)*E0*cosθ*cosθ; // TODO this is a little redundant; see if it's worth computing ahead of time
-		double v = Math.sqrt(2*E1/ion.mass); // TODO: lose energy by dragging in foil
+		double distance = (foilDistance + foilThickness/2 - rFoil[2])/d0z;
+		E1 = energyVsDistance.evaluate(distanceVsEnergy.evaluate(E1) - distance); // lose some energy by dragging through the foil
+		double v = Math.sqrt(2*E1/ion.mass); // get the resulting velocity
 		return new double[] { v*d1x, v*d1y, v*d1z };
 	}
-
+	
 	private double[] computeFocusedPosition(double[] rAperture, double[] vFinal) {
 		// TODO: Implement this
 		return null;
 	}
-
+	
 	/**
 	 * @param args
+	 * @throws IOException 
+	 * @throws NumberFormatException 
 	 */
-	public static void main(String[] args) {
+	public static void main(String[] args) throws NumberFormatException, IOException {
 		MonteCarlo sim = new MonteCarlo(
 				3.0e-3, 0.3e-3, 80e-6,
-				10, 10,
+				10, 10, CSV.read(new File("data/stopping_power_deuterons.csv"), ','),
 				6e0, 4.0e-3, 20.0e-3);
 		for (int i = 0; i < 10; i ++)
 			sim.response(14e6, Particle.D);

@@ -38,7 +38,7 @@ import javafx.stage.Stage;
 
 
 /**
- * the class that handles the GUI and IO.
+ * the class that handles the GUI.
  * 
  * @author Justin Kunimune
  */
