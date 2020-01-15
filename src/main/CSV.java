@@ -47,19 +47,63 @@ public class CSV {
 	 * @throws IOException if file cannot be found or permission is denied
 	 * @throws NumberFormatException if elements are not parsable as doubles
 	 */
-	public static final double[][] read(File file, char delimiter) throws NumberFormatException, IOException {
-		BufferedReader in = new BufferedReader(new FileReader(file));
-		List<double[]> list = new ArrayList<double[]>();
-		String line;
-		while ((line = in.readLine()) != null) {
-			String[] elements = line.split("\\s*"+delimiter+"\\s*");
-			double[] row = new double[elements.length];
-			for (int j = 0; j < elements.length; j ++)
-				row[j] = Double.parseDouble(elements[j]);
-			list.add(row);
+	public static final double[][] read(File file, char delimiter)
+			throws NumberFormatException, IOException {
+		BufferedReader in = null;
+		List<double[]> list;
+		try {
+			in = new BufferedReader(new FileReader(file));
+			list = new ArrayList<double[]>();
+			String line;
+			while ((line = in.readLine()) != null) {
+				String[] elements = line.trim().split("\\s*"+delimiter+"\\s*");
+				double[] row = new double[elements.length];
+				for (int j = 0; j < elements.length; j ++)
+					row[j] = Double.parseDouble(elements[j]);
+				list.add(row);
+			}
+		} finally {
+			in.close();
 		}
-		in.close();
 		return list.toArray(new double[0][]);
+	}
+	
+	/**
+	 * read a COSY-generated file and return the coefficients as a double matrix.
+	 * @param file the COSY file to open
+	 * @return yep
+	 * @throws IOException if file cannot be found or permission is denied
+	 * @throws NumberFormatException if elements are not parsable as doubles
+	 */
+	public static final double[][] readCosyCoefficients(File file)
+			throws NumberFormatException, IOException {
+		double[][] fullFile = read(file, ' '); // read it normally
+		double[][] coefs = new double[fullFile.length][fullFile[0].length - 1];
+		for (int i = 0; i < fullFile.length; i ++) {
+			System.arraycopy(fullFile[i], 0, coefs[i], 0, coefs[i].length); // but then remove the last column
+		}
+		return coefs;
+	}
+
+	/**
+	 * read a COSY-generated file and return the exponents as an int matrix.
+	 * @param file the COSY file to open
+	 * @return yep
+	 * @throws IOException if file cannot be found or permission is denied
+	 * @throws NumberFormatException if elements are not parsable as doubles
+	 */
+	public static final int[][] readCosyExponents(File file)
+			throws NumberFormatException, IOException {
+		double[][] fullFile = read(file, ' '); // read it normally
+		int[][] exps = new int[fullFile.length][9];
+		for (int i = 0; i < fullFile.length; i ++) {
+			int code = (int) fullFile[i][fullFile[i].length-1]; // but then we only care about the last column
+			for (int j = exps[i].length-1; j >= 0; j --) {
+				exps[i][j] = code%10; // take its digits one at a time
+				code /= 10; // each digit is a column
+			} // I know this is inefficient since it parsed the column as a double just to then cast it to an int and extract its digits, but this was what I came up with to minimize duplicated code.
+		}
+		return exps;
 	}
 	
 }
