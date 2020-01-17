@@ -56,16 +56,53 @@ public class CSV {
 			list = new ArrayList<double[]>();
 			String line;
 			while ((line = in.readLine()) != null) {
-				String[] elements = line.trim().split("\\s*"+delimiter+"\\s*");
+				line = line.trim();
+				if (line.isEmpty())
+					break;
+				String[] elements = line.split("\\s*"+delimiter+"\\s*");
 				double[] row = new double[elements.length];
 				for (int j = 0; j < elements.length; j ++)
 					row[j] = Double.parseDouble(elements[j]);
 				list.add(row);
 			}
 		} finally {
-			in.close();
+			try {
+				in.close();
+			} catch (NullPointerException e) {}
 		}
 		return list.toArray(new double[0][]);
+	}
+	
+	/**
+	 * read a CSV file where there is only one column, bypassing the need for a multi-
+	 * dimensional array. values will be separated by line breaks and adjacent whitespace
+	 * alone, and will be returned in a 1D array.
+	 * @param file the CSV file to open
+	 * @return 1D array of values from the list
+	 * @throws IOException if file cannot be found or permission is denied
+	 * @throws NumberFormatException if elements are not parsable as doubles
+	 */
+	public static final double[] readColumn(File file)
+			throws NumberFormatException, IOException {
+		return readColumn(file, '\n', 0);
+	}
+	
+	/**
+	 * read a CSV file and return a single column as a 1D array.
+	 * @param file the CSV file to open
+	 * @param delimiter the delimiting character, usually ',', sometimes '\t', occasionally '|'
+	 * @param j index of the desired column
+	 * @return 1D array of values in column j
+	 * @throws IOException if file cannot be found or permission is denied
+	 * @throws NumberFormatException if elements are not parsable as doubles
+	 */
+	public static final double[] readColumn(File file, char delimiter, int j)
+			throws NumberFormatException, IOException {
+		double[][] table = read(file, delimiter);
+		double[] out = new double[table.length];
+		for (int i = 0; i < table.length; i ++)
+			out[i] = table[i][j];
+		return out;
 	}
 	
 	/**
