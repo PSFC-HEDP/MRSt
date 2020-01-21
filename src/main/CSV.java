@@ -28,6 +28,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -108,15 +109,19 @@ public class CSV {
 	/**
 	 * read a COSY-generated file and return the coefficients as a double matrix.
 	 * @param file the COSY file to open
+	 * @param maxOrder the desired order of the polynomial
 	 * @return yep
 	 * @throws IOException if file cannot be found or permission is denied
 	 * @throws NumberFormatException if elements are not parsable as doubles
 	 */
-	public static final double[][] readCosyCoefficients(File file)
+	public static final double[][] readCosyCoefficients(File file, int maxOrder)
 			throws NumberFormatException, IOException {
 		double[][] fullFile = read(file, ' '); // read it normally
 		double[][] coefs = new double[fullFile.length][fullFile[0].length - 1];
 		for (int i = 0; i < fullFile.length; i ++) {
+			int exps = (int) fullFile[i][fullFile[i].length-1]; // check the last column
+			if (Integer.toString(exps).contains(Integer.toString(maxOrder+1))) // check to see if it has exceeded the max order
+				return Arrays.copyOfRange(coefs, 0, i); // and return what we have if so
 			System.arraycopy(fullFile[i], 0, coefs[i], 0, coefs[i].length); // but then remove the last column
 		}
 		return coefs;
