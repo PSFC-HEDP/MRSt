@@ -92,7 +92,7 @@ public class MonteCarlo {
 		this.cosyT0 = apertureDistance/cosyV0; // and corresponding time (assume it goes through lens instantaneously)
 		this.cosyT1 = -(1+γ)/γ/cosyV0; // and why is time measured in units of distance?
 		this.focalPlaneAngle = Math.toRadians(focalTilt);
-		this.cosyCoefficients = cosyCoefficients; // TODO filter out terms above a maximum order
+		this.cosyCoefficients = cosyCoefficients;
 		this.cosyExponents = cosyExponents;
 		this.ion = ion;
 		
@@ -100,7 +100,7 @@ public class MonteCarlo {
 		this.probHitsFoil = (1 - Math.cos(foilMaxAngle))/2;
 		this.probMakesIon = foilDensity*foilCrossSection*foilThickness; // TODO: this should be a function of energy
 		this.probHitsAperture = apertureWidth*apertureHeight /
-				(4*Math.PI*Math.pow(apertureDistance,2)); // TODO: account for anisotropic scattering
+				(4*Math.PI*Math.pow(apertureDistance-foilDistance,2)); // TODO: account for anisotropic scattering
 		
 		double[] dxdE = new double[stoppingPowerData.length]; // integrate the stopping power to get stopping distance
 		double[] E = new double[stoppingPowerData.length];
@@ -252,7 +252,7 @@ public class MonteCarlo {
 	private double[] computeFocusedPosition(double[] rFoil, double[] vInit, double tNeutron) {
 		double x0 = rFoil[x], y0 = rFoil[y]; // COSY takes spatial coordinates in [m] (assume foil is thin so we can ignore rFoil[2])
 		double a0 = vInit[x]/cosyV0, b0 = vInit[y]/cosyV0; // angular coordinates in [rad] (more or less)
-		double t0 = 0; // t0 has weird coordinates, but we can just let it be 0
+		double t0 = 0; // assume time it takes neutron to hit foil is negligible
 		double K0 = 1/2.*ion.mass*sqr(vInit); // for the 'd' coordinate, we must convert velocity to energy
 		double d0 = (K0 - cosyK0)/cosyK0; // and then compare that to an expected reference energy
 		double[] input = { x0, a0, y0, b0, t0, d0 };
@@ -290,8 +290,8 @@ public class MonteCarlo {
 				Particle.D, 3.0e-3, 0.3e-3, 80e-6,
 				10, 10, CSV.read(new File("data/stopping_power_deuterons.csv"), ','),
 				6e0, 4.0e-3, 20.0e-3, 12.45e6,
-				CSV.readCosyCoefficients(new File("data/MRSt_IRF_FP tilted.txt")),
-				CSV.readCosyExponents(new File("data/MRSt_IRF_FP tilted.txt")), 70.3,
+				CSV.readCosyCoefficients(new File("data/MRSt_IRF_FP tilted.txt"), 1),
+				CSV.readCosyExponents(new File("data/MRSt_IRF_FP tilted.txt"), 1), 70.3,
 //				CSV.readCosyExponents(new File("data/MRSt_IRF_FP not tilted.txt")), 0,
 				100);
 //		for (double energy = 12e6; energy < 16e6; energy += 50e3) {

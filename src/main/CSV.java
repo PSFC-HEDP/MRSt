@@ -125,17 +125,20 @@ public class CSV {
 	/**
 	 * read a COSY-generated file and return the exponents as an int matrix.
 	 * @param file the COSY file to open
+	 * @param maxOrder the desired order of the polynomial
 	 * @return yep
 	 * @throws IOException if file cannot be found or permission is denied
 	 * @throws NumberFormatException if elements are not parsable as doubles
 	 */
-	public static final int[][] readCosyExponents(File file)
+	public static final int[][] readCosyExponents(File file, int maxOrder)
 			throws NumberFormatException, IOException {
 		double[][] fullFile = read(file, ' '); // read it normally
 		int[][] exps = new int[fullFile.length][9];
 		for (int i = 0; i < fullFile.length; i ++) {
 			int code = (int) fullFile[i][fullFile[i].length-1]; // but then we only care about the last column
-			for (int j = exps[i].length-1; j >= 0; j --) {
+			if (Integer.toString(code).contains(Integer.toString(maxOrder+1))) // check to see if it has exceeded the max order
+				return Arrays.copyOfRange(exps, 0, i); // and return what we have if so
+			for (int j = exps[i].length-1; j >= 0; j --) { // otherwise fill out this row
 				exps[i][j] = code%10; // take its digits one at a time
 				code /= 10; // each digit is a column
 			} // I know this is inefficient since it parsed the column as a double just to then cast it to an int and extract its digits, but this was what I came up with to minimize duplicated code.
