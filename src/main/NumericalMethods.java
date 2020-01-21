@@ -26,12 +26,37 @@ package main;
 import java.util.Locale;
 
 /**
- * a file with some useful numerical analysis stuff (right now it's just one class for
- * manipulating discrete data, but I could add more at some point.
+ * a file with some useful numerical analysis stuff.
  * 
  * @author Justin Kunimune
  */
 public class NumericalMethods {
+	
+	/**
+	 * draw a number from a Gaussian distribution.
+	 * @param μ mean
+	 * @param σ standard deviation
+	 * @return the number
+	 */
+	public static double normal(double μ, double σ) {
+		if (σ < 0)
+			throw new IllegalArgumentException("standard deviation must not be negative");
+		double u1 = Math.random();
+		double u2 = Math.random();
+		double z = Math.sqrt(-2*Math.log(u1))*Math.cos(2*Math.PI*u2);
+		return σ*z + μ;
+	}
+	
+	/**
+	 * draw a number from a Poisson distribution.
+	 * @param λ expectation value
+	 * @return the number
+	 */
+	public static int poisson(double λ) {
+		if (λ < 20)
+			throw new IllegalArgumentException("this approximation is bad for expectation < 20");
+		return (int) Math.round(Math.max(0, normal(λ, Math.sqrt(λ))));
+	}
 	
 	/**
 	 * a discrete representation of an unknown function, capable of evaluating in log time.

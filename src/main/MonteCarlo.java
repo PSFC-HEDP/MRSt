@@ -44,7 +44,7 @@ public class MonteCarlo {
 	private static final int STOPPING_DISTANCE_RESOLUTION = 64;
 	private static final double MIN_X = -40, MAX_X = 20; // histogram bounds [cm]
 	private static final double MIN_T = -20, MAX_T = 45; // histogram bounds [ns]
-	private static final double MAX_PRECISION = 10; // to save computation time, cap computations when we get this close
+	private static final double MAX_PRECISION = 100; // to save computation time, cap computations when we get this close
 	
 	private final double foilDistance; // z coordinate of midplane of foil [m]
 	private final double foilThickness; // thickness of foil [m]
@@ -138,22 +138,25 @@ public class MonteCarlo {
 		double[][] response = new double[positionBins.length][timeBins.length];
 		for (int i = 0; i < energies.length; i ++) { // for each input bin
 			for (int j = 0; j < times.length; j ++) {
-				double expNumParticles = counts[i][j]*this.efficiency(energies[i]); // read how many particles we should expect
-				double numParticles = expNumParticles; // TODO add some Poisson randomization
-				int numSimulations = (int) Math.min(numParticles, Math.pow(MAX_PRECISION, 2)); // but don't go crazy if we don't have to
-				double weight = numParticles/numSimulations; // just remember to weigh it properly if you reduce the number of particles
-				for (int k = 0; k < numSimulations; k ++) {
-					double[] xt = this.response(energies[i]*1e6, times[j]*1e-9); // do the simulation in SI
-					double x = xt[0]/1e-2, t = xt[1]/1e-9; // then convert to readable units
-					int positionBin = (int)Math.round(
-							(x - MIN_X)/(MAX_X - MIN_X)*(positionBins.length-1)); // locate its bin
-					if (positionBin < 0)                    positionBin = 0;
-					if (positionBin >= positionBins.length) positionBin = positionBins.length-1;
-					int timeBin = (int)Math.round(
-							(t - cosyT0/1e-9 - MIN_T)/(MAX_T - MIN_T)*(timeBins.length-1));
-					if (timeBin < 0)                timeBin = 0;
-					if (timeBin >= timeBins.length) timeBin = timeBins.length-1;
-					response[positionBin][timeBin] += weight; // finally, add it to the tally
+				if (counts[i][j] > 0) {
+					double expNumParticles = counts[i][j]*this.efficiency(energies[i]); // read how many particles we should expect
+					int numParticles = NumericalMethods.poisson(expNumParticles); // draw the "actual" number of particles from an approximate Poisson distribution
+					int numSimulations = (int) Math.min(
+							numParticles, Math.pow(MAX_PRECISION, 2)); // but don't go crazy if we don't have to
+					double weight = (double) numParticles / numSimulations; // just remember to weigh it properly if you reduce the number of particles
+					for (int k = 0; k < numSimulations; k ++) {
+						double[] xt = this.response(energies[i]*1e6, times[j]*1e-9); // do the simulation in SI
+						double x = xt[0]/1e-2, t = xt[1]/1e-9; // then convert to readable units
+						int positionBin = (int)Math.round(
+								(x - MIN_X)/(MAX_X - MIN_X)*(positionBins.length-1)); // locate its bin
+						if (positionBin < 0)                    positionBin = 0;
+						if (positionBin >= positionBins.length) positionBin = positionBins.length-1;
+						int timeBin = (int)Math.round(
+								(t - cosyT0/1e-9 - MIN_T)/(MAX_T - MIN_T)*(timeBins.length-1));
+						if (timeBin < 0)                timeBin = 0;
+						if (timeBin >= timeBins.length) timeBin = timeBins.length-1;
+						response[positionBin][timeBin] += weight; // finally, add it to the tally
+					}
 				}
 			}
 		}
@@ -290,8 +293,8 @@ public class MonteCarlo {
 				Particle.D, 3.0e-3, 0.3e-3, 80e-6,
 				10, 10, CSV.read(new File("data/stopping_power_deuterons.csv"), ','),
 				6e0, 4.0e-3, 20.0e-3, 12.45e6,
-				CSV.readCosyCoefficients(new File("data/MRSt_IRF_FP tilted.txt"), 1),
-				CSV.readCosyExponents(new File("data/MRSt_IRF_FP tilted.txt"), 1), 70.3,
+				CSV.readCosyCoefficients(new File("data/MRSt_IRF_FP tilted.txt"), 3),
+				CSV.readCosyExponents(new File("data/MRSt_IRF_FP tilted.txt"), 3), 70.3,
 //				CSV.readCosyExponents(new File("data/MRSt_IRF_FP not tilted.txt")), 0,
 				100);
 //		for (double energy = 12e6; energy < 16e6; energy += 50e3) {
@@ -301,6 +304,9 @@ public class MonteCarlo {
 		double[][] spectrum = CSV.read(new File("data/test_spectrum.tsv"), '\t');
 		double[] timeAxis = CSV.readColumn(new File("data/test_times.tsv"));
 		double[] energyAxis = CSV.readColumn(new File("data/test_energies.tsv"));
+//		double[][] spectrum = CSV.read(new File("data/nsp_150327_16p26.txt"), '\t');
+//		double[] timeAxis = CSV.readColumn(new File("data/nsp_150327_16p26_time.txt"));
+//		double[] energyAxis = CSV.readColumn(new File("data/Energy bins.txt"));
 		System.out.println(Arrays.toString(timeAxis));
 		System.out.println(Arrays.toString(energyAxis));
 		System.out.println("[");
