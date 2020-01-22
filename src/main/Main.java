@@ -28,9 +28,14 @@ import java.io.FileReader;
 import java.util.Arrays;
 
 import javafx.application.Application;
+import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.Spinner;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
@@ -44,30 +49,117 @@ import javafx.stage.Stage;
  */
 public class Main extends Application {
 	
-	public static final int WIDTH = 800;
-	public static final int HEIGHT = 600;
-	
 	public static final int N_ROWS = 56;
 	public static final int M_COLS = 5;
 	
+	private static final Particle ION = Particle.D;
+	
+	private Spinner<Double> foilDistance;
+	private Spinner<Double> foilRadius;
+	private Spinner<Double> foilThickness;
+	private Spinner<Double> apertureDistance;
+	private Spinner<Double> apertureWidth;
+	private Spinner<Double> apertureHeight;
+	private Label cosyFile;
+	private Label timeBinFile;
+	private Label energyBinFile;
+	private Label spectrumFile;
+	
+	private double[][] cosyCoefficients;
+	private int[][] cosyExponents;
+	
 	
 	public void start(Stage stage) throws Exception {
-		BufferedReader in = new BufferedReader(new FileReader("data/MRSt_IRF_FP tilted.txt"));
-		double[][] matrix = new double[N_ROWS][M_COLS];
-		for (int i = 0; i < N_ROWS; i ++) {
-			String[] parts = in.readLine().split("\\s+");
-			for (int j = 0; j < M_COLS; j ++)
-				matrix[i][j] = Double.parseDouble(parts[j+1]);
-		}
-		in.close();
+		GridPane leftPane = new GridPane();
+		leftPane.setHgap(6);
+		leftPane.setVgap(6);
+		int row = 0;
 		
-		Text text = new Text(WIDTH, HEIGHT, Arrays.deepToString(matrix).replace("], [", "]\n["));
+		this.foilDistance = new Spinner<Double>(0.5, 10.0, 3.0);
+		leftPane.add(new Label("Foil distance"), 0, row);
+		leftPane.add(foilDistance, 1, row);
+		leftPane.add(new Label("mm"), 2, row);
+		row ++;
 		
-		ScrollPane scroll = new ScrollPane(text);
+		this.foilRadius = new Spinner<Double>(0.1, 1.0, 0.3); // TODO maybe throw a warning if the radius >~ the distance
+		leftPane.add(new Label("Foil radius"), 0, row);
+		leftPane.add(foilRadius, 1, row);
+		leftPane.add(new Label("mm"), 2, row);
+		row ++;
+		
+		this.foilThickness = new Spinner<Double>(10., 500., 80.);
+		leftPane.add(new Label("Foil thickness"), 0, row);
+		leftPane.add(foilThickness, 1, row);
+		leftPane.add(new Label("μm"), 2, row);
+		row ++;
+		
+		this.apertureDistance = new Spinner<Double>(1.0, 10.0, 6.0);
+		leftPane.add(new Label("Aper. distance"), 0, row);
+		leftPane.add(apertureDistance, 1, row);
+		leftPane.add(new Label("m"), 2, row);
+		row ++;
+		
+		this.apertureWidth = new Spinner<Double>(1.0, 50.0, 4.0);
+		leftPane.add(new Label("Aper. width"), 0, row);
+		leftPane.add(apertureWidth, 1, row);
+		leftPane.add(new Label("mm"), 2, row);
+		row ++;
+		
+		this.apertureHeight = new Spinner<Double>(1.0, 50.0, 20.0);
+		leftPane.add(new Label("Aper. height"), 0, row);
+		leftPane.add(apertureHeight, 1, row);
+		leftPane.add(new Label("mm"), 2, row);
+		row ++;
+		
+		leftPane.add(new Label("COSY matrix file:"), 0, row, 3, 1);
+		row ++;
+		
+		cosyFile = new Label("No file chosen.");
+		Button chooseCosyFile = new Button("Choose...");
+		leftPane.add(new HBox(3, chooseCosyFile, cosyFile), 0, row, 3, 1);
+		row ++;
+		
+		VBox middlePane = new VBox(6);
+		
+		GridPane middleSubpane = new GridPane();
+		middleSubpane.setHgap(6);
+		middleSubpane.setVgap(6);
+		middlePane.getChildren().add(middleSubpane);
+		row = 0;
+		
+		middleSubpane.add(new Label("Time bin file:"), 0, row, 3, 1);
+		row ++;
+		
+		timeBinFile = new Label("No file chosen.");
+		Button chooseTimeBinFile = new Button("Choose...");
+		middleSubpane.add(new HBox(3, chooseTimeBinFile, timeBinFile), 0, row, 3, 1);
+		row ++;
+		
+		middleSubpane.add(new Label("Energy bin file:"), 0, row, 3, 1);
+		row ++;
+		
+		energyBinFile = new Label("No file chosen.");
+		Button chooseEnergyBinFile = new Button("Choose...");
+		middleSubpane.add(new HBox(3, chooseEnergyBinFile, energyBinFile), 0, row, 3, 1);
+		row ++;
+		
+		middleSubpane.add(new Label("Spectrum file:"), 0, row, 3, 1);
+		row ++;
+		
+		spectrumFile = new Label("No file chosen.");
+		Button chooseSpectrumFile = new Button("Choose...");
+		middleSubpane.add(new HBox(3, chooseSpectrumFile, spectrumFile), 0, row, 3, 1);
+		row ++;
+		
+		VBox rightPane = new VBox(6);
+		
+		Button execute = new Button("Compute!");
+		rightPane.getChildren().add(execute);
 		
 		StackPane root = new StackPane();
-		root.getChildren().add(new VBox(5, scroll, new Button("button")));
-		Scene scene = new Scene(root, WIDTH, HEIGHT);
+		root.setPadding(new Insets(12));
+		root.getChildren().add(new HBox(12, leftPane, middlePane, rightPane));
+		Scene scene = new Scene(root);
 		
 		stage.setTitle("MRSt");
 		stage.setScene(scene);

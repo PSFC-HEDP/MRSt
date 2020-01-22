@@ -42,8 +42,8 @@ public class MonteCarlo {
 	private static final double SPEED_OF_LIGHT = 2.99792458e8;
 	
 	private static final int STOPPING_DISTANCE_RESOLUTION = 64;
-	private static final double MIN_X = -40, MAX_X = 20; // histogram bounds [cm]
-	private static final double MIN_T = -20, MAX_T = 45; // histogram bounds [ns]
+	private static final double MIN_X = -80, MAX_X = 20; // histogram bounds [cm]
+	private static final double MIN_T = -20, MAX_T = 130; // histogram bounds [ns]
 	private static final double MAX_SPECTRAL_DENSITY = 1e5; // to save computation time, cap computations when we get this dense
 	
 	private final double foilDistance; // z coordinate of midplane of foil [m]
@@ -75,7 +75,7 @@ public class MonteCarlo {
 	 */
 	public MonteCarlo(
 			Particle ion, double foilDistance, double foilRadius, double foilThickness,
-			double foilDensity, double foilCrossSection, double[][] stoppingPowerData,
+			double[][] stoppingPowerData,
 			double apertureDistance, double apertureWidth, double apertureHeight,
 			double referenceEnergy, double[][] cosyCoefficients, int[][] cosyExponents,
 			double focalTilt, int numBins) {
@@ -169,7 +169,7 @@ public class MonteCarlo {
 						double x = xt[0]/1e-2, t = xt[1]/1e-9; // then convert to readable units
 						
 						int xBin = (int) (
-								(x - MIN_X)/(MAX_X - MIN_X)*response.length); // locate its bin TODO change these to widths
+								(x - MIN_X)/(MAX_X - MIN_X)*response.length); // locate its bin
 						if (xBin < 0)                      xBin = 0;
 						if (xBin >= response.length) xBin = response.length-1;
 						int tBin = (int) (
@@ -341,7 +341,7 @@ public class MonteCarlo {
 	public static void main(String[] args) throws NumberFormatException, IOException {
 		MonteCarlo sim = new MonteCarlo(
 				Particle.D, 3.0e-3, 0.3e-3, 80e-6,
-				10, 10, CSV.read(new File("data/stopping_power_deuterons.csv"), ','),
+				CSV.read(new File("data/stopping_power_deuterons.csv"), ','),
 				6e0, 4.0e-3, 20.0e-3, 12.45e6,
 				CSV.readCosyCoefficients(new File("data/MRSt_IRF_FP tilted.txt"), 2),
 				CSV.readCosyExponents(new File("data/MRSt_IRF_FP tilted.txt"), 2), 70.3,
