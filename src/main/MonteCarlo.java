@@ -133,28 +133,36 @@ public class MonteCarlo {
 	 * compute the total response to an implosion with the given neutron spectrum.
 	 * @param energies the energies that describe the rows of counts [MeV]
 	 * @param times the times that describe the columns of counts [ns]
-	 * @param counts the time- and energy- resolved neutron spectrum in number of neutrons. each
-	 * row corresponds to one element of energies, and each column one element of times.
+	 * @param spectrum the time- and energy- resolved neutron spectrum in number of neutrons. each
+	 * row corresponds to one element of energies, and each column one element of times. [#/MeV/ns]
 	 * @return the time- and position- resolved ion spectrum measured at the focal plane. each
 	 * row corresponds to one element of this.energyBins, and each column corresponds to one
 	 * element of this.timeBins.
 	 */
-	public double[][] response(double[] energies, double[] times, double[][] counts) {
+	public double[][] response(double[] energies, double[] times, double[][] spectrum) {
 		double[][] response = new double[positionBins.length][timeBins.length];
-		for (int i = 0; i < energies.length; i ++) { // for each input bin
-			for (int j = 0; j < times.length; j ++) {
-				if (counts[i][j] > 0) {
-					double energy = energies[i]*1e6, time = times[j]*1e-9; // convert to more convenient units
-					double expNumParticles = counts[i][j]*this.efficiency(energy); // read how many particles we should expect
+		for (int i = 0; i < energies.length-1; i ++) { // for each input bin
+			for (int j = 0; j < times.length-1; j ++) {
+				if (spectrum[i][j] > 0) {
+					double absSpectrum = spectrum[i][j] *
+							(energies[i+1] - energies[i]) * (times[j+1] - times[j]); // convert the spectral value from density to count
+					double energy0 = energies[i]*1e6, energy1 = energies[i+1]*1e6;
+					double time0 = times[j]*1e-9, time1 = times[j+1]*1e-9; // pull out the bounds, being careful of units
+					
+					double expNumParticles = absSpectrum*this.efficiency((energy0 + energy1)/2); // read how many particles we should expect
 					int numParticles = NumericalMethods.poisson(expNumParticles); // draw the "actual" number of particles from an approximate Poisson distribution
 					int numSimulations = (int) Math.min(
 							numParticles, Math.pow(MAX_PRECISION, 2)); // but don't go crazy if we don't have to
 					double weight = (double) numParticles / numSimulations; // just remember to weigh it properly if you reduce the number of particles
+					
 					for (int k = 0; k < numSimulations; k ++) {
-						double[] xt = this.response(energy, time);
+						double energy = energy0 + Math.random()*(energy1 - energy0); // randomly choose values from the bin
+						double time = time0 + Math.random()*(time1 - time0);
+						double[] xt = this.response(energy, time); // do the simulation!
 						double x = xt[0]/1e-2, t = xt[1]/1e-9; // then convert to readable units
+						
 						int positionBin = (int)Math.round(
-								(x - MIN_X)/(MAX_X - MIN_X)*(positionBins.length-1)); // locate its bin
+								(x - MIN_X)/(MAX_X - MIN_X)*(positionBins.length-1)); // locate its bin TODO change these to widths
 						if (positionBin < 0)                    positionBin = 0;
 						if (positionBin >= positionBins.length) positionBin = positionBins.length-1;
 						int timeBin = (int)Math.round(
@@ -290,6 +298,30 @@ public class MonteCarlo {
 	}
 	
 	/**
+	 * convert a time-cumulative spectrum, as read from an input file, into an array of count
+	 * densities. also, edit energies to make it bin edges. this will remove the last row of
+	 * energies. given that the last row is over 29 MeV, I think that's fine.
+	 * @param timeAxis the time bin boundaries [ns]
+	 * @param energyAxis the energy bin midpoints [MeV]
+	 * @param spectrum array of the neutron spectrum integrated in time [#/MeV]
+	 * @return spectrum array of the neutron spectrum [#/MeV/ns]
+	 */
+	private static double[][]
+			correctSpectrum(double[] times, double[] energies, double[][] spectrum) {
+		for (int i = energies.length-1; i > 0; i --) // start by fixing the energies
+			energies[i] = (energies[i-1] + energies[i])/2;
+		energies[0] = 2*energies[0] - energies[1]; // for the last one, assume equal spacing
+		
+		double[][] output = new double[energies.length-1][times.length-1];
+		for (int i = 0; i < energies.length-1; i ++) { // now for the spectrum
+			for (int j = 0; j < times.length-1; j ++)
+				output[i][j] = (spectrum[i][j+1] - spectrum[i][j])/(times[j+1] - times[j]); // you're just taking this derivative
+		}
+		
+		return output;
+	}
+
+	/**
 	 * @param args
 	 * @throws IOException 
 	 * @throws NumberFormatException 
@@ -313,6 +345,7 @@ public class MonteCarlo {
 //		double[][] spectrum = CSV.read(new File("data/nsp_150327_16p26.txt"), '\t');
 //		double[] timeAxis = CSV.readColumn(new File("data/nsp_150327_16p26_time.txt"));
 //		double[] energyAxis = CSV.readColumn(new File("data/Energy bins.txt"));
+		spectrum = correctSpectrum(timeAxis, energyAxis, spectrum);
 		System.out.println(Arrays.toString(timeAxis));
 		System.out.println(Arrays.toString(energyAxis));
 		System.out.println("[");
