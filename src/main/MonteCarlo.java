@@ -58,8 +58,6 @@ public class MonteCarlo {
 	private final Particle ion; // either D or P, but probably D
 	
 	private final double probHitsFoil; // probability that the neutron goes through the foil
-	private final double probMakesIon; // probability that the neutron interacts with the foil and releases a deuteron
-	private final double probHitsAperture; // probability that a secondary deuteron goes through the aperture
 	
 	private final DiscreteFunction distanceVsEnergy;
 	private final DiscreteFunction energyVsDistance;
@@ -98,9 +96,6 @@ public class MonteCarlo {
 		
 		double foilMaxAngle = Math.atan(foilRadius/foilDistance);
 		this.probHitsFoil = (1 - Math.cos(foilMaxAngle))/2;
-		this.probMakesIon = foilDensity*foilCrossSection*foilThickness; // TODO: this should be a function of energy
-		this.probHitsAperture = apertureWidth*apertureHeight /
-				(4*Math.PI*Math.pow(apertureDistance-foilDistance,2)); // TODO: account for anisotropic scattering
 		
 		double[] dxdE = new double[stoppingPowerData.length]; // integrate the stopping power to get stopping distance
 		double[] E = new double[stoppingPowerData.length];
@@ -120,8 +115,18 @@ public class MonteCarlo {
 		}
 	}
 	
+	/**
+	 * compute the probability that a given neutron released at this energy will spawn an ion
+	 * and knock that ion through the aperture.
+	 * @param energy energy of the released particles [eV]
+	 * @return the fraction of particles that are worth simulating
+	 */
 	public double efficiency(double energy) {
-		return probHitsFoil * probMakesIon * probHitsAperture;
+		double n = 0.08e2; // I'm not sure what units this has or whence it came
+		double dσdΩ = 4.3228e3/Math.sqrt(energy) - 0.6523; // same with these ones
+		double dΩ = apertureWidth*apertureHeight / (apertureDistance*apertureDistance);
+		double l = foilThickness; // assume the foil is thin so we don't have to worry about multiple collisions
+		return probHitsFoil * n*dσdΩ*dΩ*l;
 	}
 	
 	/**
@@ -139,13 +144,14 @@ public class MonteCarlo {
 		for (int i = 0; i < energies.length; i ++) { // for each input bin
 			for (int j = 0; j < times.length; j ++) {
 				if (counts[i][j] > 0) {
-					double expNumParticles = counts[i][j]*this.efficiency(energies[i]); // read how many particles we should expect
+					double energy = energies[i]*1e6, time = times[j]*1e-9; // convert to more convenient units
+					double expNumParticles = counts[i][j]*this.efficiency(energy); // read how many particles we should expect
 					int numParticles = NumericalMethods.poisson(expNumParticles); // draw the "actual" number of particles from an approximate Poisson distribution
 					int numSimulations = (int) Math.min(
 							numParticles, Math.pow(MAX_PRECISION, 2)); // but don't go crazy if we don't have to
 					double weight = (double) numParticles / numSimulations; // just remember to weigh it properly if you reduce the number of particles
 					for (int k = 0; k < numSimulations; k ++) {
-						double[] xt = this.response(energies[i]*1e6, times[j]*1e-9); // do the simulation in SI
+						double[] xt = this.response(energy, time);
 						double x = xt[0]/1e-2, t = xt[1]/1e-9; // then convert to readable units
 						int positionBin = (int)Math.round(
 								(x - MIN_X)/(MAX_X - MIN_X)*(positionBins.length-1)); // locate its bin
@@ -293,9 +299,9 @@ public class MonteCarlo {
 				Particle.D, 3.0e-3, 0.3e-3, 80e-6,
 				10, 10, CSV.read(new File("data/stopping_power_deuterons.csv"), ','),
 				6e0, 4.0e-3, 20.0e-3, 12.45e6,
-				CSV.readCosyCoefficients(new File("data/MRSt_IRF_FP tilted.txt"), 3),
-				CSV.readCosyExponents(new File("data/MRSt_IRF_FP tilted.txt"), 3), 70.3,
-//				CSV.readCosyExponents(new File("data/MRSt_IRF_FP not tilted.txt")), 0,
+				CSV.readCosyCoefficients(new File("data/MRSt_IRF_FP tilted.txt"), 2),
+				CSV.readCosyExponents(new File("data/MRSt_IRF_FP tilted.txt"), 2), 70.3,
+//				CSV.readCosyExponents(new File("data/MRSt_IRF_FP not tilted.txt"), 2), 0,
 				100);
 //		for (double energy = 12e6; energy < 16e6; energy += 50e3) {
 //			double[] rt = sim.response(energy, 0);
