@@ -53,9 +53,20 @@ public class NumericalMethods {
 	 * @return the number
 	 */
 	public static int poisson(double λ) {
-		if (λ < 20)
-			throw new IllegalArgumentException("this approximation is bad for expectation < 20");
-		return (int) Math.round(Math.max(0, normal(λ, Math.sqrt(λ))));
+		if (λ < 20) {
+			double u = Math.random()*Math.exp(λ);
+			long kFact = 1;
+			for (int k = 0; k < 40; k ++) {
+				if (k != 0) kFact *= k;
+				u -= Math.pow(λ, k)/kFact;
+				if (u < 0)
+					return k;
+			}
+			return 40;
+		}
+		else { // use Gaussian approximation for high expectations
+			return (int) Math.round(Math.max(0, normal(λ, Math.sqrt(λ))));
+		}
 	}
 	
 	/**

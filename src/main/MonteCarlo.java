@@ -44,7 +44,7 @@ public class MonteCarlo {
 	private static final int STOPPING_DISTANCE_RESOLUTION = 64;
 	private static final double MIN_X = -40, MAX_X = 20; // histogram bounds [cm]
 	private static final double MIN_T = -20, MAX_T = 45; // histogram bounds [ns]
-	private static final double MAX_PRECISION = 100; // to save computation time, cap computations when we get this close
+	private static final double MAX_SPECTRAL_DENSITY = 1e5; // to save computation time, cap computations when we get this dense
 	
 	private final double foilDistance; // z coordinate of midplane of foil [m]
 	private final double foilThickness; // thickness of foil [m]
@@ -140,6 +140,13 @@ public class MonteCarlo {
 	 * element of this.timeBins.
 	 */
 	public double[][] response(double[] energies, double[] times, double[][] spectrum) {
+		int maxSimsPerBin = (int)Math.ceil(MAX_SPECTRAL_DENSITY * // come up with a cap on simulation numbers
+				(energies[energies.length-1] - energies[0])/(energies.length-1) *
+				(times[times.length-1] - times[0])/(times.length-1)); // assume roughly even spacing so we don't have to keep calculating this
+		
+		long startTime = System.currentTimeMillis();
+		int masterCount = 0;
+		
 		double[][] response = new double[positionBins.length-1][timeBins.length-1];
 		for (int i = 0; i < energies.length-1; i ++) { // for each input bin
 			for (int j = 0; j < times.length-1; j ++) {
@@ -152,7 +159,7 @@ public class MonteCarlo {
 					double expNumParticles = absSpectrum*this.efficiency((energy0 + energy1)/2); // read how many particles we should expect
 					int numParticles = NumericalMethods.poisson(expNumParticles); // draw the "actual" number of particles from an approximate Poisson distribution
 					int numSimulations = (int) Math.min(
-							numParticles, Math.pow(MAX_PRECISION, 2)); // but don't go crazy if we don't have to
+							numParticles, Math.pow(maxSimsPerBin, 2)); // but don't go crazy if we don't have to
 					double weight = (double) numParticles / numSimulations; // just remember to weigh it properly if you reduce the number of particles
 					
 					for (int k = 0; k < numSimulations; k ++) {
@@ -170,10 +177,15 @@ public class MonteCarlo {
 						if (tBin < 0)                   tBin = 0;
 						if (tBin >= response[0].length) tBin = response[0].length-1;
 						response[xBin][tBin] += weight; // finally, add it to the tally
+						masterCount ++;
 					}
 				}
 			}
 		}
+		
+		long endTime = System.currentTimeMillis();
+		System.out.println(String.format(Locale.US, "completed %d simulations in %.2f minutes",
+				masterCount, (endTime - startTime)/60000.));
 		return response;
 	}
 	
@@ -339,12 +351,9 @@ public class MonteCarlo {
 //			double[] rt = sim.response(energy, 0);
 //			System.out.println(String.format(Locale.US, "[%g, %g, %g],", energy, rt[0], rt[1]-sim.cosyT0));
 //		}
-		double[][] spectrum = CSV.read(new File("data/test_spectrum.tsv"), '\t');
-		double[] timeAxis = CSV.readColumn(new File("data/test_times.tsv"));
-		double[] energyAxis = CSV.readColumn(new File("data/test_energies.tsv"));
-//		double[][] spectrum = CSV.read(new File("data/nsp_150327_16p26.txt"), '\t');
-//		double[] timeAxis = CSV.readColumn(new File("data/nsp_150327_16p26_time.txt"));
-//		double[] energyAxis = CSV.readColumn(new File("data/Energy bins.txt"));
+		double[][] spectrum = CSV.read(new File("data/nsp_150327_16p26.txt"), '\t');
+		double[] timeAxis = CSV.readColumn(new File("data/nsp_150327_16p26_time.txt"));
+		double[] energyAxis = CSV.readColumn(new File("data/Energy bins.txt"));
 		spectrum = correctSpectrum(timeAxis, energyAxis, spectrum);
 		System.out.println(Arrays.toString(timeAxis));
 		System.out.println(Arrays.toString(energyAxis));
