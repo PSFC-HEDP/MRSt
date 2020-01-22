@@ -62,8 +62,8 @@ public class MonteCarlo {
 	private final DiscreteFunction distanceVsEnergy;
 	private final DiscreteFunction energyVsDistance;
 	
-	private final double[] positionBins; // centers of x bins for response function [cm]
-	private final double[] timeBins; // centers of time bins for response function [ns]
+	private final double[] positionBins; // endpoints of x bins for response function [cm]
+	private final double[] timeBins; // endpoints of time bins for response function [ns]
 	
 	/**
 	 * perform some preliminary calculations for the provided configuration.
@@ -107,11 +107,11 @@ public class MonteCarlo {
 		this.distanceVsEnergy = distanceVsEnergyRaw.indexed(STOPPING_DISTANCE_RESOLUTION);
 		this.energyVsDistance = distanceVsEnergyRaw.inv().indexed(STOPPING_DISTANCE_RESOLUTION);
 		
-		this.timeBins = new double[numBins]; // linearly space the output bins
-		this.positionBins = new double[numBins];
-		for (int i = 0; i < numBins; i ++) {
-			this.timeBins[i] = cosyT0/1e-9 + MIN_T + i*(MAX_T - MIN_T)/(numBins-1);
-			this.positionBins[i] = MIN_X + i*(MAX_X - MIN_X)/(numBins-1);
+		this.timeBins = new double[numBins+1]; // linearly space the output bins
+		this.positionBins = new double[numBins+1];
+		for (int i = 0; i <= numBins; i ++) {
+			this.timeBins[i] = cosyT0/1e-9 + MIN_T + i*(MAX_T - MIN_T)/numBins;
+			this.positionBins[i] = MIN_X + i*(MAX_X - MIN_X)/numBins;
 		}
 	}
 	
@@ -140,7 +140,7 @@ public class MonteCarlo {
 	 * element of this.timeBins.
 	 */
 	public double[][] response(double[] energies, double[] times, double[][] spectrum) {
-		double[][] response = new double[positionBins.length][timeBins.length];
+		double[][] response = new double[positionBins.length-1][timeBins.length-1];
 		for (int i = 0; i < energies.length-1; i ++) { // for each input bin
 			for (int j = 0; j < times.length-1; j ++) {
 				if (spectrum[i][j] > 0) {
@@ -161,15 +161,15 @@ public class MonteCarlo {
 						double[] xt = this.response(energy, time); // do the simulation!
 						double x = xt[0]/1e-2, t = xt[1]/1e-9; // then convert to readable units
 						
-						int positionBin = (int)Math.round(
-								(x - MIN_X)/(MAX_X - MIN_X)*(positionBins.length-1)); // locate its bin TODO change these to widths
-						if (positionBin < 0)                    positionBin = 0;
-						if (positionBin >= positionBins.length) positionBin = positionBins.length-1;
-						int timeBin = (int)Math.round(
-								(t - cosyT0/1e-9 - MIN_T)/(MAX_T - MIN_T)*(timeBins.length-1));
-						if (timeBin < 0)                timeBin = 0;
-						if (timeBin >= timeBins.length) timeBin = timeBins.length-1;
-						response[positionBin][timeBin] += weight; // finally, add it to the tally
+						int xBin = (int) (
+								(x - MIN_X)/(MAX_X - MIN_X)*response.length); // locate its bin TODO change these to widths
+						if (xBin < 0)                      xBin = 0;
+						if (xBin >= response.length) xBin = response.length-1;
+						int tBin = (int) (
+								(t - cosyT0/1e-9 - MIN_T)/(MAX_T - MIN_T)*response[0].length);
+						if (tBin < 0)                   tBin = 0;
+						if (tBin >= response[0].length) tBin = response[0].length-1;
+						response[xBin][tBin] += weight; // finally, add it to the tally
 					}
 				}
 			}
