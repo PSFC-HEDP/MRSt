@@ -77,9 +77,6 @@ public class Main extends Application {
 	private double[] energyBins;
 	private double[][] spectrum;
 	
-	private ImageView inputPlot;
-	private ImageView outputPlot;
-	
 	
 	/**
 	 * build the GUI and display it.
@@ -185,13 +182,6 @@ public class Main extends Application {
 		}), 0, row, 3, 1);
 		row ++;
 		
-		this.inputPlot = new ImageView();
-		inputPlot.setFitWidth(COLUMN_WIDTH);
-		inputPlot.setPreserveRatio(true);
-		middlePane.getChildren().add(inputPlot);
-		
-		VBox rightPane = new VBox(6);
-		
 		this.stoppingPowerData = CSV.read(STOPPING_POWER_FILE, ',');
 		
 		Button execute = new Button("Compute!");
@@ -203,7 +193,6 @@ public class Main extends Application {
 						apertureWidth.getValue()*1e-3, apertureHeight.getValue()*1e-3, COSY_REFERENCE_ENERGY,
 						cosyCoefficients, cosyExponents, focalPlaneTilt.getValue(), NUM_BINS);
 				final double[][] response = mc.response(energyBins, timeBins, spectrum);
-				Image img = null;
 				try {
 					CSV.writeColumn(mc.getTimeBins(), new File("working/output_x.csv"));
 					CSV.writeColumn(mc.getPositionBins(), new File("working/output_y.csv"));
@@ -213,29 +202,17 @@ public class Main extends Application {
 					while (plotProcess.isAlive()) {}
 					if (plotProcess.exitValue() != 0)
 						System.err.println(plotProcess.getErrorStream());
-					img = new Image(new FileInputStream(new File("working/output.png")));
 				} catch (IOException e) {
 					System.err.println("could not plot. oops.");
 					e.printStackTrace(System.err);
 				}
-				if (img != null) {
-					final Image finalImg = img;
-					Platform.runLater(() -> {
-						outputPlot.setImage(finalImg);
-					});
-				}
 			}).start();
 		});
-		rightPane.getChildren().add(execute);
-		
-		this.outputPlot = new ImageView();
-		outputPlot.setFitWidth(COLUMN_WIDTH);
-		outputPlot.setPreserveRatio(true);
-		rightPane.getChildren().add(outputPlot);
+		middlePane.getChildren().add(execute);
 		
 		StackPane root = new StackPane();
 		root.setPadding(new Insets(12));
-		root.getChildren().add(new HBox(12, leftPane, middlePane, rightPane));
+		root.getChildren().add(new HBox(12, leftPane, middlePane));
 		Scene scene = new Scene(root);
 		
 		stage.setTitle("MRSt");

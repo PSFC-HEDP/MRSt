@@ -94,9 +94,6 @@ public class MonteCarlo {
 		this.cosyExponents = cosyExponents;
 		this.ion = ion;
 		
-		System.out.println(focalPlaneAngle);
-		System.out.println(cosyCoefficients[6][0]);
-		
 		double foilMaxAngle = Math.atan(foilRadius/foilDistance);
 		this.probHitsFoil = (1 - Math.cos(foilMaxAngle))/2;
 		
