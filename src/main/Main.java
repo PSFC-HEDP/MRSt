@@ -32,7 +32,6 @@ import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Label;
-import javafx.scene.control.Spinner;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
@@ -251,7 +250,10 @@ public class Main extends Application {
 				}
 			}
 		});
-		return new HBox(3, button, label);
+		Region output = new HBox(3, button, label);
+		label.setMaxWidth(250 - button.getPrefWidth());
+		output.setPrefWidth(250);
+		return output;
 	}
 	
 	
