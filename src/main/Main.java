@@ -25,13 +25,20 @@ package main;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
+import java.util.logging.StreamHandler;
+
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.TextArea;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
@@ -51,9 +58,12 @@ public class Main extends Application {
 	private static final Particle ION = Particle.D;
 	private static final File STOPPING_POWER_FILE = new File("data/stopping_power_deuterons.csv");
 	private static final double COSY_REFERENCE_ENERGY = 12.45e6;
-	private static final int NUM_BINS = 120;
+	private static final int NUM_BINS = 200;
+	private static final int SPACING_0 = 16;
+	private static final int SPACING_1 = 10;
+	private static final int SPACING_2 = 4;
 	
-	private Spinner<Double> foilDistance; // TODO: replace with good spinners
+	private Spinner<Double> foilDistance;
 	private Spinner<Double> foilRadius;
 	private Spinner<Double> foilThickness;
 	private Spinner<Double> apertureDistance;
@@ -67,6 +77,7 @@ public class Main extends Application {
 	private double[] timeBins;
 	private double[] energyBins;
 	private double[][] spectrum;
+	private Logger logger;
 	
 	
 	/**
@@ -76,8 +87,8 @@ public class Main extends Application {
 	 */
 	public void start(Stage stage) throws NumberFormatException, IOException {
 		GridPane leftPane = new GridPane();
-		leftPane.setHgap(6);
-		leftPane.setVgap(6);
+		leftPane.setHgap(SPACING_1);
+		leftPane.setVgap(SPACING_1);
 		int row = 0;
 		
 		this.foilDistance = new Spinner<Double>(0.5, 10.0, 3.0, 0.1);
@@ -135,42 +146,28 @@ public class Main extends Application {
 		leftPane.add(order, 1, row);
 		row ++;
 		
-		leftPane.add(new Label("COSY data file:"), 0, row, 3, 1);
-		row ++;
-		leftPane.add(chooseFileWidget(stage, (file) -> {
+		leftPane.add(chooseFileWidget("COSY data file:", stage, (file) -> {
 			this.cosyCoefficients = CSV.readCosyCoefficients(file, order.getValue());
 			this.cosyExponents = CSV.readCosyExponents(file, order.getValue());
 		}), 0, row, 3, 1);
 		row ++;
 		
-		VBox middlePane = new VBox(6);
+		VBox rightPane = new VBox(SPACING_1);
 		
-		GridPane middleSubpane = new GridPane();
-		middleSubpane.setHgap(6);
-		middleSubpane.setVgap(6);
-		middlePane.getChildren().add(middleSubpane);
-		row = 0;
-		
-		middleSubpane.add(new Label("Energy bin file:"), 0, row, 3, 1);
-		row ++;
-		middleSubpane.add(chooseFileWidget(stage, (file) -> {
+		rightPane.getChildren().add(chooseFileWidget("Energy bin file:", stage, (file) -> {
 			this.energyBins = CSV.readColumn(file);
-		}), 0, row, 3, 1);
+		}));
 		row ++;
 		
-		middleSubpane.add(new Label("Time bin file:"), 0, row, 3, 1);
-		row ++;
-		middleSubpane.add(chooseFileWidget(stage, (file) -> {
+		rightPane.getChildren().add(chooseFileWidget("Time bin file:", stage, (file) -> {
 			this.timeBins = CSV.readColumn(file);
-		}), 0, row, 3, 1);
+		}));
 		row ++;
 		
-		middleSubpane.add(new Label("Spectrum file:"), 0, row, 3, 1);
-		row ++;
-		middleSubpane.add(chooseFileWidget(stage, (file) -> {
+		rightPane.getChildren().add(chooseFileWidget("Spectrum file:", stage, (file) -> {
 			this.spectrum = CSV.read(file, '\t');
 			this.spectrum = MonteCarlo.correctSpectrum(timeBins, energyBins, spectrum); // TODO: move this part to a separate callback where it is also plotted
-		}), 0, row, 3, 1);
+		}));
 		row ++;
 		
 		this.stoppingPowerData = CSV.read(STOPPING_POWER_FILE, ',');
@@ -182,22 +179,35 @@ public class Main extends Application {
 						ION, foilDistance.getValue()*1e-3, foilRadius.getValue()*1e-3,
 						foilThickness.getValue()*1e-6, stoppingPowerData, apertureDistance.getValue()*1e0,
 						apertureWidth.getValue()*1e-3, apertureHeight.getValue()*1e-3, COSY_REFERENCE_ENERGY,
-						cosyCoefficients, cosyExponents, focalPlaneTilt.getValue(), NUM_BINS);
+						cosyCoefficients, cosyExponents, focalPlaneTilt.getValue(), NUM_BINS, logger);
 				final double[][] response = mc.response(energyBins, timeBins, spectrum);
 				try {
 					plotHeatmap(timeBins, energyBins, spectrum, "Time (ns)", "Energy (MeV)", "Spectrum");
 					plotHeatmap(mc.getTimeBins(), mc.getPositionBins(), response, "Time (ns)", "Position (cm)", "Response");
 				} catch (IOException e) {
-					System.err.println("could not plot. oops.");
-					e.printStackTrace(System.err);
+					logger.severe(e.getMessage());
 				}
 			}).start();
 		});
-		middlePane.getChildren().add(execute);
+		rightPane.getChildren().add(execute);
+		
+		final TextArea console = new TextArea();
+		console.setEditable(false);
+		console.setPrefWidth(400);
+		logger = Logger.getLogger("main");
+		logger.addHandler(new StreamHandler() {
+			public void publish(LogRecord record) {
+				Platform.runLater(() -> {
+					console.appendText(String.format("%7s: %s\n",
+							record.getLevel().toString(), record.getMessage()));
+				});
+			}
+		});
+		rightPane.getChildren().add(console);
 		
 		StackPane root = new StackPane();
-		root.setPadding(new Insets(12));
-		root.getChildren().add(new HBox(12, leftPane, middlePane));
+		root.setPadding(new Insets(SPACING_0));
+		root.getChildren().add(new HBox(SPACING_0, leftPane, rightPane));
 		Scene scene = new Scene(root);
 		
 		stage.setTitle("MRSt");
@@ -216,7 +226,7 @@ public class Main extends Application {
 //		Process plotProcess = plotPB.start();
 //		while (plotProcess.isAlive()) {}
 //		if (plotProcess.exitValue() != 0)
-//			System.err.println(plotProcess.getErrorStream());
+//			logger.severe(plotProcess.getErrorStream());
 	}
 	
 	
@@ -227,7 +237,7 @@ public class Main extends Application {
 	 * @param bound
 	 * @return
 	 */
-	private static Region chooseFileWidget(Stage stage, Callback action) {
+	private static Region chooseFileWidget(String title, Stage stage, Callback action) {
 		Label label = new Label("No file chosen.");
 		Button button = new Button("Chose file…");
 		FileChooser fileChooser = new FileChooser();
@@ -250,10 +260,11 @@ public class Main extends Application {
 				}
 			}
 		});
-		Region output = new HBox(3, button, label);
+		HBox output = new HBox(SPACING_2, button, label);
 		label.setMaxWidth(250 - button.getPrefWidth());
 		output.setPrefWidth(250);
-		return output;
+		output.setAlignment(Pos.CENTER_LEFT);
+		return new VBox(SPACING_2, new Label(title), output);
 	}
 	
 	

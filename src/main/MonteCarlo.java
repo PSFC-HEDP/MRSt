@@ -27,6 +27,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Locale;
+import java.util.logging.Logger;
 
 import main.NumericalMethods.DiscreteFunction;
 
@@ -65,6 +66,8 @@ public class MonteCarlo {
 	private final double[] positionBins; // endpoints of x bins for response function [cm]
 	private final double[] timeBins; // endpoints of time bins for response function [ns]
 	
+	private final Logger logger; // for logging
+	
 	/**
 	 * perform some preliminary calculations for the provided configuration.
 	 * @param stoppingPower a double[][] containing two columns and n rows. the zeroth column is
@@ -78,7 +81,7 @@ public class MonteCarlo {
 			double[][] stoppingPowerData,
 			double apertureDistance, double apertureWidth, double apertureHeight,
 			double referenceEnergy, double[][] cosyCoefficients, int[][] cosyExponents,
-			double focalTilt, int numBins) {
+			double focalTilt, int numBins, Logger logger) {
 		this.foilDistance = foilDistance;
 		this.foilThickness = foilThickness;
 		this.apertureDistance = apertureDistance;
@@ -113,6 +116,8 @@ public class MonteCarlo {
 			this.timeBins[i] = cosyT0/1e-9 + MIN_T + i*(MAX_T - MIN_T)/(2*numBins);
 		for (int i = 0; i <= numBins; i ++)
 			this.positionBins[i] = MIN_X + i*(MAX_X - MIN_X)/numBins;
+		
+		this.logger = logger;
 	}
 	
 	/**
@@ -140,7 +145,7 @@ public class MonteCarlo {
 	 * element of this.timeBins.
 	 */
 	public double[][] response(double[] energies, double[] times, double[][] spectrum) {
-		System.out.println("beginning monte carlo computation...");
+		if (logger != null) logger.info("beginning Monte Carlo computation.");
 		
 		int maxSimsPerBin = (int)Math.ceil(MAX_SPECTRAL_DENSITY * // come up with a cap on simulation numbers
 				(energies[energies.length-1] - energies[0])/(energies.length-1) *
@@ -186,8 +191,9 @@ public class MonteCarlo {
 		}
 		
 		long endTime = System.currentTimeMillis();
-		System.out.println(String.format(Locale.US, "completed %d simulations in %.2f minutes",
-				masterCount, (endTime - startTime)/60000.));
+		if (logger != null)
+			logger.info(String.format(Locale.US, "completed %d simulations in %.2f minutes.",
+					masterCount, (endTime - startTime)/60000.));
 		
 		for (int i = 0; i < response.length; i ++)
 			for (int j = 0; j < response[i].length; j ++) // finally,
@@ -205,20 +211,14 @@ public class MonteCarlo {
 	 * @return { signed hypot(x,z), t } [m, s].
 	 */
 	public double[] response(double energy, double time) {
-//		System.out.print("[");
-//		System.out.print(energy+", ");
 		double[] rCollision = chooseCollisionPosition();
 		
 		double[] rAperture = chooseAperturePosition();
 		
 		double[] vFinal = computeFinalVelocity(energy, rCollision, rAperture);
-//		double E = 1/2.*ion.mass*sqr(vFinal);
-//		System.out.print(E/Particle.P.charge+", ");
 		
 		double[] rFocal = computeFocusedPosition(rAperture, vFinal, time);
-//		System.out.print(rFocal[0]);
 		
-//		System.out.println("],");
 		return new double[] { rFocal[x]/Math.cos(focalPlaneAngle), rFocal[3] };
 	}
 	
@@ -359,10 +359,10 @@ public class MonteCarlo {
 				Particle.D, 3.0e-3, 0.3e-3, 80e-6,
 				CSV.read(new File("data/stopping_power_deuterons.csv"), ','),
 				6e0, 4.0e-3, 20.0e-3, 12.45e6,
-//				CSV.readCosyCoefficients(new File("data/MRSt_IRF_FP tilted.txt"), 2),
-				CSV.readCosyCoefficients(new File("data/MRSt_IRF_FP not tilted.txt"), 2),
-				CSV.readCosyExponents(new File("data/MRSt_IRF_FP not tilted.txt"), 2), 0,
-				100);
+				CSV.readCosyCoefficients(new File("data/MRSt_IRF_FP tilted.txt"), 3),
+//				CSV.readCosyCoefficients(new File("data/MRSt_IRF_FP not tilted.txt"), 3),
+				CSV.readCosyExponents(new File("data/MRSt_IRF_FP tilted.txt"), 3), 70.3,
+				100, null);
 //		for (double energy = 12e6; energy < 16e6; energy += 50e3) {
 //			double[] rt = sim.response(energy, 0);
 //			System.out.println(String.format(Locale.US, "[%g, %g, %g],", energy, rt[0], rt[1]-sim.cosyT0));
