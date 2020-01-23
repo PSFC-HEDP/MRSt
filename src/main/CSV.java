@@ -24,8 +24,10 @@
 package main;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -126,7 +128,7 @@ public class CSV {
 		}
 		return coefs;
 	}
-
+	
 	/**
 	 * read a COSY-generated file and return the exponents as an int matrix.
 	 * @param file the COSY file to open
@@ -149,6 +151,47 @@ public class CSV {
 			} // I know this is inefficient since it parsed the column as a double just to then cast it to an int and extract its digits, but this was what I came up with to minimize duplicated code.
 		}
 		return exps;
+	}
+	
+	/**
+	 * save the given matrix as a simple CSV file, using the given delimiter character.
+	 * @param data the numbers to be written
+	 * @param file the file at which to save
+	 * @param delimiter the delimiter character, usually ','
+	 * @throws IOException if the file cannot be found or permission is denied
+	 */
+	public static final void write(double[][] data, File file, char delimiter)
+			throws IOException {
+		BufferedWriter out = null;
+		try {
+			out = new BufferedWriter(new FileWriter(file));
+			for (int i = 0; i < data.length; i ++) {
+				for (int j = 0; j < data[i].length; j ++) {
+					out.append(Double.toString(data[i][j]));
+					if (j < data[i].length-1)
+						out.append(delimiter);
+					else
+						out.newLine();
+				}
+			}
+		} finally {
+			try {
+				out.close();
+			} catch (NullPointerException e) {}
+		}
+	}
+	
+	/**
+	 * save the given array as a column of newline-separated number strings.
+	 * @param data the numbers to write, in 1D form
+	 * @param file the file at which to save
+	 * @throws IOException if the file cannot be found or permission is denied
+	 */
+	public static final void writeColumn(double[] data, File file) throws IOException {
+		double[][] columnVector = new double[data.length][1];
+		for (int i = 0; i < data.length; i ++)
+			columnVector[i][0] = data[i];
+		write(columnVector, file, '\n');
 	}
 	
 }

@@ -44,7 +44,7 @@ public class MonteCarlo {
 	private static final int STOPPING_DISTANCE_RESOLUTION = 64;
 	private static final double MIN_X = -80, MAX_X = 20; // histogram bounds [cm]
 	private static final double MIN_T = -20, MAX_T = 130; // histogram bounds [ns]
-	private static final double MAX_SPECTRAL_DENSITY = 1e5; // to save computation time, cap computations when we get this dense
+	private static final double MAX_SPECTRAL_DENSITY = 1e4; // to save computation time, cap computations when we get this dense
 	
 	private final double foilDistance; // z coordinate of midplane of foil [m]
 	private final double foilThickness; // thickness of foil [m]
@@ -94,6 +94,9 @@ public class MonteCarlo {
 		this.cosyExponents = cosyExponents;
 		this.ion = ion;
 		
+		System.out.println(focalPlaneAngle);
+		System.out.println(cosyCoefficients[6][0]);
+		
 		double foilMaxAngle = Math.atan(foilRadius/foilDistance);
 		this.probHitsFoil = (1 - Math.cos(foilMaxAngle))/2;
 		
@@ -140,6 +143,8 @@ public class MonteCarlo {
 	 * element of this.timeBins.
 	 */
 	public double[][] response(double[] energies, double[] times, double[][] spectrum) {
+		System.out.println("beginning monte carlo computation...");
+		
 		int maxSimsPerBin = (int)Math.ceil(MAX_SPECTRAL_DENSITY * // come up with a cap on simulation numbers
 				(energies[energies.length-1] - energies[0])/(energies.length-1) *
 				(times[times.length-1] - times[0])/(times.length-1)); // assume roughly even spacing so we don't have to keep calculating this
@@ -186,6 +191,12 @@ public class MonteCarlo {
 		long endTime = System.currentTimeMillis();
 		System.out.println(String.format(Locale.US, "completed %d simulations in %.2f minutes",
 				masterCount, (endTime - startTime)/60000.));
+		
+		for (int i = 0; i < response.length; i ++)
+			for (int j = 0; j < response[i].length; j ++) // finally,
+				response[i][j] /=
+						(positionBins[i+1] - positionBins[i])*(timeBins[j+1] - timeBins[j]); // normalize this to a density
+		
 		return response;
 	}
 	
@@ -309,6 +320,14 @@ public class MonteCarlo {
 		return new double[] { rFocused[x], rFocused[y], rFocused[z], tPlane + tFocusing };
 	}
 	
+	public double[] getTimeBins() {
+		return this.timeBins;
+	}
+	
+	public double[] getPositionBins() {
+		return this.positionBins;
+	}
+	
 	/**
 	 * convert a time-cumulative spectrum, as read from an input file, into an array of count
 	 * densities. also, edit energies to make it bin edges. this will remove the last row of
@@ -318,7 +337,7 @@ public class MonteCarlo {
 	 * @param spectrum array of the neutron spectrum integrated in time [#/MeV]
 	 * @return spectrum array of the neutron spectrum [#/MeV/ns]
 	 */
-	private static double[][]
+	public static double[][]
 			correctSpectrum(double[] times, double[] energies, double[][] spectrum) {
 		for (int i = energies.length-1; i > 0; i --) // start by fixing the energies
 			energies[i] = (energies[i-1] + energies[i])/2;
@@ -343,9 +362,9 @@ public class MonteCarlo {
 				Particle.D, 3.0e-3, 0.3e-3, 80e-6,
 				CSV.read(new File("data/stopping_power_deuterons.csv"), ','),
 				6e0, 4.0e-3, 20.0e-3, 12.45e6,
-				CSV.readCosyCoefficients(new File("data/MRSt_IRF_FP tilted.txt"), 2),
-				CSV.readCosyExponents(new File("data/MRSt_IRF_FP tilted.txt"), 2), 70.3,
-//				CSV.readCosyExponents(new File("data/MRSt_IRF_FP not tilted.txt"), 2), 0,
+//				CSV.readCosyCoefficients(new File("data/MRSt_IRF_FP tilted.txt"), 2),
+				CSV.readCosyCoefficients(new File("data/MRSt_IRF_FP not tilted.txt"), 2),
+				CSV.readCosyExponents(new File("data/MRSt_IRF_FP not tilted.txt"), 2), 0,
 				100);
 //		for (double energy = 12e6; energy < 16e6; energy += 50e3) {
 //			double[] rt = sim.response(energy, 0);
@@ -355,12 +374,12 @@ public class MonteCarlo {
 		double[] timeAxis = CSV.readColumn(new File("data/nsp_150327_16p26_time.txt"));
 		double[] energyAxis = CSV.readColumn(new File("data/Energy bins.txt"));
 		spectrum = correctSpectrum(timeAxis, energyAxis, spectrum);
-		System.out.println(Arrays.toString(timeAxis));
-		System.out.println(Arrays.toString(energyAxis));
-		System.out.println("[");
-		for (int i = 0; i < spectrum.length; i ++)
-			System.out.println("\t"+Arrays.toString(spectrum[i])+",");
-		System.out.println("]");
+//		System.out.println(Arrays.toString(timeAxis));
+//		System.out.println(Arrays.toString(energyAxis));
+//		System.out.println("[");
+//		for (int i = 0; i < spectrum.length; i ++)
+//			System.out.println("\t"+Arrays.toString(spectrum[i])+",");
+//		System.out.println("]");
 		
 		double[][] response = sim.response(energyAxis, timeAxis, spectrum);
 		System.out.println(Arrays.toString(sim.timeBins));
