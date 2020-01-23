@@ -107,12 +107,12 @@ public class MonteCarlo {
 		this.distanceVsEnergy = distanceVsEnergyRaw.indexed(STOPPING_DISTANCE_RESOLUTION);
 		this.energyVsDistance = distanceVsEnergyRaw.inv().indexed(STOPPING_DISTANCE_RESOLUTION);
 		
-		this.timeBins = new double[numBins+1]; // linearly space the output bins
+		this.timeBins = new double[2*numBins+1]; // linearly space the output bins
 		this.positionBins = new double[numBins+1];
-		for (int i = 0; i <= numBins; i ++) {
-			this.timeBins[i] = cosyT0/1e-9 + MIN_T + i*(MAX_T - MIN_T)/numBins;
+		for (int i = 0; i <= 2*numBins; i ++)
+			this.timeBins[i] = cosyT0/1e-9 + MIN_T + i*(MAX_T - MIN_T)/(2*numBins);
+		for (int i = 0; i <= numBins; i ++)
 			this.positionBins[i] = MIN_X + i*(MAX_X - MIN_X)/numBins;
-		}
 	}
 	
 	/**

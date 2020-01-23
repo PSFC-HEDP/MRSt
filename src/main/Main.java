@@ -24,12 +24,8 @@
 package main;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
-
 import javafx.application.Application;
-import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
@@ -37,8 +33,6 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Spinner;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
@@ -55,12 +49,10 @@ import javafx.stage.Stage;
  */
 public class Main extends Application {
 	
-	private static final int COLUMN_WIDTH = 450;
-	
 	private static final Particle ION = Particle.D;
 	private static final File STOPPING_POWER_FILE = new File("data/stopping_power_deuterons.csv");
 	private static final double COSY_REFERENCE_ENERGY = 12.45e6;
-	private static final int NUM_BINS = 150;
+	private static final int NUM_BINS = 120;
 	
 	private Spinner<Double> foilDistance; // TODO: replace with good spinners
 	private Spinner<Double> foilRadius;
@@ -194,14 +186,8 @@ public class Main extends Application {
 						cosyCoefficients, cosyExponents, focalPlaneTilt.getValue(), NUM_BINS);
 				final double[][] response = mc.response(energyBins, timeBins, spectrum);
 				try {
-					CSV.writeColumn(mc.getTimeBins(), new File("working/output_x.csv"));
-					CSV.writeColumn(mc.getPositionBins(), new File("working/output_y.csv"));
-					CSV.write(response, new File("working/output_z.csv"), ',');
-					ProcessBuilder plotPB = new ProcessBuilder("python", "src/python/plot.py", "output", Integer.toString(COLUMN_WIDTH));
-					Process plotProcess = plotPB.start();
-					while (plotProcess.isAlive()) {}
-					if (plotProcess.exitValue() != 0)
-						System.err.println(plotProcess.getErrorStream());
+					plotHeatmap(timeBins, energyBins, spectrum, "Time (ns)", "Energy (MeV)", "Spectrum");
+					plotHeatmap(mc.getTimeBins(), mc.getPositionBins(), response, "Time (ns)", "Position (cm)", "Response");
 				} catch (IOException e) {
 					System.err.println("could not plot. oops.");
 					e.printStackTrace(System.err);
@@ -218,6 +204,20 @@ public class Main extends Application {
 		stage.setTitle("MRSt");
 		stage.setScene(scene);
 		stage.show();
+	}
+	
+	
+	private static void plotHeatmap(double[] x, double[] y, double[][] z,
+			String xlabel, String ylabel, String title) throws IOException {
+		CSV.writeColumn(x, new File(String.format("working/%s_x.csv", title)));
+		CSV.writeColumn(y, new File(String.format("working/%s_y.csv", title)));
+		CSV.write(z, new File(String.format("working/%s_z.csv", title)), ',');
+		ProcessBuilder plotPB = new ProcessBuilder("python", "src/python/plot.py", xlabel, ylabel, title);
+		plotPB.start();
+//		Process plotProcess = plotPB.start();
+//		while (plotProcess.isAlive()) {}
+//		if (plotProcess.exitValue() != 0)
+//			System.err.println(plotProcess.getErrorStream());
 	}
 	
 	
