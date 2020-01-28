@@ -43,9 +43,14 @@ public class MonteCarlo {
 	private static final double SPEED_OF_LIGHT = 2.99792458e8;
 	
 	private static final int STOPPING_DISTANCE_RESOLUTION = 64;
-	private static final double MIN_X = -80, MAX_X = 20; // histogram bounds [cm]
-	private static final double MIN_T = -20, MAX_T = 130; // histogram bounds [ns]
+	private static final double MIN_X = -16, MAX_X = 8; // histogram bounds [cm]
+	private static final double MIN_TB = -20, MAX_TB = 130; // histogram bounds [ns]
+	private static final double MIN_E = 9, MAX_E = 15; // histogram bounds [MeV]
+	private static final double MIN_TA = 16, MAX_TA = 16.5; // histogram bounds [ns]
 	private static final double MAX_SPECTRAL_DENSITY = 1e4; // to save computation time, cap computations when we get this dense
+	
+	private static final double[] ENERGY_FIT = {
+			1.99528499e-12, 1.41253892e-12, 1.09636906e-12 }; // energy fit [J/m^i]
 	
 	private final double foilDistance; // z coordinate of midplane of foil [m]
 	private final double foilThickness; // thickness of foil [m]
@@ -64,7 +69,12 @@ public class MonteCarlo {
 	private final DiscreteFunction energyVsDistance;
 	
 	private final double[] positionBins; // endpoints of x bins for response function [cm]
-	private final double[] timeBins; // endpoints of time bins for response function [ns]
+	private final double[] timeBBins; // endpoints of time bins for response function [ns]
+	private double[][] measuredSpectrum; // densities of measured deuteron counts to go with the position and time-1 bins [#/cm/ns]
+	
+	private final double[] energyBins; // endpoints of E bins for inferred spectrum [MeV]
+	private final double[] timeABins; // endpoints of time bins for inferred spectrum [ns]
+	private double[][] inferredSpectrum; // densities of measured deuteron counts to go with the energy and time-0 bins
 	
 	private final Logger logger; // for logging
 	
@@ -90,7 +100,7 @@ public class MonteCarlo {
 		this.cosyK0 = referenceEnergy*(-Particle.E.charge); // save this in a more useful unit
 		this.cosyV0 = Math.sqrt(2*cosyK0/ion.mass); // and get the corresponding speed
 		double γ = Math.pow(1 - Math.pow(cosyV0/SPEED_OF_LIGHT, 2), -1/2.);
-		this.cosyT0 = apertureDistance/cosyV0; // and corresponding time (assume it goes through lens instantaneously)
+		this.cosyT0 = apertureDistance/cosyV0; // and corresponding time (assume it goes through lens instantaneously (this number doesn't matter much)
 		this.cosyT1 = -(1+γ)/γ/cosyV0; // and why is time measured in units of distance?
 		this.focalPlaneAngle = Math.toRadians(focalTilt);
 		this.cosyCoefficients = cosyCoefficients;
@@ -110,12 +120,16 @@ public class MonteCarlo {
 		this.distanceVsEnergy = distanceVsEnergyRaw.indexed(STOPPING_DISTANCE_RESOLUTION);
 		this.energyVsDistance = distanceVsEnergyRaw.inv().indexed(STOPPING_DISTANCE_RESOLUTION);
 		
-		this.timeBins = new double[2*numBins+1]; // linearly space the output bins
 		this.positionBins = new double[numBins+1];
-		for (int i = 0; i <= 2*numBins; i ++)
-			this.timeBins[i] = cosyT0/1e-9 + MIN_T + i*(MAX_T - MIN_T)/(2*numBins);
-		for (int i = 0; i <= numBins; i ++)
+		this.timeBBins = new double[numBins+1]; // linearly space the output bins
+		this.energyBins = new double[numBins+1];
+		this.timeABins = new double[numBins+1];
+		for (int i = 0; i <= numBins; i ++) {
 			this.positionBins[i] = MIN_X + i*(MAX_X - MIN_X)/numBins;
+			this.timeBBins[i] = cosyT0/1e-9 + MIN_TB + i*(MAX_TB - MIN_TB)/numBins;
+			this.energyBins[i] = MIN_E + i*(MAX_E - MIN_E)/numBins;
+			this.timeABins[i] = MIN_TA + i*(MAX_TA - MIN_TA)/numBins;
+		}
 		
 		this.logger = logger;
 	}
@@ -129,7 +143,7 @@ public class MonteCarlo {
 	public double efficiency(double energy) {
 		double n = 0.08e2; // I'm not sure what units this has or whence it came
 		double dσdΩ = 4.3228e3/Math.sqrt(energy) - 0.6523; // same with these ones
-		double dΩ = apertureWidth*apertureHeight / (apertureDistance*apertureDistance);
+		double dΩ = apertureWidth*apertureHeight / Math.pow(apertureDistance - foilDistance, 2);
 		double l = foilThickness; // assume the foil is thin so we don't have to worry about multiple collisions
 		return probHitsFoil * n*dσdΩ*dΩ*l;
 	}
@@ -144,7 +158,7 @@ public class MonteCarlo {
 	 * row corresponds to one element of this.energyBins, and each column corresponds to one
 	 * element of this.timeBins.
 	 */
-	public double[][] response(double[] energies, double[] times, double[][] spectrum) {
+	public void respond(double[] energies, double[] times, double[][] spectrum) {
 		if (logger != null) logger.info("beginning Monte Carlo computation.");
 		
 		int maxSimsPerBin = (int)Math.ceil(MAX_SPECTRAL_DENSITY * // come up with a cap on simulation numbers
@@ -154,7 +168,8 @@ public class MonteCarlo {
 		long startTime = System.currentTimeMillis();
 		int masterCount = 0;
 		
-		double[][] response = new double[positionBins.length-1][timeBins.length-1];
+		this.measuredSpectrum = new double[positionBins.length-1][timeBBins.length-1];
+		this.inferredSpectrum = new double[energyBins.length-1][timeABins.length-1];
 		for (int i = 0; i < energies.length-1; i ++) { // for each input bin
 			for (int j = 0; j < times.length-1; j ++) {
 				if (spectrum[i][j] > 0) {
@@ -172,18 +187,24 @@ public class MonteCarlo {
 					for (int k = 0; k < numSimulations; k ++) {
 						double energy = energy0 + Math.random()*(energy1 - energy0); // randomly choose values from the bin
 						double time = time0 + Math.random()*(time1 - time0);
-						double[] xt = this.response(energy, time); // do the simulation!
-						double x = xt[0]/1e-2, t = xt[1]/1e-9; // then convert to readable units
+						double[] xt = this.simulate(energy, time); // do the simulation!
+						double x = xt[0]/1e-2, t1 = xt[1]/1e-9; // then convert to readable units
 						
-						int xBin = (int) (
-								(x - MIN_X)/(MAX_X - MIN_X)*response.length); // locate its bin
-						if (xBin < 0)                      xBin = 0;
-						if (xBin >= response.length) xBin = response.length-1;
-						int tBin = (int) (
-								(t - cosyT0/1e-9 - MIN_T)/(MAX_T - MIN_T)*response[0].length);
-						if (tBin < 0)                   tBin = 0;
-						if (tBin >= response[0].length) tBin = response[0].length-1;
-						response[xBin][tBin] += weight; // finally, add it to the tally
+						int xBin = NumericalMethods.coerce(0, positionBins.length-1,
+								(x - MIN_X)/(MAX_X - MIN_X)*(positionBins.length-1)); // locate its bin
+						int tbBin = NumericalMethods.coerce(0, timeBBins.length-1,
+								(t1 - cosyT0/1e-9 - MIN_TB)/(MAX_TB - MIN_TB)*(timeBBins.length-1));
+						measuredSpectrum[xBin][tbBin] += weight; // finally, add it to the tally
+						
+						double[] et = this.backCalculate(xt[0], xt[1]); // now do the back-calculation (using the unconverted values)
+						double e = et[0]/(-Particle.E.charge)/1e6, t0 = et[1]/1e-9; // then convert to readable units
+						
+						int eBin = NumericalMethods.coerce(0, energyBins.length-1,
+								(e - MIN_E)/(MAX_E - MIN_E)*(energyBins.length-1));
+						int taBin = NumericalMethods.coerce(0, energyBins.length-1,
+								(t0 - MIN_TA)/(MAX_TA - MIN_TA)*(timeABins.length-1));
+						inferredSpectrum[eBin][taBin] += weight; // add it to the corrected tally, as well
+						
 						masterCount ++;
 					}
 				}
@@ -194,13 +215,15 @@ public class MonteCarlo {
 		if (logger != null)
 			logger.info(String.format(Locale.US, "completed %d simulations in %.2f minutes.",
 					masterCount, (endTime - startTime)/60000.));
-		
-		for (int i = 0; i < response.length; i ++)
-			for (int j = 0; j < response[i].length; j ++) // finally,
-				response[i][j] /=
-						(positionBins[i+1] - positionBins[i])*(timeBins[j+1] - timeBins[j]); // normalize this to a density
-		
-		return response;
+
+		for (int i = 0; i < measuredSpectrum.length; i ++)
+			for (int j = 0; j < measuredSpectrum[i].length; j ++) // finally,
+				measuredSpectrum [i][j] /=
+						(positionBins[i+1] - positionBins[i])*(timeBBins[j+1] - timeBBins[j]); // normalize this to a density
+		for (int i = 0; i < inferredSpectrum.length; i ++)
+			for (int j = 0; j < inferredSpectrum[i].length; j ++)
+				inferredSpectrum [i][j] /=
+						(energyBins[i+1] - energyBins[i])*(timeABins[j+1] - timeABins[j]); // normalize this to a density
 	}
 	
 	/**
@@ -210,16 +233,35 @@ public class MonteCarlo {
 	 * @param time initial time of released neutron [s].
 	 * @return { signed hypot(x,z), t } [m, s].
 	 */
-	public double[] response(double energy, double time) {
+	public double[] simulate(double energy, double time) {
 		double[] rCollision = chooseCollisionPosition();
 		
 		double[] rAperture = chooseAperturePosition();
 		
 		double[] vFinal = computeFinalVelocity(energy, rCollision, rAperture);
 		
-		double[] rFocal = computeFocusedPosition(rAperture, vFinal, time);
+		double[] rFocal = computeFocusedPosition(rCollision, vFinal, time);
 		
 		return new double[] { rFocal[x]/Math.cos(focalPlaneAngle), rFocal[3] };
+	}
+	
+	/**
+	 * estimate the original time and energy of this deuteron without looking at its actual
+	 * time and energy, by guessing its energy and accounting for travel time.
+	 * @param position the position where it hits the focal plane [m]
+	 * @param time the time at which it hits the focal plane [s]
+	 * @return { energy, time } [J, s].
+	 */
+	public double[] backCalculate(double position, double time) {
+		double focusingDistance = position*Math.sin(focalPlaneAngle);
+		double E = 0; // [J]
+		for (int i = 0; i < ENERGY_FIT.length; i ++)
+			E += ENERGY_FIT[i]*Math.pow(position, i);
+		double v = Math.sqrt(2*E/ion.mass);
+		double d0 = (E - cosyK0)/cosyK0;
+		double lf = cosyPolynomial(4, new double[] {0, 0, 0, 0, 0, d0}); // re-use the COSY mapping to estimate the time of flight from energy
+		double timeCorrection = cosyT0 + lf*cosyT1 + focusingDistance/v;
+		return new double[] { E, time - timeCorrection };
 	}
 	
 	/**
@@ -282,7 +324,7 @@ public class MonteCarlo {
 	 * evaluate the mapping provided by COSY to obtain the time and position and velocity at
 	 * which the ion passes the back reference plane.
 	 * @param rFoil {x,y,z} of the point at which the neutron strikes the deuteron [m].
-	 * @param vInit {vx,vy,vz} of the deuteron as it exits the foil
+	 * @param vInit {vx,vy,vz} of the deuteron as it exits the foil [m/s]
 	 * @param tNeutron the time at which the neutron was released [s].
 	 * @return { x, y, z, t } at which it strikes the focal plane [m, m, s]
 	 */
@@ -294,18 +336,10 @@ public class MonteCarlo {
 		double d0 = (K0 - cosyK0)/cosyK0; // and then compare that to an expected reference energy
 		double[] input = { x0, a0, y0, b0, t0, d0 };
 		double[] output = new double[5];
-		for (int i = 0; i < output.length; i ++) { // the polynomial is pretty simple to compute
-			output[i] = 0;
-			for (int j = 0; j < cosyCoefficients.length; j ++) {
-				double term = cosyCoefficients[j][i];
-				for (int k = 0; k < input.length; k ++) {
-					term *= Math.pow(input[k], cosyExponents[j][k]);
-				}
-				output[i] += term;
-			}
-		}
-		double[] rPlane = { output[0], output[2], 0 };
-		double[] vFinal = { output[1], output[3], vInit[z] };
+		for (int i = 0; i < output.length; i ++) // the polynomial is pretty simple to compute
+			output[i] = cosyPolynomial(i, input);
+		double[] rPlane = { output[0], output[2], 0 }; // [m]
+		double[] vFinal = { output[1], output[3], vInit[z] }; // [m/s]
 		double tPlane = tNeutron + cosyT0 + output[4]*cosyT1;
 		
 		double tFocusing = rPlane[x] / (vFinal[z]/Math.tan(focalPlaneAngle) - vFinal[x]); // finally, account for the additional t that it takes to strike the focal plane
@@ -317,12 +351,46 @@ public class MonteCarlo {
 		return new double[] { rFocused[x], rFocused[y], rFocused[z], tPlane + tFocusing };
 	}
 	
-	public double[] getTimeBins() {
-		return this.timeBins;
+	/**
+	 * evaluate a single polynomial from that table of coefficients.
+	 * @param i the index of the parameter to compute
+	 * @param input the initial values to use
+	 * @return the final value of parameter i
+	 */
+	private double cosyPolynomial(int i, double[] input) {
+		double output = 0;
+		for (int j = 0; j < cosyCoefficients.length; j ++) {
+			double term = cosyCoefficients[j][i];
+			for (int k = 0; k < input.length; k ++) {
+				term *= Math.pow(input[k], cosyExponents[j][k]);
+			}
+			output += term;
+		}
+		return output;
+	}
+	
+	public double[] getMeasuredTimeBins() {
+		return this.timeBBins;
 	}
 	
 	public double[] getPositionBins() {
 		return this.positionBins;
+	}
+	
+	public double[][] getMeasuredSpectrum() {
+		return this.measuredSpectrum;
+	}
+	
+	public double[] getInferredTimeBins() {
+		return this.timeABins;
+	}
+	
+	public double[] getEnergyBins() {
+		return this.energyBins;
+	}
+	
+	public double[][] getInferredSpectrum() {
+		return this.inferredSpectrum;
 	}
 	
 	/**
@@ -363,28 +431,19 @@ public class MonteCarlo {
 //				CSV.readCosyCoefficients(new File("data/MRSt_IRF_FP not tilted.txt"), 3),
 				CSV.readCosyExponents(new File("data/MRSt_IRF_FP tilted.txt"), 3), 70.3,
 				100, null);
-//		for (double energy = 12e6; energy < 16e6; energy += 50e3) {
-//			double[] rt = sim.response(energy, 0);
-//			System.out.println(String.format(Locale.US, "[%g, %g, %g],", energy, rt[0], rt[1]-sim.cosyT0));
-//		}
+		
 		double[][] spectrum = CSV.read(new File("data/nsp_150327_16p26.txt"), '\t');
 		double[] timeAxis = CSV.readColumn(new File("data/nsp_150327_16p26_time.txt"));
 		double[] energyAxis = CSV.readColumn(new File("data/Energy bins.txt"));
 		spectrum = correctSpectrum(timeAxis, energyAxis, spectrum);
-//		System.out.println(Arrays.toString(timeAxis));
-//		System.out.println(Arrays.toString(energyAxis));
-//		System.out.println("[");
-//		for (int i = 0; i < spectrum.length; i ++)
-//			System.out.println("\t"+Arrays.toString(spectrum[i])+",");
-//		System.out.println("]");
 		
-		double[][] response = sim.response(energyAxis, timeAxis, spectrum);
-		System.out.println(Arrays.toString(sim.timeBins));
-		System.out.println(Arrays.toString(sim.positionBins));
-		System.out.println("[");
-		for (int i = 0; i < response.length; i ++)
-			System.out.println("\t"+Arrays.toString(response[i])+",");
-		System.out.println("]");
+		for (int i = 0; i < 36; i ++) {
+			System.out.print("[");
+			double[] xt = sim.simulate(12e6+Math.random()*4e6, 0);
+			double[] et = sim.backCalculate(xt[0], xt[1]);
+			double e = et[0]/(-Particle.E.charge)/1e6, t0 = et[1]/1e-9;
+			System.out.println(e+", "+t0+"],");
+		}
 	}
 	
 	/**
