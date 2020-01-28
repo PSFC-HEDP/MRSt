@@ -57,6 +57,8 @@ public class Main extends Application {
 	
 	private static final Particle ION = Particle.D;
 	private static final File STOPPING_POWER_FILE = new File("data/stopping_power_deuterons.csv");
+	private static final double COSY_MINIMUM_ENERGY = 10.7e6;
+	private static final double COSY_MAXIMUM_ENERGY = 14.2e6;
 	private static final double COSY_REFERENCE_ENERGY = 12.45e6;
 	private static final int NUM_BINS = 150;
 	private static final int SPACING_0 = 16;
@@ -178,7 +180,8 @@ public class Main extends Application {
 				MonteCarlo mc = new MonteCarlo(
 						ION, foilDistance.getValue()*1e-3, foilRadius.getValue()*1e-3,
 						foilThickness.getValue()*1e-6, stoppingPowerData, apertureDistance.getValue()*1e0,
-						apertureWidth.getValue()*1e-3, apertureHeight.getValue()*1e-3, COSY_REFERENCE_ENERGY,
+						apertureWidth.getValue()*1e-3, apertureHeight.getValue()*1e-3,
+						COSY_MINIMUM_ENERGY, COSY_MAXIMUM_ENERGY, COSY_REFERENCE_ENERGY,
 						cosyCoefficients, cosyExponents, focalPlaneTilt.getValue(), NUM_BINS, logger);
 				mc.respond(energyBins, timeBins, spectrum);
 				try {
