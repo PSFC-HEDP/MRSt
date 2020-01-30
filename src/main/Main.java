@@ -57,8 +57,10 @@ public class Main extends Application {
 	
 	private static final Particle ION = Particle.D;
 	private static final File STOPPING_POWER_FILE = new File("data/stopping_power_deuterons.csv");
+	private static final double COSY_MINIMUM_ENERGY = 10.7e6;
+	private static final double COSY_MAXIMUM_ENERGY = 14.2e6;
 	private static final double COSY_REFERENCE_ENERGY = 12.45e6;
-	private static final int NUM_BINS = 200;
+	private static final int NUM_BINS = 150;
 	private static final int SPACING_0 = 16;
 	private static final int SPACING_1 = 10;
 	private static final int SPACING_2 = 4;
@@ -178,12 +180,17 @@ public class Main extends Application {
 				MonteCarlo mc = new MonteCarlo(
 						ION, foilDistance.getValue()*1e-3, foilRadius.getValue()*1e-3,
 						foilThickness.getValue()*1e-6, stoppingPowerData, apertureDistance.getValue()*1e0,
-						apertureWidth.getValue()*1e-3, apertureHeight.getValue()*1e-3, COSY_REFERENCE_ENERGY,
+						apertureWidth.getValue()*1e-3, apertureHeight.getValue()*1e-3,
+						COSY_MINIMUM_ENERGY, COSY_MAXIMUM_ENERGY, COSY_REFERENCE_ENERGY,
 						cosyCoefficients, cosyExponents, focalPlaneTilt.getValue(), NUM_BINS, logger);
-				final double[][] response = mc.response(energyBins, timeBins, spectrum);
+				mc.respond(energyBins, timeBins, spectrum);
 				try {
-					plotHeatmap(timeBins, energyBins, spectrum, "Time (ns)", "Energy (MeV)", "Spectrum");
-					plotHeatmap(mc.getTimeBins(), mc.getPositionBins(), response, "Time (ns)", "Position (cm)", "Response");
+					plotHeatmap(timeBins, energyBins, spectrum,
+							"Time (ns)", "Energy (MeV)", "Spectrum", logger);
+					plotHeatmap(mc.getMeasuredTimeBins(), mc.getPositionBins(), mc.getMeasuredSpectrum(),
+							"Time (ns)", "Position (cm)", "Response", logger);
+					plotHeatmap(mc.getInferredTimeBins(), mc.getEnergyBins(), mc.getInferredSpectrum(),
+							"Time (ns)", "Energy (MeV)", "Inferred", logger);
 				} catch (IOException e) {
 					logger.severe(e.getMessage());
 				}
@@ -217,16 +224,12 @@ public class Main extends Application {
 	
 	
 	private static void plotHeatmap(double[] x, double[] y, double[][] z,
-			String xlabel, String ylabel, String title) throws IOException {
+			String xlabel, String ylabel, String title, Logger logger) throws IOException {
 		CSV.writeColumn(x, new File(String.format("working/%s_x.csv", title)));
 		CSV.writeColumn(y, new File(String.format("working/%s_y.csv", title)));
 		CSV.write(z, new File(String.format("working/%s_z.csv", title)), ',');
 		ProcessBuilder plotPB = new ProcessBuilder("python", "src/python/plot.py", xlabel, ylabel, title);
 		plotPB.start();
-//		Process plotProcess = plotPB.start();
-//		while (plotProcess.isAlive()) {}
-//		if (plotProcess.exitValue() != 0)
-//			logger.severe(plotProcess.getErrorStream());
 	}
 	
 	

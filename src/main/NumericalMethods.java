@@ -70,6 +70,22 @@ public class NumericalMethods {
 	}
 	
 	/**
+	 * coerce x into the range [min, max]
+	 * @param min inclusive minimum
+	 * @param max inclusive maximum
+	 * @param x floating point value
+	 * @return int in the range [min, max]
+	 */
+	public static int coerce(int min, int max, double x) {
+		if (x <= min)
+			return min;
+		else if (x >= max)
+			return min;
+		else
+			return (int) x;
+	}
+	
+	/**
 	 * a discrete representation of an unknown function, capable of evaluating in log time.
 	 * 
 	 * @author Justin Kunimune
