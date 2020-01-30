@@ -25,7 +25,7 @@ package main;
 
 
 /**
- * It's a JavaFX spinner, but with intuitive behaviour (i.e. it commits its value when it loses
+ * It's a JavaFX spinner, but with intuitive behavior (i.e. it commits its value when it loses
  * focus, not just when the user presses enter)
  * 
  * @author Justin Kunimune
@@ -39,10 +39,6 @@ public class Spinner<T> extends javafx.scene.control.Spinner<T> {
 				this.commitValue(); //was that so hard?
 		});
 		this.setPrefWidth(100);
-	}
-	
-	public void commitValue() {
-		this.increment(0); //stupid workarounds
 	}
 	
 }
