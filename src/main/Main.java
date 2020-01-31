@@ -148,7 +148,7 @@ public class Main extends Application {
 		leftPane.add(order, 1, row);
 		row ++;
 		
-		leftPane.add(chooseFileWidget("COSY data file:", stage, (file) -> {
+		leftPane.add(chooseFileWidget("COSY map file:", stage, (file) -> {
 			this.cosyCoefficients = CSV.readCosyCoefficients(file, order.getValue());
 			this.cosyExponents = CSV.readCosyExponents(file, order.getValue());
 		}), 0, row, 3, 1);
@@ -244,10 +244,10 @@ public class Main extends Application {
 		Label label = new Label("No file chosen.");
 		Button button = new Button("Chose file…");
 		FileChooser fileChooser = new FileChooser();
-		fileChooser.setTitle("Load data file");
+		fileChooser.setTitle("Load "+title);
 		fileChooser.setInitialDirectory(new File("data/"));
 		fileChooser.getExtensionFilters().addAll(
-				new FileChooser.ExtensionFilter("Data files", "*.csv", "*.txt"),
+				new FileChooser.ExtensionFilter("Data files", "*.csv", "*.tsv", "*.txt"),
 				new FileChooser.ExtensionFilter("All files", "*.*"));
 		button.setOnAction((event) -> {
 			final File chosen = fileChooser.showOpenDialog(stage);

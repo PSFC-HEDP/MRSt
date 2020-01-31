@@ -42,14 +42,15 @@ public class MonteCarlo {
 	private static final double SPEED_OF_LIGHT = 2.99792458e8;
 	
 	private static final int STOPPING_DISTANCE_RESOLUTION = 64;
-	private static final double MIN_X = -16, MAX_X = 8; // histogram bounds [cm]
+	private static final double MIN_X = -20, MAX_X = 20; // histogram bounds [cm]
 	private static final double MIN_TB = -20, MAX_TB = 80; // histogram bounds [ns]
 	private static final double MIN_E = 10, MAX_E = 15; // histogram bounds [MeV]
 	private static final double MIN_TA = 16, MAX_TA = 16.5; // histogram bounds [ns]
 	private static final double MAX_SPECTRAL_DENSITY = 1e5; // to save computation time, cap computations when we get this dense
 	
 	private static final double[] ENERGY_FIT = {
-			1.99522843e-12, 1.42408093e-12, 2.38341180e-12, 2.33317099e-12 }; // energy fit [J/m^i]
+			1.99467288e-12,  1.42077883e-12,  2.55374768e-12,  3.17744496e-12,
+			 -5.55691714e-12, -3.77587508e-11, -5.41468445e-11 }; // energy fit [J/m^i] (this must be extremely precise and would need to be empirically determined
 	
 	private final double foilDistance; // z coordinate of midplane of foil [m]
 	private final double foilThickness; // thickness of foil [m]
@@ -459,7 +460,7 @@ public class MonteCarlo {
 		double[] energyAxis = CSV.readColumn(new File("data/Energy bins.txt"));
 		spectrum = correctSpectrum(timeAxis, energyAxis, spectrum);
 		
-		for (int i = 0; i < 108; i ++) {
+		for (int i = 0; i < 216; i ++) {
 			System.out.print("[");
 			double[] xt = sim.simulate(12e6+Math.random()*5e6, 0);
 			System.out.print(xt[0]/1e-2+", ");
