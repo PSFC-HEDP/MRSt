@@ -46,10 +46,10 @@ public class MonteCarlo {
 	private static final double MIN_TB = -20, MAX_TB = 80; // histogram bounds [ns]
 	private static final double MIN_E = 10, MAX_E = 15; // histogram bounds [MeV]
 	private static final double MIN_TA = 16, MAX_TA = 16.5; // histogram bounds [ns]
-	private static final double MAX_SPECTRAL_DENSITY = 1e4; // to save computation time, cap computations when we get this dense
+	private static final double MAX_SPECTRAL_DENSITY = 1e5; // to save computation time, cap computations when we get this dense
 	
 	private static final double[] ENERGY_FIT = {
-			1.99528499e-12, 1.41253892e-12, 1.09636906e-12 }; // energy fit [J/m^i]
+			1.99522843e-12, 1.42408093e-12, 2.38341180e-12, 2.33317099e-12 }; // energy fit [J/m^i]
 	
 	private final double foilDistance; // z coordinate of midplane of foil [m]
 	private final double foilThickness; // thickness of foil [m]
@@ -328,6 +328,8 @@ public class MonteCarlo {
 		double distance = (foilDistance + foilThickness/2 - rFoil[2])/dHat[2];
 		E1 = energyVsDistance.evaluate(distanceVsEnergy.evaluate(E1) - distance); // lose some energy by dragging through the foil
 		
+//		System.out.print(E1/Particle.P.charge/1e6+", ");
+		
 		if (E1 < cosyKmin || E1 > cosyKmax) {
 			return new double[] { Double.NaN, Double.NaN, Double.NaN }; // some won't make it through the "energy aperture"
 		}
@@ -359,7 +361,7 @@ public class MonteCarlo {
 		for (int i = 0; i < output.length; i ++) // the polynomial is pretty simple to compute
 			output[i] = cosyPolynomial(i, input);
 		double[] rPlane = { output[0], output[2], 0 }; // [m]
-		double[] vFinal = { output[1], output[3], vInit[z] }; // [m/s]
+		double[] vFinal = { output[1]*cosyV0, output[3]*cosyV0, vInit[z] }; // [m/s]
 		double tPlane = tNeutron + cosyT0 + output[4]*cosyT1;
 		
 		double tFocusing = rPlane[x] / (vFinal[z]/Math.tan(focalPlaneAngle) - vFinal[x]); // finally, account for the additional t that it takes to strike the focal plane
@@ -457,9 +459,10 @@ public class MonteCarlo {
 		double[] energyAxis = CSV.readColumn(new File("data/Energy bins.txt"));
 		spectrum = correctSpectrum(timeAxis, energyAxis, spectrum);
 		
-		for (int i = 0; i < 36; i ++) {
+		for (int i = 0; i < 108; i ++) {
 			System.out.print("[");
-			double[] xt = sim.simulate(12e6+Math.random()*4e6, 0);
+			double[] xt = sim.simulate(12e6+Math.random()*5e6, 0);
+			System.out.print(xt[0]/1e-2+", ");
 			double[] et = sim.backCalculate(xt[0], xt[1]);
 			double e = et[0]/(-Particle.E.charge)/1e6, t0 = et[1]/1e-9;
 			System.out.println(e+", "+t0+"],");
