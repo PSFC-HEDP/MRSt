@@ -35,7 +35,7 @@ import main.NumericalMethods.DiscreteFunction;
  * 
  * @author Justin Kunimune
  */
-public class MonteCarlo {
+public class MRSt {
 	
 	private static final int x = 0, y = 1, z = 2;
 	
@@ -45,8 +45,8 @@ public class MonteCarlo {
 	private static final double MIN_X = -20, MAX_X = 20; // histogram bounds [cm]
 	private static final double MIN_TB = -20, MAX_TB = 80; // histogram bounds [ns]
 	private static final double MIN_E = 10, MAX_E = 15; // histogram bounds [MeV]
-	private static final double MIN_TA = 16, MAX_TA = 16.5; // histogram bounds [ns]
-	private static final double MAX_SPECTRAL_DENSITY = 1e5; // to save computation time, cap computations when we get this dense
+	private static final double MIN_TA = 16.0, MAX_TA = 16.5; // histogram bounds [ns]
+	private static final double MAX_SPECTRAL_DENSITY = 1e4; // to save computation time, cap computations when we get this dense
 	
 	private static final double[] ENERGY_FIT = {
 			1.99467288e-12,  1.42077883e-12,  2.55374768e-12,  3.17744496e-12,
@@ -72,11 +72,16 @@ public class MonteCarlo {
 	
 	private final double[] positionBins; // endpoints of x bins for response function [cm]
 	private final double[] timeBBins; // endpoints of time bins for response function [ns]
-	private double[][] measuredSpectrum; // densities of measured deuteron counts to go with the position and time-1 bins [#/cm/ns]
+	private double[][] measuredSpectrum; // densities of measured deuteron counts to go with the position and time-1 bins [1/cm/ns]
 	
 	private final double[] energyBins; // endpoints of E bins for inferred spectrum [MeV]
 	private final double[] timeABins; // endpoints of time bins for inferred spectrum [ns]
 	private double[][] inferredSpectrum; // densities of measured deuteron counts to go with the energy and time-0 bins
+	
+	private final double[] timeAxis; // 1D vectors for higher level measurements [ns]
+	private double[] ionTemperature; // [keV]
+	private double[] arealDensity; // [g/cm^2]
+	private double[] neutronYield; // [10^12/ns]
 	
 	private final Logger logger; // for logging
 	
@@ -90,7 +95,7 @@ public class MonteCarlo {
 	 * @param referenceEnergy maximum ion energy allowed in COSY calculation [eV]
 	 * @param referenceEnergy expected ion energy used in COSY calculation [eV]
 	 */
-	public MonteCarlo(
+	public MRSt(
 			Particle ion, double foilDistance, double foilRadius, double foilThickness,
 			double[][] stoppingPowerData,
 			double apertureDistance, double apertureWidth, double apertureHeight,
@@ -107,7 +112,8 @@ public class MonteCarlo {
 		this.cosyK0 = referenceEnergy*(-Particle.E.charge); // save this in a more useful unit
 		this.cosyV0 = Math.sqrt(2*cosyK0/ion.mass); // and get the corresponding speed
 		double γ = Math.pow(1 - Math.pow(cosyV0/SPEED_OF_LIGHT, 2), -1/2.);
-		this.cosyT0 = apertureDistance/cosyV0; // and corresponding time (assume it goes through lens instantaneously (this number doesn't matter much)
+		double L = (1 + γ)/γ*2*cosyCoefficients[5][4]; // here's a fun shortcut to estimating the length of the lens: first order analysis
+		this.cosyT0 = L/cosyV0; // and corresponding time
 		this.cosyT1 = -(1+γ)/γ/cosyV0; // and why is time measured in units of distance?
 		this.focalPlaneAngle = Math.toRadians(focalTilt);
 		this.cosyCoefficients = cosyCoefficients;
@@ -140,6 +146,10 @@ public class MonteCarlo {
 			this.energyBins[i] = MIN_E + i*(MAX_E - MIN_E)/numBins;
 			this.timeABins[i] = MIN_TA + i*(MAX_TA - MIN_TA)/numBins;
 		}
+		
+		this.timeAxis = new double[numBins];
+		for (int i = 0; i < numBins; i ++)
+			this.timeAxis[i] = (this.timeABins[i] + this.timeABins[i+1])/2;
 		
 		this.logger = logger;
 	}
@@ -224,6 +234,8 @@ public class MonteCarlo {
 			}
 		}
 		
+		analyze();
+		
 		long endTime = System.currentTimeMillis();
 		if (logger != null)
 			logger.info(String.format(Locale.US, "completed %d simulations in %.2f minutes.",
@@ -275,6 +287,30 @@ public class MonteCarlo {
 		double lf = cosyPolynomial(4, new double[] {0, 0, 0, 0, 0, d0}); // re-use the COSY mapping to estimate the time of flight from energy
 		double timeCorrection = cosyT0 + lf*cosyT1 + focusingDistance/v;
 		return new double[] { E, time - timeCorrection };
+	}
+	
+	/**
+	 * take the back-calculated spectrum and use it to compute and store time-resolved values
+	 * for ion temperature, areal density, and yield.
+	 */
+	public void analyze() {
+		this.ionTemperature = new double[timeAxis.length];
+		this.arealDensity = new double[timeAxis.length];
+		this.neutronYield = new double[timeAxis.length];
+		
+		for (int i = 0; i < timeAxis.length; i ++) { // at each time
+			double[] spectrum = new double[this.inferredSpectrum.length]; // slice out the relevant spectrum
+			for (int j = 0; j < inferredSpectrum.length; j ++) {
+				double energy = (energyBins[j] + energyBins[j+1])/2/energyFactor*1e6; // [eV]
+				spectrum[j] = this.inferredSpectrum[j][i]*(timeABins[i+1] - timeABins[i])/this.efficiency(energy); // [1/MeV]
+			}
+			
+			this.ionTemperature[i] = NumericalMethods.std(energyBins, spectrum)/energyFactor*1e3; // Ti is just a standard deviation
+			
+			this.arealDensity[i] = 0; // I have no idea what ρR is supposed to be
+			
+			this.neutronYield[i] = NumericalMethods.integral(energyBins, spectrum)/1e12;
+		}
 	}
 	
 	/**
@@ -416,6 +452,22 @@ public class MonteCarlo {
 		return this.inferredSpectrum;
 	}
 	
+	public double[] getTimeAxis() {
+		return this.timeAxis;
+	}
+	
+	public double[] getIonTemperature() {
+		return this.ionTemperature;
+	}
+	
+	public double[] getArealDensity() {
+		return this.arealDensity;
+	}
+	
+	public double[] getNeutronYield() {
+		return this.neutronYield;
+	}
+	
 	/**
 	 * convert a time-cumulative spectrum, as read from an input file, into an array of count
 	 * densities. also, edit energies to make it bin edges. this will remove the last row of
@@ -446,8 +498,8 @@ public class MonteCarlo {
 	 * @throws NumberFormatException 
 	 */
 	public static void main(String[] args) throws NumberFormatException, IOException {
-		MonteCarlo sim = new MonteCarlo(
-				Particle.D, 3.0e-3, 0.3e-3, 80e-6,
+		MRSt sim = new MRSt(
+				Particle.D, 3.0e-3, 0.3e-3, 40e-6,
 				CSV.read(new File("data/stopping_power_deuterons.csv"), ','),
 				6e0, 4.0e-3, 20.0e-3, 10.7e6, 14.2e6, 12.45e6,
 				CSV.readCosyCoefficients(new File("data/MRSt_IRF_FP tilted.txt"), 3),
@@ -461,8 +513,9 @@ public class MonteCarlo {
 		spectrum = correctSpectrum(timeAxis, energyAxis, spectrum);
 		
 		for (int i = 0; i < 216; i ++) {
-			System.out.print("[");
-			double[] xt = sim.simulate(12e6+Math.random()*5e6, 0);
+			double e0 = 12+Math.random()*5;
+			System.out.print("["+e0+", ");
+			double[] xt = sim.simulate(e0*1e6, 0);
 			System.out.print(xt[0]/1e-2+", ");
 			double[] et = sim.backCalculate(xt[0], xt[1]);
 			double e = et[0]/(-Particle.E.charge)/1e6, t0 = et[1]/1e-9;

@@ -70,6 +70,56 @@ public class NumericalMethods {
 	}
 	
 	/**
+	 * compute the 0th moment of the histogram
+	 * @param x the bin edges
+	 * @param y the density in each bin
+	 * @return the total number of things counted
+	 */
+	public static double integral(double[] x, double[] y) {
+		if (x.length != y.length+1)
+			throw new IllegalArgumentException("Array lengths do not correspond.");
+		double a = 0;
+		for (int i = 0; i < y.length; i ++)
+			a += y[i]*(x[i+1] - x[i]);
+		return a;
+	}
+	
+	/**
+	 * compute the 1st moment of the histogram
+	 * @param x the bin edges
+	 * @param y the density in each bin
+	 * @return the average x value
+	 */
+	public static double mean(double[] x, double[] y) {
+		if (x.length != y.length+1)
+			throw new IllegalArgumentException("Array lengths do not correspond.");
+		double a = 0, b = 0;
+		for (int i = 0; i < y.length; i ++) {
+			a += y[i];
+			b += y[i]*(x[i] + x[i+1])/2;
+		}
+		return b/a;
+	}
+	
+	/**
+	 * compute the 2nd moment of the histogram
+	 * @param x the bin edges
+	 * @param y the density in each bin
+	 * @return the square root of the variance
+	 */
+	public static double std(double[] x, double[] y) {
+		if (x.length != y.length+1)
+			throw new IllegalArgumentException("Array lengths do not correspond.");
+		double a = 0, b = 0, c = 0;
+		for (int i = 0; i < y.length; i ++) {
+			a += y[i];
+			b += y[i]*(x[i] + x[i+1])/2;
+			c += y[i]*Math.pow((x[i] + x[i+1])/2, 2);
+		}
+		return Math.sqrt(c/a - b*b/(a*a));
+	}
+	
+	/**
 	 * coerce x into the range [min, max]
 	 * @param min inclusive minimum
 	 * @param max inclusive maximum

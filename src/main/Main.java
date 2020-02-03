@@ -107,7 +107,7 @@ public class Main extends Application {
 		leftPane.add(new Label("mm"), 2, row);
 		row ++;
 		
-		this.foilThickness = new Spinner<Double>(10., 500., 80., 5.);
+		this.foilThickness = new Spinner<Double>(5., 500., 40., 5.);
 		foilThickness.setEditable(true);
 		leftPane.add(new Label("Foil thickness"), 0, row);
 		leftPane.add(foilThickness, 1, row);
@@ -168,7 +168,7 @@ public class Main extends Application {
 		
 		rightPane.getChildren().add(chooseFileWidget("Spectrum file:", stage, (file) -> {
 			this.spectrum = CSV.read(file, '\t');
-			this.spectrum = MonteCarlo.correctSpectrum(timeBins, energyBins, spectrum); // TODO: move this part to a separate callback where it is also plotted
+			this.spectrum = MRSt.correctSpectrum(timeBins, energyBins, spectrum); // TODO: move this part to a separate callback where it is also plotted
 		}));
 		row ++;
 		
@@ -177,7 +177,7 @@ public class Main extends Application {
 		Button execute = new Button("Compute!");
 		execute.setOnAction((event) -> {
 			new Thread(() -> {
-				MonteCarlo mc = new MonteCarlo(
+				MRSt mc = new MRSt(
 						ION, foilDistance.getValue()*1e-3, foilRadius.getValue()*1e-3,
 						foilThickness.getValue()*1e-6, stoppingPowerData, apertureDistance.getValue()*1e0,
 						apertureWidth.getValue()*1e-3, apertureHeight.getValue()*1e-3,
@@ -186,11 +186,13 @@ public class Main extends Application {
 				mc.respond(energyBins, timeBins, spectrum);
 				try {
 					plotHeatmap(timeBins, energyBins, spectrum,
-							"Time (ns)", "Energy (MeV)", "Spectrum", logger);
+							"Time (ns)", "Energy (MeV)", "Spectrum");
 					plotHeatmap(mc.getMeasuredTimeBins(), mc.getPositionBins(), mc.getMeasuredSpectrum(),
-							"Time (ns)", "Position (cm)", "Response", logger);
+							"Time (ns)", "Position (cm)", "Response");
 					plotHeatmap(mc.getInferredTimeBins(), mc.getEnergyBins(), mc.getInferredSpectrum(),
-							"Time (ns)", "Energy (MeV)", "Inferred", logger);
+							"Time (ns)", "Energy (MeV)", "Inferred");
+					plotLines(mc.getTimeAxis(), "Time (ns)",
+							mc.getIonTemperature(), "Ti (keV)", mc.getArealDensity(), "ρR (g/cm^2)", mc.getNeutronYield(), "Yn (10^17/ns)");
 				} catch (IOException e) {
 					logger.severe(e.getMessage());
 				}
@@ -223,12 +225,38 @@ public class Main extends Application {
 	}
 	
 	
+	/**
+	 * send 2D data to a Python script for plotting in MatPlotLib
+	 * @throws IOException if there's an issue talking to disc
+	 */
 	private static void plotHeatmap(double[] x, double[] y, double[][] z,
-			String xlabel, String ylabel, String title, Logger logger) throws IOException {
+			String xLabel, String yLabel, String title) throws IOException {
 		CSV.writeColumn(x, new File(String.format("working/%s_x.csv", title)));
 		CSV.writeColumn(y, new File(String.format("working/%s_y.csv", title)));
 		CSV.write(z, new File(String.format("working/%s_z.csv", title)), ',');
-		ProcessBuilder plotPB = new ProcessBuilder("python", "src/python/plot.py", xlabel, ylabel, title);
+		ProcessBuilder plotPB = new ProcessBuilder("python", "src/python/plot2.py",
+				xLabel, yLabel, title);
+		plotPB.start();
+	}
+	
+	
+	/**
+	 * send 1D data to a Python script for plotting in MatPlotLib
+	 * @throws IOException if there's an issue talking to disk
+	 */
+	private static void plotLines(double[] x, String xLabel, Object... yDatums) throws IOException {
+		double[][] ys = new double[yDatums.length/2][];
+		String[] yLabels = new String[yDatums.length/2];
+		for (int i = 0; i < yDatums.length/2; i ++) {
+			ys[i] = (double[]) yDatums[2*i];
+			yLabels[i] = (String) yDatums[2*i+1];
+		}
+		
+		CSV.writeColumn(x, new File(String.format("working/%s_x.csv", "data")));
+		for (int i = 0; i < ys.length; i ++)
+			CSV.writeColumn(ys[i], new File(String.format("working/%s_y_%d.csv", "Data", i)));
+		ProcessBuilder plotPB = new ProcessBuilder("python", "src/python/plot1.py",
+				xLabel, String.join("\n", yLabels), "data", Integer.toString(ys.length));
 		plotPB.start();
 	}
 	
