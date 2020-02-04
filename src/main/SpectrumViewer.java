@@ -53,7 +53,7 @@ import javafx.stage.Stage;
  * 
  * @author Justin Kunimune
  */
-public class Main extends Application {
+public class SpectrumViewer extends Application {
 	
 	private static final Particle ION = Particle.D;
 	private static final File STOPPING_POWER_FILE = new File("data/stopping_power_deuterons.csv");
@@ -192,7 +192,7 @@ public class Main extends Application {
 					plotHeatmap(mc.getInferredTimeBins(), mc.getEnergyBins(), mc.getInferredSpectrum(),
 							"Time (ns)", "Energy (MeV)", "Inferred");
 					plotLines(mc.getTimeAxis(), "Time (ns)",
-							mc.getIonTemperature(), "Ti (keV)", mc.getArealDensity(), "ρR (g/cm^2)", mc.getNeutronYield(), "Yn (10^17/ns)");
+							mc.getIonTemperature(), "Ti (keV)", mc.getArealDensity(), "ρR (g/cm^2)", mc.getNeutronYield(), "Yn (1/ns)");
 				} catch (IOException e) {
 					logger.severe(e.getMessage());
 				}
@@ -231,6 +231,7 @@ public class Main extends Application {
 	 */
 	private static void plotHeatmap(double[] x, double[] y, double[][] z,
 			String xLabel, String yLabel, String title) throws IOException {
+		new File("working/").mkdir();
 		CSV.writeColumn(x, new File(String.format("working/%s_x.csv", title)));
 		CSV.writeColumn(y, new File(String.format("working/%s_y.csv", title)));
 		CSV.write(z, new File(String.format("working/%s_z.csv", title)), ',');
@@ -252,6 +253,7 @@ public class Main extends Application {
 			yLabels[i] = (String) yDatums[2*i+1];
 		}
 		
+		new File("working/").mkdir();
 		CSV.writeColumn(x, new File(String.format("working/%s_x.csv", "data")));
 		for (int i = 0; i < ys.length; i ++)
 			CSV.writeColumn(ys[i], new File(String.format("working/%s_y_%d.csv", "Data", i)));

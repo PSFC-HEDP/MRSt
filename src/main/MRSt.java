@@ -81,7 +81,7 @@ public class MRSt {
 	private final double[] timeAxis; // 1D vectors for higher level measurements [ns]
 	private double[] ionTemperature; // [keV]
 	private double[] arealDensity; // [g/cm^2]
-	private double[] neutronYield; // [10^12/ns]
+	private double[] neutronYield; // [1/ns]
 	
 	private final Logger logger; // for logging
 	
@@ -307,9 +307,10 @@ public class MRSt {
 			
 			this.ionTemperature[i] = NumericalMethods.std(energyBins, spectrum)/energyFactor*1e3; // Ti is just a standard deviation
 			
+//			double scatRate = NumericalMethods.integral(energyBins, spectrum, )
 			this.arealDensity[i] = 0; // I have no idea what ρR is supposed to be
 			
-			this.neutronYield[i] = NumericalMethods.integral(energyBins, spectrum)/1e12;
+			this.neutronYield[i] = NumericalMethods.integral(energyBins, spectrum);
 		}
 	}
 	
