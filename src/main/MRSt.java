@@ -336,10 +336,9 @@ public class MRSt {
 			double mean = NumericalMethods.mean(energy, spectrum); // [MeV]
 			mean = mean + foilCorrection; // correct for foil downshift
 			this.flowVelocity[i] = (mean - DT_E_N)/DT_V_COEF; // km/s
-			System.out.println(mean);
 			
 			double std = NumericalMethods.std(energy, spectrum); // [MeV]
-//			std = Math.sqrt(Math.max(0, std*std - foilCorrection*foilCorrection/3)); // correct for foil broadening TODO: how do I account for V_CM?
+			std = Math.sqrt(Math.max(0, std*std - foilCorrection*foilCorrection/3)); // correct for foil broadening TODO: how do I account for V_CM?
 			this.ionTemperature[i] = DT_T_COEF/mean*std*std*1e3; // Ti is just a standard deviation [keV]
 		}
 	}
