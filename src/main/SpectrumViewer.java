@@ -107,7 +107,7 @@ public class SpectrumViewer extends Application {
 		leftPane.add(new Label("mm"), 2, row);
 		row ++;
 		
-		this.foilThickness = new Spinner<Double>(5., 500., 40., 5.);
+		this.foilThickness = new Spinner<Double>(5., 500., 80., 5.);
 		foilThickness.setEditable(true);
 		leftPane.add(new Label("Foil thickness"), 0, row);
 		leftPane.add(foilThickness, 1, row);
@@ -192,7 +192,7 @@ public class SpectrumViewer extends Application {
 					plotHeatmap(mc.getInferredTimeBins(), mc.getEnergyBins(), mc.getInferredSpectrum(),
 							"Time (ns)", "Energy (MeV)", "Inferred");
 					plotLines(mc.getTimeAxis(), "Time (ns)",
-							mc.getIonTemperature(), "Ti (keV)", mc.getArealDensity(), "ρR (g/cm^2)", mc.getNeutronYield(), "Yn (1/ns)");
+							mc.getIonTemperature(), "Ti (keV)", mc.getArealDensity(), "ρR (g/cm^2)", mc.getNeutronYield(), "Yn (10^12/ns)", mc.getFlowVelocity(), "Vcosθ (km/s)");
 				} catch (IOException e) {
 					logger.severe(e.getMessage());
 				}

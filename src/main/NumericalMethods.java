@@ -73,15 +73,20 @@ public class NumericalMethods {
 	 * compute the 0th moment of the histogram
 	 * @param x the bin edges
 	 * @param y the density in each bin
+	 * @param a 
+	 * @param b 
 	 * @return the total number of things counted
 	 */
-	public static double integral(double[] x, double[] y) {
+	public static double integral(double[] x, double[] y, double a, double b) {
 		if (x.length != y.length+1)
 			throw new IllegalArgumentException("Array lengths do not correspond.");
-		double a = 0;
-		for (int i = 0; i < y.length; i ++)
-			a += y[i]*(x[i+1] - x[i]);
-		return a;
+		double s = 0;
+		for (int i = 0; i < y.length; i ++) {
+			double wl = Math.max(0, Math.min(1, (x[i+1] - a)/(x[i+1] - x[i])));
+			double wr = Math.max(0, Math.min(1, (b - x[i])/(x[i+1] - x[i])));
+			s += (wl+wr-1)*y[i]*(x[i+1] - x[i]);
+		}
+		return s;
 	}
 	
 	/**

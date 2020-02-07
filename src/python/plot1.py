@@ -10,14 +10,14 @@ X = np.genfromtxt('working/{}_x.csv'.format(title), delimiter=',')
 Ys = [np.genfromtxt('working/{}_y_{}.csv'.format(title, i), delimiter=',') for i in range(n)]
 
 fig, host_ax = plt.subplots()
-fig.subplots_adjust(right=0.37*(n-1))
+fig.subplots_adjust(right=1 - (0.12*(n-1)))
 axes = [host_ax]
 plots = []
 for i in range(n):
 	if i > 0:
 		axes.append(axes[0].twinx())
+		axes[i].spines['right'].set_position(('axes', 1 + (i-1)*.18))
 	if i > 1:
-		axes[i].spines['right'].set_position(('axes', 1.2))
 		axes[i].set_frame_on(True)
 		axes[i].patch.set_visible(False)
 		for sp in axes[i].spines.values(): sp.set_visible(False)
