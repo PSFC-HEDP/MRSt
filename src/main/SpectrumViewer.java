@@ -192,7 +192,7 @@ public class SpectrumViewer extends Application {
 					plotHeatmap(mc.getInferredTimeBins(), mc.getEnergyBins(), mc.getInferredSpectrum(),
 							"Time (ns)", "Energy (MeV)", "Inferred");
 					plotLines(mc.getTimeAxis(), "Time (ns)",
-							mc.getIonTemperature(), "Ti (keV)", mc.getArealDensity(), "ρR (g/cm^2)", mc.getNeutronYield(), "Yn (10^12/ns)", mc.getFlowVelocity(), "Vcosθ (km/s)");
+							mc.getIonTemperature(), "Ti (keV)", mc.getArealDensity(), "ρR (g/cm^2)", mc.getNeutronYield(), "Yn (10^15/ns)", mc.getFlowVelocity(), "Vcosθ (km/s)");
 				} catch (IOException e) {
 					logger.severe(e.getMessage());
 				}

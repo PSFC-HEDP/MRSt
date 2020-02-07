@@ -72,7 +72,7 @@ public class NumericalMethods {
 	/**
 	 * compute the 0th moment of the histogram
 	 * @param x the bin edges
-	 * @param y the density in each bin
+	 * @param y the number in each bin
 	 * @param a 
 	 * @param b 
 	 * @return the total number of things counted
@@ -84,7 +84,7 @@ public class NumericalMethods {
 		for (int i = 0; i < y.length; i ++) {
 			double wl = Math.max(0, Math.min(1, (x[i+1] - a)/(x[i+1] - x[i])));
 			double wr = Math.max(0, Math.min(1, (b - x[i])/(x[i+1] - x[i])));
-			s += (wl+wr-1)*y[i]*(x[i+1] - x[i]);
+			s += (wl+wr-1)*y[i];
 		}
 		return s;
 	}
@@ -92,7 +92,7 @@ public class NumericalMethods {
 	/**
 	 * compute the 1st moment of the histogram
 	 * @param x the bin edges
-	 * @param y the density in each bin
+	 * @param y the number in each bin
 	 * @return the average x value
 	 */
 	public static double mean(double[] x, double[] y) {
@@ -109,7 +109,7 @@ public class NumericalMethods {
 	/**
 	 * compute the 2nd moment of the histogram
 	 * @param x the bin edges
-	 * @param y the density in each bin
+	 * @param y the number in each bin
 	 * @return the square root of the variance
 	 */
 	public static double std(double[] x, double[] y) {

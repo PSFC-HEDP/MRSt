@@ -81,17 +81,17 @@ public class MRSt {
 	
 	private final double[] positionBins; // endpoints of x bins for response function [cm]
 	private final double[] timeBBins; // endpoints of time bins for response function [ns]
-	private double[][] measuredSpectrum; // densities of measured deuteron counts to go with the position and time-1 bins [1/cm/ns]
+	private double[][] measuredSpectrum; // measured deuteron counts to go with the position and time-1 bins [1/cm/ns]
 	
 	private final double[] energyBins; // endpoints of E bins for inferred spectrum [MeV]
 	private final double[] timeABins; // endpoints of time bins for inferred spectrum [ns]
-	private double[][] inferredSpectrum; // densities of measured deuteron counts to go with the energy and time-0 bins
+	private double[][] inferredSpectrum; // measured deuteron counts to go with the energy and time-0 bins
 	
 	private final double[] timeAxis; // 1D vectors for higher level measurements [ns]
 	private double[] ionTemperature; // [keV]
 	private double[] flowVelocity; // [km/s]
 	private double[] arealDensity; // [g/cm^2]
-	private double[] neutronYield; // [10^12/ns]
+	private double[] neutronYield; // [10^15/ns]
 	
 	private final Logger logger; // for logging
 	
@@ -255,15 +255,6 @@ public class MRSt {
 		if (logger != null)
 			logger.info(String.format(Locale.US, "completed %d simulations in %.2f minutes.",
 					masterCount, (endTime - startTime)/60000.));
-
-		for (int i = 0; i < measuredSpectrum.length; i ++)
-			for (int j = 0; j < measuredSpectrum[i].length; j ++) // finally,
-				measuredSpectrum [i][j] /=
-						(positionBins[i+1] - positionBins[i])*(timeBBins[j+1] - timeBBins[j]); // normalize this to a density
-		for (int i = 0; i < inferredSpectrum.length; i ++)
-			for (int j = 0; j < inferredSpectrum[i].length; j ++)
-				inferredSpectrum [i][j] /=
-						(energyBins[i+1] - energyBins[i])*(timeABins[j+1] - timeABins[j]); // normalize this to a density
 	}
 	
 	/**
@@ -323,8 +314,8 @@ public class MRSt {
 			int statistics = 0;
 			for (int j = 0; j < inferredSpectrum.length; j ++) {
 				double Ej = (energy[j] + energy[j+1])/2*1e6; // [eV]
-				spectrum[j] = this.inferredSpectrum[j][i]*(timeABins[i+1] - timeABins[i])/this.efficiency(Ej); // [1/MeV]
-				statistics += this.inferredSpectrum[j][i]*(energyBins[j+1] - energyBins[j])*(timeABins[i+1] - timeABins[i]);
+				spectrum[j] = this.inferredSpectrum[j][i]/this.efficiency(Ej); // [1]
+				statistics += this.inferredSpectrum[j][i];
 			}
 			
 			if (statistics < MIN_STATISTICS) { // don't try to compute these if we have very few deuterons
@@ -336,7 +327,7 @@ public class MRSt {
 			}
 			
 			double primaryYield = NumericalMethods.integral(energy, spectrum, DT_N_MIN, DT_N_MAX);
-			this.neutronYield[i] = primaryYield/1e12; // [10^12/ns]
+			this.neutronYield[i] = primaryYield/1e15; // [10^15/ns]
 			
 			double scatteredYield = NumericalMethods.integral(energy, spectrum, DT_DS_MIN, DT_DS_MAX); // infer total DS yield
 			double ratio = scatteredYield/primaryYield;
@@ -345,9 +336,10 @@ public class MRSt {
 			double mean = NumericalMethods.mean(energy, spectrum); // [MeV]
 			mean = mean + foilCorrection; // correct for foil downshift
 			this.flowVelocity[i] = (mean - DT_E_N)/DT_V_COEF; // km/s
+			System.out.println(mean);
 			
 			double std = NumericalMethods.std(energy, spectrum); // [MeV]
-			std = Math.sqrt(Math.max(0, std*std - foilCorrection*foilCorrection/3)); // correct for foil broadening TODO: how do I account for V_CM?
+//			std = Math.sqrt(Math.max(0, std*std - foilCorrection*foilCorrection/3)); // correct for foil broadening TODO: how do I account for V_CM?
 			this.ionTemperature[i] = DT_T_COEF/mean*std*std*1e3; // Ti is just a standard deviation [keV]
 		}
 	}
