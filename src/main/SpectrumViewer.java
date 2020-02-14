@@ -168,7 +168,6 @@ public class SpectrumViewer extends Application {
 		
 		rightPane.getChildren().add(chooseFileWidget("Spectrum file:", stage, (file) -> {
 			this.spectrum = CSV.read(file, '\t');
-			this.spectrum = MRSt.correctSpectrum(timeBins, energyBins, spectrum); // TODO: move this part to a separate callback where it is also plotted
 		}));
 		row ++;
 		
@@ -183,9 +182,12 @@ public class SpectrumViewer extends Application {
 						apertureWidth.getValue()*1e-3, apertureHeight.getValue()*1e-3,
 						COSY_MINIMUM_ENERGY, COSY_MAXIMUM_ENERGY, COSY_REFERENCE_ENERGY,
 						cosyCoefficients, cosyExponents, focalPlaneTilt.getValue(), NUM_BINS, logger);
-				mc.respond(energyBins, timeBins, spectrum);
+				double[] eBins = energyBins.clone();
+				double[] tBins = timeBins.clone();
+				double[][] spec = MRSt.correctSpectrum(tBins, eBins, spectrum);
+				mc.respond(eBins, tBins, spec);
 				try {
-					plotHeatmap(timeBins, energyBins, spectrum,
+					plotHeatmap(tBins, eBins, spec,
 							"Time (ns)", "Energy (MeV)", "Spectrum");
 					plotHeatmap(mc.getMeasuredTimeBins(), mc.getPositionBins(), mc.getMeasuredSpectrum(),
 							"Time (ns)", "Position (cm)", "Response");
