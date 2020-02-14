@@ -25,6 +25,7 @@ package main;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import java.util.logging.StreamHandler;
@@ -44,6 +45,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.text.Font;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
@@ -175,36 +177,72 @@ public class SpectrumViewer extends Application {
 		
 		Button execute = new Button("Compute!");
 		execute.setOnAction((event) -> {
-			new Thread(() -> {
-				MRSt mc = new MRSt(
-						ION, foilDistance.getValue()*1e-3, foilRadius.getValue()*1e-3,
-						foilThickness.getValue()*1e-6, stoppingPowerData, apertureDistance.getValue()*1e0,
-						apertureWidth.getValue()*1e-3, apertureHeight.getValue()*1e-3,
-						COSY_MINIMUM_ENERGY, COSY_MAXIMUM_ENERGY, COSY_REFERENCE_ENERGY,
-						cosyCoefficients, cosyExponents, focalPlaneTilt.getValue(), NUM_BINS, logger);
-				double[] eBins = energyBins.clone();
-				double[] tBins = timeBins.clone();
-				double[][] spec = MRSt.correctSpectrum(tBins, eBins, spectrum);
-				mc.respond(eBins, tBins, spec);
-				try {
-					plotHeatmap(tBins, eBins, spec,
-							"Time (ns)", "Energy (MeV)", "Spectrum");
-					plotHeatmap(mc.getMeasuredTimeBins(), mc.getPositionBins(), mc.getMeasuredSpectrum(),
-							"Time (ns)", "Position (cm)", "Response");
-					plotHeatmap(mc.getInferredTimeBins(), mc.getEnergyBins(), mc.getInferredSpectrum(),
-							"Time (ns)", "Energy (MeV)", "Inferred");
-					plotLines(mc.getTimeAxis(), "Time (ns)",
-							mc.getIonTemperature(), "Ti (keV)", mc.getArealDensity(), "ρR (g/cm^2)", mc.getNeutronYield(), "Yn (10^15/ns)", mc.getFlowVelocity(), "Vcosθ (km/s)");
-				} catch (IOException e) {
-					logger.severe(e.getMessage());
-				}
-			}).start();
+			if (cosyCoefficients == null)
+				logger.severe("Please select a COSY map file.");
+			else if (energyBins == null)
+				logger.severe("Please select an energy bin file.");
+			else if (timeBins == null)
+				logger.severe("Please select a time bin file.");
+			else if (spectrum == null)
+				logger.severe("Come on, man. You're so close. You need a spectrum to go with those bins.");
+			else {
+				new Thread(() -> {
+					double[] eBins, tBins;
+					double[][] spec;
+					try {
+						eBins = energyBins.clone();
+						tBins = timeBins.clone();
+						spec = MRSt.correctSpectrum(tBins, eBins, spectrum);
+					} catch (ArrayIndexOutOfBoundsException e) {
+						logger.severe("Invalid input spectrum file.");
+						return;
+					}
+					
+					MRSt mc = null;
+					try {
+						mc = new MRSt(
+								ION,
+								foilDistance.getValue()*1e-3,
+								foilRadius.getValue()*1e-3,
+								foilThickness.getValue()*1e-6,
+								stoppingPowerData,
+								apertureDistance.getValue()*1e0,
+								apertureWidth.getValue()*1e-3,
+								apertureHeight.getValue()*1e-3,
+								COSY_MINIMUM_ENERGY,
+								COSY_MAXIMUM_ENERGY,
+								COSY_REFERENCE_ENERGY,
+								cosyCoefficients,
+								cosyExponents,
+								focalPlaneTilt.getValue(),
+								NUM_BINS,
+								logger);
+						mc.respond(eBins, tBins, spec);
+					} catch (Exception e) {
+						logger.log(Level.SEVERE, "Unexpected error", e);
+					}
+					
+					try {
+						plotHeatmap(tBins, eBins, spec,
+								"Time (ns)", "Energy (MeV)", "Spectrum");
+						plotHeatmap(mc.getMeasuredTimeBins(), mc.getPositionBins(), mc.getMeasuredSpectrum(),
+								"Time (ns)", "Position (cm)", "Response");
+						plotHeatmap(mc.getInferredTimeBins(), mc.getEnergyBins(), mc.getInferredSpectrum(),
+								"Time (ns)", "Energy (MeV)", "Inferred");
+						plotLines(mc.getTimeAxis(), "Time (ns)",
+								mc.getIonTemperature(), "Ti (keV)", mc.getArealDensity(), "ρR (g/cm^2)", mc.getNeutronYield(), "Yn (10^15/ns)", mc.getFlowVelocity(), "Vcosθ (km/s)");
+					} catch (IOException e) {
+						logger.log(Level.SEVERE, "Could not access plotting scripts and/or plots", e);
+					}
+				}).start();
+			}
 		});
 		rightPane.getChildren().add(execute);
 		
 		final TextArea console = new TextArea();
 		console.setEditable(false);
 		console.setPrefWidth(400);
+		console.setFont(Font.font("Monospace"));
 		logger = Logger.getLogger("main");
 		logger.addHandler(new StreamHandler() {
 			public void publish(LogRecord record) {
