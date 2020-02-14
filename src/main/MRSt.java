@@ -89,9 +89,13 @@ public class MRSt {
 	
 	private final double[] timeAxis; // 1D vectors for higher level measurements [ns]
 	private double[] ionTemperature; // [keV]
-	private double[] flowVelocity; // [km/s]
+	private double[] bulkVelocity; // [km/s]
 	private double[] arealDensity; // [g/cm^2]
 	private double[] neutronYield; // [10^15/ns]
+//	private double[] neutronMean; // [keV]
+//	private double[] neutronWidth; // [keV^2]
+//	private double[] neutronSkew; // [keV^3]
+//	private double[] neutronKurtosis; // [keV^4]
 	
 	private final Logger logger; // for logging
 	
@@ -134,7 +138,7 @@ public class MRSt {
 		this.energyFactor = 4*A/Math.pow(A + 1, 2);
 		
 		this.foilCorrection = stoppingPowerData[stoppingPowerData.length-1][1]*
-				foilThickness/2*1e3; // foil blur width [MeV]
+				foilThickness/2*1e3; // foil mean blur amount [MeV]
 		
 		double foilMaxAngle = Math.atan(foilRadius/foilDistance);
 		this.probHitsFoil = (1 - Math.cos(foilMaxAngle))/2;
@@ -249,12 +253,12 @@ public class MRSt {
 			}
 		}
 		
-		analyze();
-		
 		long endTime = System.currentTimeMillis();
 		if (logger != null)
 			logger.info(String.format(Locale.US, "completed %d simulations in %.2f minutes.",
 					masterCount, (endTime - startTime)/60000.));
+		
+		analyze();
 	}
 	
 	/**
@@ -277,7 +281,7 @@ public class MRSt {
 	}
 	
 	/**
-	 * estimate the original time and energy of this deuteron without looking at its actual
+	 * estimate the original time and energy of this ion without looking at its actual
 	 * time and energy, by guessing its energy and accounting for travel time.
 	 * @param position the position where it hits the focal plane [m]
 	 * @param time the time at which it hits the focal plane [s]
@@ -301,7 +305,7 @@ public class MRSt {
 	 */
 	public void analyze() {
 		this.ionTemperature = new double[timeAxis.length];
-		this.flowVelocity = new double[timeAxis.length];
+		this.bulkVelocity = new double[timeAxis.length];
 		this.arealDensity = new double[timeAxis.length];
 		this.neutronYield = new double[timeAxis.length];
 		
@@ -318,28 +322,57 @@ public class MRSt {
 				statistics += this.inferredSpectrum[j][i];
 			}
 			
-			if (statistics < MIN_STATISTICS) { // don't try to compute these if we have very few deuterons
-				this.neutronYield[i] = Double.NaN;
+			double primaryYield = NumericalMethods.definiteIntegral(energy, spectrum, DT_N_MIN, DT_N_MAX);
+			this.neutronYield[i] = primaryYield/1e15; // [10^15/ns]
+			
+			if (statistics < MIN_STATISTICS) { // don't try to compute anything other than yield if we have very few deuterons
 				this.arealDensity[i] = Double.NaN;
-				this.flowVelocity[i] = Double.NaN;
+				this.bulkVelocity[i] = Double.NaN;
 				this.ionTemperature[i] = Double.NaN;
 				continue;
 			}
 			
-			double primaryYield = NumericalMethods.integral(energy, spectrum, DT_N_MIN, DT_N_MAX);
-			this.neutronYield[i] = primaryYield/1e15; // [10^15/ns]
-			
-			double scatteredYield = NumericalMethods.integral(energy, spectrum, DT_DS_MIN, DT_DS_MAX); // infer total DS yield
+			double scatteredYield = NumericalMethods.definiteIntegral(energy, spectrum, DT_DS_MIN, DT_DS_MAX); // infer total DS yield
 			double ratio = scatteredYield/primaryYield;
 			this.arealDensity[i] = DT_RR_COEF*ratio; // [g/cm^2]
 			
 			double mean = NumericalMethods.mean(energy, spectrum); // [MeV]
 			mean = mean + foilCorrection; // correct for foil downshift
-			this.flowVelocity[i] = (mean - DT_E_N)/DT_V_COEF; // km/s
+			this.bulkVelocity[i] = (mean - DT_E_N)/DT_V_COEF; // km/s
 			
 			double std = NumericalMethods.std(energy, spectrum); // [MeV]
 			std = Math.sqrt(Math.max(0, std*std - foilCorrection*foilCorrection/3)); // correct for foil broadening TODO: how do I account for V_CM?
 			this.ionTemperature[i] = DT_T_COEF/mean*std*std*1e3; // Ti is just a standard deviation [keV]
+		}
+			
+		double[] dTidt = NumericalMethods.derivative(timeAxis, ionTemperature);
+		double[] dρRdt = NumericalMethods.derivative(timeAxis, arealDensity);
+//		double[] dYndt = NumericalMethods.derivative(timeAxis, neutronYield);
+		double[] dvidt = NumericalMethods.derivative(timeAxis, bulkVelocity);
+		int bangTime = NumericalMethods.argmax(neutronYield);
+		int compressTime = NumericalMethods.argmax(arealDensity);
+		int maxPRRamp = NumericalMethods.argmax(dρRdt);
+		double[] moments = new double[5];
+		for (int k = 0; k < moments.length; k ++)
+			moments[k] = NumericalMethods.moment(k, timeABins, neutronYield);
+		
+		if (logger != null) {
+			logger.info(String.format("Bang time:         %7.3f ns", timeAxis[bangTime]));
+			logger.info(String.format("Peak compression:  %7.3f ns", timeAxis[compressTime]));
+			logger.info(String.format("            = BT + %7.3f ps", (timeAxis[compressTime] - timeAxis[bangTime])/1e-3));
+			logger.info(String.format("Max ρR ramp:       %7.3f ps", timeAxis[maxPRRamp]));
+			logger.info(String.format("            = BT + %7.3f ps", (timeAxis[maxPRRamp] - timeAxis[bangTime])/1e-3));
+			logger.info(String.format("Ti at BT:          %7.3f keV", ionTemperature[bangTime]));
+			logger.info(String.format("vi at BT:          %7.3f μm/ns", bulkVelocity[bangTime]));
+			logger.info(String.format("dTi/dt at BT:      %7.3f keV/ns", dTidt[bangTime]));
+			logger.info(String.format("dρR/dt at BT:      %7.3f g/cm^2/ns", dρRdt[bangTime]));
+			logger.info(String.format("dvi/dt at BT:      %7.3f μm/ns^2", dvidt[bangTime]));
+			logger.info(String.format("Peak ρR:           %7.3f g/cm^2", arealDensity[compressTime]));
+			logger.info(String.format("Total yield (μ0):  %7.3g", moments[0]));
+			logger.info(String.format("Burn mean (μ1):    %7.3g ns", moments[1]));
+			logger.info(String.format("Burn width (μ2):   %7.3g ns^2", moments[2]));
+			logger.info(String.format("Burn skewness (μ3):%7.3g ns^3", moments[3]));
+			logger.info(String.format("Burn kurtosis (μ4):%7.3g ns^3", moments[4]));
 		}
 	}
 	
@@ -491,7 +524,7 @@ public class MRSt {
 	}
 	
 	public double[] getFlowVelocity() {
-		return this.flowVelocity;
+		return this.bulkVelocity;
 	}
 	
 	public double[] getArealDensity() {

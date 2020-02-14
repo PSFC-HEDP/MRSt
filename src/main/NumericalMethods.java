@@ -77,7 +77,7 @@ public class NumericalMethods {
 	 * @param b 
 	 * @return the total number of things counted
 	 */
-	public static double integral(double[] x, double[] y, double a, double b) {
+	public static double definiteIntegral(double[] x, double[] y, double a, double b) {
 		if (x.length != y.length+1)
 			throw new IllegalArgumentException("Array lengths do not correspond.");
 		double s = 0;
@@ -90,38 +90,76 @@ public class NumericalMethods {
 	}
 	
 	/**
-	 * compute the 1st moment of the histogram
+	 * compute the nth moment of the histogram. normalize and center it, if applicable.
 	 * @param x the bin edges
 	 * @param y the number in each bin
-	 * @return the average x value
+	 * @return the nth [normalized] [centered] [normalized] moment
 	 */
-	public static double mean(double[] x, double[] y) {
+	public static double moment(int n, double[] x, double[] y) {
 		if (x.length != y.length+1)
 			throw new IllegalArgumentException("Array lengths do not correspond.");
-		double a = 0, b = 0;
-		for (int i = 0; i < y.length; i ++) {
-			a += y[i];
-			b += y[i]*(x[i] + x[i+1])/2;
-		}
-		return b/a;
+		double N = (n > 0) ? moment(0, x, y) : 1;
+		double μ = (n > 1) ? moment(1, x, y) : 0;
+		double σ = (n > 2) ? Math.sqrt(moment(2, x, y)) : 1;
+		double a = 0;
+		for (int i = 0; i < y.length; i ++)
+			a += y[i]*Math.pow(((x[i] + x[i+1])/2 - μ)/σ, n);
+		return a/N;
 	}
 	
 	/**
-	 * compute the 2nd moment of the histogram
+	 * compute the mean of the histogram
 	 * @param x the bin edges
 	 * @param y the number in each bin
-	 * @return the square root of the variance
+	 * @return the normalized 1st moment
+	 */
+	public static double mean(double[] x, double[] y) {
+		return moment(1, x, y);
+	}
+	
+	/**
+	 * compute the standard deviation of the histogram
+	 * @param x the bin edges
+	 * @param y the number in each bin
+	 * @return the square root of the normalized centered 2nd moment
 	 */
 	public static double std(double[] x, double[] y) {
-		if (x.length != y.length+1)
+		return Math.sqrt(moment(2, x, y));
+	}
+	
+	/**
+	 * find the last index of the highest value
+	 * @param x the array of values
+	 * @return i such that x[i] >= x[j] for all j
+	 */
+	public static int argmax(double[] x) {
+		int argmax = -1;
+		for (int i = 0; i < x.length; i ++)
+			if (!Double.isNaN(x[i]) && (argmax == -1 ||
+					x[i] > x[argmax]))
+				argmax = i;
+		return argmax;
+	}
+	
+	/**
+	 * find the second order finite difference derivative. for best results, x
+	 * should be evenly spaced.
+	 * @param x the x values
+	 * @param y the corresponding y values
+	 * @return the slope dy/dx at each point
+	 */
+	public static double[] derivative(double[] x, double[] y) {
+		if (x.length != y.length)
 			throw new IllegalArgumentException("Array lengths do not correspond.");
-		double a = 0, b = 0, c = 0;
-		for (int i = 0; i < y.length; i ++) {
-			a += y[i];
-			b += y[i]*(x[i] + x[i+1])/2;
-			c += y[i]*Math.pow((x[i] + x[i+1])/2, 2);
+		double[] dydx = new double[x.length];
+		dydx[0] = (-1.5*y[0] + 2.0*y[1] - 0.5*y[2]) /
+				(x[2] - x[1]);
+		for (int i = 1; i < x.length-1; i ++) {
+			dydx[i] = (y[i+1] - y[i-1]) / (x[i+1] - x[i-1]);
 		}
-		return Math.sqrt(c/a - b*b/(a*a));
+		dydx[x.length-1] = (-1.5*y[x.length-1] + 2.0*y[x.length-2] - 0.5*y[x.length-3]) /
+				(x[x.length-3] - x[x.length-2]);
+		return dydx;
 	}
 	
 	/**
