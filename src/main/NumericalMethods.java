@@ -70,11 +70,56 @@ public class NumericalMethods {
 	}
 	
 	/**
+	 * compute the nth moment of the histogram over the whole domain. normalize and center it,
+	 * if applicable.
+	 * @param x the bin edges
+	 * @param y the number in each bin
+	 * @return the nth [normalized] [centered] [normalized] moment
+	 */
+	public static double moment(int n, double[] x, double[] y) {
+		return moment(n, x, y, x[0], x[x.length-1]);
+	}
+	
+	/**
+	 * compute the nth moment of the histogram. normalize and center it, if applicable.
+	 * @param x the bin edges
+	 * @param y the number in each bin
+	 * @param a the lower integration bound
+	 * @param b the upper integration bound
+	 * @return the nth [normalized] [centered] [normalized] moment
+	 */
+	public static double moment(int n, double[] x, double[] y, double a, double b) {
+		if (x.length != y.length+1)
+			throw new IllegalArgumentException("Array lengths do not correspond.");
+		double N = (n > 0) ? moment(0, x, y, a, b) : 1;
+		double μ = (n > 1) ? moment(1, x, y, a, b) : 0;
+		double σ = (n > 2) ? Math.sqrt(moment(2, x, y, a, b)) : 1;
+		double sum = 0;
+		for (int i = 0; i < y.length; i ++) {
+			double xL = Math.max(a, x[i]); // define the bounds of this integrand bin, which might not be the bounds of the datum bin
+			double xR = Math.min(b, x[i+1]);
+			double w = (xR - xL)/(x[i+1] - x[i]); // determine what fraction of the data in this bin fall into the integrand bin
+			sum += w*y[i]*Math.pow(((xL + xR)/2 - μ)/σ, n); // sum up the average x value to whatever power
+		}
+		return sum/N;
+	}
+	
+	/**
 	 * compute the 0th moment of the histogram
 	 * @param x the bin edges
 	 * @param y the number in each bin
-	 * @param a 
-	 * @param b 
+	 * @return the total number of things counted
+	 */
+	public static double definiteIntegral(double[] x, double[] y) {
+		return definiteIntegral(x, y, x[0], x[x.length-1]);
+	}
+	
+	/**
+	 * compute the 0th moment of the histogram
+	 * @param x the bin edges
+	 * @param y the number in each bin
+	 * @param a the lower integration bound
+	 * @param b the upper integration bound
 	 * @return the total number of things counted
 	 */
 	public static double definiteIntegral(double[] x, double[] y, double a, double b) {
@@ -90,24 +135,6 @@ public class NumericalMethods {
 	}
 	
 	/**
-	 * compute the nth moment of the histogram. normalize and center it, if applicable.
-	 * @param x the bin edges
-	 * @param y the number in each bin
-	 * @return the nth [normalized] [centered] [normalized] moment
-	 */
-	public static double moment(int n, double[] x, double[] y) {
-		if (x.length != y.length+1)
-			throw new IllegalArgumentException("Array lengths do not correspond.");
-		double N = (n > 0) ? moment(0, x, y) : 1;
-		double μ = (n > 1) ? moment(1, x, y) : 0;
-		double σ = (n > 2) ? Math.sqrt(moment(2, x, y)) : 1;
-		double a = 0;
-		for (int i = 0; i < y.length; i ++)
-			a += y[i]*Math.pow(((x[i] + x[i+1])/2 - μ)/σ, n);
-		return a/N;
-	}
-	
-	/**
 	 * compute the mean of the histogram
 	 * @param x the bin edges
 	 * @param y the number in each bin
@@ -118,6 +145,18 @@ public class NumericalMethods {
 	}
 	
 	/**
+	 * compute the mean of the histogram
+	 * @param x the bin edges
+	 * @param y the number in each bin
+	 * @param a the lower integration bound
+	 * @param b the upper integration bound
+	 * @return the normalized 1st moment
+	 */
+	public static double mean(double[] x, double[] y, double a, double b) {
+		return moment(1, x, y, a, b);
+	}
+	
+	/**
 	 * compute the standard deviation of the histogram
 	 * @param x the bin edges
 	 * @param y the number in each bin
@@ -125,6 +164,18 @@ public class NumericalMethods {
 	 */
 	public static double std(double[] x, double[] y) {
 		return Math.sqrt(moment(2, x, y));
+	}
+	
+	/**
+	 * compute the standard deviation of the histogram
+	 * @param x the bin edges
+	 * @param y the number in each bin
+	 * @param a the lower integration bound
+	 * @param b the upper integration bound
+	 * @return the square root of the normalized centered 2nd moment
+	 */
+	public static double std(double[] x, double[] y, double a, double b) {
+		return Math.sqrt(moment(2, x, y, a, b));
 	}
 	
 	/**

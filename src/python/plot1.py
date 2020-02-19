@@ -30,4 +30,5 @@ axes[0].set_xlim(X[0], X[-1])
 
 axes[0].legend(plots, [p.get_label() for p in plots])
 
+plt.tight_layout()
 plt.show()

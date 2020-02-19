@@ -16,4 +16,5 @@ plt.ylabel(ylabel)
 plt.colorbar()
 plt.title(title)
 
+plt.tight_layout()
 plt.show()

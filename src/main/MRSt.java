@@ -25,6 +25,7 @@ package main;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Locale;
 import java.util.logging.Logger;
 
@@ -41,24 +42,25 @@ public class MRSt {
 	
 	private static final double SPEED_OF_LIGHT = 2.99792458e8;
 	private static final double DT_E_N = 14.1; // d-t fusion neutron energy [MeV]
-	private static final double DT_T_COEF = .448; // Ti coefficient
-	private static final double DT_V_COEF = 5.4e-4; // bulk velocity coefficient
-	private static final double DT_RR_COEF = 20.7; // ρR coefficient
-	private static final double DT_DS_MIN = 11.8, DT_DS_MAX = 12.9; // [MeV]
-	private static final double DT_N_MIN = 13, DT_N_MAX = 15; // [MeV]
-	
+
 	private static final int STOPPING_DISTANCE_RESOLUTION = 64;
 	private static final double MIN_X = -20, MAX_X = 20; // histogram bounds [cm]
 	private static final double MIN_TB = -20, MAX_TB = 80; // histogram bounds [ns]
-	private static final double MIN_E = 10.7, MAX_E = 14.2; // histogram bounds [MeV]
+	private static final double MIN_E = 12, MAX_E = 16; // histogram bounds [MeV]
 	private static final double MIN_TA = 16.0, MAX_TA = 16.5; // histogram bounds [ns]
 	private static final double E_RESOLUTION = .1, T_RESOLUTION = 20e-3; // resolutions [MeV], [ns]
 	private static final double MAX_SPECTRAL_DENSITY = 1e7; // to save computation time, cap computations when we get this dense
 	private static final int MIN_STATISTICS = 1000; // the minimum number of deuterons to define a spectrum at a time
 
+	private static final double DT_T_COEF = .45; // 9e-5 * 5 with a unit conversion
+	private static final double DT_V_COEF = 5.4e-4; // bulk velocity coefficient
+	private static final double DT_RR_COEF = 64; // 5u/.13barn (DT σ for 12~12.5MeV) [g/cm^2]
+	private static final double DT_DS_MIN = MIN_E, DT_DS_MAX = 12.5; // [MeV]
+	
 	private static final double[] ENERGY_FIT = {
-			1.99467288e-12,  1.42077883e-12,  2.55374768e-12,  3.17744496e-12,
-			 -5.55691714e-12, -3.77587508e-11, -5.41468445e-11 }; // energy fit [J/m^i] (this must be extremely precise and would need to be empirically determined
+			1.9947057710073842e-12, 1.4197129629720856e-12, 2.533708675784118e-12,
+			3.3724670708100935e-12, -3.383506123917434e-12, -4.346034080805247e-11,
+			-1.2677861751122915e-10, -6.30685441409433e-11, 3.9801803257378504e-10, 5.935615381876897e-10}; // energy fit [J/m^i] (this must be extremely precise and might need to be empirically determined
 	
 	private final double foilDistance; // z coordinate of midplane of foil [m]
 	private final double foilThickness; // thickness of foil [m]
@@ -137,9 +139,6 @@ public class MRSt {
 		double A = ion.mass/Particle.N.mass;
 		this.energyFactor = 4*A/Math.pow(A + 1, 2);
 		
-		this.foilCorrection = stoppingPowerData[stoppingPowerData.length-1][1]*
-				foilThickness/2*1e3; // foil mean blur amount [MeV]
-		
 		double foilMaxAngle = Math.atan(foilRadius/foilDistance);
 		this.probHitsFoil = (1 - Math.cos(foilMaxAngle))/2;
 		
@@ -150,8 +149,13 @@ public class MRSt {
 			E[i] = stoppingPowerData[i][0]*1e3*(-Particle.E.charge); // and from [keV] to [J]
 		}
 		DiscreteFunction distanceVsEnergyRaw = new DiscreteFunction(E, dxdE).antiderivative();
-		this.distanceVsEnergy = distanceVsEnergyRaw.indexed(STOPPING_DISTANCE_RESOLUTION);
-		this.energyVsDistance = distanceVsEnergyRaw.inv().indexed(STOPPING_DISTANCE_RESOLUTION);
+		this.distanceVsEnergy = distanceVsEnergyRaw.indexed(STOPPING_DISTANCE_RESOLUTION); // m(J)
+		this.energyVsDistance = distanceVsEnergyRaw.inv().indexed(STOPPING_DISTANCE_RESOLUTION); // J(m)
+		
+		this.foilCorrection = (DT_E_N -
+				energyVsDistance.evaluate(
+						distanceVsEnergy.evaluate(DT_E_N*(-1e6*Particle.E.charge))
+						- foilThickness)/(-1e6*Particle.E.charge))/2; // foil mean blur amount [MeV]
 		
 		this.positionBins = new double[numBins+1];
 		this.timeBBins = new double[numBins+1]; // linearly space the output bins
@@ -161,7 +165,7 @@ public class MRSt {
 		}
 		this.energyBins = new double[(int) ((MAX_E - MIN_E)/E_RESOLUTION + 1)];
 		for (int i = 0; i < energyBins.length; i ++)
-			this.energyBins[i] = MIN_E + i*(MAX_E - MIN_E)/(energyBins.length-1);
+			this.energyBins[i] = (MIN_E + i*(MAX_E - MIN_E)/(energyBins.length-1))*energyFactor;
 		this.timeABins = new double[(int) ((MAX_TA - MIN_TA)/T_RESOLUTION + 1)];
 		for (int i = 0; i < timeABins.length; i ++)
 			this.timeABins[i] = MIN_TA + i*(MAX_TA - MIN_TA)/(timeABins.length-1);
@@ -227,7 +231,7 @@ public class MRSt {
 					
 					for (int k = 0; k < numSimulations; k ++) {
 						double energy = energy0 + Math.random()*(energy1 - energy0); // randomly choose values from the bin
-						double time = time0 + Math.random()*(time1 - time0);
+						double time = time0 + Math.random()*(time1 - time0); // [s]
 						double[] xt = this.simulate(energy, time); // do the simulation!
 						double x = xt[0]/1e-2, t1 = xt[1]/1e-9; // then convert to readable units
 						if (Double.isNaN(x))	continue; // sometimes, they won't hit the CSI. That's fine.
@@ -242,7 +246,7 @@ public class MRSt {
 						double e = et[0]/(-Particle.E.charge)/1e6, t0 = et[1]/1e-9; // then convert to readable units
 						
 						int eBin = NumericalMethods.coerce(0, energyBins.length-1,
-								(e - MIN_E)/(MAX_E - MIN_E)*(energyBins.length-1));
+								(e/energyFactor - MIN_E)/(MAX_E - MIN_E)*(energyBins.length-1));
 						int taBin = NumericalMethods.coerce(0, timeABins.length-1,
 								(t0 - MIN_TA)/(MAX_TA - MIN_TA)*(timeABins.length-1));
 						inferredSpectrum[eBin][taBin] += weight; // add it to the corrected tally, as well
@@ -311,7 +315,8 @@ public class MRSt {
 		
 		double[] energy = new double[energyBins.length]; // [MeV]
 		for (int i = 0; i < energy.length; i ++)
-			energy[i] = energyBins[i]/energyFactor;
+			energy[i] = energyBins[i]/energyFactor; // these are neutron energies, not deuteron energies
+		System.out.println(Arrays.toString(energy));
 		
 		for (int i = 0; i < timeAxis.length; i ++) { // at each time
 			double[] spectrum = new double[this.inferredSpectrum.length]; // slice out the relevant spectrum
@@ -322,8 +327,8 @@ public class MRSt {
 				statistics += this.inferredSpectrum[j][i];
 			}
 			
-			double primaryYield = NumericalMethods.definiteIntegral(energy, spectrum, DT_N_MIN, DT_N_MAX);
-			this.neutronYield[i] = primaryYield/1e15; // [10^15/ns]
+			double totalYield = NumericalMethods.definiteIntegral(energy, spectrum);
+			this.neutronYield[i] = totalYield/1e15; // [10^15/ns]
 			
 			if (statistics < MIN_STATISTICS) { // don't try to compute anything other than yield if we have very few deuterons
 				this.arealDensity[i] = Double.NaN;
@@ -332,16 +337,19 @@ public class MRSt {
 				continue;
 			}
 			
-			double scatteredYield = NumericalMethods.definiteIntegral(energy, spectrum, DT_DS_MIN, DT_DS_MAX); // infer total DS yield
-			double ratio = scatteredYield/primaryYield;
+			double scatteredYield = NumericalMethods.definiteIntegral(energy, spectrum,
+					DT_DS_MIN, DT_DS_MAX); // infer total DS yield
+//			System.out.println(Arrays.toString(spectrum));
+			System.out.println("["+scatteredYield+" , "+totalYield+"],");
+			double ratio = scatteredYield/totalYield;
 			this.arealDensity[i] = DT_RR_COEF*ratio; // [g/cm^2]
 			
-			double mean = NumericalMethods.mean(energy, spectrum); // [MeV]
-			mean = mean + foilCorrection; // correct for foil downshift
+			double mean = NumericalMethods.mean(energy, spectrum, DT_DS_MAX, MAX_E); // [MeV]
+			mean = mean + foilCorrection/energyFactor; // correct for foil downshift
 			this.bulkVelocity[i] = (mean - DT_E_N)/DT_V_COEF; // km/s
 			
-			double std = NumericalMethods.std(energy, spectrum); // [MeV]
-			std = Math.sqrt(Math.max(0, std*std - foilCorrection*foilCorrection/3)); // correct for foil broadening TODO: how do I account for V_CM?
+			double std = NumericalMethods.std(energy, spectrum, DT_DS_MAX, MAX_E); // [MeV]
+			std = Math.sqrt(Math.max(0, std*std - Math.pow(foilCorrection/energyFactor, 2)/3)); // correct for foil broadening TODO: how do I account for V_CM?
 			this.ionTemperature[i] = DT_T_COEF/mean*std*std*1e3; // Ti is just a standard deviation [keV]
 		}
 			
@@ -356,23 +364,28 @@ public class MRSt {
 		for (int k = 0; k < moments.length; k ++)
 			moments[k] = NumericalMethods.moment(k, timeABins, neutronYield);
 		
+
 		if (logger != null) {
-			logger.info(String.format("Bang time:         %7.3f ns", timeAxis[bangTime]));
-			logger.info(String.format("Peak compression:  %7.3f ns", timeAxis[compressTime]));
-			logger.info(String.format("            = BT + %7.3f ps", (timeAxis[compressTime] - timeAxis[bangTime])/1e-3));
-			logger.info(String.format("Max ρR ramp:       %7.3f ps", timeAxis[maxPRRamp]));
-			logger.info(String.format("            = BT + %7.3f ps", (timeAxis[maxPRRamp] - timeAxis[bangTime])/1e-3));
-			logger.info(String.format("Ti at BT:          %7.3f keV", ionTemperature[bangTime]));
-			logger.info(String.format("vi at BT:          %7.3f μm/ns", bulkVelocity[bangTime]));
-			logger.info(String.format("dTi/dt at BT:      %7.3f keV/ns", dTidt[bangTime]));
-			logger.info(String.format("dρR/dt at BT:      %7.3f g/cm^2/ns", dρRdt[bangTime]));
-			logger.info(String.format("dvi/dt at BT:      %7.3f μm/ns^2", dvidt[bangTime]));
-			logger.info(String.format("Peak ρR:           %7.3f g/cm^2", arealDensity[compressTime]));
-			logger.info(String.format("Total yield (μ0):  %7.3g", moments[0]));
-			logger.info(String.format("Burn mean (μ1):    %7.3g ns", moments[1]));
-			logger.info(String.format("Burn width (μ2):   %7.3g ns^2", moments[2]));
-			logger.info(String.format("Burn skewness (μ3):%7.3g ns^3", moments[3]));
-			logger.info(String.format("Burn kurtosis (μ4):%7.3g ns^3", moments[4]));
+			if (bangTime == -1 || compressTime == -1 || maxPRRamp == -1)
+				logger.warning("Insufficient statistics to analyze.");
+			else {
+				logger.info(String.format("Bang time:         %8.3f ns", timeAxis[bangTime]));
+				logger.info(String.format("Peak compression:  %8.3f ns", timeAxis[compressTime]));
+				logger.info(String.format("            = BT + %8.3f ps", (timeAxis[compressTime] - timeAxis[bangTime])/1e-3));
+				logger.info(String.format("Max ρR ramp:       %8.3f ps", timeAxis[maxPRRamp]));
+				logger.info(String.format("            = BT + %8.3f ps", (timeAxis[maxPRRamp] - timeAxis[bangTime])/1e-3));
+				logger.info(String.format("Ti at BT:          %8.3f keV", ionTemperature[bangTime]));
+				logger.info(String.format("vi at BT:          %8.3f μm/ns", bulkVelocity[bangTime]));
+				logger.info(String.format("dTi/dt at BT:      %8.3f keV/ns", dTidt[bangTime]));
+				logger.info(String.format("dρR/dt at BT:      %8.3f g/cm^2/ns", dρRdt[bangTime]));
+				logger.info(String.format("dvi/dt at BT:      %8.3f μm/ns^2", dvidt[bangTime]));
+				logger.info(String.format("Peak ρR:           %8.3f g/cm^2", arealDensity[compressTime]));
+				logger.info(String.format("Total yield (μ0):  %8.3g", moments[0]));
+				logger.info(String.format("Burn mean (μ1):    %8.3g ns", moments[1]));
+				logger.info(String.format("Burn width (μ2):   %8.3g ns^2", moments[2]));
+				logger.info(String.format("Burn skewness (μ3):%8.3g", moments[3]));
+				logger.info(String.format("Burn kurtosis (μ4):%8.3g", moments[4]));
+			}
 		}
 	}
 	
