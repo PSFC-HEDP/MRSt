@@ -192,7 +192,7 @@ public class SpectrumViewer extends Application {
 					try {
 						eBins = energyBins.clone();
 						tBins = timeBins.clone();
-						spec = MRSt.correctSpectrum(tBins, eBins, spectrum);
+						spec = MRSt.interpretSpectrumFile(tBins, eBins, spectrum);
 					} catch (ArrayIndexOutOfBoundsException e) {
 						logger.severe("Invalid input spectrum file.");
 						return;
@@ -224,11 +224,11 @@ public class SpectrumViewer extends Application {
 					
 					try {
 						plotHeatmap(tBins, eBins, spec,
-								"Time (ns)", "Energy (MeV)", "Spectrum");
-						plotHeatmap(mc.getMeasuredTimeBins(), mc.getPositionBins(), mc.getMeasuredSpectrum(),
-								"Time (ns)", "Position (cm)", "Response");
-						plotHeatmap(mc.getInferredTimeBins(), mc.getEnergyBins(), mc.getInferredSpectrum(),
-								"Time (ns)", "Energy (MeV)", "Inferred");
+								"Time (ns)", "Energy (MeV)", "Actual neutron spectrum");
+						plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getCorrectedSpectrum(),
+								"Time (ns)", "Energy (MeV)", "Deuteron spectrum");
+						plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getInferredSpectrum(),
+								"Time (ns)", "Energy (MeV)", "Reconstructed neutron spectrum");
 						plotLines(mc.getTimeAxis(), "Time (ns)",
 								mc.getIonTemperature(), "Ti (keV)", mc.getArealDensity(), "ρR (g/cm^2)", mc.getNeutronYield(), "Yn (10^15/ns)", mc.getFlowVelocity(), "Vcosθ (km/s)");
 					} catch (IOException e) {

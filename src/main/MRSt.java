@@ -29,6 +29,7 @@ import java.util.Arrays;
 import java.util.Locale;
 import java.util.logging.Logger;
 
+import Jama.Matrix;
 import main.NumericalMethods.DiscreteFunction;
 
 /**
@@ -44,13 +45,14 @@ public class MRSt {
 	private static final double DT_E_N = 14.1; // d-t fusion neutron energy [MeV]
 
 	private static final int STOPPING_DISTANCE_RESOLUTION = 64;
-	private static final double MIN_X = -20, MAX_X = 20; // histogram bounds [cm]
-	private static final double MIN_TB = -20, MAX_TB = 80; // histogram bounds [ns]
 	private static final double MIN_E = 12, MAX_E = 16; // histogram bounds [MeV]
-	private static final double MIN_TA = 16.0, MAX_TA = 16.5; // histogram bounds [ns]
-	private static final double E_RESOLUTION = .1, T_RESOLUTION = 20e-3; // resolutions [MeV], [ns]
+	private static final double MIN_T = 16.0, MAX_T = 16.5; // histogram bounds [ns]
+//	private static final double E_RESOLUTION = .1, T_RESOLUTION = 20e-3; // resolutions [MeV], [ns]
+	private static final double E_RESOLUTION = .5, T_RESOLUTION = 50e-3;
 	private static final double MAX_SPECTRAL_DENSITY = 1e7; // to save computation time, cap computations when we get this dense
 	private static final int MIN_STATISTICS = 1000; // the minimum number of deuterons to define a spectrum at a time
+	private static final int TRANSFER_MATRIX_TRIES = 10000; // the number of points to sample in each column of the transfer matrix
+	private static final double SMOOTHENING = 3e-10; // the magnitude of the regularization of the spectrum fitting
 
 	private static final double DT_T_COEF = .45; // 9e-5 * 5 with a unit conversion
 	private static final double DT_V_COEF = 5.4e-4; // bulk velocity coefficient
@@ -75,19 +77,17 @@ public class MRSt {
 	private final Particle ion; // either D or P, but probably D
 
 	private final double energyFactor; // conversion factor between neutron and ion energies []
-	private final double foilCorrection; // mean energy loss from foil [MeV]
 	private final double probHitsFoil; // probability that the neutron goes through the foil
 	
 	private final DiscreteFunction distanceVsEnergy;
 	private final DiscreteFunction energyVsDistance;
 	
-	private final double[] positionBins; // endpoints of x bins for response function [cm]
-	private final double[] timeBBins; // endpoints of time bins for response function [ns]
-	private double[][] measuredSpectrum; // measured deuteron counts to go with the position and time-1 bins [1/cm/ns]
-	
 	private final double[] energyBins; // endpoints of E bins for inferred spectrum [MeV]
-	private final double[] timeABins; // endpoints of time bins for inferred spectrum [ns]
-	private double[][] inferredSpectrum; // measured deuteron counts to go with the energy and time-0 bins
+	private final double[] timeBins; // endpoints of time bins for inferred spectrum [ns]
+	private final double[][] transferMatrix; // the full nmx2nm transfer matrix plus smoothing rows
+	private final double[][] transferInverse; // the inverse of the transfer matrix
+	private double[][] correctedSpectrum; // time-corrected deuteron counts
+	private double[][] inferredSpectrum; // backward-fit neutron counts
 	
 	private final double[] timeAxis; // 1D vectors for higher level measurements [ns]
 	private double[] ionTemperature; // [keV]
@@ -152,29 +152,22 @@ public class MRSt {
 		this.distanceVsEnergy = distanceVsEnergyRaw.indexed(STOPPING_DISTANCE_RESOLUTION); // m(J)
 		this.energyVsDistance = distanceVsEnergyRaw.inv().indexed(STOPPING_DISTANCE_RESOLUTION); // J(m)
 		
-		this.foilCorrection = (DT_E_N -
-				energyVsDistance.evaluate(
-						distanceVsEnergy.evaluate(DT_E_N*(-1e6*Particle.E.charge))
-						- foilThickness)/(-1e6*Particle.E.charge))/2; // foil mean blur amount [MeV]
-		
-		this.positionBins = new double[numBins+1];
-		this.timeBBins = new double[numBins+1]; // linearly space the output bins
-		for (int i = 0; i <= numBins; i ++) {
-			this.positionBins[i] = MIN_X + i*(MAX_X - MIN_X)/numBins;
-			this.timeBBins[i] = cosyT0/1e-9 + MIN_TB + i*(MAX_TB - MIN_TB)/numBins;
-		}
 		this.energyBins = new double[(int) ((MAX_E - MIN_E)/E_RESOLUTION + 1)];
 		for (int i = 0; i < energyBins.length; i ++)
-			this.energyBins[i] = (MIN_E + i*(MAX_E - MIN_E)/(energyBins.length-1))*energyFactor;
-		this.timeABins = new double[(int) ((MAX_TA - MIN_TA)/T_RESOLUTION + 1)];
-		for (int i = 0; i < timeABins.length; i ++)
-			this.timeABins[i] = MIN_TA + i*(MAX_TA - MIN_TA)/(timeABins.length-1);
+			this.energyBins[i] = (MIN_E + i*(MAX_E - MIN_E)/(energyBins.length-1));
+		this.timeBins = new double[(int) ((MAX_T - MIN_T)/T_RESOLUTION + 1)];
+		for (int i = 0; i < timeBins.length; i ++)
+			this.timeBins[i] = MIN_T + i*(MAX_T - MIN_T)/(timeBins.length-1);
 		
-		this.timeAxis = new double[timeABins.length-1];
-		for (int i = 0; i < timeABins.length-1; i ++)
-			this.timeAxis[i] = (this.timeABins[i] + this.timeABins[i+1])/2;
+		this.timeAxis = new double[timeBins.length-1];
+		for (int i = 0; i < timeBins.length-1; i ++)
+			this.timeAxis[i] = (this.timeBins[i] + this.timeBins[i+1])/2;
 		
 		this.logger = logger;
+		
+		this.transferMatrix = evaluateTransferMatrix();
+		this.transferInverse = new Matrix(transferMatrix).inverse().getArray();
+		System.out.println(Arrays.deepToString(transferInverse));
 	}
 	
 	/**
@@ -211,19 +204,16 @@ public class MRSt {
 		long startTime = System.currentTimeMillis();
 		int masterCount = 0;
 		
-		this.measuredSpectrum = new double[positionBins.length-1][timeBBins.length-1];
-		this.inferredSpectrum = new double[energyBins.length-1][timeABins.length-1];
+		this.correctedSpectrum = new double[energyBins.length-1][timeBins.length-1];
 		for (int i = 0; i < energies.length-1; i ++) { // for each input bin
-			if (energyFactor*energies[i+1] < cosyKmin/(-Particle.E.charge)/1e6)
+			if (energies[i+1] < cosyKmin/(-Particle.E.charge)/1e6)
 				continue; // (skipping those that cannot be useful)
 			for (int j = 0; j < times.length-1; j ++) {
 				if (spectrum[i][j] > 0) {
-					double absSpectrum = spectrum[i][j] *
-							(energies[i+1] - energies[i]) * (times[j+1] - times[j]); // convert the spectral value from density to count
 					double energy0 = energies[i]*1e6, energy1 = energies[i+1]*1e6;
 					double time0 = times[j]*1e-9, time1 = times[j+1]*1e-9; // pull out the bounds, being careful of units
 					
-					double expNumParticles = absSpectrum*this.efficiency((energy0 + energy1)/2); // read how many particles we should expect
+					double expNumParticles = spectrum[i][j]*this.efficiency((energy0 + energy1)/2); // read how many particles we should expect
 					int numParticles = NumericalMethods.poisson(expNumParticles); // draw the "actual" number of particles from an approximate Poisson distribution
 					int numSimulations = (int) Math.min(
 							numParticles, Math.pow(maxSimsPerBin, 2)); // but don't go crazy if we don't have to
@@ -233,23 +223,15 @@ public class MRSt {
 						double energy = energy0 + Math.random()*(energy1 - energy0); // randomly choose values from the bin
 						double time = time0 + Math.random()*(time1 - time0); // [s]
 						double[] xt = this.simulate(energy, time); // do the simulation!
-						double x = xt[0]/1e-2, t1 = xt[1]/1e-9; // then convert to readable units
-						if (Double.isNaN(x))	continue; // sometimes, they won't hit the CSI. That's fine.
+						if (Double.isNaN(xt[0]))	continue; // sometimes, they won't hit the CSI. That's fine.
 						
-						int xBin = NumericalMethods.coerce(0, positionBins.length-1,
-								(x - MIN_X)/(MAX_X - MIN_X)*(positionBins.length-1)); // locate its bin
-						int tbBin = NumericalMethods.coerce(0, timeBBins.length-1,
-								(t1 - cosyT0/1e-9 - MIN_TB)/(MAX_TB - MIN_TB)*(timeBBins.length-1));
-						measuredSpectrum[xBin][tbBin] += weight; // finally, add it to the tally
+						double[] et = this.backCalculate(xt[0], xt[1]); // now do the back-calculation
 						
-						double[] et = this.backCalculate(xt[0], xt[1]); // now do the back-calculation (using the unconverted values)
-						double e = et[0]/(-Particle.E.charge)/1e6, t0 = et[1]/1e-9; // then convert to readable units
-						
-						int eBin = NumericalMethods.coerce(0, energyBins.length-1,
-								(e/energyFactor - MIN_E)/(MAX_E - MIN_E)*(energyBins.length-1));
-						int taBin = NumericalMethods.coerce(0, timeABins.length-1,
-								(t0 - MIN_TA)/(MAX_TA - MIN_TA)*(timeABins.length-1));
-						inferredSpectrum[eBin][taBin] += weight; // add it to the corrected tally, as well
+						double e = et[0]/(-Particle.E.charge)/1e6, t = et[1]/1e-9; // then convert to the same units as the bins
+						int eBin = (int)((e - MIN_E)/(MAX_E - MIN_E)*(energyBins.length-1));
+						int tBin = (int)((t - MIN_T)/(MAX_T - MIN_T)*(timeBins.length-1));
+						if (eBin >= 0 && eBin < energyBins.length-1 && tBin >= 0 && tBin < timeBins.length-1) // if it falls in detectable bounds
+							correctedSpectrum[eBin][tBin] += weight; // add it to the corrected tally
 						
 						masterCount ++;
 					}
@@ -262,7 +244,68 @@ public class MRSt {
 			logger.info(String.format(Locale.US, "completed %d simulations in %.2f minutes.",
 					masterCount, (endTime - startTime)/60000.));
 		
+		this.inferredSpectrum = fitNeutronSpectrum(correctedSpectrum);
 		analyze();
+	}
+	
+	/**
+	 * determine the response of the MRSt to neutrons at particular energies. also tack on some
+	 * finite difference laplacian roughness measures.
+	 * @return the matrix that multiplies from a real neutron spectrum to a measured deuteron
+	 *   spectrum concatenate with roughness, both flattened out.
+	 */
+	public double[][] evaluateTransferMatrix() {
+		int n = (energyBins.length-1)*(timeBins.length-1);
+		double[][] matrix = new double[2*n][n];
+		int j0 = timeBins.length/2; // time symmetry means we only need to evaluate at one time
+		for (int i = 0; i < energyBins.length-1; i ++) { // sweep through all energies
+			double energy0 = energyBins[i]*1e6, energy1 = energyBins[i+1]*1e6; // [keV]
+			double time0 = timeBins[j0]*1e-9, time1 = timeBins[j0+1]*1e-9; // [s]
+			double weight = efficiency((energy0 + energy1)/2);
+			for (int k = 0; k < TRANSFER_MATRIX_TRIES; k ++) {
+				double energy = energy0 + Math.random()*(energy1 - energy0); // randomly choose values from the bin
+				double time = time0 + Math.random()*(time1 - time0); // [s]
+				double[] xt = this.simulate(energy, time); // do the simulation!
+				if (Double.isNaN(xt[0]))	continue; // sometimes, they won't hit the CSI. That's fine.
+				
+				double[] et = this.backCalculate(xt[0], xt[1]); // now do the time correction
+				
+				double e = et[0]/(-Particle.E.charge)/1e6, t = et[1]/1e-9; // then convert to the same units as the bins
+				int eBin = (int)((e - MIN_E)/(MAX_E - MIN_E)*(energyBins.length-1));
+				int tBin = (int)((t - MIN_T)/(MAX_T - MIN_T)*(timeBins.length-1));
+				if (eBin >= 0 && eBin < energyBins.length-1 && tBin >= 0 && tBin < timeBins.length-1) // if it falls in detectable bounds
+					matrix[(timeBins.length-1)*eBin + tBin][(timeBins.length-1)*i + j0] += weight; // add it to the row
+			}
+		}
+		
+		for (int i = 0; i < n; i ++) { // now iterate through all of the rows
+			for (int j = 0; j < n; j ++) { // and all of the columns, of which we still don't have many
+				int jRef = j/(timeBins.length-1)*(timeBins.length-1) + j0; // look for the nearest column that is filled
+				int iRef = i - j + jRef; // [i,j] is equivalent to an [iRef,jRef] by time symmetry
+				if (iRef >= 0 && iRef < n) // that iRef may be out of bounds,
+					matrix[i][j] = matrix[iRef][jRef];
+				else
+					matrix[i][j] = 0; // but if it is, it's almost certainly 0
+			}
+		}
+		
+		for (int j = 0; j < n; j ++) { // now, finally, do the smoothing terms
+			double eCoef = SMOOTHENING/Math.pow((energyBins[1]-energyBins[0]), 2);
+			double tCoef = SMOOTHENING/Math.pow(10*(timeBins[1]-timeBins[0]), 2); // equate 1 MeV to .1 ns
+			int e = j/(timeBins.length-1);
+			int t = j%(timeBins.length-1);
+			if (e-1 >= 0)
+				matrix[n + (timeBins.length-1)*(e-1)+t][j] = eCoef;
+			if (t-1 >= 0)
+				matrix[n + (timeBins.length-1)*e+(t-1)][j] = tCoef;
+			matrix[n + (timeBins.length-1)*e+t][j] = - 2*eCoef - 2*tCoef; // this is the simplest of finite difference Laplacian kernels
+			if (t+1 < timeBins.length-1)
+				matrix[n + (timeBins.length-1)*e+(t+1)][j] = tCoef;
+			if (e+1 < energyBins.length-1)
+				matrix[n + (timeBins.length-1)*(e+1)+t][j] = eCoef;
+		}
+		
+		return matrix;
 	}
 	
 	/**
@@ -285,7 +328,7 @@ public class MRSt {
 	}
 	
 	/**
-	 * estimate the original time and energy of this ion without looking at its actual
+	 * estimate the original time and energy of this ion's neutron without looking at its actual
 	 * time and energy, by guessing its energy and accounting for travel time.
 	 * @param position the position where it hits the focal plane [m]
 	 * @param time the time at which it hits the focal plane [s]
@@ -300,7 +343,26 @@ public class MRSt {
 		double d0 = (E - cosyK0)/cosyK0;
 		double lf = cosyPolynomial(4, new double[] {0, 0, 0, 0, 0, d0}); // re-use the COSY mapping to estimate the time of flight from energy
 		double timeCorrection = cosyT0 + lf*cosyT1 + focusingDistance/v;
-		return new double[] { E, time - timeCorrection };
+		return new double[] { E/energyFactor, time - timeCorrection };
+	}
+	
+	/**
+	 * take the saved correctedSpectrum and fit it to a neutron spectrum.
+	 * @return the matrix that is like deuteronSpectrum but better
+	 */
+	public double[][] fitNeutronSpectrum(double[][] deuteronSpectrum) {
+		double[] u = new double[2*(energyBins.length-1)*(timeBins.length-1)];
+		for (int i = 0; i < energyBins.length-1; i ++)
+			for (int j = 0; j < timeBins.length-1; j ++)
+				u[(timeBins.length-1)*i + j] = deuteronSpectrum[i][j]; // first flatten the spectrum
+		for (int k = 0; k < (energyBins.length-1)*(timeBins.length-1); k ++)
+			u[u.length/2+k] = 0; // then append the zeros to smoothen the result
+		double[] v = NumericalMethods.matmul(transferInverse, u); // then do the multiplication
+		double[][] neutronSpectrum = new double[energyBins.length-1][timeBins.length-1];
+		for (int i = 0; i < energyBins.length-1; i ++)
+			for (int j = 0; j < timeBins.length-1; j ++)
+				neutronSpectrum[i][j] = v[(timeBins.length-1)*i + j]; // finally, unflatten. inflate. rounden.
+		return neutronSpectrum;
 	}
 	
 	/**
@@ -315,8 +377,7 @@ public class MRSt {
 		
 		double[] energy = new double[energyBins.length]; // [MeV]
 		for (int i = 0; i < energy.length; i ++)
-			energy[i] = energyBins[i]/energyFactor; // these are neutron energies, not deuteron energies
-		System.out.println(Arrays.toString(energy));
+			energy[i] = energyBins[i]; // these are neutron energies, not deuteron energies
 		
 		for (int i = 0; i < timeAxis.length; i ++) { // at each time
 			double[] spectrum = new double[this.inferredSpectrum.length]; // slice out the relevant spectrum
@@ -339,30 +400,25 @@ public class MRSt {
 			
 			double scatteredYield = NumericalMethods.definiteIntegral(energy, spectrum,
 					DT_DS_MIN, DT_DS_MAX); // infer total DS yield
-//			System.out.println(Arrays.toString(spectrum));
-			System.out.println("["+scatteredYield+" , "+totalYield+"],");
 			double ratio = scatteredYield/totalYield;
 			this.arealDensity[i] = DT_RR_COEF*ratio; // [g/cm^2]
 			
 			double mean = NumericalMethods.mean(energy, spectrum, DT_DS_MAX, MAX_E); // [MeV]
-			mean = mean + foilCorrection/energyFactor; // correct for foil downshift
 			this.bulkVelocity[i] = (mean - DT_E_N)/DT_V_COEF; // km/s
 			
-			double std = NumericalMethods.std(energy, spectrum, DT_DS_MAX, MAX_E); // [MeV]
-			std = Math.sqrt(Math.max(0, std*std - Math.pow(foilCorrection/energyFactor, 2)/3)); // correct for foil broadening TODO: how do I account for V_CM?
+			double std = NumericalMethods.std(energy, spectrum, DT_DS_MAX, MAX_E); // [MeV] TODO: how do I account for V_CM?
 			this.ionTemperature[i] = DT_T_COEF/mean*std*std*1e3; // Ti is just a standard deviation [keV]
 		}
 			
 		double[] dTidt = NumericalMethods.derivative(timeAxis, ionTemperature);
 		double[] dρRdt = NumericalMethods.derivative(timeAxis, arealDensity);
-//		double[] dYndt = NumericalMethods.derivative(timeAxis, neutronYield);
 		double[] dvidt = NumericalMethods.derivative(timeAxis, bulkVelocity);
 		int bangTime = NumericalMethods.argmax(neutronYield);
 		int compressTime = NumericalMethods.argmax(arealDensity);
 		int maxPRRamp = NumericalMethods.argmax(dρRdt);
 		double[] moments = new double[5];
 		for (int k = 0; k < moments.length; k ++)
-			moments[k] = NumericalMethods.moment(k, timeABins, neutronYield);
+			moments[k] = NumericalMethods.moment(k, timeBins, neutronYield);
 		
 
 		if (logger != null) {
@@ -504,24 +560,16 @@ public class MRSt {
 		return output;
 	}
 	
-	public double[] getMeasuredTimeBins() {
-		return this.timeBBins;
-	}
-	
-	public double[] getPositionBins() {
-		return this.positionBins;
-	}
-	
-	public double[][] getMeasuredSpectrum() {
-		return this.measuredSpectrum;
-	}
-	
-	public double[] getInferredTimeBins() {
-		return this.timeABins;
+	public double[] getTimeBins() {
+		return this.timeBins;
 	}
 	
 	public double[] getEnergyBins() {
 		return this.energyBins;
+	}
+	
+	public double[][] getCorrectedSpectrum() {
+		return this.correctedSpectrum;
 	}
 	
 	public double[][] getInferredSpectrum() {
@@ -549,16 +597,16 @@ public class MRSt {
 	}
 	
 	/**
-	 * convert a time-cumulative spectrum, as read from an input file, into an array of count
+	 * convert a time-cumulative spectrum, as read from an input file, into an array of counts
 	 * densities. also, edit energies to make it bin edges. this will remove the last row of
 	 * energies. given that the last row is over 29 MeV, I think that's fine.
 	 * @param timeAxis the time bin boundaries [ns]
 	 * @param energyAxis the energy bin midpoints [MeV]
 	 * @param spectrum array of the neutron spectrum integrated in time [#/MeV]
-	 * @return spectrum array of the neutron spectrum [#/MeV/ns]
+	 * @return spectrum array of the neutron spectrum [#]
 	 */
 	public static double[][]
-			correctSpectrum(double[] times, double[] energies, double[][] spectrum) {
+			interpretSpectrumFile(double[] times, double[] energies, double[][] spectrum) {
 		for (int i = energies.length-1; i > 0; i --) // start by fixing the energies
 			energies[i] = (energies[i-1] + energies[i])/2;
 		energies[0] = 2*energies[0] - energies[1]; // for the last one, assume equal spacing
@@ -566,7 +614,7 @@ public class MRSt {
 		double[][] output = new double[energies.length-1][times.length-1];
 		for (int i = 0; i < energies.length-1; i ++) { // now for the spectrum
 			for (int j = 0; j < times.length-1; j ++)
-				output[i][j] = (spectrum[i][j+1] - spectrum[i][j])/(times[j+1] - times[j]); // you're just taking this derivative
+				output[i][j] = (spectrum[i][j+1] - spectrum[i][j])*(energies[i+1] - energies[i]); // you're just taking this derivative
 		}
 		
 		return output;
@@ -590,7 +638,7 @@ public class MRSt {
 		double[][] spectrum = CSV.read(new File("data/nsp_150327_16p26.txt"), '\t');
 		double[] timeAxis = CSV.readColumn(new File("data/nsp_150327_16p26_time.txt"));
 		double[] energyAxis = CSV.readColumn(new File("data/Energy bins.txt"));
-		spectrum = correctSpectrum(timeAxis, energyAxis, spectrum);
+		spectrum = interpretSpectrumFile(timeAxis, energyAxis, spectrum);
 		
 //		for (int i = 0; i < 216; i ++) {
 //			double e0 = 12+Math.random()*5;
