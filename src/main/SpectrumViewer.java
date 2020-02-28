@@ -150,27 +150,31 @@ public class SpectrumViewer extends Application {
 		leftPane.add(order, 1, row);
 		row ++;
 		
-		leftPane.add(chooseFileWidget("COSY map file:", stage, (file) -> {
-			this.cosyCoefficients = CSV.readCosyCoefficients(file, order.getValue());
-			this.cosyExponents = CSV.readCosyExponents(file, order.getValue());
-		}), 0, row, 3, 1);
+		leftPane.add(chooseFileWidget("COSY map file:", stage, "MRSt_IRF_FP tilted.txt",
+				(file) -> {
+					this.cosyCoefficients = CSV.readCosyCoefficients(file, order.getValue());
+					this.cosyExponents = CSV.readCosyExponents(file, order.getValue());
+				}), 0, row, 3, 1);
 		row ++;
 		
 		VBox rightPane = new VBox(SPACING_1);
 		
-		rightPane.getChildren().add(chooseFileWidget("Energy bin file:", stage, (file) -> {
-			this.energyBins = CSV.readColumn(file);
-		}));
+		rightPane.getChildren().add(chooseFileWidget("Energy bin file:", stage, "Energy bins.txt",
+				(file) -> {
+					this.energyBins = CSV.readColumn(file);
+				}));
 		row ++;
 		
-		rightPane.getChildren().add(chooseFileWidget("Time bin file:", stage, (file) -> {
-			this.timeBins = CSV.readColumn(file);
-		}));
+		rightPane.getChildren().add(chooseFileWidget("Time bin file:", stage, "nsp_150327_16p26_time.txt",
+				(file) -> {
+					this.timeBins = CSV.readColumn(file);
+				}));
 		row ++;
 		
-		rightPane.getChildren().add(chooseFileWidget("Spectrum file:", stage, (file) -> {
-			this.spectrum = CSV.read(file, '\t');
-		}));
+		rightPane.getChildren().add(chooseFileWidget("Spectrum file:", stage, "nsp_150327_16p26.txt",
+				(file) -> {
+					this.spectrum = CSV.read(file, '\t');
+				}));
 		row ++;
 		
 		this.stoppingPowerData = CSV.read(STOPPING_POWER_FILE, ',');
@@ -230,7 +234,7 @@ public class SpectrumViewer extends Application {
 						plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getInferredSpectrum(),
 								"Time (ns)", "Energy (MeV)", "Reconstructed neutron spectrum");
 						plotLines(mc.getTimeAxis(), "Time (ns)",
-								mc.getIonTemperature(), "Ti (keV)", mc.getArealDensity(), "ρR (g/cm^2)", mc.getNeutronYield(), "Yn (10^15/ns)", mc.getFlowVelocity(), "Vcosθ (km/s)");
+								mc.getIonTemperature(), "Ti (keV)", mc.getArealDensity(), "ρR (g/cm^2)", mc.getNeutronYield(), "Yn (10^15/ns)", mc.getFlowVelocity(), "Vcosθ (μm/ns)");
 					} catch (IOException e) {
 						logger.log(Level.SEVERE, "Could not access plotting scripts and/or plots", e);
 					}
@@ -306,12 +310,15 @@ public class SpectrumViewer extends Application {
 	/**
 	 * create a consistent-looking file selection thingy with a button and label, and bind it
 	 * to the given File.
-	 * @param name
-	 * @param bound
+	 * @param title the title of the window
+	 * @param stage
+	 * @param initialFilename the filename of the file that it will try to load initially
+	 * @param action the action to take with the file once it's chosen
 	 * @return
 	 */
-	private static Region chooseFileWidget(String title, Stage stage, Callback action) {
-		Label label = new Label("No file chosen.");
+	private static Region chooseFileWidget(String title, Stage stage, String initialFilename,
+			Callback action) {
+		Label label = new Label();
 		Button button = new Button("Chose file…");
 		FileChooser fileChooser = new FileChooser();
 		fileChooser.setTitle("Load "+title);
@@ -326,9 +333,9 @@ public class SpectrumViewer extends Application {
 				try {
 					action.process(chosen);
 				} catch (IOException e) {
-					System.err.println("Could not open file."); // TODO remind myself how Alerts work
+					System.err.println("Could not open "+chosen.getName()); // TODO remind myself how Alerts work
 				} catch (Exception e) {
-					System.err.println("There was a problem opening the file.");
+					System.err.println("There was a problem opening "+chosen.getName());
 					e.printStackTrace();
 				}
 			}
@@ -337,6 +344,14 @@ public class SpectrumViewer extends Application {
 		label.setMaxWidth(250 - button.getPrefWidth());
 		output.setPrefWidth(250);
 		output.setAlignment(Pos.CENTER_LEFT);
+		label.setText(initialFilename);
+		try {
+			action.process(new File("data/"+initialFilename));
+		} catch (IOException e) {
+			label.setText("No file chosen");
+		} catch (Exception e) {
+			System.err.println("There was a problem opening "+initialFilename);
+		}
 		return new VBox(SPACING_2, new Label(title), output);
 	}
 	

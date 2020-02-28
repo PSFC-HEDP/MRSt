@@ -23,7 +23,9 @@
  */
 package main;
 
+import java.util.Arrays;
 import java.util.Locale;
+import java.util.function.Function;
 
 /**
  * a file with some useful numerical analysis stuff.
@@ -179,6 +181,24 @@ public class NumericalMethods {
 	}
 	
 	/**
+	 * do a standard deviation of a not histogram. it's just a list of numbers.
+	 * @param x
+	 * @param y
+	 * @param a
+	 * @param b
+	 * @return
+	 */
+	public static double std(double[] x) {
+		double mean = 0;
+		double meanSqr = 0;
+		for (int i = 0; i < x.length; i ++) {
+			mean += x[i]/x.length;
+			meanSqr += Math.pow(x[i], 2)/x.length;
+		}
+		return Math.sqrt(meanSqr - Math.pow(mean, 2));
+	}
+	
+	/**
 	 * find the last index of the highest value
 	 * @param x the array of values
 	 * @return i such that x[i] >= x[j] for all j
@@ -186,10 +206,37 @@ public class NumericalMethods {
 	public static int argmax(double[] x) {
 		int argmax = -1;
 		for (int i = 0; i < x.length; i ++)
-			if (!Double.isNaN(x[i]) && (argmax == -1 ||
-					x[i] > x[argmax]))
+			if (!Double.isNaN(x[i]) && (argmax == -1 || x[i] > x[argmax]))
 				argmax = i;
 		return argmax;
+	}
+	
+	/**
+	 * find the last index of the second highest value
+	 * @param x the array of values
+	 * @return i such that x[i] >= x[j] for all j
+	 */
+	public static int argpenmax(double[] x) {
+		int argmax = argmax(x);
+		int argpenmax = -1;
+		for (int i = 0; i < x.length; i ++)
+			if (i != argmax && !Double.isNaN(x[i]) && (argpenmax == -1 || x[i] < x[argpenmax]))
+				argpenmax = i;
+		return argpenmax;
+	}
+	
+	/**
+	 * find the last index of the lowest value
+	 * @param x the array of values
+	 * @return i such that x[i] >= x[j] for all j
+	 */
+	public static int argmin(double[] x) {
+		int argmin = -1;
+		for (int i = 0; i < x.length; i ++)
+			if (!Double.isNaN(x[i]) && (argmin == -1 ||
+					x[i] < x[argmin]))
+				argmin = i;
+		return argmin;
 	}
 	
 	/**
@@ -246,91 +293,127 @@ public class NumericalMethods {
 	}
 	
 	/**
-	 * find the inverse of a matrix
-	 * @param A matrix
-	 * @return A^-1 matrix
+	 * perform Nelder-Mead unconstrained optimization.
+	 * @param f the function to minimize
+	 * @param x0 the initial guess of the minimizing parameter vector
+	 * @param tol the relative tolerance for error
+	 * @return the x vector that minimizes f(x)
 	 */
-	public static double[][] matinv(double a[][]) {
-		int n = a.length;
-		double x[][] = new double[n][n];
-		double b[][] = new double[n][n];
-		int index[] = new int[n];
-		for (int i = 0; i < n; i ++)
-			b[i][i] = 1;
-
-		gaussian(a, index); // Transform the matrix into an uppre triangle
-
-		for (int i = 0; i < n - 1; ++i) // Update the matrix b[i][j] with the ratios stored
-			for (int j = i + 1; j < n; ++j)
-				for (int k = 0; k < n; ++k)
-					b[index[j]][k] -= a[index[j]][i] * b[index[i]][k];
-
-		for (int i = 0; i < n; ++i) { // Perform backward substitutions
-			x[n - 1][i] = b[index[n - 1]][i] / a[index[n - 1]][n - 1];
-			for (int j = n - 2; j >= 0; j --) {
-				x[j][i] = b[index[j]][i];
-				for (int k = j + 1; k < n; k ++) {
-					x[j][i] -= a[index[j]][k] * x[k][i];
+	public static double[] minimizeNelderMead(
+			Function<double[], Double> f, double[] x0, double tol) {
+		final double α = 1, γ = 2, ρ = 1/2., σ = 1/2.;
+		
+		double[][] x = new double[x0.length+1][x0.length]; // the vertices of the simplex
+		double[] fx = new double[x0.length+1]; // the values of f at the vertices
+		for (int i = 0; i < x.length; i ++) {
+			x[i] = x0.clone(); // initialize the vertices as the guess
+			if (i < x0.length)
+				x[i][i] *= 1.9; // with multidimensional perturbations of order unity
+			fx[i] = f.apply(x[i]); // and get the initial values
+		}
+		
+		while (true) { // now for the iterative part
+			int iWorst = NumericalMethods.argmax(fx);
+			int iNext = NumericalMethods.argpenmax(fx);
+			int iBest = NumericalMethods.argmin(fx);
+			
+			if (Math.abs((fx[iWorst] - fx[iBest])/fx[iBest]) < tol) // if these are all basically the same
+				return x[iBest]; // terminate and take the best one we have
+			
+			double[] xC = new double[x0.length];
+			for (int i = 0; i < x.length; i ++) // compute the best-guess centroid
+				if (i != iWorst)
+					for (int j = 0; j < xC.length; j ++)
+						xC[j] += x[i][j]/(x.length - 1);
+			
+			double[] xR = new double[x0.length];
+			for (int j = 0; j < xR.length; j ++) // compute the reflected point
+				xR[j] = xC[j] + α*(xC[j] - x[iWorst][j]);
+			double fxR = f.apply(xR);
+			
+			if (fxR < fx[iBest]) { // if this is the best point yet
+				double[] xE = new double[x0.length];
+				for (int j = 0; j < xE.length; j ++) // compute the expanded point
+					xE[j] = xC[j] + γ*(xR[j] - xC[j]);
+				double fxE = f.apply(xE);
+				
+				if (fxE < fxR) {
+					x[iWorst] = xE;
+					fx[iWorst] = fxE;
+					continue;
 				}
-				x[j][i] /= a[index[j]][j];
+				else {
+					x[iWorst] = xR;
+					fx[iWorst] = fxR;
+					continue;
+				}
+			}
+			else if (fxR < fx[iNext]) { // if this is better than the second worst
+				x[iWorst] = xR;
+				fx[iWorst] = fxR;
+				continue;
+			}
+			else {
+				double[] xS = new double[x0.length];
+				for (int j = 0; j < xS.length; j ++) // compute the contracted point
+					xS[j] = xC[j] + ρ*(x[iWorst][j] - xC[j]);
+				double fxS = f.apply(xS);
+				
+				if (fxS < fx[iWorst]) {
+					x[iWorst] = xS;
+					fx[iWorst] = fxS;
+					continue;
+				}
+				else {
+					for (int i = 0; i < x.length; i ++) {
+						if (i != iBest) {
+							for (int j = 0; j < x[i].length; j ++) // move all vertices inward
+								x[i][j] = x[iBest][j] + σ*(x[i][j] - x[iBest][j]);
+							fx[i] = f.apply(x[i]);
+						}
+					}
+					continue;
+				}
 			}
 		}
-		return x;
 	}
 	
+	private static final double[] cof = {
+		-1.3026537197817094, 6.4196979235649026e-1,
+		1.9476473204185836e-2, -9.561514786808631e-3, -9.46595344482036e-4,
+		3.66839497852761e-4, 4.2523324806907e-5, -2.0278578112534e-5,
+		-1.624290004647e-6, 1.303655835580e-6, 1.5626441722e-8, -8.5238095915e-8,
+		6.529054439e-9, 5.059343495e-9, -9.91364156e-10, -2.27365122e-10,
+		9.6467911e-11, 2.394038e-12, -6.886027e-12, 8.94487e-13, 3.13092e-13,
+		-1.12708e-13, 3.81e-16, 7.106e-15, -1.523e-15, -9.4e-17, 1.21e-16, -2.8e-17
+	};
+	
 	/**
-	 * method to carry out the partial-pivoting Gaussian elimination.
-	 * @param a
-	 * @param index stores pivoting order
+	 * The Gauss error function.
 	 */
-	public static void gaussian(double a[][], int index[]) {
-		int n = index.length;
-		double c[] = new double[n];
-
-		// Initialize the index
-		for (int i = 0; i < n; ++i)
-			index[i] = i;
-
-		// Find the rescaling factors, one from each row
-		for (int i = 0; i < n; ++i) {
-			double c1 = 0;
-			for (int j = 0; j < n; ++j) {
-				double c0 = Math.abs(a[i][j]);
-				if (c0 > c1)
-					c1 = c0;
-			}
-			c[i] = c1;
+	public static double erf(double x) {
+		if (x >= 0.) {
+			return 1.0 - erfccheb(x);
+		} else {
+			return erfccheb(-x) - 1.0;
 		}
-
-		// Search the pivoting element from each column
-		int k = 0;
-		for (int j = 0; j < n - 1; ++j) {
-			double pi1 = 0;
-			for (int i = j; i < n; ++i) {
-				double pi0 = Math.abs(a[index[i]][j]);
-				pi0 /= c[index[i]];
-				if (pi0 > pi1) {
-					pi1 = pi0;
-					k = i;
-				}
-			}
-
-			// Interchange rows according to the pivoting ordre
-			int itmp = index[j];
-			index[j] = index[k];
-			index[k] = itmp;
-			for (int i = j + 1; i < n; ++i) {
-				double pj = a[index[i]][j] / a[index[j]][j];
-
-				// Record pivoting ratios below the diagonal
-				a[index[i]][j] = pj;
-
-				// Modify othre elements accordingly
-				for (int l = j + 1; l < n; ++l)
-					a[index[i]][l] -= pj * a[index[j]][l];
-			}
+	}
+	
+	private static double erfccheb(double z) {
+		double t, ty, tmp, d = 0., dd = 0.;
+		if (z < 0.) {
+			throw new IllegalArgumentException("erfccheb requires nonnegative argument");
 		}
-	  }
+		t = 2. / (2. + z);
+		ty = 4. * t - 2.;
+		for (int j = cof.length - 1; j > 0; j--) {
+			tmp = d;
+			d = ty * d - dd + cof[j];
+			dd = tmp;
+		}
+		return t * Math.exp(-z * z + 0.5 * (cof[0] + ty * d) - dd);
+	}
+
 	
 	/**
 	 * a discrete representation of an unknown function, capable of evaluating in log time.
@@ -458,6 +541,19 @@ public class NumericalMethods {
 			return s;
 		}
 		
+	}
+	
+	public static final void main(String[] args) {
+		System.out.println(Arrays.toString(minimizeNelderMead((v) -> {
+			double x = v[0], y = v[1];
+			double z;
+			if (Math.hypot(x, y) > 1 + .2*Math.cos(8*Math.atan2(x, y)))
+				z = Double.POSITIVE_INFINITY;
+			else
+				z = .1*x*y;
+			System.out.println(z);
+			return z;
+		}, new double[] {.5,.5}, 1e-8)));
 	}
 	
 }
