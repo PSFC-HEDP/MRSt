@@ -44,8 +44,8 @@ public class MRSt {
 	private static final int STOPPING_DISTANCE_RESOLUTION = 64;
 	private static final double MIN_E = 12, MAX_E = 16; // histogram bounds [MeV]
 	private static final double MIN_T = 16.0, MAX_T = 16.5; // histogram bounds [ns]
-//	private static final double E_RESOLUTION = .1, T_RESOLUTION = 20e-3; // resolutions [MeV], [ns]
-	private static final double E_RESOLUTION = .5, T_RESOLUTION = 50e-3;
+	private static final double E_RESOLUTION = .1, T_RESOLUTION = 20e-3; // resolutions [MeV], [ns]
+//	private static final double E_RESOLUTION = .5, T_RESOLUTION = 50e-3;
 //	private static final int MIN_STATISTICS = 1; // the minimum number of deuterons to define a spectrum at a time
 	private static final int TRANSFER_MATRIX_TRIES = 10000; // the number of points to sample in each column of the transfer matrix
 	
@@ -75,8 +75,9 @@ public class MRSt {
 	private final double[] energyBins; // endpoints of E bins for inferred spectrum [MeV]
 	private final double[] timeBins; // endpoints of time bins for inferred spectrum [ns]
 	private final double[][] transferMatrix; // the full nmx2nm transfer matrix plus smoothing rows
-	private double[][] correctedSpectrum; // time-corrected deuteron counts
-	private double[][] inferredSpectrum; // backward-fit neutron counts
+	private double[][] deuteronSpectrum; // time-corrected deuteron counts
+	private double[][] fitNeutronSpectrum; // backward-fit neutron counts
+	private double[][] fitDeuteronSpectrum; // backward-fit deuteron counts (this should be similar to deuteronSpectrum)
 	
 	private final double[] timeAxis; // 1D vectors for higher level measurements [ns]
 	private double[] ionTemperature; // [keV]
@@ -238,8 +239,8 @@ public class MRSt {
 	 * element of this.timeBins.
 	 */
 	public void respond(double[] energies, double[] times, double[][] spectrum) {
-		this.correctedSpectrum = this.response(energies, times, spectrum, true);
-		analyze(correctedSpectrum);
+		this.deuteronSpectrum = this.response(energies, times, spectrum, true);
+		analyze(deuteronSpectrum);
 	}
 	
 	/**
@@ -299,47 +300,48 @@ public class MRSt {
 	 * @param spectrum the time-corrected spectrum we want to understand
 	 */
 	public void analyze(double[][] spectrum) {
+		if (spectrum.length != energyBins.length-1 || spectrum[0].length != timeBins.length-1)
+			throw new IllegalArgumentException("These dimensions are wrong.");
+		
 		double[] initialGuess = new double[4*timeAxis.length]; // first we need a half decent guess
-		for (int i = 0; i < 4*timeAxis.length; i ++)
-			initialGuess[i] = 1.5; // all of the things being found should be on order unity
 		for (int i = 0; i < timeAxis.length; i ++) {
 			double[] timeSlice = new double[energyBins.length-1];
 			for (int j = 0; j < timeSlice.length; j ++)
 				timeSlice[j] = spectrum[j][i];
-			initialGuess[0*timeAxis.length + i] = NumericalMethods.definiteIntegral(energyBins, timeSlice)/this.efficiency(14.1e6)/1e15/(timeBins[i+1] - timeBins[i]);
-			initialGuess[1*timeAxis.length + i] = 1.5; // the temperature is somewhere around here [keV]
-			initialGuess[2*timeAxis.length + i] = -100; // the flow rate might look something like this [km/s]
-			initialGuess[3*timeAxis.length + i] = 1.5; // ρR is also in this ballpark [g/cm^2]
+			initialGuess[4*i+0] = NumericalMethods.definiteIntegral(energyBins, timeSlice)/this.efficiency(14.1e6)/1e15/(timeBins[i+1] - timeBins[i]);
+			initialGuess[4*i+1] = 1.5; // the temperature is somewhere around here [keV]
+			initialGuess[4*i+2] = -100; // the flow rate might look something like this [km/s]
+			initialGuess[4*i+3] = 1.5; // ρR is also in this ballpark [g/cm^2]
 		}
 		
 		if (logger != null)  logger.info("beginning fit process.");
 		long startTime = System.currentTimeMillis();
 		
-		double[] params = NumericalMethods.minimizeNelderMead((double[] guess) -> { // minimize the following function:
+		double[] params = Optimization.minimizeNelderMead((double[] guess) -> { // minimize the following function:
 			double [] Yn = new double[timeAxis.length]; // [10^15/ns]
 			double [] Ti = new double[timeAxis.length]; // [keV]
 			double [] vi = new double[timeAxis.length]; // [km/s]
 			double [] ρR = new double[timeAxis.length]; // [g/cm^2]
 			for (int i = 0; i < timeAxis.length; i ++) { // first unpack the state vector
-				Yn[i] = guess[0*timeAxis.length + i];
+				Yn[i] = guess[4*i+0];
 				if (Yn[i] <= 0)  return Double.POSITIVE_INFINITY; // checking for nonpositives as you do
-				Ti[i] = guess[1*timeAxis.length + i];
+				Ti[i] = guess[4*i+1];
 				if (Ti[i] <= 0)  return Double.POSITIVE_INFINITY;
-				vi[i] = guess[2*timeAxis.length + i];
-				ρR[i] = guess[3*timeAxis.length + i];
+				vi[i] = guess[4*i+2];
+				ρR[i] = guess[4*i+3];
 				if (ρR[i] <= 0)  return Double.POSITIVE_INFINITY;
 			}
 			double[][] teoSpectrum = generateSpectrum(
 					Yn, Ti, vi, ρR, energyBins, timeBins); // generate the spectrum based on those
 			double[][] fitSpectrum = this.response(energyBins, timeBins, teoSpectrum, false); // blur it according to the transfer matrix
-			double err = 0;
+			double err = 0; // proportional to log of inverse of Bayes factor
 			for (int i = 0; i < spectrum.length; i ++)
-				for (int j = 0; j < spectrum.length; j ++) // compute the error between it and the actual spectrum
-					err += Math.pow(fitSpectrum[i][j] - spectrum[i][j], 2); // TODO weighing based on the expected magnitude of error
+				for (int j = 0; j < spectrum[i].length; j ++) // compute the error between it and the actual spectrum
+					err += Math.pow(fitSpectrum[i][j] - spectrum[i][j], 2)/fitSpectrum[i][j];
 			System.out.println(err);
 			assert Double.isFinite(err);
 			return err;
-		}, initialGuess, 1e-14);
+		}, initialGuess, 1e-6);
 		
 		long endTime = System.currentTimeMillis();
 		if (logger != null)
@@ -351,14 +353,15 @@ public class MRSt {
 		this.bulkVelocity = new double[timeAxis.length]; // [km/s]
 		this.arealDensity = new double[timeAxis.length]; // [g/cm^2]
 		for (int i = 0; i < timeAxis.length; i ++) { // unpack the minimizing vector
-			neutronYield[i] = params[0*timeAxis.length + i];
-			ionTemperature[i] = params[1*timeAxis.length + i];
-			bulkVelocity[i] = params[2*timeAxis.length + i];
-			arealDensity[i] = params[3*timeAxis.length + i];
+			neutronYield[i] = params[4*i+0];
+			ionTemperature[i] = params[4*i+1];
+			bulkVelocity[i] = params[4*i+2];
+			arealDensity[i] = params[4*i+3];
 		}
-//		this.inferredSpectrum = this.response(energyBins, timeBins, , false);
-		this.inferredSpectrum = generateSpectrum( // and then interpret it
+		
+		this.fitNeutronSpectrum = generateSpectrum( // and then interpret it
 				neutronYield, ionTemperature, bulkVelocity, arealDensity, energyBins, timeBins);
+		this.fitDeuteronSpectrum = this.response(energyBins, timeBins, fitNeutronSpectrum, false);
 		
 //		for (int i = 0; i < timeAxis.length; i ++) {
 //			if (neutronYield[i] < MIN_STATISTICS) { // now remove any intrinsic values from times with insufficient statistics
@@ -616,11 +619,15 @@ public class MRSt {
 	}
 	
 	public double[][] getCorrectedSpectrum() {
-		return this.correctedSpectrum;
+		return this.deuteronSpectrum;
 	}
 	
 	public double[][] getInferredSpectrum() {
-		return this.inferredSpectrum;
+		return this.fitNeutronSpectrum;
+	}
+	
+	public double[][] getFittedSpectrum() {
+		return this.fitDeuteronSpectrum;
 	}
 	
 	public double[] getTimeAxis() {

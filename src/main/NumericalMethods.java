@@ -23,9 +23,7 @@
  */
 package main;
 
-import java.util.Arrays;
 import java.util.Locale;
-import java.util.function.Function;
 
 /**
  * a file with some useful numerical analysis stuff.
@@ -292,91 +290,6 @@ public class NumericalMethods {
 		return u;
 	}
 	
-	/**
-	 * perform Nelder-Mead unconstrained optimization.
-	 * @param f the function to minimize
-	 * @param x0 the initial guess of the minimizing parameter vector
-	 * @param tol the relative tolerance for error
-	 * @return the x vector that minimizes f(x)
-	 */
-	public static double[] minimizeNelderMead(
-			Function<double[], Double> f, double[] x0, double tol) {
-		final double α = 1, γ = 2, ρ = 1/2., σ = 1/2.;
-		
-		double[][] x = new double[x0.length+1][x0.length]; // the vertices of the simplex
-		double[] fx = new double[x0.length+1]; // the values of f at the vertices
-		for (int i = 0; i < x.length; i ++) {
-			x[i] = x0.clone(); // initialize the vertices as the guess
-			if (i < x0.length)
-				x[i][i] *= 1.9; // with multidimensional perturbations of order unity
-			fx[i] = f.apply(x[i]); // and get the initial values
-		}
-		
-		while (true) { // now for the iterative part
-			int iWorst = NumericalMethods.argmax(fx);
-			int iNext = NumericalMethods.argpenmax(fx);
-			int iBest = NumericalMethods.argmin(fx);
-			
-			if (Math.abs((fx[iWorst] - fx[iBest])/fx[iBest]) < tol) // if these are all basically the same
-				return x[iBest]; // terminate and take the best one we have
-			
-			double[] xC = new double[x0.length];
-			for (int i = 0; i < x.length; i ++) // compute the best-guess centroid
-				if (i != iWorst)
-					for (int j = 0; j < xC.length; j ++)
-						xC[j] += x[i][j]/(x.length - 1);
-			
-			double[] xR = new double[x0.length];
-			for (int j = 0; j < xR.length; j ++) // compute the reflected point
-				xR[j] = xC[j] + α*(xC[j] - x[iWorst][j]);
-			double fxR = f.apply(xR);
-			
-			if (fxR < fx[iBest]) { // if this is the best point yet
-				double[] xE = new double[x0.length];
-				for (int j = 0; j < xE.length; j ++) // compute the expanded point
-					xE[j] = xC[j] + γ*(xR[j] - xC[j]);
-				double fxE = f.apply(xE);
-				
-				if (fxE < fxR) {
-					x[iWorst] = xE;
-					fx[iWorst] = fxE;
-					continue;
-				}
-				else {
-					x[iWorst] = xR;
-					fx[iWorst] = fxR;
-					continue;
-				}
-			}
-			else if (fxR < fx[iNext]) { // if this is better than the second worst
-				x[iWorst] = xR;
-				fx[iWorst] = fxR;
-				continue;
-			}
-			else {
-				double[] xS = new double[x0.length];
-				for (int j = 0; j < xS.length; j ++) // compute the contracted point
-					xS[j] = xC[j] + ρ*(x[iWorst][j] - xC[j]);
-				double fxS = f.apply(xS);
-				
-				if (fxS < fx[iWorst]) {
-					x[iWorst] = xS;
-					fx[iWorst] = fxS;
-					continue;
-				}
-				else {
-					for (int i = 0; i < x.length; i ++) {
-						if (i != iBest) {
-							for (int j = 0; j < x[i].length; j ++) // move all vertices inward
-								x[i][j] = x[iBest][j] + σ*(x[i][j] - x[iBest][j]);
-							fx[i] = f.apply(x[i]);
-						}
-					}
-					continue;
-				}
-			}
-		}
-	}
 	
 	private static final double[] cof = {
 		-1.3026537197817094, 6.4196979235649026e-1,
@@ -541,19 +454,6 @@ public class NumericalMethods {
 			return s;
 		}
 		
-	}
-	
-	public static final void main(String[] args) {
-		System.out.println(Arrays.toString(minimizeNelderMead((v) -> {
-			double x = v[0], y = v[1];
-			double z;
-			if (Math.hypot(x, y) > 1 + .2*Math.cos(8*Math.atan2(x, y)))
-				z = Double.POSITIVE_INFINITY;
-			else
-				z = .1*x*y;
-			System.out.println(z);
-			return z;
-		}, new double[] {.5,.5}, 1e-8)));
 	}
 	
 }
