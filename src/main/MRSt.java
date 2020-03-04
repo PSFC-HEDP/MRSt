@@ -25,6 +25,7 @@ package main;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Locale;
 import java.util.logging.Logger;
 
@@ -217,10 +218,10 @@ public class MRSt {
 			for (int j = 0; j < n; j ++) { // and all of the columns, of which we still don't have many
 				int jRef = j/(timeBins.length-1)*(timeBins.length-1) + j0; // look for the nearest column that is filled
 				int iRef = i - j + jRef; // [i,j] is equivalent to an [iRef,jRef] by time symmetry
-				if (iRef >= 0 && iRef < n) // that iRef may be out of bounds,
+				if (iRef >= 0 && i/(timeBins.length-1) == iRef/(timeBins.length-1)) // this may have jumped over to the next energy,
 					matrix[i][j] = matrix[iRef][jRef];
 				else
-					matrix[i][j] = 0; // but if it is, it's almost certainly 0
+					matrix[i][j] = 0; // but if so, it's almost certainly 0
 			}
 		}
 		
@@ -303,21 +304,25 @@ public class MRSt {
 		if (spectrum.length != energyBins.length-1 || spectrum[0].length != timeBins.length-1)
 			throw new IllegalArgumentException("These dimensions are wrong.");
 		
+		final double noiseVar = Math.pow(1e14*this.efficiency(14.1e6), 2); // assume some unknown distribution of this variance, so it doesn't freak out when it sees a few high energy particles
+		
 		double[] initialGuess = new double[4*timeAxis.length]; // first we need a half decent guess
 		for (int i = 0; i < timeAxis.length; i ++) {
 			double[] timeSlice = new double[energyBins.length-1];
 			for (int j = 0; j < timeSlice.length; j ++)
 				timeSlice[j] = spectrum[j][i];
-			initialGuess[4*i+0] = NumericalMethods.definiteIntegral(energyBins, timeSlice)/this.efficiency(14.1e6)/1e15/(timeBins[i+1] - timeBins[i]);
-			initialGuess[4*i+1] = 1.5; // the temperature is somewhere around here [keV]
-			initialGuess[4*i+2] = -100; // the flow rate might look something like this [km/s]
-			initialGuess[4*i+3] = 1.5; // ρR is also in this ballpark [g/cm^2]
+			double sliceYield = NumericalMethods.definiteIntegral(energyBins, timeSlice);
+			initialGuess[4*i+0] = Math.max(1,
+					sliceYield/this.efficiency(14.1e6)/1e15/(timeBins[i+1] - timeBins[i]));
+			initialGuess[4*i+1] = 2; // the temperature is somewhere around here [keV]
+			initialGuess[4*i+2] = 100; // the flow rate might look something like this [km/s]
+			initialGuess[4*i+3] = 3; // ρR is also in this ballpark [g/cm^2]
 		}
 		
 		if (logger != null)  logger.info("beginning fit process.");
 		long startTime = System.currentTimeMillis();
 		
-		double[] params = Optimization.minimizeNelderMead((double[] guess) -> { // minimize the following function:
+		double[] params = Optimization.minimizeCoordinateDescent((double[] guess) -> { // minimize the following function:
 			double [] Yn = new double[timeAxis.length]; // [10^15/ns]
 			double [] Ti = new double[timeAxis.length]; // [keV]
 			double [] vi = new double[timeAxis.length]; // [km/s]
@@ -337,11 +342,11 @@ public class MRSt {
 			double err = 0; // proportional to log of inverse of Bayes factor
 			for (int i = 0; i < spectrum.length; i ++)
 				for (int j = 0; j < spectrum[i].length; j ++) // compute the error between it and the actual spectrum
-					err += Math.pow(fitSpectrum[i][j] - spectrum[i][j], 2)/fitSpectrum[i][j];
+					err += Math.pow(fitSpectrum[i][j] - spectrum[i][j], 2)/(fitSpectrum[i][j] + noiseVar);
 			System.out.println(err);
 			assert Double.isFinite(err);
 			return err;
-		}, initialGuess, 1e-6);
+		}, initialGuess, 4, 1e-6);
 		
 		long endTime = System.currentTimeMillis();
 		if (logger != null)
@@ -680,19 +685,19 @@ public class MRSt {
 	 * @throws NumberFormatException 
 	 */
 	public static void main(String[] args) throws NumberFormatException, IOException {
-		MRSt sim = new MRSt(
-				Particle.D, 3.0e-3, 0.3e-3, 80e-6,
-				CSV.read(new File("data/stopping_power_deuterons.csv"), ','),
-				6e0, 4.0e-3, 20.0e-3, 10.7e6, 14.2e6, 12.45e6,
-				CSV.readCosyCoefficients(new File("data/MRSt_IRF_FP tilted.txt"), 3),
-//				CSV.readCosyCoefficients(new File("data/MRSt_IRF_FP not tilted.txt"), 3),
-				CSV.readCosyExponents(new File("data/MRSt_IRF_FP tilted.txt"), 3), 70.3,
-				100, null);
-		
-		double[][] spectrum = CSV.read(new File("data/nsp_150327_16p26.txt"), '\t');
-		double[] timeAxis = CSV.readColumn(new File("data/nsp_150327_16p26_time.txt"));
-		double[] energyAxis = CSV.readColumn(new File("data/Energy bins.txt"));
-		spectrum = interpretSpectrumFile(timeAxis, energyAxis, spectrum);
+//		MRSt sim = new MRSt(
+//				Particle.D, 3.0e-3, 0.3e-3, 80e-6,
+//				CSV.read(new File("data/stopping_power_deuterons.csv"), ','),
+//				6e0, 4.0e-3, 20.0e-3, 10.7e6, 14.2e6, 12.45e6,
+//				CSV.readCosyCoefficients(new File("data/MRSt_IRF_FP tilted.txt"), 3),
+////				CSV.readCosyCoefficients(new File("data/MRSt_IRF_FP not tilted.txt"), 3),
+//				CSV.readCosyExponents(new File("data/MRSt_IRF_FP tilted.txt"), 3), 70.3,
+//				100, null);
+//		
+//		double[][] spectrum = CSV.read(new File("data/nsp_150327_16p26.txt"), '\t');
+//		double[] timeAxis = CSV.readColumn(new File("data/nsp_150327_16p26_time.txt"));
+//		double[] energyAxis = CSV.readColumn(new File("data/Energy bins.txt"));
+//		spectrum = interpretSpectrumFile(timeAxis, energyAxis, spectrum);
 		
 //		for (int i = 0; i < 216; i ++) {
 //			double e0 = 12+Math.random()*5;
@@ -704,15 +709,14 @@ public class MRSt {
 //			System.out.println(e+", "+t0+"],");
 //		}
 		
-//		int n = 40;
-//		double[] E = new double[n+1];
-//		for (int i = 0; i < n+1; i ++)
-//			E[i] = 12 + 4./n*i;
-//		System.out.println(Arrays.toString(E));
-//		System.out.println(Arrays.toString(generateSpectrum(.5, .5, .5, .5, E)));
-
+		int n = 40;
+		double[] E = new double[n+1];
+		for (int i = 0; i < n+1; i ++)
+			E[i] = 12 + 4./n*i;
+		System.out.println(Arrays.toString(E));
+		System.out.println(Arrays.toString(generateSpectrum(10, 2, 100, 3, E)));
 		
-		sim.respond(energyAxis, timeAxis, spectrum);
+//		sim.respond(energyAxis, timeAxis, spectrum);
 	}
 	
 	/**

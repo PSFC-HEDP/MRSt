@@ -223,7 +223,7 @@ public class SpectrumViewer extends Application {
 								logger);
 						mc.respond(eBins, tBins, spec);
 					} catch (Exception e) {
-						logger.log(Level.SEVERE, "Unexpected error", e);
+						logger.log(Level.SEVERE, e.getMessage(), e);
 					}
 					
 					try {

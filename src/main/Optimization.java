@@ -27,13 +27,15 @@ public class Optimization {
 	 */
 	public static double minimizeBacktrack(
 			Function<Double, Double> func, double grad, double x0, double stepSize) {
+		if (grad == 0)  return x0; // if the gradient here is naught, there's absolutely noting we can do
+		
 		final double c = 0.4, τ = 0.5;
 		
 		double fx0 = func.apply(x0);
 		if (grad > 0)  stepSize *= -1; // orient ourselves
 		double x = x0 + stepSize; // take an initial downhill step
 		double fx = func.apply(x);
-		while (fx - fx0 > (x - x0)*c*grad) { // if the function didn't decrease enough
+		while (fx - fx0 > (x - x0)*c*grad && Math.abs(x - x0) > x*1e-15) { // if the function didn't decrease enough (or we hit roundoff error)
 			x = x0 + τ*(x - x0); // backstep and try again
 			fx = func.apply(x);
 		}
@@ -63,6 +65,8 @@ public class Optimization {
 				x[i].set(0, i, x[i].get(0, i)*1.9); // with multidimensional perturbations
 			fx[i] = f.apply(x[i]); // and get the initial values
 		}
+		if (!Double.isFinite(fx[x0.length]))
+			throw new IllegalArgumentException("Initial guess yielded bunk value");
 		
 		while (true) { // now for the iterative part
 			int iWorst = NumericalMethods.argmax(fx);
@@ -136,7 +140,7 @@ public class Optimization {
 	 */
 	public static double[] minimizeCoordinateDescent(
 			Function<double[], Double> func, double[] x0, double[] scale, double tol) {
-		final double dt = 1e-6;
+		final double dt = 1e-9;
 		List<Function<double[], Double>> grad = new ArrayList<Function<double[], Double>>(x0.length);
 		for (int i = 0; i < x0.length; i ++) {
 			final int I = i;
@@ -166,6 +170,9 @@ public class Optimization {
 			Function<double[], Double> func, List<Function<double[], Double>> grad, double[] x0, double[] scale, double tol) {
 		double[] x = x0.clone();
 		double fx = func.apply(x);
+		if (!Double.isFinite(fx))
+			throw new IllegalArgumentException("Initial guess yielded bunk value");
+		
 		while (true) {
 			for (int i = 0; i < x0.length; i ++) {
 				final int I = i;
@@ -229,7 +236,7 @@ public class Optimization {
 	 */
 	public static double[] minimizeLBFGS(
 			Function<double[], Double> func, double[] x0, double tol) {
-		final double dx = 1e-6;
+		final double dx = 1e-9;
 		Function<double[], double[]> gradient = (x) -> {
 			double y0 = func.apply(x);
 			double[] dydx = new double[x.length];
@@ -264,8 +271,11 @@ public class Optimization {
 		Matrix gkMinus1 = null; // the previous value of $g$ from the L-BFGS algorithm
 		Matrix x = new Matrix(new double[][] {x0.clone()}).T(); // the current best guess (column matrix)
 		
+		double Ui = funcMat.apply(x);
+		if (!Double.isFinite(Ui))
+			throw new IllegalArgumentException("Initial guess yielded bunk value");
+		
 		while (true) {
-			double Ui = funcMat.apply(x);
 			
 			Matrix gk = gradMat.apply(x);
 			
@@ -314,6 +324,7 @@ public class Optimization {
 			Matrix sk = dk.times(timestep); // STEP 5: save historical vector information
 			sHist.addLast(sk);
 			gkMinus1 = gk;
+			Ui = Uf;
 		}
 	}
 	
@@ -535,7 +546,7 @@ public class Optimization {
 //		System.out.println(Arrays.toString(minimizeNelderMead(
 //				simionescu, new double[] {.5,.5}, 1e-8)));
 		System.out.println(Arrays.toString(minimizeCoordinateDescent(
-				simionescu, simionescuGradient, new double[] {0,0}, new double[] {1,1}, 1e-8)));
+				simionescu, simionescuGradient, new double[] {.5, .5}, new double[] {1,1}, 1e-8)));
 //		System.out.println(Arrays.toString(minimizeCoordinateDescent(
 //				himmelblau, new double[] {0,0}, new double[] {1,1}, 1e-8)));
 //		System.out.println(Arrays.toString(minimizeLBFGS(
