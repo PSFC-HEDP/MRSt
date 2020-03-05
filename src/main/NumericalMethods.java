@@ -196,6 +196,15 @@ public class NumericalMethods {
 		return Math.sqrt(meanSqr - Math.pow(mean, 2));
 	}
 	
+	public static double max(double[][] arr) {
+		double max = Double.NEGATIVE_INFINITY;
+		for (double[] row: arr)
+			for (double x: row)
+				if (x > max)
+					max = x;
+		return max;
+	}
+	
 	/**
 	 * find the last index of the highest value
 	 * @param x the array of values

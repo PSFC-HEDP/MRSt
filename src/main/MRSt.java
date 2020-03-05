@@ -23,7 +23,6 @@
  */
 package main;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Locale;
@@ -304,7 +303,8 @@ public class MRSt {
 		if (spectrum.length != energyBins.length-1 || spectrum[0].length != timeBins.length-1)
 			throw new IllegalArgumentException("These dimensions are wrong.");
 		
-		final double noiseVar = Math.pow(1e14*this.efficiency(14.1e6), 2); // assume some unknown distribution of this variance, so it doesn't freak out when it sees a few high energy particles
+		double peak = NumericalMethods.max(spectrum);
+		final double noiseVar = Math.pow(peak/1e3, 2); // assume some unknown distribution of this variance, so it doesn't freak out when it sees n-knockons
 		
 		double[] initialGuess = new double[4*timeAxis.length]; // first we need a half decent guess
 		for (int i = 0; i < timeAxis.length; i ++) {
@@ -322,7 +322,7 @@ public class MRSt {
 		if (logger != null)  logger.info("beginning fit process.");
 		long startTime = System.currentTimeMillis();
 		
-		double[] params = Optimization.minimizeCoordinateDescent((double[] guess) -> { // minimize the following function:
+		double[] params = Optimization.minimizeLBFGS((double[] guess) -> { // minimize the following function:
 			double [] Yn = new double[timeAxis.length]; // [10^15/ns]
 			double [] Ti = new double[timeAxis.length]; // [keV]
 			double [] vi = new double[timeAxis.length]; // [km/s]
@@ -346,7 +346,7 @@ public class MRSt {
 			System.out.println(err);
 			assert Double.isFinite(err);
 			return err;
-		}, initialGuess, 4, 1e-6);
+		}, initialGuess, 1e-6);
 		
 		long endTime = System.currentTimeMillis();
 		if (logger != null)
@@ -596,8 +596,8 @@ public class MRSt {
 	public static double[] generateSpectrum(double Yn, double Ti, double vi, double ρR,
 			double[] eBins) {
 		double Ps = 1 - Math.exp(-0.212*ρR); // probability of any scattering or absorption (1.80b/5u) []
-		double p = .0132*ρR; // DS spectrum parameter (.111b/MeV)/5u [MeV^-1]
-		double λ = 1.020; // DS spectrum parameter (1/.981MeV) [MeV^-1]
+		double p = .0590*ρR; // DS spectrum parameter (.493b/MeV)/5u [MeV^-1]
+		double λ = 0.313; // DS spectrum parameter (1/3.19MeV) [MeV^-1]
 		double μ = 14.1 + .54e-3*vi; // primary peak (see paper), [MeV]
 		double s2 = 2.24e-3*μ*Ti; // primary variance (see paper) [MeV^2]
 		double[] pdf = new double[eBins.length]; // probability distribution at edges
@@ -680,6 +680,32 @@ public class MRSt {
 	}
 
 	/**
+	 * a simple convenience method to avoid excessive if statements
+	 * @param arr
+	 * @param i
+	 * @param j
+	 * @param val
+	 */
+	private void addIfInBounds(double[][] arr, int i, int j, double val) {
+		if (i >= 0 && i < arr.length)
+			if (j >= 0 && j < arr[i].length)
+				arr[i][j] += val;
+	}
+	
+	/**
+	 * square a vector, because this takes so long to write out every time.
+	 * @param v
+	 * @return
+	 */
+	private static double sqr(double[] v) {
+		double s = 0;
+		for (double x: v)
+			s += Math.pow(x, 2);
+		return s;
+	}
+	
+	
+	/**
 	 * @param args
 	 * @throws IOException 
 	 * @throws NumberFormatException 
@@ -714,34 +740,8 @@ public class MRSt {
 		for (int i = 0; i < n+1; i ++)
 			E[i] = 12 + 4./n*i;
 		System.out.println(Arrays.toString(E));
-		System.out.println(Arrays.toString(generateSpectrum(10, 2, 100, 3, E)));
+		System.out.println(Arrays.toString(generateSpectrum(10, 2, 100, 0.5, E)));
 		
 //		sim.respond(energyAxis, timeAxis, spectrum);
 	}
-	
-	/**
-	 * a simple convenience method to avoid excessive if statements
-	 * @param arr
-	 * @param i
-	 * @param j
-	 * @param val
-	 */
-	private void addIfInBounds(double[][] arr, int i, int j, double val) {
-		if (i >= 0 && i < arr.length)
-			if (j >= 0 && j < arr[i].length)
-				arr[i][j] += val;
-	}
-
-	/**
-	 * square a vector, because this takes so long to write out every time.
-	 * @param v
-	 * @return
-	 */
-	private static double sqr(double[] v) {
-		double s = 0;
-		for (double x: v)
-			s += Math.pow(x, 2);
-		return s;
-	}
-	
 }

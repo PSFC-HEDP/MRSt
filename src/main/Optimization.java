@@ -536,12 +536,12 @@ public class Optimization {
 					double x = v[0];
 					return .1*x;
 				}));
-		Function<double[], Double> himmelblau = (v) -> {
-			double x = v[0], y = v[1];
-			double z = Math.pow(x*x + y - 11, 2) + Math.pow(x + y*y - 7, 2) + 1;
-			System.out.printf("[%.4f, %.4f, %.4f],\n", x, y, z);
-			return z;
-		};
+//		Function<double[], Double> himmelblau = (v) -> {
+//			double x = v[0], y = v[1];
+//			double z = Math.pow(x*x + y - 11, 2) + Math.pow(x + y*y - 7, 2) + 1;
+//			System.out.printf("[%.4f, %.4f, %.4f],\n", x, y, z);
+//			return z;
+//		};
 		
 //		System.out.println(Arrays.toString(minimizeNelderMead(
 //				simionescu, new double[] {.5,.5}, 1e-8)));
