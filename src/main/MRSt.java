@@ -48,6 +48,7 @@ public class MRSt {
 //	private static final double E_RESOLUTION = .5, T_RESOLUTION = 50e-3;
 //	private static final int MIN_STATISTICS = 1; // the minimum number of deuterons to define a spectrum at a time
 	private static final int TRANSFER_MATRIX_TRIES = 10000; // the number of points to sample in each column of the transfer matrix
+	private static final double SMOOTHING = 1e-1;
 	
 	private static final double[] ENERGY_FIT = {
 			1.9947057710073842e-12, 1.4197129629720856e-12, 2.533708675784118e-12,
@@ -336,6 +337,7 @@ public class MRSt {
 				ρR[i] = guess[4*i+3];
 				if (ρR[i] <= 0)  return Double.POSITIVE_INFINITY;
 			}
+			
 			double[][] teoSpectrum = generateSpectrum(
 					Yn, Ti, vi, ρR, energyBins, timeBins); // generate the spectrum based on those
 			double[][] fitSpectrum = this.response(energyBins, timeBins, teoSpectrum, false); // blur it according to the transfer matrix
@@ -343,10 +345,20 @@ public class MRSt {
 			for (int i = 0; i < spectrum.length; i ++)
 				for (int j = 0; j < spectrum[i].length; j ++) // compute the error between it and the actual spectrum
 					err += Math.pow(fitSpectrum[i][j] - spectrum[i][j], 2)/(fitSpectrum[i][j] + noiseVar);
-			System.out.println(err);
 			assert Double.isFinite(err);
-			return err;
-		}, initialGuess, 1e-6);
+			
+			double ruffness = 0;
+			for (int i = 1; i < timeAxis.length-1; i ++) {
+				double dt2 = Math.pow(timeAxis[i] - timeAxis[i-1], 2);
+				ruffness += Math.pow((Yn[i-1] - 2*Yn[i] + Yn[i+1])/dt2/100, 2);
+				ruffness += Math.pow((Ti[i-1] - 2*Ti[i] + Ti[i+1])/dt2, 2);
+				ruffness += Math.pow((vi[i-1] - 2*vi[i] + vi[i+1])/dt2/100, 2);
+				ruffness += Math.pow((ρR[i-1] - 2*ρR[i] + ρR[i+1])/dt2, 2);
+			}
+			
+			System.out.println(err + SMOOTHING*ruffness);
+			return err + SMOOTHING*ruffness;
+		}, initialGuess, 1e-12);
 		
 		long endTime = System.currentTimeMillis();
 		if (logger != null)
