@@ -23,6 +23,7 @@
  */
 package main;
 
+import java.util.Arrays;
 import java.util.Locale;
 
 /**
@@ -67,6 +68,32 @@ public class NumericalMethods {
 		else { // use Gaussian approximation for high expectations
 			return (int) Math.round(Math.max(0, normal(λ, Math.sqrt(λ))));
 		}
+	}
+	
+	/**
+	 * generate a generic unimodal distribution with a handful of parameters with which to play.
+	 * it will be the linear combination of an erf stepping from yL to yR with a generalized
+	 * skew normal distribution with height ~yPeak, and skew and kurtosis-adjustment given by
+	 * til and fatten
+	 * @param x the x axis on which to generate it
+	 * @param yL the limit for negative x
+	 * @param yR the limit for positive x
+	 * @param yPeak the signed magnitude of the peak in the middle
+	 * @param xPeak the location of the center of the function
+	 * @param std the standard deviation of the peak
+	 * @param tilt the amount to skew the peak (0 is no skew)
+	 * @param fatten the amount to kurtosize the peak (3 is normal gaussian)
+	 * @return y values corresponding to the x values
+	 */
+	public static double[] unimode(double[] x, double yL, double yR, double yPeak,
+			double xPeak, double std, double tilt, double fatten) {
+		double[] y = new double[x.length];
+		for (int i = 0; i < x.length; i ++) {
+			double ξ = (x[i] - xPeak)/std;
+			y[i] = yR + (yL - yR)*erfc(ξ)/2 +
+					yPeak*Math.exp(-Math.pow(Math.abs(ξ), 6/fatten)/2)*erfc(-tilt*ξ);
+		}
+		return y;
 	}
 	
 	/**
@@ -321,6 +348,13 @@ public class NumericalMethods {
 		}
 	}
 	
+	/**
+	 * the complementary Gauss error function
+	 */
+	public static double erfc(double x) {
+		return 1 - erf(x);
+	}
+	
 	private static double erfccheb(double z) {
 		double t, ty, tmp, d = 0., dd = 0.;
 		if (z < 0.) {
@@ -463,6 +497,16 @@ public class NumericalMethods {
 			return s;
 		}
 		
+	}
+	
+	
+	public static final void main(String[] args) {
+		int n = 40;
+		double[] x = new double[n+1];
+		for (int i = 0; i < n+1; i ++)
+			x[i] = -3 + 6./n*i;
+		System.out.println(Arrays.toString(x));
+		System.out.println(Arrays.toString(unimode(x, -.5, .5, -2, 0, 1, -2, 7)));
 	}
 	
 }

@@ -48,7 +48,6 @@ public class MRSt {
 //	private static final double E_RESOLUTION = .5, T_RESOLUTION = 50e-3;
 //	private static final int MIN_STATISTICS = 1; // the minimum number of deuterons to define a spectrum at a time
 	private static final int TRANSFER_MATRIX_TRIES = 10000; // the number of points to sample in each column of the transfer matrix
-	private static final double SMOOTHING = 1e-1;
 	
 	private static final double[] ENERGY_FIT = {
 			1.9947057710073842e-12, 1.4197129629720856e-12, 2.533708675784118e-12,
@@ -304,37 +303,43 @@ public class MRSt {
 		if (spectrum.length != energyBins.length-1 || spectrum[0].length != timeBins.length-1)
 			throw new IllegalArgumentException("These dimensions are wrong.");
 		
-		double peak = NumericalMethods.max(spectrum);
-		final double noiseVar = Math.pow(peak/1e3, 2); // assume some unknown distribution of this variance, so it doesn't freak out when it sees n-knockons
+		double spectMax = NumericalMethods.max(spectrum);
+		final double noiseVar = Math.pow(spectMax/1e3, 2); // assume some unknown distribution of this variance, so it doesn't freak out when it sees n-knockons
 		
-		double[] initialGuess = new double[4*timeAxis.length]; // first we need a half decent guess
+		double[] yieldEstimate = new double[timeAxis.length]; // first we need a half decent guess:
 		for (int i = 0; i < timeAxis.length; i ++) {
-			double[] timeSlice = new double[energyBins.length-1];
+			double[] timeSlice = new double[energyBins.length-1]; // for that we'll want to do some rudimentary analysis
 			for (int j = 0; j < timeSlice.length; j ++)
 				timeSlice[j] = spectrum[j][i];
-			double sliceYield = NumericalMethods.definiteIntegral(energyBins, timeSlice);
-			initialGuess[4*i+0] = Math.max(1,
-					sliceYield/this.efficiency(14.1e6)/1e15/(timeBins[i+1] - timeBins[i]));
-			initialGuess[4*i+1] = 2; // the temperature is somewhere around here [keV]
-			initialGuess[4*i+2] = 100; // the flow rate might look something like this [km/s]
-			initialGuess[4*i+3] = 3; // ρR is also in this ballpark [g/cm^2]
+			yieldEstimate[i] = NumericalMethods.definiteIntegral(energyBins, timeSlice)/
+					this.efficiency(14.1e6)/(timeBins[i+1] - timeBins[i]); // measure the yield in the most basic way possible [#/ns]
 		}
+		System.out.println(Arrays.toString(yieldEstimate));
+		double btGuess = timeAxis[NumericalMethods.argmax(yieldEstimate)]; // to guess the yield peak and height
+		double yGuess = yieldEstimate[NumericalMethods.argmax(yieldEstimate)]/1e15; // [10^15/ns]
+		double[] initialGuess = {
+				0, 0, yGuess, btGuess, .05, 0, 3, // initial yield guess
+				1, 1, 1, btGuess, .05, 0, 3, // initial temperature guess
+				0, 0, 2, btGuess, .05, 0, 3, // initial density guess
+//				0, 0, 100, btGuess, .05, 0, 3, // initial flow guess
+		};
 		
 		if (logger != null)  logger.info("beginning fit process.");
 		long startTime = System.currentTimeMillis();
 		
-		double[] params = Optimization.minimizeLBFGS((double[] guess) -> { // minimize the following function:
-			double [] Yn = new double[timeAxis.length]; // [10^15/ns]
-			double [] Ti = new double[timeAxis.length]; // [keV]
-			double [] vi = new double[timeAxis.length]; // [km/s]
-			double [] ρR = new double[timeAxis.length]; // [g/cm^2]
-			for (int i = 0; i < timeAxis.length; i ++) { // first unpack the state vector
-				Yn[i] = guess[4*i+0];
-				if (Yn[i] <= 0)  return Double.POSITIVE_INFINITY; // checking for nonpositives as you do
-				Ti[i] = guess[4*i+1];
+		double[] opt = Optimization.minimizeNelderMead((double[] guess) -> { // minimize the following function:
+			double[] Yn = NumericalMethods.unimode(timeAxis,
+					guess[0], guess[1], guess[2], guess[3], guess[4], guess[5], guess[6]); // first unpack the state vector
+			double[] Ti = NumericalMethods.unimode(timeAxis,
+					guess[7], guess[8], guess[9], guess[10], guess[11], guess[12], guess[13]);
+			double[] ρR = NumericalMethods.unimode(timeAxis,
+					guess[14], guess[15], guess[16], guess[17], guess[18], guess[19], guess[20]);
+			double[] vi = NumericalMethods.unimode(timeAxis,
+//					guess[21], guess[22], guess[23], guess[24], guess[25], guess[26], guess[27]);
+					0, 0, 0, 0, 1, 0, 3);
+			for (int i = 0; i < timeAxis.length; i ++) {
+				if (Yn[i] < 0)  return Double.POSITIVE_INFINITY; // then check for nonpositives
 				if (Ti[i] <= 0)  return Double.POSITIVE_INFINITY;
-				vi[i] = guess[4*i+2];
-				ρR[i] = guess[4*i+3];
 				if (ρR[i] <= 0)  return Double.POSITIVE_INFINITY;
 			}
 			
@@ -347,17 +352,19 @@ public class MRSt {
 					err += Math.pow(fitSpectrum[i][j] - spectrum[i][j], 2)/(fitSpectrum[i][j] + noiseVar);
 			assert Double.isFinite(err);
 			
-			double ruffness = 0;
-			for (int i = 1; i < timeAxis.length-1; i ++) {
-				double dt2 = Math.pow(timeAxis[i] - timeAxis[i-1], 2);
-				ruffness += Math.pow((Yn[i-1] - 2*Yn[i] + Yn[i+1])/dt2/100, 2);
-				ruffness += Math.pow((Ti[i-1] - 2*Ti[i] + Ti[i+1])/dt2, 2);
-				ruffness += Math.pow((vi[i-1] - 2*vi[i] + vi[i+1])/dt2/100, 2);
-				ruffness += Math.pow((ρR[i-1] - 2*ρR[i] + ρR[i+1])/dt2, 2);
+			double penalty = 1; // penalize it for off-screen peaks
+			for (int i = 0; i < 3; i ++) { // because these unimode functions get way degenerate if the peak is off-screen
+				double peak = guess[7*i + 3], std = guess[7*i + 4];
+				if (peak < timeAxis[0])
+					penalty *= Math.exp(Math.pow((timeAxis[0] - peak)/std, 2));
+				else if (peak > timeAxis[timeAxis.length-1])
+					penalty *= Math.exp(Math.pow((peak - timeAxis[timeAxis.length-1])/std, 2));
 			}
 			
-			System.out.println(err + SMOOTHING*ruffness);
-			return err + SMOOTHING*ruffness;
+//			if (Math.random() < 2e-3)
+//				System.out.println(Arrays.toString(guess));
+			System.out.println(err*penalty);
+			return err*penalty;
 		}, initialGuess, 1e-12);
 		
 		long endTime = System.currentTimeMillis();
@@ -365,23 +372,22 @@ public class MRSt {
 			logger.info(String.format(Locale.US, "completed in %.2f minutes.",
 					(endTime - startTime)/60000.));
 		
-		this.neutronYield = new double[timeAxis.length]; // [10^15]
-		this.ionTemperature = new double[timeAxis.length]; // [keV]
-		this.bulkVelocity = new double[timeAxis.length]; // [km/s]
-		this.arealDensity = new double[timeAxis.length]; // [g/cm^2]
-		for (int i = 0; i < timeAxis.length; i ++) { // unpack the minimizing vector
-			neutronYield[i] = params[4*i+0];
-			ionTemperature[i] = params[4*i+1];
-			bulkVelocity[i] = params[4*i+2];
-			arealDensity[i] = params[4*i+3];
-		}
+		this.neutronYield = NumericalMethods.unimode(timeAxis, // unpack the minimizing vector
+				opt[0], opt[1], opt[2], opt[3], opt[4], opt[5], opt[6]);
+		this.ionTemperature = NumericalMethods.unimode(timeAxis,
+				opt[7], opt[8], opt[9], opt[10], opt[11], opt[12], opt[13]);
+		this.arealDensity = NumericalMethods.unimode(timeAxis,
+				opt[14], opt[15], opt[16], opt[17], opt[18], opt[19], opt[20]);
+		this.bulkVelocity = NumericalMethods.unimode(timeAxis,
+//				opt[21], opt[22], opt[23], opt[24], opt[25], opt[26], opt[27]);
+				0, 0, 0, 0, 1, 0, 3);
 		
 		this.fitNeutronSpectrum = generateSpectrum( // and then interpret it
 				neutronYield, ionTemperature, bulkVelocity, arealDensity, energyBins, timeBins);
-		this.fitDeuteronSpectrum = this.response(energyBins, timeBins, fitNeutronSpectrum, false);
+		this.fitDeuteronSpectrum = this.response(energyBins, timeBins, fitNeutronSpectrum, true);
 		
 //		for (int i = 0; i < timeAxis.length; i ++) {
-//			if (neutronYield[i] < MIN_STATISTICS) { // now remove any intrinsic values from times with insufficient statistics
+//			if (neutronYield[i] < MIN_STATISTICS) { // now remove any intensive values from times with insufficient statistics
 //				ionTemperature[i] = Double.NaN;
 //				bulkVelocity[i] = Double.NaN;
 //				arealDensity[i] = Double.NaN;

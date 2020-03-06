@@ -45,14 +45,35 @@ public class Optimization {
 	
 	
 	/**
-	 * perform Nelder-Mead unconstrained optimization.
+	 * perform Nelder-Mead unconstrained optimization, making a SWAG for the initial simplex
+	 * scale.
 	 * @param func the function to minimize
 	 * @param x0 the initial guess of the minimizing parameter vector
+	 * @param scale an array of the same size as x0 giving the general length scale of its
+	 * derivatives, to kick off the simplex.
 	 * @param tol the relative tolerance for error
 	 * @return the x vector that minimizes f(x)
 	 */
 	public static double[] minimizeNelderMead(
 			Function<double[], Double> func, double[] x0, double tol) {
+		double[] scale = new double[x0.length];
+		for (int i = 0; i < x0.length; i ++)
+			scale[i] = Math.max(1, Math.abs(x0[i]))*.7; // guess the scale based on the initial guess
+		return minimizeNelderMead(func, x0, scale, tol);
+	}
+	
+	
+	/**
+	 * perform Nelder-Mead unconstrained optimization.
+	 * @param func the function to minimize
+	 * @param x0 the initial guess of the minimizing parameter vector
+	 * @param scale an array of the same size as x0 giving the general length scale of its
+	 * derivatives, to kick off the simplex.
+	 * @param tol the relative tolerance for error
+	 * @return the x vector that minimizes f(x)
+	 */
+	public static double[] minimizeNelderMead(
+			Function<double[], Double> func, double[] x0, double[] scale, double tol) {
 		final double α = 1, γ = 2, ρ = 1/2., σ = 1/2.; // declare values
 		
 		Function<Matrix, Double> f = (mat) -> func.apply(mat.values[0]); // change these from double[] to Matrix things
@@ -62,7 +83,7 @@ public class Optimization {
 		for (int i = 0; i < x.length; i ++) {
 			x[i] = new Matrix(new double[][] {x0.clone()}); // initialize the vertices as the guess
 			if (i < x0.length)
-				x[i].set(0, i, x[i].get(0, i)*1.9); // with multidimensional perturbations
+				x[i].set(0, i, x[i].get(0, i) + scale[i]); // with multidimensional perturbations
 			fx[i] = f.apply(x[i]); // and get the initial values
 		}
 		if (!Double.isFinite(fx[x0.length]))
@@ -124,6 +145,24 @@ public class Optimization {
 				}
 			}
 		}
+	}
+	
+	
+	/**
+	 * perform a simple coordinate descent optimization scheme without a provided gradient.
+	 * practically, the gradient will be estimated by evaluating the function with
+	 * perturbations.
+	 * @param func the function to be optimized
+	 * @param x0 the initial guess
+	 * @param tol the relative tolerance for error
+	 * @return the x that minimizes func
+	 */
+	public static double[] minimizeCoordinateDescent(
+			Function<double[], Double> func, double[] x0, double tol) {
+		double[] scale = new double[x0.length];
+		for (int i = 0; i < x0.length; i ++)
+			scale[i] = Math.max(1, Math.abs(x0[i]))*.7; // guess the scale based on the initial guess
+		return minimizeCoordinateDescent(func, x0, scale, tol);
 	}
 	
 	
