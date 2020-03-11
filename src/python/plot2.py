@@ -1,7 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import colors
-import csv
 import sys
 
 xlabel, ylabel, title = sys.argv[1:]

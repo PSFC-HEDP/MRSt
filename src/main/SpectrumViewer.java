@@ -220,14 +220,15 @@ public class SpectrumViewer extends Application {
 								cosyExponents,
 								focalPlaneTilt.getValue(),
 								NUM_BINS,
-								logger);
-						mc.respond(eBins, tBins, spec);
+								logger); // make the simulation
+						mc.respond(eBins, tBins, spec); // and run it!
 					} catch (Exception e) {
 						logger.log(Level.SEVERE, e.getMessage(), e);
 					}
 					
-					try {
-						plotHeatmap(tBins, eBins, spec,
+					double[][] smallSpec = NumericalMethods.downsample(tBins, eBins, spec, mc.getTimeBins(), mc.getEnergyBins());
+					try { // send the data to python for plotting
+						plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), smallSpec,
 								"Time (ns)", "Energy (MeV)", "Actual neutron spectrum");
 						plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getCorrectedSpectrum(),
 								"Time (ns)", "Energy (MeV)", "Measured deuteron spectrum");
@@ -236,7 +237,14 @@ public class SpectrumViewer extends Application {
 						plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getFittedSpectrum(),
 								"Time (ns)", "Energy (MeV)", "Reconstructed deutron spectrum");
 						plotLines(mc.getTimeAxis(), "Time (ns)",
-								mc.getIonTemperature(), "Ti (keV)", mc.getArealDensity(), "ρR (g/cm^2)", mc.getNeutronYield(), "Yn (10^15/ns)", mc.getFlowVelocity(), "Vcosθ (μm/ns)");
+								mc.getIonTemperature(), "Ti (keV)",
+								mc.getArealDensity(), "ρR (g/cm^2)",
+								mc.getNeutronYield(), "Yn (10^15/ns)",
+								mc.getFlowVelocity(), "Vcosθ (μm/ns)");
+						compareHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getCorrectedSpectrum(), mc.getFittedSpectrum(),
+								"Time", "Energy (MeV)", "Measured deuteron spectrum", "Reconstructed deuteron spectrum");
+						compareHeatmap(mc.getTimeBins(), mc.getEnergyBins(), smallSpec, mc.getInferredSpectrum(),
+								"Time", "Energy (MeV)", "Actual neutron spectrum", "Reconstructed neutron spectrum");
 					} catch (IOException e) {
 						logger.log(Level.SEVERE, "Could not access plotting scripts and/or plots", e);
 					}
@@ -305,6 +313,23 @@ public class SpectrumViewer extends Application {
 			CSV.writeColumn(ys[i], new File(String.format("working/%s_y_%d.csv", "Data", i)));
 		ProcessBuilder plotPB = new ProcessBuilder("python", "src/python/plot1.py",
 				xLabel, String.join("\n", yLabels), "data", Integer.toString(ys.length));
+		plotPB.start();
+	}
+	
+	
+	/**
+	 * send 1D data to a Python script for plotting in MatPlotLib
+	 * @throws IOException if there's an issue talking to disk
+	 */
+	private static void compareHeatmap(double[] x, double[] y, double[][] z0, double[][] z1,
+			String xLabel, String yLabel, String title0, String title1) throws IOException {
+		new File("working/").mkdir();
+		CSV.writeColumn(x, new File(String.format("working/%s_x.csv", title0)));
+		CSV.writeColumn(y, new File(String.format("working/%s_y.csv", title0)));
+		CSV.write(z0, new File(String.format("working/%s_z.csv", title0)), ',');
+		CSV.write(z1, new File(String.format("working/%s_z.csv", title1)), ',');
+		ProcessBuilder plotPB = new ProcessBuilder("python", "src/python/compare2.py",
+				xLabel, yLabel, title0, title1);
 		plotPB.start();
 	}
 	

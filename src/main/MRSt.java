@@ -257,27 +257,16 @@ public class MRSt {
 		if (inSpectrum.length != inEBins.length-1 || inSpectrum[0].length != inTBins.length-1)
 			throw new IllegalArgumentException("These dimensions don't make any sense.");
 		
-		double[][] sizedSpectrum = new double[(energyBins.length-1)][(timeBins.length-1)]; // first resize the input spectrum to match the transfer matrix
-		for (int iI = 0; iI < inEBins.length-1; iI ++) {
-			for (int jI = 0; jI < inTBins.length-1; jI ++) { // for each small pixel on the input spectrum
-				double iO = (inEBins[iI] - this.energyBins[0])/
-						(this.energyBins[1] - this.energyBins[0]); // find the big pixel of the scaled spectrum
-				double jO = (inTBins[jI] - this.timeBins[0])/
-						(this.timeBins[1] - this.timeBins[0]); // that contains the upper left corner
-				double cU = Math.min(1, (1-iO%1)/(this.energyBins.length-1)*(inEBins.length-1)); // find the fraction of it that is above the next pixel
-				double cL = Math.min(1, (1-jO%1)/(this.timeBins.length-1)*(inTBins.length-1)); // and left of the next pixel
-				addIfInBounds(sizedSpectrum, (int)iO, (int)jO, inSpectrum[iI][jI]*cU*cL); // now add the contents of this spectrum
-				addIfInBounds(sizedSpectrum, (int)iO, (int)jO+1, inSpectrum[iI][jI]*cU*(1-cL)); // being careful to distribute them properly
-				addIfInBounds(sizedSpectrum, (int)iO+1, (int)jO, inSpectrum[iI][jI]*(1-cU)*cL); // (I used this convenience method because otherwise I would have to check all the bounds)
-				addIfInBounds(sizedSpectrum, (int)iO+1, (int)jO+1, inSpectrum[iI][jI]*(1-cU)*(1-cL));
-			}
-		}
+		double[][] sizedSpectrum = NumericalMethods.downsample(
+				inTBins, inEBins, inSpectrum, this.timeBins, this.energyBins);
 		
 		double[] u = new double[(energyBins.length-1)*(timeBins.length-1)];
 		for (int i = 0; i < energyBins.length-1; i ++)
 			for (int j = 0; j < timeBins.length-1; j ++)
 				u[(timeBins.length-1)*i + j] = sizedSpectrum[i][j]; // now flatten the spectrum
+		
 		double[] v = NumericalMethods.matmul(transferMatrix, u); // then do the multiplication
+		
 		double[][] outSpectrum = new double[energyBins.length-1][timeBins.length-1];
 		for (int i = 0; i < energyBins.length-1; i ++)
 			for (int j = 0; j < timeBins.length-1; j ++)
@@ -314,29 +303,27 @@ public class MRSt {
 			yieldEstimate[i] = NumericalMethods.definiteIntegral(energyBins, timeSlice)/
 					this.efficiency(14.1e6)/(timeBins[i+1] - timeBins[i]); // measure the yield in the most basic way possible [#/ns]
 		}
-		System.out.println(Arrays.toString(yieldEstimate));
 		double btGuess = timeAxis[NumericalMethods.argmax(yieldEstimate)]; // to guess the yield peak and height
 		double yGuess = yieldEstimate[NumericalMethods.argmax(yieldEstimate)]/1e15; // [10^15/ns]
 		double[] initialGuess = {
 				0, 0, yGuess, btGuess, .05, 0, 3, // initial yield guess
+				0, 0, 0, btGuess, .05, 0, 3, // initial flow guess
 				1, 1, 1, btGuess, .05, 0, 3, // initial temperature guess
 				0, 0, 2, btGuess, .05, 0, 3, // initial density guess
-//				0, 0, 100, btGuess, .05, 0, 3, // initial flow guess
 		};
 		
 		if (logger != null)  logger.info("beginning fit process.");
 		long startTime = System.currentTimeMillis();
 		
-		double[] opt = Optimization.minimizeNelderMead((double[] guess) -> { // minimize the following function:
+		double[] opt = Optimization.minimizeCoordinateDescent((double[] guess) -> { // minimize the following function:
 			double[] Yn = NumericalMethods.unimode(timeAxis,
 					guess[0], guess[1], guess[2], guess[3], guess[4], guess[5], guess[6]); // first unpack the state vector
-			double[] Ti = NumericalMethods.unimode(timeAxis,
-					guess[7], guess[8], guess[9], guess[10], guess[11], guess[12], guess[13]);
-			double[] ρR = NumericalMethods.unimode(timeAxis,
-					guess[14], guess[15], guess[16], guess[17], guess[18], guess[19], guess[20]);
 			double[] vi = NumericalMethods.unimode(timeAxis,
-//					guess[21], guess[22], guess[23], guess[24], guess[25], guess[26], guess[27]);
-					0, 0, 0, 0, 1, 0, 3);
+					guess[7], guess[8], guess[9], guess[10], guess[11], guess[12], guess[13]);
+			double[] Ti = NumericalMethods.unimode(timeAxis,
+					guess[14], guess[15], guess[16], guess[17], guess[18], guess[19], guess[20]);
+			double[] ρR = NumericalMethods.unimode(timeAxis,
+					guess[21], guess[22], guess[23], guess[24], guess[25], guess[26], guess[27]);
 			for (int i = 0; i < timeAxis.length; i ++) {
 				if (Yn[i] < 0)  return Double.POSITIVE_INFINITY; // then check for nonpositives
 				if (Ti[i] <= 0)  return Double.POSITIVE_INFINITY;
@@ -361,11 +348,8 @@ public class MRSt {
 					penalty *= Math.exp(Math.pow((peak - timeAxis[timeAxis.length-1])/std, 2));
 			}
 			
-//			if (Math.random() < 2e-3)
-//				System.out.println(Arrays.toString(guess));
-			System.out.println(err*penalty);
 			return err*penalty;
-		}, initialGuess, 1e-12);
+		}, initialGuess, 7, 1e-6);
 		
 		long endTime = System.currentTimeMillis();
 		if (logger != null)
@@ -374,17 +358,16 @@ public class MRSt {
 		
 		this.neutronYield = NumericalMethods.unimode(timeAxis, // unpack the minimizing vector
 				opt[0], opt[1], opt[2], opt[3], opt[4], opt[5], opt[6]);
-		this.ionTemperature = NumericalMethods.unimode(timeAxis,
-				opt[7], opt[8], opt[9], opt[10], opt[11], opt[12], opt[13]);
-		this.arealDensity = NumericalMethods.unimode(timeAxis,
-				opt[14], opt[15], opt[16], opt[17], opt[18], opt[19], opt[20]);
 		this.bulkVelocity = NumericalMethods.unimode(timeAxis,
-//				opt[21], opt[22], opt[23], opt[24], opt[25], opt[26], opt[27]);
-				0, 0, 0, 0, 1, 0, 3);
+				opt[7], opt[8], opt[9], opt[10], opt[11], opt[12], opt[13]);
+		this.ionTemperature = NumericalMethods.unimode(timeAxis,
+				opt[14], opt[15], opt[16], opt[17], opt[18], opt[19], opt[20]);
+		this.arealDensity = NumericalMethods.unimode(timeAxis,
+				opt[21], opt[22], opt[23], opt[24], opt[25], opt[26], opt[27]);
 		
 		this.fitNeutronSpectrum = generateSpectrum( // and then interpret it
 				neutronYield, ionTemperature, bulkVelocity, arealDensity, energyBins, timeBins);
-		this.fitDeuteronSpectrum = this.response(energyBins, timeBins, fitNeutronSpectrum, true);
+		this.fitDeuteronSpectrum = this.response(energyBins, timeBins, fitNeutronSpectrum, false);
 		
 //		for (int i = 0; i < timeAxis.length; i ++) {
 //			if (neutronYield[i] < MIN_STATISTICS) { // now remove any intensive values from times with insufficient statistics
@@ -617,7 +600,7 @@ public class MRSt {
 		double p = .0590*ρR; // DS spectrum parameter (.493b/MeV)/5u [MeV^-1]
 		double λ = 0.313; // DS spectrum parameter (1/3.19MeV) [MeV^-1]
 		double μ = 14.1 + .54e-3*vi; // primary peak (see paper), [MeV]
-		double s2 = 2.24e-3*μ*Ti; // primary variance (see paper) [MeV^2]
+		double s2 = 0.403e-3*μ*Ti; // primary variance (see paper) [MeV^2]
 		double[] pdf = new double[eBins.length]; // probability distribution at edges
 		double[] counts = new double[eBins.length-1]; // spectrum counts in bins
 		for (int i = eBins.length-1; i >= 0; i --) {
@@ -695,19 +678,6 @@ public class MRSt {
 		}
 		
 		return output;
-	}
-
-	/**
-	 * a simple convenience method to avoid excessive if statements
-	 * @param arr
-	 * @param i
-	 * @param j
-	 * @param val
-	 */
-	private void addIfInBounds(double[][] arr, int i, int j, double val) {
-		if (i >= 0 && i < arr.length)
-			if (j >= 0 && j < arr[i].length)
-				arr[i][j] += val;
 	}
 	
 	/**

@@ -311,6 +311,51 @@ public class NumericalMethods {
 	}
 	
 	/**
+	 * convert this 2d histogram to a lower resolution. the output bins must be uniform.
+	 * @param xI the horizontal bin edges of the input histogram
+	 * @param yI the vertical bin edges of the input histogram
+	 * @param zI the counts of the input histogram
+	 * @param xO the horizontal bin edges of the desired histogram. these must be uniform.
+	 * @param yO the vertical bin edges of the desired histogram. these must be uniform.
+	 * @return zO the counts of the new histogram
+	 */
+	public static double[][] downsample(double[] xI, double[] yI, double[][] zI,
+			double[] xO, double[] yO) {
+		if (yI.length-1 != zI.length || xI.length-1 != zI[0].length)
+			throw new IllegalArgumentException("Array sizes don't match fix it.");
+		
+		double[][] zO = new double[yO.length-1][xO.length-1]; // first resize the input spectrum to match the transfer matrix
+		for (int iI = 0; iI < yI.length-1; iI ++) {
+			for (int jI = 0; jI < xI.length-1; jI ++) { // for each small pixel on the input spectrum
+				double iO = (yI[iI] - yO[0])/(yO[1] - yO[0]); // find the big pixel of the scaled spectrum
+				double jO = (xI[jI] - xO[0])/(xO[1] - xO[0]); // that contains the upper left corner
+				double cU = Math.min(1, (1-iO%1)*(yO[1] - yO[0])/(yI[iI+1] - yI[iI])); // find the fraction of it that is above the next pixel
+				double cL = Math.min(1, (1-jO%1)*(xO[1] - xO[0])/(xI[jI+1] - xI[jI])); // and left of the next pixel
+				
+				addIfInBounds(zO, (int)iO,   (int)jO,   zI[iI][jI]*cU*cL); // now add the contents of this spectrum
+				addIfInBounds(zO, (int)iO,   (int)jO+1, zI[iI][jI]*cU*(1-cL)); // being careful to distribute them properly
+				addIfInBounds(zO, (int)iO+1, (int)jO,   zI[iI][jI]*(1-cU)*cL); // (I used this convenience method because otherwise I would have to check all the bounds)
+				addIfInBounds(zO, (int)iO+1, (int)jO+1, zI[iI][jI]*(1-cU)*(1-cL));
+			}
+		}
+		
+		return zO;
+	}
+	
+	/**
+	 * a simple convenience method to avoid excessive if statements
+	 * @param arr
+	 * @param i
+	 * @param j
+	 * @param val
+	 */
+	private static void addIfInBounds(double[][] arr, int i, int j, double val) {
+		if (i >= 0 && i < arr.length)
+			if (j >= 0 && j < arr[i].length)
+				arr[i][j] += val;
+	}
+	
+	/**
 	 * multiply a vector by a matrix
 	 * @param A matrix
 	 * @param u vector
