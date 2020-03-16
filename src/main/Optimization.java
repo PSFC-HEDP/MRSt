@@ -206,7 +206,8 @@ public class Optimization {
 	 * @return the x that minimizes func
 	 */
 	public static double[] minimizeCoordinateDescent(
-			Function<double[], Double> func, List<Function<double[], Double>> grad, double[] x0, double[] scale, double tol) {
+			Function<double[], Double> func, List<Function<double[], Double>> grad,
+			double[] x0, double[] scale, double tol) {
 		double[] x = x0.clone();
 		double fx = func.apply(x);
 		if (!Double.isFinite(fx))
@@ -246,15 +247,16 @@ public class Optimization {
 		double[] x = x0.clone();
 		double fx = func.apply(x);
 		while (true) {
-			for (int i = 0; i < x0.length; i += n) { // iterate through the coordinates
-				double[] y0 = Arrays.copyOfRange(x, i, i+n); // extract slices of the array
+			for (int i = 0; i < x.length; i += n) { // iterate through the coordinates
+				double[] y0 = Arrays.copyOfRange(x, i, Math.min(i+n, x.length)); // extract slices of the array
 				final int I = i;
 				double[] yOpt = minimizeNelderMead((y) -> { // then run Nelder-Mead on that slice
 					double[] xp = x.clone();
-					System.arraycopy(y, 0, xp, I, n);
+					System.arraycopy(y, 0, xp, I, y.length);
 					return func.apply(xp);
 				}, y0, tol);
-				System.arraycopy(yOpt, 0, x, i, n);
+				System.arraycopy(yOpt, 0, x, i, yOpt.length);
+				System.out.println(Arrays.toString(x)+",");
 			} // after going through each coordinate
 			double fxp = func.apply(x); // check how much change that whole cycle got us
 			if (Math.abs((fxp - fx)/fx) < tol)

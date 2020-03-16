@@ -70,6 +70,12 @@ public class NumericalMethods {
 		}
 	}
 	
+	public static double[] unimode(double[] x, double[] params) {
+		if (params.length != 7)
+			throw new IllegalArgumentException("Number of params must be 7");
+		return unimode(x, params[0], params[1], params[2], params[3], params[4], params[5], params[6]);
+	}
+	
 	/**
 	 * generate a generic unimodal distribution with a handful of parameters with which to play.
 	 * it will be the linear combination of an erf stepping from yL to yR with a generalized
@@ -82,16 +88,17 @@ public class NumericalMethods {
 	 * @param xPeak the location of the center of the function
 	 * @param std the standard deviation of the peak
 	 * @param tilt the amount to skew the peak (0 is no skew)
-	 * @param fatten the amount to kurtosize the peak (3 is normal gaussian)
+	 * @param fatten the exponent on the peak (2 is normal gaussian)
 	 * @return y values corresponding to the x values
 	 */
 	public static double[] unimode(double[] x, double yL, double yR, double yPeak,
 			double xPeak, double std, double tilt, double fatten) {
+		final double y0 = yR, yS = (yL - yR), yG = yPeak - (yL + yR)/2;
 		double[] y = new double[x.length];
 		for (int i = 0; i < x.length; i ++) {
 			double ξ = (x[i] - xPeak)/std;
-			y[i] = yR + (yL - yR)*erfc(ξ)/2 +
-					yPeak*Math.exp(-Math.pow(Math.abs(ξ), 6/fatten)/2)*erfc(-tilt*ξ);
+			y[i] = y0 + yS*erfc(ξ)/2 +
+					yG*Math.exp(-Math.pow(Math.abs(ξ), 4/fatten)/2)*erfc(-tilt*ξ);
 		}
 		return y;
 	}
@@ -343,6 +350,27 @@ public class NumericalMethods {
 	}
 	
 	/**
+	 * interpolate y0 from x0 to x1 using a 3rd order spline
+	 * @param x1 the desired interpolation points
+	 * @param x0 the locations of the spline points
+	 * @param y0 the values at the spline points
+	 * @return y1 the values at the interpolation points
+	 */
+	public static double[] spline(double[] x1, double[] x0, double[] y0) {
+		float[] x = new float[x0.length];
+		float[] y = new float[y0.length];
+		for (int i = 0; i < x0.length; i ++) {
+			x[i] = (float) x0[i];
+			y[i] = (float) y0[i];
+		}
+		Spline s = Spline.createSpline(x, y);
+		double[] y1 = new double[x1.length];
+		for (int i = 0; i < x1.length; i ++)
+			y1[i] = s.interpolate((float) x1[i]);
+		return y1;
+	}
+	
+	/**
 	 * a simple convenience method to avoid excessive if statements
 	 * @param arr
 	 * @param i
@@ -551,7 +579,7 @@ public class NumericalMethods {
 		for (int i = 0; i < n+1; i ++)
 			x[i] = -3 + 6./n*i;
 		System.out.println(Arrays.toString(x));
-		System.out.println(Arrays.toString(unimode(x, -.5, .5, -2, 0, 1, -2, 7)));
+		System.out.println(Arrays.toString(unimode(x, .5, .5, -2, 0, 1, 6, 2)));
 	}
 	
 }

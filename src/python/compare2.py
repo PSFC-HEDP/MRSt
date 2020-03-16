@@ -23,7 +23,7 @@ def update(*args):
 	ax.plot((Y[1:] + Y[:-1])/2, Z[0][:, int(t)], '-', label=titleA)
 	ax.plot((Y[1:] + Y[:-1])/2, Z[1][:, int(t)], '--', label=titleB)
 	ax.legend()
-	ax.set_yscale('symlog', linthresh=np.max(Z)/100, linscale=1)
+	ax.set_yscale('symlog', linthreshy=np.max([Z[0][:, int(t)], Z[1][:, int(t)]])/100, linscaley=1)
 	ax.set_xlabel(ylabel)
 	ax.set_title("Slice comparison of {} & {}".format(titleA, titleB))
 slider.on_changed(update)

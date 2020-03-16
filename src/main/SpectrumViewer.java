@@ -235,7 +235,7 @@ public class SpectrumViewer extends Application {
 						plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getInferredSpectrum(),
 								"Time (ns)", "Energy (MeV)", "Reconstructed neutron spectrum");
 						plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getFittedSpectrum(),
-								"Time (ns)", "Energy (MeV)", "Reconstructed deutron spectrum");
+								"Time (ns)", "Energy (MeV)", "Reconstructed deuteron spectrum");
 						plotLines(mc.getTimeAxis(), "Time (ns)",
 								mc.getIonTemperature(), "Ti (keV)",
 								mc.getArealDensity(), "ρR (g/cm^2)",
