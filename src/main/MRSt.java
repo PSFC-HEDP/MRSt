@@ -313,20 +313,19 @@ public class MRSt {
 			initialGuess[i] = yieldEstimate/1e15;// [#/ns]
 		}
 		System.arraycopy(new double[] { // the initial guesses for the other variables can look like this
-				10, 10,-10, (MAX_T + MIN_T)/2, (MAX_T - MIN_T)/4, 0, 3,
+				10, 10,-10, (MAX_T + MIN_T)/2, (MAX_T - MIN_T)/4, 0, 2,
 		}, 0, initialGuess, NUM_SPLINE_POINTS+0, 7);
 		System.arraycopy(new double[] {
-				 3,  3,  6, (MAX_T + MIN_T)/2, (MAX_T - MIN_T)/4, 0, 3,
+				 3,  3,  6, (MAX_T + MIN_T)/2, (MAX_T - MIN_T)/4, 0, 2,
 		}, 0, initialGuess, NUM_SPLINE_POINTS+7, 7);
 		System.arraycopy(new double[] {
-				 1,  1,  2, (MAX_T + MIN_T)/2, (MAX_T - MIN_T)/4, 0, 3,
+				 1,  1,  2, (MAX_T + MIN_T)/2, (MAX_T - MIN_T)/4, 0, 2,
 		}, 0, initialGuess, NUM_SPLINE_POINTS+14, 7);
 		
 		if (logger != null)  logger.info("beginning fit process.");
-		System.out.println(Arrays.toString(initialGuess)+",");
 		long startTime = System.currentTimeMillis();
 		
-		double[] opt = Optimization.minimizeCoordinateDescent((double[] guess) -> { // minimize the following function:
+		double[] opt = Optimization.minimizeNelderMead((double[] guess) -> { // minimize the following function:
 			double[][] params = new double[4][];
 			params[0] = Arrays.copyOfRange(guess, 0, NUM_SPLINE_POINTS);
 			for (int k = 1; k < 4; k ++)
@@ -373,7 +372,7 @@ public class MRSt {
 						(PARAMETER_BOUNDS[3]/2), 2)/2; // also the density should be positively peaked (I think)
 			
 			return err + penalty;
-		}, initialGuess, 14, 1e-8);
+		}, initialGuess, 1e-10);
 		
 		long endTime = System.currentTimeMillis();
 		if (logger != null)

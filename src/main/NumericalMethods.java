@@ -261,7 +261,7 @@ public class NumericalMethods {
 		int argmax = argmax(x);
 		int argpenmax = -1;
 		for (int i = 0; i < x.length; i ++)
-			if (i != argmax && !Double.isNaN(x[i]) && (argpenmax == -1 || x[i] < x[argpenmax]))
+			if (i != argmax && !Double.isNaN(x[i]) && (argpenmax == -1 || x[i] > x[argpenmax]))
 				argpenmax = i;
 		return argpenmax;
 	}

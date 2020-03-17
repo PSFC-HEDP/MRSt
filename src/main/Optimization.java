@@ -58,7 +58,7 @@ public class Optimization {
 			Function<double[], Double> func, double[] x0, double tol) {
 		double[] scale = new double[x0.length];
 		for (int i = 0; i < x0.length; i ++)
-			scale[i] = Math.max(1, Math.abs(x0[i]))*.7; // guess the scale based on the initial guess
+			scale[i] = Math.max(1, Math.abs(x0[i])); // guess the scale based on the initial guess
 		return minimizeNelderMead(func, x0, scale, tol);
 	}
 	
@@ -83,7 +83,7 @@ public class Optimization {
 		for (int i = 0; i < x.length; i ++) {
 			x[i] = new Matrix(new double[][] {x0.clone()}); // initialize the vertices as the guess
 			if (i < x0.length)
-				x[i].set(0, i, x[i].get(0, i) + scale[i]); // with multidimensional perturbations
+				x[i].set(0, i, x[i].get(0, i) + scale[i]/6); // with multidimensional perturbations
 			fx[i] = f.apply(x[i]); // and get the initial values
 		}
 		if (!Double.isFinite(fx[x0.length]))
@@ -93,6 +93,7 @@ public class Optimization {
 			int iWorst = NumericalMethods.argmax(fx);
 			int iNext = NumericalMethods.argpenmax(fx);
 			int iBest = NumericalMethods.argmin(fx);
+			System.out.println(Arrays.toString(x[iBest].values[0])+",");
 			
 			if (Math.abs((fx[iWorst] - fx[iBest])/fx[iBest]) < tol) // if these are all basically the same
 				return x[iBest].values[0]; // terminate and take the best one we have
@@ -124,6 +125,25 @@ public class Optimization {
 				x[iWorst] = xR;
 				fx[iWorst] = fxR;
 				continue;
+			}
+			else if (fxR < fx[iWorst]) { // if this has just a little bit of redeeming quality
+				Matrix xS = xC.plus(xR.minus(xC).times(ρ));
+				double fxS = f.apply(xS);
+				
+				if (fxS <= fxR) {
+					x[iWorst] = xS;
+					fx[iWorst] = fxS;
+					continue;
+				}
+				else {
+					for (int i = 0; i < x.length; i ++) {
+						if (i != iBest) {
+							x[i] = x[iBest].plus(x[i].minus(x[iBest]).times(σ)); // move all vertices inward
+							fx[i] = f.apply(x[i]);
+						}
+					}
+					continue;
+				}
 			}
 			else {
 				Matrix xS = xC.plus(x[iWorst].minus(xC).times(ρ)); // compute the contracted point
