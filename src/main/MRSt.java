@@ -48,6 +48,7 @@ public class MRSt {
 //	private static final double E_RESOLUTION = .5, T_RESOLUTION = 50e-3;
 //	private static final int MIN_STATISTICS = 1; // the minimum number of deuterons to define a spectrum at a time
 	private static final int TRANSFER_MATRIX_TRIES = 10000; // the number of points to sample in each column of the transfer matrix
+	private static final int NUM_SPLINE_POINTS = 14; // the number of points to use in analysis interpolation
 	
 	private static final double[] PARAMETER_BOUNDS = { Double.NaN, 2000, 20, 5 }; // I'm 68% sure the magnitudes of Y, v, T, and ρR won't exceed these
 	
@@ -292,21 +293,18 @@ public class MRSt {
 	 */
 	public void analyze(double[][] spectrum) {
 		if (spectrum.length != energyBins.length-1 || spectrum[0].length != timeBins.length-1)
-			throw new IllegalArgumentException("These dimensions are wrong."); // TODO: can they all be splines? How much freedom do they need? Would I get better results by now switching to not coordinate descent? Do I still need noiseVar?
+			throw new IllegalArgumentException("These dimensions are wrong.");
 		
 		double spectMax = NumericalMethods.max(spectrum);
 		final double noiseVar = Math.pow(spectMax/1e3, 2); // assume some unknown distribution of this variance, so it doesn't freak out when it sees n-knockons
 		
-		double[] splineTimesLong = new double[14];
-		for (int i = 0; i < 14; i ++)
-			splineTimesLong[i] = MIN_T + i/13.*(MAX_T - MIN_T);
-		double[] splineTimesShort = new double[7];
-		for (int i = 0; i < 7; i ++)
-			splineTimesShort[i] = MIN_T + i/6.*(MAX_T - MIN_T);
+		double[] splineTimes = new double[NUM_SPLINE_POINTS];
+		for (int i = 0; i < NUM_SPLINE_POINTS; i ++)
+			splineTimes[i] = MIN_T + (float)i/(NUM_SPLINE_POINTS-1)*(MAX_T - MIN_T);
 		
-		double[] initialGuess = new double[35]; // first we need a half decent guess
-		for (int i = 0; i < 14; i ++) {
-			int k = i*(timeAxis.length-1)/(splineTimesLong.length-1);
+		double[] initialGuess = new double[NUM_SPLINE_POINTS + 21]; // first we need a half decent guess
+		for (int i = 0; i < NUM_SPLINE_POINTS; i ++) {
+			int k = i*(timeAxis.length-1)/(splineTimes.length-1);
 			double[] timeSlice = new double[energyBins.length-1]; // for that we'll want to do some rudimentary analysis
 			for (int j = 0; j < timeSlice.length; j ++)
 				timeSlice[j] = spectrum[j][k];
@@ -316,13 +314,13 @@ public class MRSt {
 		}
 		System.arraycopy(new double[] { // the initial guesses for the other variables can look like this
 				10, 10,-10, (MAX_T + MIN_T)/2, (MAX_T - MIN_T)/4, 0, 3,
-		}, 0, initialGuess, 14, 7);
+		}, 0, initialGuess, NUM_SPLINE_POINTS+0, 7);
 		System.arraycopy(new double[] {
 				 3,  3,  6, (MAX_T + MIN_T)/2, (MAX_T - MIN_T)/4, 0, 3,
-		}, 0, initialGuess, 21, 7);
-		System.arraycopy(NumericalMethods.unimode(timeAxis,
-				 1,  1,  2, (MAX_T + MIN_T)/2, (MAX_T - MIN_T)/4, 0, 3
-		), 0, initialGuess, 28, 7);
+		}, 0, initialGuess, NUM_SPLINE_POINTS+7, 7);
+		System.arraycopy(new double[] {
+				 1,  1,  2, (MAX_T + MIN_T)/2, (MAX_T - MIN_T)/4, 0, 3,
+		}, 0, initialGuess, NUM_SPLINE_POINTS+14, 7);
 		
 		if (logger != null)  logger.info("beginning fit process.");
 		System.out.println(Arrays.toString(initialGuess)+",");
@@ -330,18 +328,16 @@ public class MRSt {
 		
 		double[] opt = Optimization.minimizeCoordinateDescent((double[] guess) -> { // minimize the following function:
 			double[][] params = new double[4][];
-			params[0] = Arrays.copyOfRange(guess, 0, 14);
-			params[1] = Arrays.copyOfRange(guess, 14, 21);
-			params[2] = Arrays.copyOfRange(guess, 21, 28);
-			params[3] = Arrays.copyOfRange(guess, 28, 35);
-			for (int i = 0; i < 14; i ++) // check for illegal values
+			params[0] = Arrays.copyOfRange(guess, 0, NUM_SPLINE_POINTS);
+			for (int k = 1; k < 4; k ++)
+				params[k] = Arrays.copyOfRange(guess,
+						NUM_SPLINE_POINTS + 7*(k-1), NUM_SPLINE_POINTS + 7*k);
+			for (int i = 0; i < NUM_SPLINE_POINTS; i ++) // check for illegal values
 				if (params[0][i] < 0)  return Double.POSITIVE_INFINITY;
-			for (int i = 0; i < 7; i ++)
-				if (params[3][i] < 0)  return Double.POSITIVE_INFINITY;
-			double[] Yn = NumericalMethods.spline(timeAxis, splineTimesLong, params[0]);
+			double[] Yn = NumericalMethods.spline(timeAxis, splineTimes, params[0]);
 			double[] vi = NumericalMethods.unimode(timeAxis, params[1]); 
 			double[] Ti = NumericalMethods.unimode(timeAxis, params[2]);
-			double[] ρR = NumericalMethods.spline(timeAxis, splineTimesShort, params[3]);
+			double[] ρR = NumericalMethods.unimode(timeAxis, params[3]);
 			for (int i = 0; i < timeAxis.length; i ++) {
 				Yn[i] = Math.max(0, Yn[i]); // then check for impossible values (prior=0)
 				if (Ti[i] <= 0)  return Double.POSITIVE_INFINITY;
@@ -360,7 +356,7 @@ public class MRSt {
 			assert Double.isFinite(err);
 			
 			double penalty = 0; // negative log of prior (ignoring global normalization)
-			for (int k = 1; k < 3; k ++) {
+			for (int k = 1; k < 4; k ++) {
 				for (int l = 0; l < 3; l ++)
 					penalty += Math.pow(params[k][l]/PARAMETER_BOUNDS[k], 2)/2; // dimensional values should stay in bounds
 				double μ = params[k][3], σ = params[k][4], s = params[k][5], κ = params[k][6];
@@ -372,8 +368,9 @@ public class MRSt {
 				penalty += Math.pow(s/6, 2)/2; // skews are fun but shouldn't get more than one order of magnitude over unity
 				penalty += 2*κ - 3*Math.log(κ); // and use this k=4 gamma distribution to keep fattening near 2
 			}
-			for (int i = 0; i < 7; i ++)
-				penalty += Math.pow(params[3][i]/PARAMETER_BOUNDS[3], 2)/2; // watch the magnitude on ρR
+			if (params[3][2] < (params[3][0] + params[3][1])/2)
+				penalty += Math.pow((params[3][2] - (params[3][0] + params[3][1])/2)/
+						(PARAMETER_BOUNDS[3]/2), 2)/2; // also the density should be positively peaked (I think)
 			
 			return err + penalty;
 		}, initialGuess, 14, 1e-8);
@@ -384,14 +381,14 @@ public class MRSt {
 					(endTime - startTime)/60000.));
 		
 		double[][] params = new double[4][];
-			params[0] = Arrays.copyOfRange(opt, 0, 14);
-			params[1] = Arrays.copyOfRange(opt, 14, 21);
-			params[2] = Arrays.copyOfRange(opt, 21, 28);
-			params[3] = Arrays.copyOfRange(opt, 28, 35);
-		neutronYield = NumericalMethods.spline(timeAxis, splineTimesLong, params[0]);
+			params[0] = Arrays.copyOfRange(opt, 0, NUM_SPLINE_POINTS);
+			for (int k = 1; k < 4; k ++)
+				params[k] = Arrays.copyOfRange(opt,
+						NUM_SPLINE_POINTS + 7*(k-1), NUM_SPLINE_POINTS + 7*k);
+		neutronYield = NumericalMethods.spline(timeAxis, splineTimes, params[0]);
 		flowVelocity = NumericalMethods.unimode(timeAxis, params[1]); 
 		ionTemperature = NumericalMethods.unimode(timeAxis, params[2]);
-		arealDensity = NumericalMethods.spline(timeAxis, splineTimesShort, params[3]);
+		arealDensity = NumericalMethods.unimode(timeAxis, params[3]);
 		for (int i = 0; i < timeAxis.length; i ++)
 			neutronYield[i] = Math.max(0, neutronYield[i]); // then check for nonpositives
 		
