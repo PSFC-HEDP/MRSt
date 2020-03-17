@@ -372,7 +372,7 @@ public class MRSt {
 						(PARAMETER_BOUNDS[3]/2), 2)/2; // also the density should be positively peaked (I think)
 			
 			return err + penalty;
-		}, initialGuess, 1e-10);
+		}, initialGuess, 1e-16);
 		
 		long endTime = System.currentTimeMillis();
 		if (logger != null)

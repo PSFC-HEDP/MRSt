@@ -93,10 +93,15 @@ public class Optimization {
 			int iWorst = NumericalMethods.argmax(fx);
 			int iNext = NumericalMethods.argpenmax(fx);
 			int iBest = NumericalMethods.argmin(fx);
-			System.out.println(Arrays.toString(x[iBest].values[0])+",");
+			if (Math.random() < 3e-3)
+				System.out.println(Arrays.toString(x[iBest].values[0])+",");
 			
-			if (Math.abs((fx[iWorst] - fx[iBest])/fx[iBest]) < tol) // if these are all basically the same
-				return x[iBest].values[0]; // terminate and take the best one we have
+			boolean done = true;
+			for (int j = 0; j < scale.length; j ++)
+				if (Math.abs(x[iBest].get(0,j) - x[iWorst].get(0,j)) > tol*scale[j])
+					done = false;
+			if (done)
+				return x[iBest].values[0];
 			
 			Matrix xC = new Matrix(1, x0.length);
 			for (int i = 0; i < x.length; i ++) // compute the best-guess centroid
