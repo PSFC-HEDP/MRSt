@@ -376,8 +376,8 @@ public class MRSt {
 				penalty += Math.pow(s/6, 2)/2; // skews are fun but shouldn't get more than one order of magnitude over unity
 				penalty += 2*κ - 3*Math.log(κ); // and use this k=4 gamma distribution to keep fattening near 2
 			}
-			if (params[3][2] < (params[3][0] + params[3][1])/2)
-				penalty += Math.pow((params[3][2] - (params[3][0] + params[3][1])/2)/
+			if (params[3][2] < Math.max(params[3][0], params[3][1]))
+				penalty += Math.pow((params[3][2] - Math.max(params[3][0], params[3][1]))/
 						(PARAMETER_BOUNDS[3]/2), 2)/2; // also the density should be positively peaked (I think)
 			
 			return err + penalty;
