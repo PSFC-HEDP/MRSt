@@ -45,9 +45,10 @@ public class MRSt {
 	private static final double MIN_E = 12, MAX_E = 16; // histogram bounds [MeV]
 	private static final double MIN_T = 16.0, MAX_T = 16.5; // histogram bounds [ns]
 	private static final double E_RESOLUTION = .1, T_RESOLUTION = 13e-3; // resolutions [MeV], [ns]
+//	private static final double E_RESOLUTION = .5, T_RESOLUTION = 50e-3;
 //	private static final int MIN_STATISTICS = 1; // the minimum number of deuterons to define a spectrum at a time
 	private static final int TRANSFER_MATRIX_TRIES = 10000; // the number of points to sample in each column of the transfer matrix
-	private static final int NUM_SPLINE_POINTS = 16; // the number of points to use in analysis interpolation
+	private static final int NUM_SPLINE_POINTS = 14; // the number of points to use in analysis interpolation
 	
 	private static final double[] PARAMETER_BOUNDS = { Double.NaN, 2000, 20, 5 }; // I'm 68% sure the magnitudes of Y, v, T, and ρR won't exceed these
 	
@@ -323,7 +324,6 @@ public class MRSt {
 		
 		if (logger != null)  logger.info("beginning fit process.");
 		long startTime = System.currentTimeMillis();
-		System.out.println(Arrays.toString(initialGuess)+",");
 		
 		double[] opt = Optimization.minimizeNelderMead((double[] guess) -> { // minimize the following function:
 			double[][] params = new double[4][];
@@ -341,8 +341,6 @@ public class MRSt {
 				Yn[i] = Math.max(0, Yn[i]); // then check for impossible values (prior=0)
 				if (Ti[i] <= 0)  return Double.POSITIVE_INFINITY;
 				if (ρR[i] <= 0)  return Double.POSITIVE_INFINITY;
-			if (Math.random() < 1e-3)
-				System.out.println(Arrays.toString(guess)+",");
 			}
 			
 			double[][] teoSpectrum = generateSpectrum(
