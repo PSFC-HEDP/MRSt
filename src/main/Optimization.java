@@ -93,8 +93,6 @@ public class Optimization {
 			int iWorst = NumericalMethods.argmax(fx);
 			int iNext = NumericalMethods.argpenmax(fx);
 			int iBest = NumericalMethods.argmin(fx);
-			if (Math.random() < 3e-3)
-				System.out.println(Arrays.toString(x[iBest].values[0])+",");
 			
 			boolean done = true;
 			for (int j = 0; j < scale.length; j ++)
