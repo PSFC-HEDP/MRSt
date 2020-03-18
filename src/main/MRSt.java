@@ -49,7 +49,7 @@ public class MRSt {
 	private static final int TRANSFER_MATRIX_TRIES = 10000; // the number of points to sample in each column of the transfer matrix
 	private static final int NUM_SPLINE_POINTS = 16; // the number of points to use in analysis interpolation
 	
-	private static final double[] PARAMETER_BOUNDS = { Double.NaN, 20, 5, 2000 }; // I'm 68% sure the magnitudes of Y, v, T, and ρR won't exceed these
+	private static final double[] PARAMETER_BOUNDS = { Double.NaN, 2000, 20, 5 }; // I'm 68% sure the magnitudes of Y, v, T, and ρR won't exceed these
 	
 	private static final double[] ENERGY_FIT = {
 			1.9947057710073842e-12, 1.4197129629720856e-12, 2.533708675784118e-12,
@@ -301,48 +301,52 @@ public class MRSt {
 		for (int i = 0; i < NUM_SPLINE_POINTS; i ++)
 			splineTimes[i] = MIN_T + (float)i/(NUM_SPLINE_POINTS-1)*(MAX_T - MIN_T);
 		
-		double[] initialGuess = new double[4*NUM_SPLINE_POINTS]; // first we need a half decent guess
-		double maxYieldEstimate = 0;
-		for (int j = 0; j < NUM_SPLINE_POINTS; j ++) {
-			int k = j*(timeAxis.length-1)/(splineTimes.length-1);
+		double[] initialGuess = new double[NUM_SPLINE_POINTS + 21]; // first we need a half decent guess
+		for (int i = 0; i < NUM_SPLINE_POINTS; i ++) {
+			int k = i*(timeAxis.length-1)/(splineTimes.length-1);
 			double[] timeSlice = new double[energyBins.length-1]; // for that we'll want to do some rudimentary analysis
-			for (int i = 0; i < timeSlice.length; i ++)
-				timeSlice[i] = spectrum[i][k];
+			for (int j = 0; j < timeSlice.length; j ++)
+				timeSlice[j] = spectrum[j][k];
 			double yieldEstimate = NumericalMethods.definiteIntegral(energyBins, timeSlice)/
-					this.efficiency(14.1e6)/(timeBins[k+1] - timeBins[k])/1e15; // measure the yield in the most basic way possible
-			if (yieldEstimate > maxYieldEstimate)
-				maxYieldEstimate = yieldEstimate;
-			initialGuess[0*NUM_SPLINE_POINTS + j] = yieldEstimate; // [#/ns]
-			initialGuess[1*NUM_SPLINE_POINTS + j] = 2; // [keV]
-			initialGuess[2*NUM_SPLINE_POINTS + j] = 20; // [km/s]
-			initialGuess[3*NUM_SPLINE_POINTS + j] = 2; // [g/cm^2]
+					this.efficiency(14.1e6)/(timeBins[k+1] - timeBins[k]); // measure the yield in the most basic way possible
+			initialGuess[i] = yieldEstimate/1e15;// [#/ns]
 		}
-//		for (int j = 0; j < NUM_SPLINE_POINTS; j ++)
-//			initialGuess[j] += maxYieldEstimate/12.; // this prevents spline artifacts from going negative in the initial guess
+		System.arraycopy(new double[] { // the initial guesses for the other variables can look like this
+				10, 10,-10, (MAX_T + MIN_T)/2, (MAX_T - MIN_T)/4, 0, 2,
+		}, 0, initialGuess, NUM_SPLINE_POINTS+0, 7);
+		System.arraycopy(new double[] {
+				 3,  3,  6, (MAX_T + MIN_T)/2, (MAX_T - MIN_T)/4, 0, 2,
+		}, 0, initialGuess, NUM_SPLINE_POINTS+7, 7);
+		System.arraycopy(new double[] {
+				 1,  1,  2, (MAX_T + MIN_T)/2, (MAX_T - MIN_T)/4, 0, 2,
+		}, 0, initialGuess, NUM_SPLINE_POINTS+14, 7);
 		
 		if (logger != null)  logger.info("beginning fit process.");
 		long startTime = System.currentTimeMillis();
 		System.out.println(Arrays.toString(initialGuess)+",");
 		
 		double[] opt = Optimization.minimizeNelderMead((double[] guess) -> { // minimize the following function:
+			double[][] params = new double[4][];
+			params[0] = Arrays.copyOfRange(guess, 0, NUM_SPLINE_POINTS);
+			for (int k = 1; k < 4; k ++)
+				params[k] = Arrays.copyOfRange(guess,
+						NUM_SPLINE_POINTS + 7*(k-1), NUM_SPLINE_POINTS + 7*k);
+			for (int i = 0; i < NUM_SPLINE_POINTS; i ++) // check for illegal values
+				if (params[0][i] < 0)  return Double.POSITIVE_INFINITY;
+			double[] Yn = NumericalMethods.spline(timeAxis, splineTimes, params[0]);
+			double[] vi = NumericalMethods.unimode(timeAxis, params[1]); 
+			double[] Ti = NumericalMethods.unimode(timeAxis, params[2]);
+			double[] ρR = NumericalMethods.unimode(timeAxis, params[3]);
+			for (int i = 0; i < timeAxis.length; i ++) {
+				Yn[i] = Math.max(0, Yn[i]); // then check for impossible values (prior=0)
+				if (Ti[i] <= 0)  return Double.POSITIVE_INFINITY;
+				if (ρR[i] <= 0)  return Double.POSITIVE_INFINITY;
 			if (Math.random() < 1e-3)
 				System.out.println(Arrays.toString(guess)+",");
-			
-			double[][] params = new double[4][timeAxis.length];
-			for (int k = 0; k < 4; k ++) {
-				if (k != 2)
-					for (int j = 0; j < NUM_SPLINE_POINTS; j ++)
-						if (guess[k*NUM_SPLINE_POINTS + j] < 0)
-							return Double.POSITIVE_INFINITY;
-				params[k] = NumericalMethods.spline(timeAxis, splineTimes, Arrays.copyOfRange(guess, k*NUM_SPLINE_POINTS, (k+1)*NUM_SPLINE_POINTS));
-//				if (k != 2)
-//					for (int j = 0; j < timeAxis.length; j ++)
-//						if (params[k][j] <= 0)
-//							return Double.POSITIVE_INFINITY; // then check for impossible values (prior=0)
 			}
 			
 			double[][] teoSpectrum = generateSpectrum(
-					params[0], params[1], params[2], params[3], energyBins, timeBins); // generate the spectrum based on those
+					Yn, Ti, vi, ρR, energyBins, timeBins); // generate the spectrum based on those
 			double[][] fitSpectrum = this.response(energyBins, timeBins, teoSpectrum, false); // blur it according to the transfer matrix
 			double err = 0; // negative log of Bayes factor (ignoring normalization)
 			for (int i = 0; i < spectrum.length; i ++)
@@ -353,52 +357,39 @@ public class MRSt {
 			assert Double.isFinite(err);
 			
 			double penalty = 0; // negative log of prior (ignoring global normalization)
-			for (int k = 0; k < 4; k ++) {
-				if (k != 0)
-					for (int j = 0; j < timeAxis.length; j ++) // now apply penalties to force quasiregular shapes
-						penalty += Math.pow(params[k][j]/PARAMETER_BOUNDS[k], 2)/2; // penalize really extreme values
-				
-				if (k != 2) {
-				double[] depth = new double[timeAxis.length]; // and penalize upward-concavity with this algorithm:
-				mainLoop:
-				for (int j = 0; j < timeAxis.length; j ++) { // take each node
-					for (int i = j + 1; i < timeAxis.length; i ++) { // look forward
-						if (params[k][i] >= params[k][j]) { // does anything ever surpass it?
-							for (int h = i - 1; h > j; h --) // then go back
-								depth[h] = params[k][j] - params[k][h]; // and fill in all the nodes between i and j
-							j = i - 1; // skip ahead over the filled area
-							continue mainLoop;
-						}
-					}
-					for (int i = j - 1; i >= 0; i --) { // if we didn't hit anything, look backward
-						if (params[k][i] >= params[k][j]) { // does anything ever surpass it?
-							for (int h = i + 1; h < j; h ++) // then come back
-								depth[h] = params[k][j] - params[k][h];
-							continue mainLoop;
-						}
-					}
-				}
-				for (int j = 0; j < timeAxis.length; j ++)
-					penalty += 1e3*depth[j]/initialGuess[(int)((k+0.5)*NUM_SPLINE_POINTS)]; // penalize those dips scaled by initial guesses
-				}
+			for (int k = 1; k < 4; k ++) {
+				for (int l = 0; l < 3; l ++)
+					penalty += Math.pow(params[k][l]/PARAMETER_BOUNDS[k], 2)/2; // dimensional values should stay in bounds
+				double μ = params[k][3], σ = params[k][4], s = params[k][5], κ = params[k][6];
+				if (μ < MIN_T + σ) // peaks shouldn't wander off screen
+					penalty += Math.pow((MIN_T + σ - μ)/σ, 2)/2;
+				else if (μ > MAX_T - σ)
+					penalty += Math.pow((MAX_T - σ - μ)/σ, 2)/2;
+				penalty += Math.pow(σ/((MAX_T - MIN_T)/2), 2)/2; // temporal values shouldn't get much bigger than the screen
+				penalty += Math.pow(s/6, 2)/2; // skews are fun but shouldn't get more than one order of magnitude over unity
+				penalty += 2*κ - 3*Math.log(κ); // and use this k=4 gamma distribution to keep fattening near 2
 			}
+			if (params[3][2] < (params[3][0] + params[3][1])/2)
+				penalty += Math.pow((params[3][2] - (params[3][0] + params[3][1])/2)/
+						(PARAMETER_BOUNDS[3]/2), 2)/2; // also the density should be positively peaked (I think)
 			
 			return err + penalty;
-		}, initialGuess, 1e-24);
+		}, initialGuess, 1e-16);
 		
 		long endTime = System.currentTimeMillis();
 		if (logger != null)
 			logger.info(String.format(Locale.US, "completed in %.2f minutes.",
 					(endTime - startTime)/60000.));
 		
-		double[][] params = new double[4][NUM_SPLINE_POINTS];
-		for (int k = 0; k < 4; k ++)
-			for (int j = 0; j < NUM_SPLINE_POINTS; j ++)
-				params[k][j] = opt[k*NUM_SPLINE_POINTS + j];
+		double[][] params = new double[4][];
+			params[0] = Arrays.copyOfRange(opt, 0, NUM_SPLINE_POINTS);
+			for (int k = 1; k < 4; k ++)
+				params[k] = Arrays.copyOfRange(opt,
+						NUM_SPLINE_POINTS + 7*(k-1), NUM_SPLINE_POINTS + 7*k);
 		neutronYield = NumericalMethods.spline(timeAxis, splineTimes, params[0]);
-		ionTemperature = NumericalMethods.spline(timeAxis, splineTimes, params[1]);
-		flowVelocity = NumericalMethods.spline(timeAxis, splineTimes, params[2]); 
-		arealDensity = NumericalMethods.spline(timeAxis, splineTimes, params[3]);
+		flowVelocity = NumericalMethods.unimode(timeAxis, params[1]); 
+		ionTemperature = NumericalMethods.unimode(timeAxis, params[2]);
+		arealDensity = NumericalMethods.unimode(timeAxis, params[3]);
 		for (int i = 0; i < timeAxis.length; i ++)
 			neutronYield[i] = Math.max(0, neutronYield[i]); // then check for nonpositives
 		
