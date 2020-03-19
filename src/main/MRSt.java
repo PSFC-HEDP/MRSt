@@ -48,7 +48,7 @@ public class MRSt {
 //	private static final double E_RESOLUTION = .5, T_RESOLUTION = 50e-3;
 //	private static final int MIN_STATISTICS = 1; // the minimum number of deuterons to define a spectrum at a time
 	private static final int TRANSFER_MATRIX_TRIES = 10000; // the number of points to sample in each column of the transfer matrix
-	private static final int NUM_SPLINE_POINTS = 21; // the number of points to use in analysis interpolation
+	private static final int NUM_SPLINE_POINTS = 16; // the number of points to use in analysis interpolation
 	
 	private static final double[] PARAMETER_BOUNDS = { Double.NaN, 2000, 20, 5 }; // I'm 68% sure the magnitudes of Y, v, T, and ρR won't exceed these
 	
@@ -368,10 +368,10 @@ public class MRSt {
 			double penalty = 0; // negative log of prior (ignoring global normalization)
 			for (int i = 0; i < NUM_SPLINE_POINTS; i ++) {
 				if (params[0][i] < 0)
-					penalty += 4 + Math.abs(params[0][i])/initialGuess[i]; // 4 nepers says the yield isn't negative
+					penalty += 10 + Math.abs(params[0][i])/initialGuess[i]; // 5 nepers says the yield isn't negative
 				if (i >= 1 && i < NUM_SPLINE_POINTS - 1 &&
 						params[0][i] < params[0][i-1] && params[0][i] < params[0][i+1])
-					penalty += 4; // or concave up anywhere
+					penalty += 5; // or concave up anywhere
 			}
 			for (int k = 1; k < 4; k ++) {
 				for (int l = 0; l < 3; l ++)
