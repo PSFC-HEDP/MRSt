@@ -53,7 +53,7 @@ public class MRSt {
 	private static final double[] PARAMETER_BOUNDS = { Double.NaN, 2000, 20, 5 }; // I'm 68% sure the magnitudes of Y, v, T, and ρR won't exceed these
 	
 	private static final double[] ENERGY_FIT = {
-			1.9947057710073842e-12, 1.4197129629720856e-12, 2.533708675784118e-12,
+			1.9947057710073842e-12, 1.4197129629720856e-12, 2.533708675784118e-12, // TODO empirically define
 			3.3724670708100935e-12, -3.383506123917434e-12, -4.346034080805247e-11,
 			-1.2677861751122915e-10, -6.30685441409433e-11, 3.9801803257378504e-10, 5.935615381876897e-10}; // energy fit [J/m^i] (this must be extremely precise and might need to be empirically determined
 	
@@ -237,18 +237,18 @@ public class MRSt {
 	 * @param times the times that describe the columns of counts [ns]
 	 * @param spectrum the time- and energy- resolved neutron spectrum in number of neutrons. each
 	 * row corresponds to one element of energies, and each column one element of times. [#/MeV/ns]
-	 * @return the time- and position- resolved ion spectrum measured at the focal plane. each
-	 * row corresponds to one element of this.energyBins, and each column corresponds to one
-	 * element of this.timeBins.
+	 * @return {BT, peak-ρR, peak-ρR-ramp, Ti(BT), ρR(BT), vi(BT), Ti-ramp(BT), ρR-ramp(BT),
+	 *   vi-ramp(BT), max ρR, yield, μ1, μ2, μ3}
 	 */
-	public void respond(double[] energies, double[] times, double[][] spectrum) {
+	public double[] respond(double[] energies, double[] times, double[][] spectrum) {
 		this.deuteronSpectrum = this.response(energies, times, spectrum, true);
-		analyze(deuteronSpectrum);
+		return analyze(deuteronSpectrum);
 	}
 	
 	/**
 	 * compute the total response to an implosion with the given neutron spectrum using the
-	 * precomputed transfer matrix. account for electrostatic time correction, but not for any analysis.
+	 * precomputed transfer matrix. account for electrostatic time correction, but not for any
+	 * analysis.
 	 * @param energies the edges of the energy bins
 	 * @param times the edges of the time bins
 	 * @param neutronSpectrum the counts in each bin
@@ -290,8 +290,10 @@ public class MRSt {
 	 * @param eBins the edges of the energy bins
 	 * @param tBins the edges of the time bins
 	 * @param spectrum the time-corrected spectrum we want to understand
+	 * @return {BT, peak-ρR, peak-ρR-ramp, Ti(BT), ρR(BT), vi(BT), Ti-ramp(BT), ρR-ramp(BT),
+	 *   vi-ramp(BT), max ρR, yield, μ1, μ2, μ3}
 	 */
-	public void analyze(double[][] spectrum) {
+	private double[] analyze(double[][] spectrum) {
 		if (spectrum.length != energyBins.length-1 || spectrum[0].length != timeBins.length-1)
 			throw new IllegalArgumentException("These dimensions are wrong.");
 		
@@ -439,13 +441,20 @@ public class MRSt {
 				logger.info(String.format("Peak ρR:           %8.3f g/cm^2", arealDensity[compressTime]));
 				logger.info(String.format("Total yield (μ0):  %8.3g", moments[0]));
 				logger.info(String.format("Burn mean (μ1):    %8.3g ns", moments[1]));
-				logger.info(String.format("Burn width (μ2):   %8.3g ns^2", moments[2]));
+				logger.info(String.format("Burn width (μ2):   %8.3g ns", Math.sqrt(moments[2])*2.355));
 				logger.info(String.format("Burn skewness (μ3):%8.3g", moments[3]));
 				logger.info(String.format("Burn kurtosis (μ4):%8.3g", moments[4]));
 			}
 		}
+		
+		return new double[] {
+				timeAxis[bangTime], timeAxis[compressTime], timeAxis[maxPRRamp],
+				ionTemperature[bangTime], flowVelocity[bangTime], dTidt[bangTime],
+				dρRdt[bangTime], dvidt[bangTime], arealDensity[compressTime], moments[0],
+				moments[1], Math.sqrt(moments[2])*2.355, moments[3], moments[4]
+		};
 	}
-
+	
 	/**
 	 * simulate a single random neutron emitted from TCC at the given energy and determine the
 	 * position and time at which its child ion crosses the focal plane.

@@ -162,9 +162,31 @@ public class CSV {
 	 */
 	public static final void write(double[][] data, File file, char delimiter)
 			throws IOException {
+		write(data, file, delimiter, null);
+	}
+	
+	/**
+	 * save the given matrix as a simple CSV file, using the given delimiter character.
+	 * @param data the numbers to be written
+	 * @param file the file at which to save
+	 * @param delimiter the delimiter character, usually ','
+	 * @param header the list of strings to put on top
+	 * @throws IOException if the file cannot be found or permission is denied
+	 */
+	public static final void write(double[][] data, File file, char delimiter, String[] header)
+			throws IOException {
 		BufferedWriter out = null;
 		try {
 			out = new BufferedWriter(new FileWriter(file));
+			if (header != null) {
+				for (int j = 0; j < header.length; j ++) {
+					out.append(header[j]);
+					if (j < header.length-1)
+						out.append(delimiter);
+					else
+						out.newLine();
+				}
+			}
 			for (int i = 0; i < data.length; i ++) {
 				for (int j = 0; j < data[i].length; j ++) {
 					out.append(Double.toString(data[i][j]));

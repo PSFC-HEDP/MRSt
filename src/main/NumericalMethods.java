@@ -80,7 +80,7 @@ public class NumericalMethods {
 	 * generate a generic unimodal distribution with a handful of parameters with which to play.
 	 * it will be the linear combination of an erf stepping from yL to yR with a generalized
 	 * skew normal distribution with height ~yPeak, and skew and kurtosis-adjustment given by
-	 * til and fatten
+	 * tilt and fatten
 	 * @param x the x axis on which to generate it
 	 * @param yL the limit for negative x
 	 * @param yR the limit for positive x
