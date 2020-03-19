@@ -449,7 +449,7 @@ public class MRSt {
 		
 		return new double[] {
 				timeAxis[bangTime], timeAxis[compressTime], timeAxis[maxPRRamp],
-				ionTemperature[bangTime], flowVelocity[bangTime], dTidt[bangTime],
+				ionTemperature[bangTime], arealDensity[bangTime], flowVelocity[bangTime], dTidt[bangTime],
 				dρRdt[bangTime], dvidt[bangTime], arealDensity[compressTime], moments[0],
 				moments[1], Math.sqrt(moments[2])*2.355, moments[3], moments[4]
 		};
