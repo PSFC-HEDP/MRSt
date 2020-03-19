@@ -516,7 +516,6 @@ public class NumericalMethods {
 				}
 			}
 			return (x - X[i])/(X[i+1] - X[i])*(Y[i+1] - Y[i]) + Y[i]; // linearly interpolate x from X[i] to Y[i]
-
 		}
 		
 		/**

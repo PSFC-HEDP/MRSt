@@ -52,11 +52,6 @@ public class MRSt {
 	
 	private static final double[] PARAMETER_BOUNDS = { Double.NaN, 2000, 20, 5 }; // I'm 68% sure the magnitudes of Y, v, T, and ρR won't exceed these
 	
-	private static final double[] ENERGY_FIT = {
-			1.9947057710073842e-12, 1.4197129629720856e-12, 2.533708675784118e-12, // TODO empirically define
-			3.3724670708100935e-12, -3.383506123917434e-12, -4.346034080805247e-11,
-			-1.2677861751122915e-10, -6.30685441409433e-11, 3.9801803257378504e-10, 5.935615381876897e-10}; // energy fit [J/m^i] (this must be extremely precise and might need to be empirically determined
-	
 	private final double foilDistance; // z coordinate of midplane of foil [m]
 	private final double foilThickness; // thickness of foil [m]
 	private final double apertureDistance; // distance from TCC to aperture [m]
@@ -72,8 +67,9 @@ public class MRSt {
 	private final double energyFactor; // conversion factor between neutron and ion energies []
 	private final double probHitsFoil; // probability that the neutron goes through the foil
 	
-	private final DiscreteFunction distanceVsEnergy;
-	private final DiscreteFunction energyVsDistance;
+	private final DiscreteFunction distanceVsEnergy; // stopping distance info
+	private final DiscreteFunction energyVsDistance; // inverse stopping distance info
+	private final DiscreteFunction energyVsPosition; // map between location on detector and energy going into lens
 	
 	private final double[] energyBins; // endpoints of E bins for inferred spectrum [MeV]
 	private final double[] timeBins; // endpoints of time bins for inferred spectrum [ns]
@@ -155,6 +151,17 @@ public class MRSt {
 		this.timeAxis = new double[timeBins.length-1];
 		for (int i = 0; i < timeBins.length-1; i ++)
 			this.timeAxis[i] = (this.timeBins[i] + this.timeBins[i+1])/2;
+		
+		double[] calibEnergies = new double[2*energyBins.length];
+		double[] detectorPosition = new double[calibEnergies.length];
+		for (int i = 0; i < calibEnergies.length; i ++) {
+			calibEnergies[i] = (MIN_E + (MAX_E - MIN_E)*i/(calibEnergies.length-1))*energyFactor*1e6*(-Particle.E.charge);
+			double[] v = {0, 0, Math.sqrt(2*calibEnergies[i]/ion.mass)};
+			double[] r = computeFocusedPosition(new double[] {0,0,0}, v, 0);
+			detectorPosition[i] = r[x]/Math.cos(focalPlaneAngle);
+		}
+		this.energyVsPosition = new DiscreteFunction(calibEnergies, detectorPosition).inv()
+				.indexed(energyBins.length); // J(m)
 		
 		this.logger = logger;
 		
@@ -483,9 +490,7 @@ public class MRSt {
 	 */
 	public double[] backCalculate(double position, double time) {
 		double focusingDistance = position*Math.sin(focalPlaneAngle);
-		double E = 0; // [J]
-		for (int i = 0; i < ENERGY_FIT.length; i ++)
-			E += ENERGY_FIT[i]*Math.pow(position, i);
+		double E = energyVsPosition.evaluate(position); // [J]
 		double v = Math.sqrt(2*E/ion.mass);
 		double d0 = (E - cosyK0)/cosyK0;
 		double lf = cosyPolynomial(4, new double[] {0, 0, 0, 0, 0, d0}); // re-use the COSY mapping to estimate the time of flight from energy
