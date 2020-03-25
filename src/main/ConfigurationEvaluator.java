@@ -68,7 +68,7 @@ public class ConfigurationEvaluator extends Application {
 	private static final int SPACING_1 = 10;
 	private static final int SPACING_2 = 4;
 	
-	private static final int NUM_YIELDS = 72;
+	private static final int NUM_YIELDS = 200;
 	
 	private Spinner<Double> foilDistance;
 	private Spinner<Double> foilRadius;
@@ -209,21 +209,21 @@ public class ConfigurationEvaluator extends Application {
 						logger.log(Level.SEVERE, e.getMessage(), e);
 					}
 					
-					double[][] results = new double[NUM_YIELDS][15];
+					double[][] results = new double[NUM_YIELDS][17];
 					for (int y = 0; y < NUM_YIELDS; y ++) {
 						double yield = Math.pow(10, -4 + 5*y/(NUM_YIELDS-1.));
 						double[][] scaledSpec = new double[eBins.length-1][tBins.length-1];
 						for (int i = 0; i < eBins.length - 1; i ++)
 							for (int j = 0; j < tBins.length - 1; j ++)
 								scaledSpec[i][j] = yield*spec[i][j];
-						double[] result = mc.respond(eBins, tBins, spec); // and run it many times!
+						double[] result = mc.respond(eBins, tBins, scaledSpec); // and run it many times!
 						results[y][0] = yield;
 						System.arraycopy(result, 0, results[y], 1, result.length);
 					}
 					
 					try {
 						CSV.write(results, new File("working/"+saveFile.getText()), ',', new String[] {
-								"Yield factor", "Bang time (ns)", "Max ρR (ns)",
+								"Yield factor", "Computation time (s)", "Bang time (ns)", "Max ρR (ns)",
 								"Max dρR/dt (ns)", "Ti at BT (keV)", "ρR at BT (g/cm^2)",
 								"vi at BT (μm/ns)", "dTi/dt at BT (keV/ns)",
 								"dρR/dt at BT (g/cm^2/ns)", "dvi/dt at BT (μm/ns^2)",
