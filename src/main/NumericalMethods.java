@@ -579,6 +579,7 @@ public class NumericalMethods {
 			x[i] = -3 + 6./n*i;
 		System.out.println(Arrays.toString(x));
 		System.out.println(Arrays.toString(unimode(x, .5, .5, -2, 0, 1, 6, 2)));
+		System.out.println(poisson(0));
 	}
 	
 }

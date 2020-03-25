@@ -46,11 +46,10 @@ public class MRSt {
 	private static final double MIN_T = 16.0, MAX_T = 16.5; // histogram bounds [ns]
 	private static final double E_RESOLUTION = .1, T_RESOLUTION = 13e-3; // resolutions [MeV], [ns]
 //	private static final double E_RESOLUTION = .5, T_RESOLUTION = 50e-3;
-//	private static final int MIN_STATISTICS = 1; // the minimum number of deuterons to define a spectrum at a time
+	private static final int MIN_STATISTICS = 1000; // the minimum number of deuterons to define a spectrum at a time
 	private static final int TRANSFER_MATRIX_TRIES = 10000; // the number of points to sample in each column of the transfer matrix
-	private static final int NUM_SPLINE_POINTS = 16; // the number of points to use in analysis interpolation
 	
-	private static final double[] PARAMETER_BOUNDS = { Double.NaN, 2000, 20, 5 }; // I'm 68% sure the magnitudes of Y, v, T, and ρR won't exceed these
+	private static final double[] PARAM_SCALES = { Double.NaN, 4, 100, 1 }; // I'm 68% sure the magnitudes of Y, v, T, and ρR won't exceed these
 	
 	private final double foilDistance; // z coordinate of midplane of foil [m]
 	private final double foilThickness; // thickness of foil [m]
@@ -197,7 +196,7 @@ public class MRSt {
 		double[][] matrix = new double[n][n];
 		int j0 = timeBins.length/2; // time symmetry means we only need to evaluate at one time
 		for (int i = 0; i < energyBins.length-1; i ++) { // sweep through all energies
-			double energy0 = energyBins[i]*1e6, energy1 = energyBins[i+1]*1e6; // [keV]
+			double energy0 = energyBins[i]*1e6, energy1 = energyBins[i+1]*1e6; // [eV]
 			double time0 = timeBins[j0]*1e-9, time1 = timeBins[j0+1]*1e-9; // [s]
 			double weight = efficiency((energy0 + energy1)/2)/TRANSFER_MATRIX_TRIES;
 			for (int k = 0; k < TRANSFER_MATRIX_TRIES; k ++) {
@@ -244,8 +243,8 @@ public class MRSt {
 	 * @param times the times that describe the columns of counts [ns]
 	 * @param spectrum the time- and energy- resolved neutron spectrum in number of neutrons. each
 	 * row corresponds to one element of energies, and each column one element of times. [#/MeV/ns]
-	 * @return {BT, peak-ρR, peak-ρR-ramp, Ti(BT), ρR(BT), vi(BT), Ti-ramp(BT), ρR-ramp(BT),
-	 *   vi-ramp(BT), max ρR, yield, μ1, μ2, μ3}
+	 * @return {computation time, BT, peak-ρR, peak-ρR-ramp, Ti(BT), ρR(BT), vi(BT),
+	 *   Ti-ramp(BT), ρR-ramp(BT), vi-ramp(BT), max ρR, yield, μ1, μ2, μ3}
 	 */
 	public double[] respond(double[] energies, double[] times, double[][] spectrum) {
 		this.deuteronSpectrum = this.response(energies, times, spectrum, true);
@@ -297,8 +296,8 @@ public class MRSt {
 	 * @param eBins the edges of the energy bins
 	 * @param tBins the edges of the time bins
 	 * @param spectrum the time-corrected spectrum we want to understand
-	 * @return {BT, peak-ρR, peak-ρR-ramp, Ti(BT), ρR(BT), vi(BT), Ti-ramp(BT), ρR-ramp(BT),
-	 *   vi-ramp(BT), max ρR, yield, μ1, μ2, μ3}
+	 * @return {computation time, BT, peak-ρR, peak-ρR-ramp, Ti(BT), ρR(BT), vi(BT),
+	 *   Ti-ramp(BT), ρR-ramp(BT), vi-ramp(BT), max ρR, yield, μ1, μ2, μ3}
 	 */
 	private double[] analyze(double[][] spectrum) {
 		if (spectrum.length != energyBins.length-1 || spectrum[0].length != timeBins.length-1)
@@ -307,87 +306,71 @@ public class MRSt {
 		double spectMax = NumericalMethods.max(spectrum);
 		final double noiseVar = Math.pow(spectMax/1e3, 2); // assume some unknown distribution of this variance, so it doesn't freak out when it sees n-knockons
 		
-		double[] splineTimes = new double[NUM_SPLINE_POINTS];
-		for (int i = 0; i < NUM_SPLINE_POINTS; i ++)
-			splineTimes[i] = MIN_T + (float)i/(NUM_SPLINE_POINTS-1)*(MAX_T - MIN_T);
-		
-		double[] initialGuess = new double[NUM_SPLINE_POINTS + 21]; // first we need a half decent guess
-		for (int i = 0; i < NUM_SPLINE_POINTS; i ++) {
-			int k = i*(timeAxis.length-1)/(splineTimes.length-1);
+		double[] initialGuess = new double[4*timeAxis.length]; // first we need a half decent guess
+		double totalYield = 0; // also the rough mean estimate of neutron spectrum magnitude for entropy purposes
+		for (int i = 0; i < timeAxis.length; i ++) {
 			double[] timeSlice = new double[energyBins.length-1]; // for that we'll want to do some rudimentary analysis
 			for (int j = 0; j < timeSlice.length; j ++)
-				timeSlice[j] = spectrum[j][k];
+				timeSlice[j] = spectrum[j][i];
 			double yieldEstimate = NumericalMethods.definiteIntegral(energyBins, timeSlice)/
-					this.efficiency(14.1e6)/(timeBins[k+1] - timeBins[k]); // measure the yield in the most basic way possible
-			initialGuess[i] = yieldEstimate/1e15;// [#/ns]
+					this.efficiency(14.1e6); // measure the yield in the most basic way possible
+			totalYield += yieldEstimate; // [#]
+			initialGuess[i] = yieldEstimate/1e15/(timeBins[i+1] - timeBins[i]); // [10^15/ns]
+			for (int k = 1; k < 4; k ++)
+				initialGuess[i+k*timeAxis.length] = PARAM_SCALES[k]; // the initial guess for Ti, vi, and ρR can be uniform
 		}
-		System.arraycopy(new double[] { // the initial guesses for the other variables can look like this
-				10, 10,-10, (MAX_T + MIN_T)/2, (MAX_T - MIN_T)/4, 0, 2,
-		}, 0, initialGuess, NUM_SPLINE_POINTS+0, 7);
-		System.arraycopy(new double[] {
-				 3,  3,  6, (MAX_T + MIN_T)/2, (MAX_T - MIN_T)/4, 0, 2,
-		}, 0, initialGuess, NUM_SPLINE_POINTS+7, 7);
-		System.arraycopy(new double[] {
-				 1,  1,  2, (MAX_T + MIN_T)/2, (MAX_T - MIN_T)/4, 0, 2,
-		}, 0, initialGuess, NUM_SPLINE_POINTS+14, 7);
+		final double spectrumScale = totalYield/(energyBins.length-1)/(timeBins.length-1);
 		
 		if (logger != null)  logger.info("beginning fit process.");
-		long startTime = System.currentTimeMillis();
 		System.out.println(Arrays.toString(initialGuess)+",");
+		long startTime = System.currentTimeMillis();
 		
 		double[] opt = Optimization.minimizeNelderMead((double[] guess) -> { // minimize the following function:
 			if (Math.random() < 1e-3)
 				System.out.println(Arrays.toString(guess)+",");
 			
-			double[][] params = new double[4][];
-			params[0] = Arrays.copyOfRange(guess, 0, NUM_SPLINE_POINTS);
-			for (int k = 1; k < 4; k ++)
-				params[k] = Arrays.copyOfRange(guess,
-						NUM_SPLINE_POINTS + 7*(k-1), NUM_SPLINE_POINTS + 7*k);
-			double[] Yn = NumericalMethods.spline(timeAxis, splineTimes, params[0]);
-			double[] vi = NumericalMethods.unimode(timeAxis, params[1]); 
-			double[] Ti = NumericalMethods.unimode(timeAxis, params[2]);
-			double[] ρR = NumericalMethods.unimode(timeAxis, params[3]);
-			for (int i = 0; i < timeAxis.length; i ++) {
-				Yn[i] = Math.max(0, Yn[i]); // then check for impossible values (prior=0)
-				if (Ti[i] < 0)  return Double.POSITIVE_INFINITY;
-//				if (ρR[i] < 0)  return Double.POSITIVE_INFINITY;
+			double[][] params = new double[4][timeAxis.length];
+			for (int k = 0; k < 4; k ++) // first unpack the state vector
+				for (int i = 0; i < timeAxis.length; i ++)
+					params[k][i] = guess[i+k*timeAxis.length];
+			
+			for (int i = 0; i < timeAxis.length; i ++) { // check for illegal (prior = 0) values
+				if (params[0][i] < 0)   return Double.POSITIVE_INFINITY;
+				if (params[1][i] <= 0)  return Double.POSITIVE_INFINITY;
+				if (params[3][i] < 0)   return Double.POSITIVE_INFINITY;
 			}
 			
 			double[][] teoSpectrum = generateSpectrum(
-					Yn, Ti, vi, ρR, energyBins, timeBins); // generate the spectrum based on those
-			double[][] fitSpectrum = this.response(energyBins, timeBins, teoSpectrum, false); // blur it according to the transfer matrix
-			double err = 0; // negative log of Bayes factor (ignoring normalization)
+					params[0], params[1], params[2], params[3], energyBins, timeBins); // generate the neutron spectrum based on those
+			double[][] fitSpectrum = this.response(
+					energyBins, timeBins, teoSpectrum, false); // blur it according to the transfer matrix
+			
+			double err = 0; // negative Bayes factor (in nepers)
 			for (int i = 0; i < spectrum.length; i ++)
 				for (int j = 0; j < spectrum[i].length; j ++) // compute the error between it and the actual spectrum
 					err += Math.log(fitSpectrum[i][j] + noiseVar)/2 +
 							Math.pow(fitSpectrum[i][j] - spectrum[i][j], 2)/
 									(2*(fitSpectrum[i][j] + noiseVar));
-			assert Double.isFinite(err);
 			
 			double penalty = 0; // negative log of prior (ignoring global normalization)
-			for (int i = 0; i < NUM_SPLINE_POINTS; i ++) {
-				if (params[0][i] < 0)
-					penalty += 10 + Math.abs(params[0][i])/initialGuess[i]; // 5 nepers says the yield isn't negative
-				if (i >= 1 && i < NUM_SPLINE_POINTS - 1 &&
-						params[0][i] < params[0][i-1] && params[0][i] < params[0][i+1])
-					penalty += 5; // or concave up anywhere
+			for (int i = 0; i < spectrum.length; i ++) {
+				for (int j = 0; j < spectrum[i].length; j ++) {
+					if (teoSpectrum[i][j] > 1e-300)
+						penalty -= 0.25*teoSpectrum[i][j]*
+								(1 - Math.log(teoSpectrum[i][j]/spectrumScale))/spectrumScale; // encourage entropy
+					else
+						penalty -= 0;
+				}
 			}
-			for (int k = 1; k < 4; k ++) {
-				for (int l = 0; l < 3; l ++)
-					penalty += Math.pow(params[k][l]/PARAMETER_BOUNDS[k], 2)/2; // dimensional values should stay in bounds
-				double μ = params[k][3], σ = params[k][4], s = params[k][5], κ = params[k][6];
-				if (μ < MIN_T + σ) // peaks shouldn't wander off screen
-					penalty += Math.pow((MIN_T + σ - μ)/σ, 2)/2;
-				else if (μ > MAX_T - σ)
-					penalty += Math.pow((MAX_T - σ - μ)/σ, 2)/2;
-				penalty += Math.pow(σ/((MAX_T - MIN_T)/2), 2)/2; // temporal values shouldn't get much bigger than the screen
-				penalty += Math.pow(s/6, 2)/2; // skews are fun but shouldn't get more than one order of magnitude over unity
-				penalty += 2*κ - 3*Math.log(κ); // and use this k=4 gamma distribution to keep fattening near 2
+			final double dt = timeAxis[1] - timeAxis[0];
+			for (int k = 0; k < 4; k ++) {
+				double curveScale = 8*PARAM_SCALES[k]/Math.pow(MAX_T - MIN_T, 2); // discourage egregious curvature
+				if (k == 0)
+					curveScale = 8*spectrumScale/Math.pow(MAX_T - MIN_T, 2);
+				for (int i = 1; i < timeAxis.length - 1; i ++) {
+					penalty += 0.1*Math.pow((params[k][i-1] - 2*params[k][i] + params[k][i+1])/(dt*dt)/curveScale, 2);
+				}
 			}
-			if (params[3][2] < Math.max(params[3][0], params[3][1]))
-				penalty += Math.pow((params[3][2] - Math.max(params[3][0], params[3][1]))/
-						(PARAMETER_BOUNDS[3]/2), 2)/2; // also the density should be positively peaked (I think)
 			
 			return err + penalty;
 		}, initialGuess, 1e-14);
@@ -397,29 +380,27 @@ public class MRSt {
 			logger.info(String.format(Locale.US, "completed in %.2f minutes.",
 					(endTime - startTime)/60000.));
 		
-		double[][] params = new double[4][]; // unpack the result
-			params[0] = Arrays.copyOfRange(opt, 0, NUM_SPLINE_POINTS);
-			for (int k = 1; k < 4; k ++)
-				params[k] = Arrays.copyOfRange(opt,
-						NUM_SPLINE_POINTS + 7*(k-1), NUM_SPLINE_POINTS + 7*k);
-		neutronYield = NumericalMethods.spline(timeAxis, splineTimes, params[0]);
-		flowVelocity = NumericalMethods.unimode(timeAxis, params[1]); 
-		ionTemperature = NumericalMethods.unimode(timeAxis, params[2]);
-		arealDensity = NumericalMethods.unimode(timeAxis, params[3]);
-		for (int i = 0; i < timeAxis.length; i ++)
-			neutronYield[i] = Math.max(0, neutronYield[i]);
+		double[][] params = new double[4][timeAxis.length];
+		for (int k = 0; k < 4; k ++) // first unpack the state vector
+			for (int i = 0; i < timeAxis.length; i ++)
+				params[k][i] = opt[i+k*timeAxis.length];
+		this.neutronYield   = params[0];
+		this.ionTemperature = params[1];
+		this.flowVelocity   = params[2];
+		this.arealDensity   = params[3];
 		
 		this.fitNeutronSpectrum = generateSpectrum( // and then interpret it
 				neutronYield, ionTemperature, flowVelocity, arealDensity, energyBins, timeBins);
 		this.fitDeuteronSpectrum = this.response(energyBins, timeBins, fitNeutronSpectrum, false);
 		
-//		for (int i = 0; i < timeAxis.length; i ++) {
-//			if (neutronYield[i] < MIN_STATISTICS) { // now remove any intensive values from times with insufficient statistics
-//				ionTemperature[i] = Double.NaN;
-//				bulkVelocity[i] = Double.NaN;
-//				arealDensity[i] = Double.NaN;
-//			}
-//		}
+		final double dt = (timeBins[1] - timeBins[0]);
+		for (int i = 0; i < timeAxis.length; i ++) {
+			if (neutronYield[i]*1e15*efficiency(14.1e6)*dt < MIN_STATISTICS) { // now remove any intensive values from times with insufficient statistics
+				ionTemperature[i] = Double.NaN;
+				flowVelocity[i] = Double.NaN;
+				arealDensity[i] = Double.NaN;
+			}
+		}
 		
 		double[] dTidt = NumericalMethods.derivative(timeAxis, ionTemperature); // now we can freely analyze the resulting profiles
 		double[] dρRdt = NumericalMethods.derivative(timeAxis, arealDensity);
@@ -455,7 +436,7 @@ public class MRSt {
 		}
 		
 		return new double[] {
-				timeAxis[bangTime], timeAxis[compressTime], timeAxis[maxPRRamp],
+				(endTime - startTime)/1000., timeAxis[bangTime], timeAxis[compressTime], timeAxis[maxPRRamp],
 				ionTemperature[bangTime], arealDensity[bangTime], flowVelocity[bangTime], dTidt[bangTime],
 				dρRdt[bangTime], dvidt[bangTime], arealDensity[compressTime], moments[0],
 				moments[1], Math.sqrt(moments[2])*2.355, moments[3], moments[4]
