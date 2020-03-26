@@ -28,6 +28,18 @@ import java.util.Arrays;
 import java.util.Locale;
 import java.util.logging.Logger;
 
+import org.apache.commons.math3.optim.InitialGuess;
+import org.apache.commons.math3.optim.MaxEval;
+import org.apache.commons.math3.optim.MaxIter;
+import org.apache.commons.math3.optim.SimpleBounds;
+import org.apache.commons.math3.optim.linear.NonNegativeConstraint;
+import org.apache.commons.math3.optim.nonlinear.scalar.GoalType;
+import org.apache.commons.math3.optim.nonlinear.scalar.MultivariateOptimizer;
+import org.apache.commons.math3.optim.nonlinear.scalar.ObjectiveFunction;
+import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.BOBYQAOptimizer;
+import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.MultiDirectionalSimplex;
+import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.PowellOptimizer;
+
 import main.NumericalMethods.DiscreteFunction;
 
 /**
@@ -320,60 +332,74 @@ public class MRSt {
 				initialGuess[i+k*timeAxis.length] = PARAM_SCALES[k]; // the initial guess for Ti, vi, and ρR can be uniform
 		}
 		final double spectrumScale = totalYield/(energyBins.length-1)/(timeBins.length-1);
+		PARAM_SCALES[0] = totalYield/1e15/(timeBins[1] - timeBins[0])/(timeBins.length-1);
+		
+		double[] dimensionScale = new double[4*timeAxis.length];
+		for (int i = 0; i < timeAxis.length; i ++)
+			for (int k = 0; k < 4; k ++)
+				dimensionScale[i+k*timeAxis.length] = PARAM_SCALES[k]/6;
 		
 		if (logger != null)  logger.info("beginning fit process.");
 		System.out.println(Arrays.toString(initialGuess)+",");
 		long startTime = System.currentTimeMillis();
-		
-		double[] opt = Optimization.minimizeNelderMead((double[] guess) -> { // minimize the following function:
-			if (Math.random() < 1e-3)
-				System.out.println(Arrays.toString(guess)+",");
-			
-			double[][] params = new double[4][timeAxis.length];
-			for (int k = 0; k < 4; k ++) // first unpack the state vector
-				for (int i = 0; i < timeAxis.length; i ++)
-					params[k][i] = guess[i+k*timeAxis.length];
-			
-			for (int i = 0; i < timeAxis.length; i ++) { // check for illegal (prior = 0) values
-				if (params[0][i] < 0)   return Double.POSITIVE_INFINITY;
-				if (params[1][i] <= 0)  return Double.POSITIVE_INFINITY;
-				if (params[3][i] < 0)   return Double.POSITIVE_INFINITY;
-			}
-			
-			double[][] teoSpectrum = generateSpectrum(
-					params[0], params[1], params[2], params[3], energyBins, timeBins); // generate the neutron spectrum based on those
-			double[][] fitSpectrum = this.response(
-					energyBins, timeBins, teoSpectrum, false); // blur it according to the transfer matrix
-			
-			double err = 0; // negative Bayes factor (in nepers)
-			for (int i = 0; i < spectrum.length; i ++)
-				for (int j = 0; j < spectrum[i].length; j ++) // compute the error between it and the actual spectrum
-					err += Math.log(fitSpectrum[i][j] + noiseVar)/2 +
-							Math.pow(fitSpectrum[i][j] - spectrum[i][j], 2)/
-									(2*(fitSpectrum[i][j] + noiseVar));
-			
-			double penalty = 0; // negative log of prior (ignoring global normalization)
-			for (int i = 0; i < spectrum.length; i ++) {
-				for (int j = 0; j < spectrum[i].length; j ++) {
-					if (teoSpectrum[i][j] > 1e-300)
-						penalty -= 0.25*teoSpectrum[i][j]*
-								(1 - Math.log(teoSpectrum[i][j]/spectrumScale))/spectrumScale; // encourage entropy
-					else
-						penalty -= 0;
-				}
-			}
-			final double dt = timeAxis[1] - timeAxis[0];
-			for (int k = 0; k < 4; k ++) {
-				double curveScale = 8*PARAM_SCALES[k]/Math.pow(MAX_T - MIN_T, 2); // discourage egregious curvature
-				if (k == 0)
-					curveScale = 8*spectrumScale/Math.pow(MAX_T - MIN_T, 2);
-				for (int i = 1; i < timeAxis.length - 1; i ++) {
-					penalty += 0.1*Math.pow((params[k][i-1] - 2*params[k][i] + params[k][i+1])/(dt*dt)/curveScale, 2);
-				}
-			}
-			
-			return err + penalty;
-		}, initialGuess, 1e-14);
+		MultivariateOptimizer optimizer = new PowellOptimizer(1e-14, 1);
+		double[] opt = optimizer.optimize(
+				new InitialGuess(initialGuess),
+				new MultiDirectionalSimplex(dimensionScale),
+				new MaxIter(100000),
+				new MaxEval(100000),
+				GoalType.MINIMIZE,
+//				SimpleBounds.unbounded(4*timeAxis.length), // it's not worth putting in the specific nonnegative constraint
+				new ObjectiveFunction((double[] guess) ->  {
+					if (Math.random() < 1e-3)
+						System.out.println(Arrays.toString(guess)+",");
+					
+					double[][] params = new double[4][timeAxis.length];
+					for (int k = 0; k < 4; k ++) // first unpack the state vector
+						for (int i = 0; i < timeAxis.length; i ++)
+							params[k][i] = guess[i+k*timeAxis.length];
+					
+					for (int i = 0; i < timeAxis.length; i ++) { // check for illegal (prior = 0) values
+						if (params[0][i] < 0)   return Double.POSITIVE_INFINITY;
+						if (params[1][i] <= 0)  return Double.POSITIVE_INFINITY;
+						if (params[3][i] < 0)   return Double.POSITIVE_INFINITY;
+					}
+					
+					double[][] teoSpectrum = generateSpectrum(
+							params[0], params[1], params[2], params[3], energyBins, timeBins); // generate the neutron spectrum based on those
+					double[][] fitSpectrum = this.response(
+							energyBins, timeBins, teoSpectrum, false); // blur it according to the transfer matrix
+					
+					double err = 0; // negative Bayes factor (in nepers)
+					for (int i = 0; i < spectrum.length; i ++)
+						for (int j = 0; j < spectrum[i].length; j ++) // compute the error between it and the actual spectrum
+							err += Math.log(fitSpectrum[i][j] + noiseVar)/2 +
+									Math.pow(fitSpectrum[i][j] - spectrum[i][j], 2)/
+											(2*(fitSpectrum[i][j] + noiseVar));
+					
+					double penalty = 0; // negative log of prior (ignoring global normalization)
+					for (int i = 0; i < spectrum.length; i ++) {
+						for (int j = 0; j < spectrum[i].length; j ++) {
+							if (teoSpectrum[i][j] > 1e-300)
+								penalty -= 0.25*teoSpectrum[i][j]*
+										(1 - Math.log(teoSpectrum[i][j]/spectrumScale))/spectrumScale; // encourage entropy
+							else
+								penalty -= 0;
+						}
+					}
+					final double dt = timeAxis[1] - timeAxis[0];
+					for (int k = 0; k < 4; k ++) {
+						double curveScale = 8*PARAM_SCALES[k]/Math.pow(MAX_T - MIN_T, 2); // discourage egregious curvature
+						if (k == 0)
+							curveScale = 8*spectrumScale/Math.pow(MAX_T - MIN_T, 2);
+						for (int i = 1; i < timeAxis.length - 1; i ++) {
+							penalty += 0.1*Math.pow((params[k][i-1] - 2*params[k][i] + params[k][i+1])/(dt*dt)/curveScale, 2);
+						}
+					}
+					
+					return err + penalty;
+				})
+		).getPoint();
 		
 		long endTime = System.currentTimeMillis();
 		if (logger != null)
