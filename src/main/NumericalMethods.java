@@ -336,13 +336,17 @@ public class NumericalMethods {
 			for (int jI = 0; jI < xI.length-1; jI ++) { // for each small pixel on the input spectrum
 				double iO = (yI[iI] - yO[0])/(yO[1] - yO[0]); // find the big pixel of the scaled spectrum
 				double jO = (xI[jI] - xO[0])/(xO[1] - xO[0]); // that contains the upper left corner
-				double cU = Math.min(1, (1-iO%1)*(yO[1] - yO[0])/(yI[iI+1] - yI[iI])); // find the fraction of it that is above the next pixel
-				double cL = Math.min(1, (1-jO%1)*(xO[1] - xO[0])/(xI[jI+1] - xI[jI])); // and left of the next pixel
+				int iOint = (int)Math.floor(iO);
+				double iOmod = iO - iOint;
+				int jOint = (int)Math.floor(jO);
+				double jOmod = jO - jOint;
+				double cU = Math.min(1, (1 - iOmod)*(yO[1] - yO[0])/(yI[iI+1] - yI[iI])); // find the fraction of it that is above the next pixel
+				double cL = Math.min(1, (1 - jOmod)*(xO[1] - xO[0])/(xI[jI+1] - xI[jI])); // and left of the next pixel
 				
-				addIfInBounds(zO, (int)iO,   (int)jO,   zI[iI][jI]*cU*cL); // now add the contents of this spectrum
-				addIfInBounds(zO, (int)iO,   (int)jO+1, zI[iI][jI]*cU*(1-cL)); // being careful to distribute them properly
-				addIfInBounds(zO, (int)iO+1, (int)jO,   zI[iI][jI]*(1-cU)*cL); // (I used this convenience method because otherwise I would have to check all the bounds)
-				addIfInBounds(zO, (int)iO+1, (int)jO+1, zI[iI][jI]*(1-cU)*(1-cL));
+				addIfInBounds(zO, iOint,   jOint,   zI[iI][jI]*cU*cL); // now add the contents of this spectrum
+				addIfInBounds(zO, iOint,   jOint+1, zI[iI][jI]*cU*(1-cL)); // being careful to distribute them properly
+				addIfInBounds(zO, iOint+1, jOint,   zI[iI][jI]*(1-cU)*cL); // (I used this convenience method because otherwise I would have to check all the bounds)
+				addIfInBounds(zO, iOint+1, jOint+1, zI[iI][jI]*(1-cU)*(1-cL));
 			}
 		}
 		

@@ -393,7 +393,7 @@ public class MRSt {
 						if (k == 0)
 							curveScale = 8*spectrumScale/Math.pow(MAX_T - MIN_T, 2);
 						for (int i = 1; i < timeAxis.length - 1; i ++) {
-							penalty += 0.1*Math.pow((params[k][i-1] - 2*params[k][i] + params[k][i+1])/(dt*dt)/curveScale, 2);
+							penalty += 0.01*Math.pow((params[k][i-1] - 2*params[k][i] + params[k][i+1])/(dt*dt)/curveScale, 2);
 						}
 					}
 					
