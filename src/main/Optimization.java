@@ -340,7 +340,6 @@ public class Optimization {
 			throw new IllegalArgumentException("Initial guess yielded bunk value");
 		
 		while (true) {
-			
 			Matrix gk = gradMat.apply(x);
 			
 			if (gkMinus1 != null) // STEP 5 (cont.): save historical vector information
@@ -360,7 +359,7 @@ public class Optimization {
 			if (!sHist.isEmpty())
 				H0 = sHist.getLast().dot(yHist.getLast())/yHist.getLast().dot(yHist.getLast()); // this is our very rough estimate of the inverse Hessian
 			else
-				H0 = 1;
+				H0 = 1/q.norm();
 			Matrix dk = q.times(H0);
 			for (int i = 0; i < sHist.size(); i ++) {
 				double beta = yHist.get(i).dot(dk)/yHist.get(i).dot(sHist.get(i));
@@ -381,8 +380,8 @@ public class Optimization {
 			x = x.plus(dk.times(timestep));
 			double Uf = funcMat.apply(x);
 			
-			if (Math.abs((Ui - Uf)/Ui) < tol) { // STEP 4: stop condition
-				return x.T().values[0]; // if the energy isn't really changing, then we're done
+			if (sHist.size() == M && Math.abs((Ui - Uf)/Ui) < tol) { // STEP 4: stop condition
+				return x.T().values[0]; // if we're into it and the energy isn't really changing, then we're done
 			}
 			
 			Matrix sk = dk.times(timestep); // STEP 5: save historical vector information
@@ -524,6 +523,18 @@ public class Optimization {
 		 */
 		public Matrix minus(Matrix that) {
 			return this.plus(that.times(-1));
+		}
+		
+		/**
+		 * L2 norm
+		 * @return the sqrt of the sum of squares
+		 */
+		public double norm() {
+			double s = 0;
+			for (double[] row: values)
+				for (double x: row)
+					s += x*x;
+			return Math.sqrt(s);
 		}
 		
 		/**

@@ -230,6 +230,14 @@ public class NumericalMethods {
 		return Math.sqrt(meanSqr - Math.pow(mean, 2));
 	}
 	
+	public static double max(double[] arr) {
+		double max = Double.NEGATIVE_INFINITY;
+		for (double x: arr)
+			if (x > max)
+				max = x;
+		return max;
+	}
+	
 	public static double max(double[][] arr) {
 		double max = Double.NEGATIVE_INFINITY;
 		for (double[] row: arr)

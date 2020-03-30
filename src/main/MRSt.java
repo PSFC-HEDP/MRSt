@@ -32,7 +32,6 @@ import org.apache.commons.math3.optim.InitialGuess;
 import org.apache.commons.math3.optim.MaxEval;
 import org.apache.commons.math3.optim.MaxIter;
 import org.apache.commons.math3.optim.SimpleBounds;
-import org.apache.commons.math3.optim.linear.NonNegativeConstraint;
 import org.apache.commons.math3.optim.nonlinear.scalar.GoalType;
 import org.apache.commons.math3.optim.nonlinear.scalar.MultivariateOptimizer;
 import org.apache.commons.math3.optim.nonlinear.scalar.ObjectiveFunction;
@@ -335,23 +334,31 @@ public class MRSt {
 		PARAM_SCALES[0] = totalYield/1e15/(timeBins[1] - timeBins[0])/(timeBins.length-1);
 		
 		double[] dimensionScale = new double[4*timeAxis.length];
-		for (int i = 0; i < timeAxis.length; i ++)
-			for (int k = 0; k < 4; k ++)
+		double[] lowerBounds = new double[4*timeAxis.length];
+		double[] upperBounds = new double[4*timeAxis.length];
+		for (int i = 0; i < timeAxis.length; i ++) {
+			for (int k = 0; k < 4; k ++) {
 				dimensionScale[i+k*timeAxis.length] = PARAM_SCALES[k]/6;
+				lowerBounds[i+k*timeAxis.length] = (k == 2) ? -PARAM_SCALES[k]*6 : 0;
+				upperBounds[i+k*timeAxis.length] = (k != 0) ? PARAM_SCALES[k]*6 : initialGuess[i]*36;
+			}
+		}
 		
 		if (logger != null)  logger.info("beginning fit process.");
 		System.out.println(Arrays.toString(initialGuess)+",");
 		long startTime = System.currentTimeMillis();
 		MultivariateOptimizer optimizer = new PowellOptimizer(1e-14, 1);
 		double[] opt = optimizer.optimize(
+//		double[] opt = Optimization.minimizeLBFGS(
 				new InitialGuess(initialGuess),
 				new MultiDirectionalSimplex(dimensionScale),
 				new MaxIter(100000),
 				new MaxEval(100000),
 				GoalType.MINIMIZE,
-//				SimpleBounds.unbounded(4*timeAxis.length), // it's not worth putting in the specific nonnegative constraint
-				new ObjectiveFunction((double[] guess) ->  {
-					if (Math.random() < 1e-3)
+//				new SimpleBounds(lowerBounds, upperBounds),
+				new ObjectiveFunction((double[] guess) -> {
+//				(double[] guess) -> {
+					if (Math.random() < 1e-4)
 						System.out.println(Arrays.toString(guess)+",");
 					
 					double[][] params = new double[4][timeAxis.length];
@@ -402,6 +409,7 @@ public class MRSt {
 					return err + penalty;
 				})
 		).getPoint();
+//				}, initialGuess, 1e-14);
 		
 		long endTime = System.currentTimeMillis();
 		if (logger != null)
