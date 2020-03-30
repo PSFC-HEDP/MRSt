@@ -218,10 +218,11 @@ public class MRSt {
 				double[] xt = this.simulate(energy, time); // do the simulation!
 				simulationCount ++;
 				
-				if (Double.isNaN(xt[0]))	continue; // sometimes, they won't hit the CSI. That's fine.
+//				if (Double.isNaN(xt[0]))	continue; // sometimes, they won't hit the CSI. That's fine.
 				double[] et = this.backCalculate(xt[0], xt[1]); // otherwise do the stretch/compress time correction
 				
 				double e = et[0]/(-Particle.E.charge)/1e6, t = et[1]/1e-9; // then convert to the same units as the bins
+				e = energy/1e6; t = time/1e-9;
 				int eBin = (int)((e - MIN_E)/(MAX_E - MIN_E)*(energyBins.length-1));
 				int tBin = (int)((t - MIN_T)/(MAX_T - MIN_T)*(timeBins.length-1));
 				if (eBin >= 0 && eBin < energyBins.length-1 && tBin >= 0 && tBin < timeBins.length-1) // if it falls in detectable bounds
@@ -315,11 +316,9 @@ public class MRSt {
 		if (spectrum.length != energyBins.length-1 || spectrum[0].length != timeBins.length-1)
 			throw new IllegalArgumentException("These dimensions are wrong.");
 		
-		double spectMax = NumericalMethods.max(spectrum);
-		final double noiseVar = Math.pow(spectMax/1e3, 2); // assume some unknown distribution of this variance, so it doesn't freak out when it sees n-knockons
-		
 		double[] initialGuess = new double[4*timeAxis.length]; // first we need a half decent guess
 		double totalYield = 0; // also the rough mean estimate of neutron spectrum magnitude for entropy purposes
+		final double[] noiseVar = new double[timeAxis.length]; // assume some unknown distribution of this variance, so don't freak out when you see n-knockons
 		for (int i = 0; i < timeAxis.length; i ++) {
 			double[] timeSlice = new double[energyBins.length-1]; // for that we'll want to do some rudimentary analysis
 			for (int j = 0; j < timeSlice.length; j ++)
@@ -327,6 +326,7 @@ public class MRSt {
 			double yieldEstimate = NumericalMethods.definiteIntegral(energyBins, timeSlice)/
 					this.efficiency(14.1e6); // measure the yield in the most basic way possible
 			totalYield += yieldEstimate; // [#]
+			noiseVar[i] = Math.pow(NumericalMethods.max(timeSlice)/1e3, 2);
 			initialGuess[i] = yieldEstimate/1e15/(timeBins[i+1] - timeBins[i]); // [10^15/ns]
 			for (int k = 1; k < 4; k ++)
 				initialGuess[i+k*timeAxis.length] = PARAM_SCALES[k]; // the initial guess for Ti, vi, and ρR can be uniform
@@ -373,9 +373,11 @@ public class MRSt {
 					double err = 0; // negative Bayes factor (in nepers)
 					for (int i = 0; i < spectrum.length; i ++)
 						for (int j = 0; j < spectrum[i].length; j ++) // compute the error between it and the actual spectrum
-							err += Math.log(fitSpectrum[i][j] + noiseVar)/2 +
-									Math.pow(fitSpectrum[i][j] - spectrum[i][j], 2)/
-											(2*(fitSpectrum[i][j] + noiseVar));
+							if (!(fitSpectrum[i][j] + noiseVar[j] == 0 && spectrum[i][j] == 0)) // skipping places where we expect 0 and got 0
+								err += Math.log(fitSpectrum[i][j] + noiseVar[j])/2 +
+										Math.pow(fitSpectrum[i][j] - spectrum[i][j], 2)/
+												(2*(fitSpectrum[i][j] + noiseVar[j]));
+					assert Double.isFinite(err);
 					
 					double penalty = 0; // negative log of prior (ignoring global normalization)
 					for (int i = 0; i < spectrum.length; i ++) {
