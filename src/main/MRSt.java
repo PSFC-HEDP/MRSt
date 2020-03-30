@@ -217,11 +217,11 @@ public class MRSt {
 				double[] xt = this.simulate(energy, time); // do the simulation!
 				simulationCount ++;
 				
-//				if (Double.isNaN(xt[0]))	continue; // sometimes, they won't hit the CSI. That's fine.
+				if (Double.isNaN(xt[0]))	continue; // sometimes, they won't hit the CSI. That's fine.
 				double[] et = this.backCalculate(xt[0], xt[1]); // otherwise do the stretch/compress time correction
 				
 				double e = et[0]/(-Particle.E.charge)/1e6, t = et[1]/1e-9; // then convert to the same units as the bins
-				e = energy/1e6; t = time/1e-9;
+//				e = energy/1e6; t = time/1e-9;
 				int eBin = (int)((e - MIN_E)/(MAX_E - MIN_E)*(energyBins.length-1));
 				int tBin = (int)((t - MIN_T)/(MAX_T - MIN_T)*(timeBins.length-1));
 				if (eBin >= 0 && eBin < energyBins.length-1 && tBin >= 0 && tBin < timeBins.length-1) // if it falls in detectable bounds
@@ -353,12 +353,12 @@ public class MRSt {
 				new InitialGuess(initialGuess),
 				new MultiDirectionalSimplex(dimensionScale),
 				new MaxIter(100000),
-				new MaxEval(100000),
+				new MaxEval(1000000),
 				GoalType.MINIMIZE,
 //				new SimpleBounds(lowerBounds, upperBounds),
 				new ObjectiveFunction((double[] guess) -> {
 //				(double[] guess) -> {
-					if (Math.random() < 1e-4)
+					if (Math.random() < 3e-4)
 						System.out.println(Arrays.toString(guess)+",");
 					
 					double[][] params = new double[4][timeAxis.length];
@@ -390,7 +390,7 @@ public class MRSt {
 					for (int i = 0; i < spectrum.length; i ++) {
 						for (int j = 0; j < spectrum[i].length; j ++) {
 							if (teoSpectrum[i][j] > 1e-300)
-								penalty -= 0.25*teoSpectrum[i][j]*
+								penalty -= 1.0*teoSpectrum[i][j]*
 										(1 - Math.log(teoSpectrum[i][j]/spectrumScale))/spectrumScale; // encourage entropy
 							else
 								penalty -= 0;
