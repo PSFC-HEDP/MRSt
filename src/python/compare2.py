@@ -12,6 +12,9 @@ Z = (
 	np.genfromtxt('working/{}_z.csv'.format(titleB), delimiter=','),
 )
 
+X = (X[1:] + X[:-1])/2
+Y = (Y[1:] + Y[:-1])/2
+
 fig, ax = plt.subplots()
 plt.subplots_adjust(bottom=0.2)
 
@@ -21,10 +24,11 @@ def update(*args):
 	t = slider.val
 	j = int(round(np.interp(t, X, np.arange(len(X)))))
 	ax.clear()
-	ax.plot((Y[1:] + Y[:-1])/2, Z[0][:, j], '-', label=titleA)
-	ax.plot((Y[1:] + Y[:-1])/2, Z[1][:, j], '--', label=titleB)
+	ax.plot(Y, Z[0][:, j], '-', label=titleA)
+	ax.plot(Y, Z[1][:, j], '--', label=titleB)
 	ax.legend()
-	ax.set_yscale('symlog', linthreshy=np.max([Z[0][:, j], Z[1][:, j]])/100, linscaley=1)
+	if np.max([Z[0][:, j], Z[1][:, j]]) > 0:
+		ax.set_yscale('symlog', linthreshy=np.max([Z[0][:, j], Z[1][:, j]])/100, linscaley=1)
 	ax.set_xlabel(ylabel)
 	ax.set_title("Slice comparison of {} & {}".format(titleA, titleB))
 slider.on_changed(update)

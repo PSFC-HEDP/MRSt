@@ -31,11 +31,9 @@ import java.util.logging.Logger;
 import org.apache.commons.math3.optim.InitialGuess;
 import org.apache.commons.math3.optim.MaxEval;
 import org.apache.commons.math3.optim.MaxIter;
-import org.apache.commons.math3.optim.SimpleBounds;
 import org.apache.commons.math3.optim.nonlinear.scalar.GoalType;
 import org.apache.commons.math3.optim.nonlinear.scalar.MultivariateOptimizer;
 import org.apache.commons.math3.optim.nonlinear.scalar.ObjectiveFunction;
-import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.BOBYQAOptimizer;
 import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.MultiDirectionalSimplex;
 import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.PowellOptimizer;
 
@@ -339,13 +337,13 @@ public class MRSt {
 		for (int i = 0; i < timeAxis.length; i ++) {
 			for (int k = 0; k < 4; k ++) {
 				dimensionScale[i+k*timeAxis.length] = PARAM_SCALES[k]/6;
-				lowerBounds[i+k*timeAxis.length] = (k == 2) ? -PARAM_SCALES[k]*6 : 0;
-				upperBounds[i+k*timeAxis.length] = (k != 0) ? PARAM_SCALES[k]*6 : initialGuess[i]*36;
+				lowerBounds[i+k*timeAxis.length] = (k == 2) ? Double.NEGATIVE_INFINITY : 0;
+				upperBounds[i+k*timeAxis.length] = Double.POSITIVE_INFINITY;
 			}
 		}
 		
 		if (logger != null)  logger.info("beginning fit process.");
-		System.out.println(Arrays.toString(initialGuess)+",");
+//		System.out.println(Arrays.toString(initialGuess)+",");
 		long startTime = System.currentTimeMillis();
 		MultivariateOptimizer optimizer = new PowellOptimizer(1e-14, 1);
 		double[] opt = optimizer.optimize(
@@ -358,8 +356,8 @@ public class MRSt {
 //				new SimpleBounds(lowerBounds, upperBounds),
 				new ObjectiveFunction((double[] guess) -> {
 //				(double[] guess) -> {
-					if (Math.random() < 3e-4)
-						System.out.println(Arrays.toString(guess)+",");
+//					if (Math.random() < 3e-4)
+//						System.out.println(Arrays.toString(guess)+",");
 					
 					double[][] params = new double[4][timeAxis.length];
 					for (int k = 0; k < 4; k ++) // first unpack the state vector
@@ -402,7 +400,7 @@ public class MRSt {
 						if (k == 0)
 							curveScale = 8*spectrumScale/Math.pow(MAX_T - MIN_T, 2);
 						for (int i = 1; i < timeAxis.length - 1; i ++) {
-							penalty += 0.01*Math.pow((params[k][i-1] - 2*params[k][i] + params[k][i+1])/(dt*dt)/curveScale, 2);
+							penalty += 0.02*Math.pow((params[k][i-1] - 2*params[k][i] + params[k][i+1])/(dt*dt)/curveScale, 2);
 						}
 					}
 					
@@ -448,10 +446,13 @@ public class MRSt {
 		for (int k = 0; k < moments.length; k ++)
 			moments[k] = NumericalMethods.moment(k, timeBins, neutronYield);
 		
-		if (logger != null) {
-			if (bangTime == -1 || compressTime == -1 || maxPRRamp == -1)
+		if (bangTime == -1 || compressTime == -1 || maxPRRamp == -1) {
+			if (logger != null)
 				logger.warning("Insufficient statistics to analyze.");
-			else {
+			return null;
+		}
+		else {
+			if (logger != null) {
 				logger.info(String.format("Bang time:         %8.3f ns", timeAxis[bangTime]));
 				logger.info(String.format("Peak compression:  %8.3f ns", timeAxis[compressTime]));
 				logger.info(String.format("            = BT + %8.3f ps", (timeAxis[compressTime] - timeAxis[bangTime])/1e-3));
@@ -469,14 +470,13 @@ public class MRSt {
 				logger.info(String.format("Burn skewness (μ3):%8.3g", moments[3]));
 				logger.info(String.format("Burn kurtosis (μ4):%8.3g", moments[4]));
 			}
+			return new double[] {
+					(endTime - startTime)/1000., timeAxis[bangTime], timeAxis[compressTime], timeAxis[maxPRRamp],
+					ionTemperature[bangTime], arealDensity[bangTime], flowVelocity[bangTime], dTidt[bangTime],
+					dρRdt[bangTime], dvidt[bangTime], arealDensity[compressTime], moments[0],
+					moments[1], Math.sqrt(moments[2])*2.355, moments[3], moments[4]
+			};
 		}
-		
-		return new double[] {
-				(endTime - startTime)/1000., timeAxis[bangTime], timeAxis[compressTime], timeAxis[maxPRRamp],
-				ionTemperature[bangTime], arealDensity[bangTime], flowVelocity[bangTime], dTidt[bangTime],
-				dρRdt[bangTime], dvidt[bangTime], arealDensity[compressTime], moments[0],
-				moments[1], Math.sqrt(moments[2])*2.355, moments[3], moments[4]
-		};
 	}
 	
 	/**

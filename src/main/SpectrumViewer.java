@@ -174,8 +174,6 @@ public class SpectrumViewer extends Application {
 		rightPane.getChildren().add(chooseFileWidget("Spectrum file:", stage, "nsp_150327_16p26.txt",
 				(file) -> {
 					this.spectrum = CSV.read(file, '\t');
-					for (int i = 0; i < spectrum.length; i ++)
-						spectrum[i][spectrum[i].length-1] = spectrum[i][spectrum[i].length-2]; // I don't understand why this is necessary, but it is
 				}));
 		row ++;
 		
@@ -235,9 +233,9 @@ public class SpectrumViewer extends Application {
 						plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getCorrectedSpectrum(),
 								"Time (ns)", "Energy (MeV)", "Measured deuteron spectrum");
 						plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getInferredSpectrum(),
-								"Time (ns)", "Energy (MeV)", "Reconstructed neutron spectrum");
+								"Time (ns)", "Energy (MeV)", "Fitted neutron spectrum");
 						plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getFittedSpectrum(),
-								"Time (ns)", "Energy (MeV)", "Reconstructed deuteron spectrum");
+								"Time (ns)", "Energy (MeV)", "Fitted deuteron spectrum");
 						plotLines(mc.getTimeAxis(), "Time (ns)",
 								mc.getIonTemperature(), "Ti (keV)",
 								mc.getArealDensity(), "ρR (g/cm^2)",

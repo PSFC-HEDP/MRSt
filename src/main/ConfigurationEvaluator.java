@@ -68,7 +68,7 @@ public class ConfigurationEvaluator extends Application {
 	private static final int SPACING_1 = 10;
 	private static final int SPACING_2 = 4;
 	
-	private static final int NUM_YIELDS = 200;
+	private static final int NUM_YIELDS = 120;
 	
 	private Spinner<Double> foilDistance;
 	private Spinner<Double> foilRadius;
@@ -218,7 +218,11 @@ public class ConfigurationEvaluator extends Application {
 								scaledSpec[i][j] = yield*spec[i][j];
 						double[] result = mc.respond(eBins, tBins, scaledSpec); // and run it many times!
 						results[y][0] = yield;
-						System.arraycopy(result, 0, results[y], 1, result.length);
+						if (result != null)
+							System.arraycopy(result, 0, results[y], 1, result.length);
+						else
+							for (int k = 0; k < results[y].length; k ++)
+								results[y][k] = Double.NaN;
 					}
 					
 					try {
