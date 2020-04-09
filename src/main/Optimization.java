@@ -477,35 +477,41 @@ public class Optimization {
 				assert θ > 0;
 				for (int i = 0; i < m; i ++)
 					assert sHist.get(i).dot(yHist.get(i)) > 0;
-				Matrix Dk = new Matrix(m, m); // STEP 1: approximate the inverse Hessian
-				for (int i = 0; i < m; i ++)
-					Dk.set(i, i, yHist.get(i).dot(sHist.get(i)));
-				Matrix Wk = new Matrix(n, 2*m);
-				for (int i = 0; i < n; i ++) {
-					for (int j = 0; j < m; j ++) {
-						Wk.set(i, j,   yHist.get(j).get(i, 0));
-						Wk.set(i, j+m, θ*sHist.get(j).get(i, 0));
-					}
-				}
-				Matrix Lk = new Matrix(m, m);
-				for (int i = 0; i < m; i ++)
-					for (int j = 0; j < m; j ++)
-						if (i > j)
-							Lk.set(i, j, sHist.get(i).dot(yHist.get(j)));
-				Matrix Mkinv = new Matrix(2*m, 2*m);
-				for (int i = 0; i < m; i ++) {
-					Mkinv.set(i, i, -Dk.get(i, i));
-					for (int j = 0; j < m; j ++) {
-						Mkinv.set(i+m, j, Lk.get(i, j));
-						Mkinv.set(i, j+m, Lk.get(j, i));
-						Mkinv.set(i+m, j+m, θ*sHist.get(i).dot(sHist.get(j)));
-					}
-				}
-				Matrix Mk = Mkinv.inv();
+//				Matrix Dk = new Matrix(m, m); // STEP 1: approximate the inverse Hessian
+//				for (int i = 0; i < m; i ++)
+//					Dk.set(i, i, yHist.get(i).dot(sHist.get(i)));
+//				Matrix Wk = new Matrix(n, 2*m);
+//				for (int i = 0; i < n; i ++) {
+//					for (int j = 0; j < m; j ++) {
+//						Wk.set(i, j,   yHist.get(j).get(i, 0));
+//						Wk.set(i, j+m, θ*sHist.get(j).get(i, 0));
+//					}
+//				}
+//				Matrix Lk = new Matrix(m, m);
+//				for (int i = 0; i < m; i ++)
+//					for (int j = 0; j < m; j ++)
+//						if (i > j)
+//							Lk.set(i, j, sHist.get(i).dot(yHist.get(j)));
+//				Matrix Mkinv = new Matrix(2*m, 2*m);
+//				for (int i = 0; i < m; i ++) {
+//					Mkinv.set(i, i, -Dk.get(i, i));
+//					for (int j = 0; j < m; j ++) {
+//						Mkinv.set(i+m, j, Lk.get(i, j));
+//						Mkinv.set(i, j+m, Lk.get(j, i));
+//						Mkinv.set(i+m, j+m, θ*sHist.get(i).dot(sHist.get(j)));
+//					}
+//				}
+//				Matrix Mk = Mkinv.inv();
 				Matrix B0 = new Matrix(n, n);
 				for (int i = 0; i < n; i ++)
-					B0.set(i, i, θ);;
-				Matrix Bk = B0.minus(Wk.times(Mk.times(Wk.T())));
+					B0.set(i, i, θ);
+//				Matrix Bk = B0.minus(Wk.times(Mk.times(Wk.T())));
+				Matrix Bk = B0;
+				for (int j = 0; j < m; j ++) {
+					Matrix s = sHist.get(j);
+					Matrix y = yHist.get(j);
+					Bk = Bk.minus(Bk.times(s.times(s.T().times(Bk))).over(s.dot(Bk.times(s)))).plus(y.times(y.T()).over(y.dot(s)));
+				}
 				
 				for (int i = 0; i < 10000; i ++) {
 					Matrix u = new Matrix(n, 1);
@@ -533,50 +539,57 @@ public class Optimization {
 				breakpointOrder.sort((iA, iB) -> (int)Math.signum(breakpoints[iA] - breakpoints[iB]));
 //				System.out.println(breakpointOrder);
 				
-				Matrix p = Wk.T().times(d); // first look for minimum in first segment
-				Matrix c = new Matrix(2*m, 1);
-				double dfdt = gk.dot(d);
-				double d2fdt2 = -θ*dfdt - p.dot(Mk.times(p));
-				double Δtmin = -dfdt/d2fdt2;
+//				Matrix p = Wk.T().times(d); // first look for minimum in first segment
+//				Matrix c = new Matrix(2*m, 1);
 				double told = 0;
-				int b = breakpointOrder.pop();
+				int b = breakpointOrder.pop(); // the index that hits bound at the end of this interval
 				double t = breakpoints[b];
 				double Δt = t;
+				double dfdt = d.dot(gk);
+//				double d2fdt2 = -θ*dfdt - p.dot(Mk.times(p));
+				double d2fdt2 = d.dot(Bk.times(d));
+				double Δtmin = -dfdt/d2fdt2;
 //				System.out.println("f′ = "+dfdt+" = "+d.dot(gk));
 //				System.out.println("f″ = "+d2fdt2+" = "+d.dot(Bk.times(d)));
-//				System.out.println("["+told+", "+t+", "+(gk.dot(xC.minus(xk))+0.5*xC.minus(xk).dot(Bk.times(xC.minus(xk))))+", "+dfdt+", "+d2fdt2+"],");
+				System.out.println("["+told+", "+t+", "+0+", "+dfdt+", "+d2fdt2+"],");
 				while (Δtmin >= Δt) { // then check all subsequent segments
 //					System.out.println("your minimum is in another interval!");
-					double xCb = (d.get(b, 0) > 0) ? upper[b] : lower[b];
-					double zb = xCb - xk.get(b, 0);
-					double gb = gk.get(b, 0);
-					Matrix wb = Wk.getRow(b);
-					c = c.plus(p.times(Δt));
-					dfdt = dfdt + Δt*d2fdt2 + gb*gb + θ*gb*zb - gb*wb.dot(Mk.times(c));
-					d2fdt2 = d2fdt2 - θ*gb*gb - 2*gb*wb.dot(Mk.times(p)) - gb*gb*wb.dot(Mk.times(wb));
-					assert d2fdt2 > 0 : d2fdt2;
-					p = p.plus(wb.times(gb));
+//					double xCb = (d.get(b, 0) > 0) ? upper[b] : lower[b];
+//					double zb = xCb - xk.get(b, 0);
+//					double gb = gk.get(b, 0);
+//					Matrix wb = Wk.getRow(b);
+//					c = c.plus(p.times(Δt));
 					d.set(b, 0, 0);
-					Δtmin = -dfdt/d2fdt2;
 					told = t;
 					b = breakpointOrder.pop();
 					t = breakpoints[b];
 					Δt = t - told;
+					Matrix xB = xk.minus(gk.times(told));
+					for (int i = 0; i < n; i ++) {
+						if (breakpoints[i] <= told)
+							xB.set(i, 0, (gk.get(i, 0) < 0) ? upper[i] : lower[i]);
+					}
+					dfdt = d.dot(gk.plus(Bk.times(xB.minus(xk))));
+//					d2fdt2 = d2fdt2 - θ*gb*gb - 2*gb*wb.dot(Mk.times(p)) - gb*gb*wb.dot(Mk.times(wb));
+					d2fdt2 = d.dot(Bk.times(d));
+					Δtmin = -dfdt/d2fdt2;
+					assert d2fdt2 > 0 : d2fdt2;
+//					p = p.plus(wb.times(gb));
 //					System.out.println("f′ = "+dfdt+" = "+d.dot(gk.plus(Bk.times(xC.minus(xk)))));
 //					System.out.println("f″ = "+d2fdt2+" = "+d.dot(Bk.times(d)));
-//					System.out.println("["+told+", "+t+", "+(gk.dot(xC.minus(xk))+0.5*xC.minus(xk).dot(Bk.times(xC.minus(xk))))+", "+dfdt+", "+d2fdt2+"],");
+					System.out.println("["+told+", "+t+", "+(gk.dot(xB.minus(xk))+0.5*xB.minus(xk).dot(Bk.times(xB.minus(xk))))+", "+dfdt+", "+d2fdt2+"],");
 				}
 				Δtmin = Math.max(Δtmin, 0);
-				told = told + Δtmin;
+				double tC = told + Δtmin;
 //				System.out.println("Looks like the min ended up being at "+told);
-				c = c.plus(p.times(Δtmin));
+//				c = c.plus(p.times(Δtmin));
 				List<Integer> F = new ArrayList<Integer>(breakpointOrder.size()+1);
 				Matrix xC = new Matrix(n, 1);
 				for (int i = 0; i < n; i ++) { // I'm setting xC here not how it's done in the paper, because the paper version is _totally_ wrong for this part
-					if (breakpoints[i] <= told)
+					if (breakpoints[i] <= tC)
 						xC.set(i, 0, (gk.get(i, 0) < 0) ? upper[i] : lower[i]);
 					else
-						xC.set(i, 0, xk.get(i, 0) - told*gk.get(i, 0));
+						xC.set(i, 0, xk.get(i, 0) - tC*gk.get(i, 0));
 					if (xC.get(i, 0) != lower[i] && xC.get(i, 0) != upper[i])
 						F.add(i);
 				}
@@ -587,7 +600,7 @@ public class Optimization {
 //				System.out.println(Wk.T().times(xC.minus(xk)).T());
 				System.out.println(F.size()+"/"+n);
 				assert xC.equals(P(xC, lower, upper));
-				assert xC.minus(xk).dot(gk) < 0;
+				assert xC.minus(xk).dot(gk) < 0 : xC.minus(xk).T()+" should be in the opposite direciton as "+gk.T();
 				assert xC.minus(xk).dot(Bk.times(xC.minus(xk))) > 0;
 				assert fxk + gk.dot(xC.minus(xk)) + 0.5*xC.minus(xk).dot(Bk.times(xC.minus(xk))) < fxk;
 				
@@ -597,21 +610,24 @@ public class Optimization {
 					for (int f = 0; f < F.size(); f ++)
 						Zk.set(F.get(f), f, 1);
 					assert Zk.T().times(Zk).inv().equals(Zk.T().times(Zk));
+					Matrix rHatC = Zk.T().times(gk.plus(Bk.times(xC.minus(xk))));
 					Matrix BHatk = Zk.T().times(Bk.times(Zk));
-					Matrix rHatC = Zk.T().times(gk.plus(xC.minus(xk).times(θ)).minus(Wk.times(Mk.times(c))));
 //					System.out.println(Zk.T().times(gk.plus(Bk.times(xC.minus(xk)))).T());
 //					System.out.println(rHatC.T());
-					Matrix v = Wk.T().times(Zk.times(rHatC));
-					v = Mk.times(v);
-					Matrix N = Mk.times(Wk.T().times(Zk.times(Zk.T().times(Wk)))).over(-θ);
-					assert N.getN() == 2*m && N.getM() == 2*m;
-					for (int i = 0; i < 2*m; i ++)
-						N.set(i, i, 1 + N.get(i, i));
-					v = N.inv().times(v);
-					Matrix dHatU = rHatC.over(θ).plus(Zk.T().times(Wk.times(v)).over(θ*θ)).times(-1); // the paper has a sign error
-					for (int i = 0; i < F.size(); i ++)
-						System.out.print(dHatU.get(i, 0) / BHatk.inv().times(rHatC).times(-1).get(i, 0) + " ");
-					System.out.println();
+//					Matrix v = Wk.T().times(Zk.times(rHatC));
+//					v = Mk.times(v);
+//					Matrix N = Mk.times(Wk.T().times(Zk.times(Zk.T().times(Wk)))).over(-θ);
+//					assert N.getN() == 2*m && N.getM() == 2*m;
+//					for (int i = 0; i < 2*m; i ++)
+//						N.set(i, i, 1 + N.get(i, i));
+//					v = N.inv().times(v);
+//					Matrix dHatU = rHatC.over(θ).plus(Zk.T().times(Wk.times(v)).over(θ*θ)).times(-1); // the paper has a sign error
+					Matrix dHatU = BHatk.inv().times(rHatC).times(-1);
+//					for (int i = 0; i < F.size(); i ++)
+//						System.out.print(dHatU.get(i, 0) / BHatk.inv().times(rHatC).times(-1).get(i, 0) + " ");
+//					System.out.println();
+					if (dHatU.dot(BHatk.times(dHatU)) < 0) // B should always be positive definite, but occasionally roundoff turns this into a maximization problem
+						dHatU = dHatU.times(-1); // just turn around and go the other way if it does
 					Matrix dU = Zk.times(dHatU);
 					double αStar = 1;
 					for (int i = 0; i < n; i ++) {
@@ -624,26 +640,18 @@ public class Optimization {
 					assert αStar > 0 && αStar <= 1 : αStar;
 					Matrix xBar = xC.plus(dU.times(αStar));
 					xBar = P(xBar, lower, upper); // strictly speaking I shouldn't need this, but roundoff
-	//				System.out.println(gk.T());
 					System.out.println("[0, "+(1/αStar)+", "+(fxk + gk.dot(xC.minus(xk)) + xC.minus(xk).dot(Bk.times(xC.minus(xk))))+", "+(dU.times(αStar).dot(gk.plus(Bk.times(xC.minus(xk)))))+", "+(dU.times(αStar).dot(Bk.times(dU.times(αStar))))+"]");
-					if (xBar.minus(xk).dot(Bk.times(xBar.minus(xk))) <= 0) {
-						System.out.println("not positive definite!!");
-						System.out.println(xBar.minus(xk).T());
-						System.out.println(Arrays.deepToString(Bk.values));
-						System.out.println(xBar.minus(xk).dot(Bk.times(xBar.minus(xk))));
-						Bk = B0;
-						for (int j = 0; j < m; j ++) {
-							Matrix s = sHist.get(j);
-							Matrix y = yHist.get(j);
-							Bk = Bk.minus(Bk.times(s.times(s.T().times(Bk))).over(s.dot(Bk.times(s)))).plus(y.times(y.T()).over(y.dot(s)));
-						}
-						System.out.println(Arrays.deepToString(Bk.values));
-						System.out.println(xBar.minus(xk).dot(Bk.times(xBar.minus(xk))));
-						assert false;
-					}
+//					if (xBar.minus(xk).dot(Bk.times(xBar.minus(xk))) <= 0) {
+//						System.out.println("not positive definite!!");
+//						System.out.println(sHist);
+//						System.out.println(yHist);
+//						System.out.println(Bk);
+//						System.out.println(xBar.minus(xk).T());
+//						System.out.println(xBar.minus(xk).dot(Bk.times(xBar.minus(xk))));
+//						assert false;
+//					}
 					
 					if (gk.dot(xBar.minus(xk)) + 0.5*xBar.minus(xk).dot(Bk.times(xBar.minus(xk))) > gk.dot(xC.minus(xk)) + 0.5*xC.minus(xk).dot(Bk.times(xC.minus(xk)))) {
-//						System.out.println(Arrays.deepToString(Bk.values));
 //						Bk = B0;
 //						for (int j = 0; j < m; j ++) {
 //							Matrix s = sHist.get(j);
@@ -652,34 +660,37 @@ public class Optimization {
 //						}
 //						System.out.println(Arrays.deepToString(Bk.values));
 //						System.out.println(Arrays.deepToString(BHatk.values));
-						System.out.println(Arrays.deepToString(Zk.T().times(Bk.times(Zk)).values));
-						Matrix BHatL = Zk.T().times(Wk).times(Mk.times(Wk.T().times(Zk))).times(-1);
-						for (int i = 0; i < BHatL.getN(); i ++)
-							BHatL.set(i, i, θ + BHatL.get(i, i));
-						System.out.println(Arrays.deepToString(BHatL.values));
+						System.out.println(BHatk);
+//						Matrix BHatL = Zk.T().times(Wk).times(Mk.times(Wk.T().times(Zk))).times(-1);
+//						for (int i = 0; i < BHatL.getN(); i ++)
+//							BHatL.set(i, i, θ + BHatL.get(i, i));
+//						System.out.println(Arrays.deepToString(BHatL.values));
 						System.out.println("invert!");
-						System.out.println(Arrays.deepToString(BHatk.inv().values));
-						Matrix BHatinv = new Matrix(F.size(), F.size());
-						for (int i = 0; i < F.size(); i ++)
-							BHatinv.set(i, i, 1/θ);
-						Matrix inner = new Matrix(2*m, 2*m);
-						for (int i = 0; i < 2*m; i ++)
-							inner.set(i, i, 1);
-						inner = inner.minus(Mk.times(Wk.T().times(Zk.times(Zk.T().times(Wk)))).over(θ));
-						BHatinv = BHatinv.plus(Zk.T().times(Wk.times(inner.inv().times(Mk.times(Wk.T().times(Zk))))).over(θ*θ));
-						System.out.println(Arrays.deepToString(BHatinv.values));
-						System.out.println("just to check...");
-						System.out.println(Arrays.deepToString(inner.times(inner.inv()).values));
-						System.out.println(Arrays.deepToString(inner.inv().times(inner).values));
-						System.out.println("ANd then some other stuff me lew jana esa galti");
-						System.out.println(BHatk.inv().times(rHatC).times(-1).T());
-						System.out.println(dHatU.T());
-						System.out.println(" is the step and the new gradient should be ");
+						System.out.println(BHatk.inv());
+						System.out.println(BHatk.times(BHatk.inv()));
+//						Matrix BHatinv = new Matrix(F.size(), F.size());
+//						for (int i = 0; i < F.size(); i ++)
+//							BHatinv.set(i, i, 1/θ);
+//						Matrix inner = new Matrix(2*m, 2*m);
+//						for (int i = 0; i < 2*m; i ++)
+//							inner.set(i, i, 1);
+//						inner = inner.minus(Mk.times(Wk.T().times(Zk.times(Zk.T().times(Wk)))).over(θ));
+//						BHatinv = BHatinv.plus(Zk.T().times(Wk.times(inner.inv().times(Mk.times(Wk.T().times(Zk))))).over(θ*θ));
+//						System.out.println(Arrays.deepToString(BHatinv.values));
+//						System.out.println("just to check...");
+//						System.out.println(Arrays.deepToString(inner.times(inner.inv()).values));
+//						System.out.println(Arrays.deepToString(inner.inv().times(inner).values));
+//						System.out.println("ANd then some other stuff me lew jana esa galti");
+//						System.out.println(BHatk.inv().times(rHatC).times(-1).T());
+//						System.out.println(dHatU.T());
+						System.out.println(" is the step and the new gradient should be not ");
+						System.out.println(Zk.times(rHatC).T());
+						System.out.println("but");
 						System.out.println(Zk.times(rHatC.plus(BHatk.times(BHatk.inv().times(rHatC).times(-1)))).T());
 						System.out.println(Zk.times(rHatC.plus(BHatk.times(dHatU))).T());
 						System.out.println(Zk.times(rHatC.plus(Zk.T().times(Bk.times(Zk.times(dHatU))))).T());
 						System.out.println(Zk.times(rHatC).plus(Zk.times(Zk.T().times(Bk.times(Zk.times(dHatU))))).T());
-						System.out.println(Zk.times(Zk.T().times(gk.plus(Bk.times(xC.minus(xk))))).plus(Zk.times(Zk.T().times(Bk.times(Zk.times(dHatU))))).T());
+						System.out.println(Zk.times(Zk.T().times(gk.plus(Bk.times(xC.minus(xk))))).plus(Zk.times(Zk.T().times(Bk.times(dU)))).T());
 						System.out.println(gk.plus(Bk.times(xC.minus(xk))).plus(Bk.times(xBar.minus(xC))).T());
 						System.out.println(gk.plus(Bk.times(xC.minus(xk))).plus(Bk.times(xBar.minus(xC))).T());
 						System.out.println(gk.plus(Bk.times(xBar.minus(xk))).T());
@@ -687,24 +698,24 @@ public class Optimization {
 						Matrix A = new Matrix(F.size(), F.size());
 						for (int i = 0; i < F.size(); i ++)
 							A.set(i, i, θ);
-						Matrix U = Zk.T().times(Wk);
-						Matrix C = Mk.times(-1);
-						Matrix V = Wk.T().times(Zk);
-						System.out.println("A = "+A);
-						System.out.println("U = "+U);
-						System.out.println("C = "+C);
-						System.out.println("V = "+V);
-						System.out.println("CV = "+C.times(V));
-						double sum = 0;
-						for (int i = 0; i < V.getN(); i ++) {
-							sum += C.get(0, i)*V.get(i, 0);
-							System.out.print(C.get(0, i)+"*"+V.get(i, 0)+" + ");
-						}
-						System.out.println("= "+sum);
-						System.out.println("UCV = "+U.times(C.times(V)));
-						System.out.println("A + UCV = "+A.plus(U.times(C.times(V))));
-						System.out.println("(A + UCV)^-1 = "+A.plus(U.times(C.times(V))).inv());
-						System.out.println("A^-1 - A^-1U(C^-1 + VA^-1U)^-1VA^-1 = "+BHatinv);
+//						Matrix U = Zk.T().times(Wk);
+//						Matrix C = Mk.times(-1);
+//						Matrix V = Wk.T().times(Zk);
+//						System.out.println("A = "+A);
+//						System.out.println("U = "+U);
+//						System.out.println("C = "+C);
+//						System.out.println("V = "+V);
+//						System.out.println("CV = "+C.times(V));
+//						double sum = 0;
+//						for (int i = 0; i < V.getN(); i ++) {
+//							sum += C.get(0, i)*V.get(i, 0);
+//							System.out.print(C.get(0, i)+"*"+V.get(i, 0)+" + ");
+//						}
+//						System.out.println("= "+sum);
+//						System.out.println("UCV = "+U.times(C.times(V)));
+//						System.out.println("A + UCV = "+A.plus(U.times(C.times(V))));
+//						System.out.println("(A + UCV)^-1 = "+A.plus(U.times(C.times(V))).inv());
+//						System.out.println("A^-1 - A^-1U(C^-1 + VA^-1U)^-1VA^-1 = "+BHatinv);
 					}
 	//				System.out.println("That looks like a minimum.");
 					//				for (int i = 0; i < n; i ++) {
@@ -713,7 +724,7 @@ public class Optimization {
 	//				}
 					for (int i = 0; i < n; i ++)
 						assert F.contains(i) || xBar.get(i, 0) == xC.get(i, 0);
-					assert gk.dot(xBar.minus(xk)) + 0.5*xBar.minus(xk).dot(Bk.times(xBar.minus(xk))) <= gk.dot(xC.minus(xk)) + 0.5*xC.minus(xk).dot(Bk.times(xC.minus(xk))) :
+					assert gk.dot(xBar.minus(xk)) + 0.5*xBar.minus(xk).dot(Bk.times(xBar.minus(xk))) <= gk.dot(xC.minus(xk)) + 0.5*xC.minus(xk).dot(Bk.times(xC.minus(xk)))*1.00000000001 :
 						(fxk+gk.dot(xBar.minus(xk)) + 0.5*xBar.minus(xk).dot(Bk.times(xBar.minus(xk))))+" > "+(fxk+gk.dot(xC.minus(xk)) + 0.5*xC.minus(xk).dot(Bk.times(xC.minus(xk))));
 					dk = xBar.minus(xk);
 				}
@@ -749,7 +760,7 @@ public class Optimization {
 			Matrix gkp1 = gradMat.apply(xk);
 			double fxkp1 = funcMat.apply(xk);
 			assert fxkp1 <= fxk;
-			if (sHist.size() > 1 && Math.abs((fxkp1 - fxk)/fxk) < tol) { // STEP 5: stop condition
+			if (sHist.size() > 1 && (fxk - fxkp1)/Math.abs(fxk) < tol) { // STEP 5: stop condition
 				return xk.T().values[0]; // if we're into it and the energy isn't really changing, then we're done
 			}
 			
@@ -1198,72 +1209,56 @@ public class Optimization {
 	 * @param args
 	 */
 	public static void main(String[] args) {
-		/*Function<double[], Double> simionescu = (v) -> {
-			double x = v[0], y = v[1];
-			double z;
-			if (Math.hypot(x, y) > 1 + .2*Math.cos(8*Math.atan2(x, y)))
-				z = Double.POSITIVE_INFINITY;
-			else
-				z = .1*x*y;
-			System.out.printf("[%.4f, %.4f, %.4f],\n", x, y, z);
-			return z;
-		};
-		List<Function<double[], Double>> simionescuGradient = new ArrayList<Function<double[], Double>>(Arrays.asList(
-				(v) -> {
-					double y = v[1];
-					return .1*y;
-				},
-				(v) -> {
-					double x = v[0];
-					return .1*x;
-				}));
+//		Function<double[], Double> simionescu = (v) -> {
+//			double x = v[0], y = v[1];
+//			double z;
+//			if (Math.hypot(x, y) > 1 + .2*Math.cos(8*Math.atan2(x, y)))
+//				z = Double.POSITIVE_INFINITY;
+//			else
+//				z = .1*x*y;
+//			System.out.printf("[%.4f, %.4f, %.4f],\n", x, y, z);
+//			return z;
+//		};
+//		List<Function<double[], Double>> simionescuGradient = new ArrayList<Function<double[], Double>>(Arrays.asList(
+//				(v) -> {
+//					double y = v[1];
+//					return .1*y;
+//				},
+//				(v) -> {
+//					double x = v[0];
+//					return .1*x;
+//				}));
 //		Function<double[], Double> himmelblau = (v) -> {
 //			double x = v[0], y = v[1];
 //			double z = Math.pow(x*x + y - 11, 2) + Math.pow(x + y*y - 7, 2) + 1;
 //			System.out.printf("[%.4f, %.4f, %.4f],\n", x, y, z);
 //			return z;
 //		};
+		Function<double[], Double> ellipse = (v) -> {
+			double x = v[0], y = v[1];
+			double z = 2*Math.sqrt(1 + x*x - 1.5*x*y + y*y);
+//			System.out.printf("[%.4f, %.4f, %.4f],\n", x, y, z);
+			return z;
+		};
+		Function<double[], double[]> ellipseGrad = (v) -> {
+			double x = v[0], y = v[1];
+			double z = ellipse.apply(v);
+			return new double[] {
+				(2*x - 1.5*y)/(z/2),
+				(2*y - 1.5*x)/(z/2),
+			};
+		};
 		
 //		System.out.println(Arrays.toString(minimizeNelderMead(
 //				simionescu, new double[] {.5,.5}, 1e-8)));
-		System.out.println(Arrays.toString(minimizeCoordinateDescent(
-				simionescu, simionescuGradient, new double[] {.5, .5}, new double[] {1,1}, 1e-8)));
+//		System.out.println(Arrays.toString(minimizeCoordinateDescent(
+//				simionescu, simionescuGradient, new double[] {.5, .5}, new double[] {1,1}, 1e-8)));
 //		System.out.println(Arrays.toString(minimizeCoordinateDescent(
 //				himmelblau, new double[] {0,0}, new double[] {1,1}, 1e-8)));
 //		System.out.println(Arrays.toString(minimizeLBFGS(
-//				himmelblau, new double[] {.5, .5}, 1e-8)));*/
-		Matrix C = new Matrix(new double[][] {
-  { 0.0206,  0.0025,  0.0018,  0.0061, -0.0010,  0.0000,  0.0929, -0.0201, -0.1133,  0.0319, -0.0055,  0.0026, },
-  { 0.0025,  0.0006,  0.0017,  0.0099,  0.0002,  0.0000, -0.0011,  0.0101, -0.0220, -0.0325,  0.0070, -0.0005, },
-  { 0.0018,  0.0017,  0.0134,  0.0503, -0.0043,  0.0000, -0.0026, -0.0014,  0.2858, -0.2738, -0.0095,  0.0110, },
-  { 0.0061,  0.0099,  0.0503,  0.2675,  0.0007,  0.0000, -0.0088, -0.0087, -0.0164,  0.0843, -0.0054, -0.0018, },
-  {-0.0010,  0.0002, -0.0043,  0.0007,  0.0095,  0.0000,  0.0012, -0.0004,  0.0033, -0.0034, -0.0003,  0.0002, },
-  { 0.0000,  0.0000,  0.0000,  0.0000,  0.0000,  0.0020,  0.0000,  0.0000,  0.0000,  0.0000,  0.0000,  0.0000, },
-  { 0.0929, -0.0011, -0.0026, -0.0088,  0.0012, -0.0000, -0.1076,  0.0215,  0.1358, -0.0315,  0.0051, -0.0030, },
-  {-0.0201,  0.0101, -0.0014, -0.0087, -0.0004, -0.0000,  0.0215, -0.0146, -0.0025,  0.0399, -0.0083,  0.0011, },
-  {-0.1133, -0.0220,  0.2858, -0.0164,  0.0033, -0.0000,  0.1358, -0.0025, -0.5084,  0.2394,  0.0191, -0.0084, },
-  { 0.0319, -0.0325, -0.2738,  0.0843, -0.0034, -0.0000, -0.0315,  0.0399,  0.2394, -0.3992,  0.0167,  0.0086, },
-  {-0.0055,  0.0070, -0.0095, -0.0054, -0.0003,  0.0000,  0.0051, -0.0083,  0.0191,  0.0167, -0.0056,  0.0008, },
-  { 0.0026, -0.0005,  0.0110, -0.0018,  0.0002,  0.0000, -0.0030,  0.0011, -0.0084,  0.0086,  0.0008, -0.0005, },
-});
-		Matrix V = new Matrix(new double[][] {
-  { 0.0087,  0.4235,  2.0722,  3.7689,  2.4753,  0.8018,  0.2256,  0.3623,  0.0146,  0.0102,  0.0218,  0.0029, -0.1979, -0.1746, -0.1513,  0.0029, -0.0931, -0.5937, -0.2692, -58379.1698,  4.5140,  3.8301,  0.4322,  0.0000, -0.0015, -0.0058,  0.0000,  0.0015,  0.0029,  0.0160,  0.0378,  9.3991, -0.0553, -0.1251, -0.0116, -0.0204, -1.0012, -0.9706, -0.6039,  0.2488, -1.9412, -1.8510,  3.9727, -93.6969,  10.4061,  82.4220,  9.6552, },
-  { 0.0204,  0.9852,  5.0059,  9.2434,  5.2896,  0.6257, -0.1994,  0.6708, -0.0524,  0.0247,  0.0509,  0.0058, -0.5544, -0.4511, -0.4075, -0.2357, -0.4482,  1.3853,  7.8187, -178459.1179, -33.6673,  6.3956,  0.3332,  0.0000,  0.0000,  0.0029,  0.0015,  0.0233,  0.0655,  0.1513,  0.3769,  32.3183,  0.2648, -0.1863, -0.0204, -0.0029, -2.7270, -2.5742, -2.0678, -1.8626, -3.1316,  14.9244, -19.5781, -355.2967, -133.5779,  198.8272,  22.9935, },
-  { 0.0058,  0.2023,  1.0419,  1.8903,  1.1758,  0.3944,  0.0713, -0.2328, -0.0160, -0.0044,  0.0044,  0.0000, -0.1120, -0.0917, -0.0946,  0.0320,  0.1572, -0.2663, -0.0364,  48210.6494,  7.0082,  2.3065,  0.2357,  0.0000,  0.0015,  0.0029,  0.0044,  0.0044,  0.0044, -0.0058, -0.0276, -9.2215, -0.0553, -0.0655, -0.0102, -0.0189, -0.5472, -0.5472, -0.3653,  0.3405, -0.5035, -1.6196,  2.2686,  97.2475,  21.5805,  46.6607,  5.1310, },
-  { 0.0000,  0.2357,  1.2369,  2.2832,  1.3912,  0.4191,  0.0728,  0.0538, -0.0029,  0.0073,  0.0131,  0.0015, -0.1135, -0.1164, -0.1251, -0.0087,  0.1106, -0.1455,  0.5341, -8546.4257,  2.1522,  2.1260,  0.1717,  0.0000, -0.0029, -0.0058,  0.0000,  0.0029,  0.0087,  0.0131,  0.0189,  1.6516, -0.0029, -0.0597, -0.0058, -0.0175, -0.6607, -0.6650, -0.5108,  0.0742, -0.7276, -0.1179,  0.6548, -12.3400, -0.3143,  48.7387,  5.2838, },
-  {-0.0073,  0.5661,  3.0341,  5.5705,  4.4398,  3.0777,  1.3781,  0.8178,  0.1251,  0.0306,  0.0044,  0.0058, -0.3245, -0.2750, -0.3783,  0.3027,  1.0783, -4.4180, -10.8164, -46822.1406,  65.9493,  8.0108,  1.1220,  0.0000,  0.0029,  0.0073, -0.0015, -0.0146, -0.0378, -0.1412, -0.3391,  9.4704, -0.5792, -0.2925, -0.0218, -0.1412, -1.3097, -1.5600, -0.8717,  3.5507, -3.8097, -27.7374,  45.2215,  31.6519,  204.8968,  104.4406,  10.2111, },
-  { 0.0073,  1.2165,  6.9238,  13.4562,  8.2873,  2.4243,  0.7538,  6.2690,  0.1950,  0.1848,  0.0888,  0.0087, -0.8557, -0.7174, -0.9619, -0.7058,  0.2052,  0.4482,  7.9264, -1293538.0990, -53.7533,  3.2975, -0.5806,  0.0000, -0.0044, -0.0029,  0.0073,  0.0538,  0.1339,  0.2707,  0.8906,  292.9519,  0.6912, -0.1208, -0.0160, -0.1004, -3.9698, -4.2128, -4.5664, -4.0309, -6.6138,  18.1346, -13.6119, -2222.1750, -367.5785,  161.6660,  13.7865, },
-  { 1043563714.0429,  802834531.1439,  604099010.8408,  592237731.4698,  583451944.3369,  485682168.0901,  312680725.1851,  141798379.5559,  38020440.7679,  1617192.4037, -1737535.1616, -9092.5871, -5378602.4234, -1620997.4555, -5802640.0997, -10865701.6850, -17432255.9541, -15206314.0272, -22612200.2138, -156986.4858,  79838831.2910,  577175756.8235,  145675469.5388,  0.0000, -81124.8025, -144895.5049, -268655.6016, -1040369.1299, -5046776.6778, -22136982.9365, -76043985.7419, -150674672.0235, -130756604.4074, -39408345.6798, -2943868.2247,  105090.5683,  2923323.4868,  2328.5089, -10927510.0290, -38798651.6428, -67067731.4772,  5075447.0747,  29937414.7868,  47574813.4415, -37692012.8998,  247538301.7130,  205745011.5903, },
-  { 2747445836.3548,  2112490795.2248,  1572975390.3015,  1507467561.4374,  1478811197.4114,  1250451785.3174,  810399969.2844,  370016915.3320,  101410146.5153,  5805358.2260, -3857029.8171, -4752.6669, -11807020.4145, -4789605.9530, -12597100.5391, -18184533.3534, -29988424.2693, -50181132.5113,  6658558.3320,  918818.0153, -227930418.7722,  1510297728.2248,  380207579.9921,  0.0000, -193915.0601, -375119.8082, -689751.5674, -2635166.7690, -12876233.4872, -57060943.8115, -198692928.1440, -395822341.9247, -340011362.7276, -102638794.7294, -7754649.0320,  89761.3270, -1176843.8686, -3427244.7605, -18195601.4234, -79616427.6951, -211760782.5005, -492476681.5306, -1185332128.8983, -641725809.8664, -440750669.7632,  746452353.1259,  675585361.5751, },
-  { 585802570.7046,  450801081.5457,  340951701.6443,  337760942.9375,  333203529.6142,  275313402.9558,  176683267.4856,  79849157.4758,  21198379.3793,  745275.0383, -1048078.2094, -7014.7069, -3268359.4095, -865445.3321, -3560028.6067, -7282052.5092, -11823983.5805, -8772290.6093, -18359456.8929, -127503.8874,  77665858.3258,  324920406.8085,  82094598.1843,  0.0000, -47551.8363, -81940.6025, -152054.7921, -591671.4079, -2863079.8607, -12504774.4343, -42747676.1733, -84679690.8072, -73821420.9037, -22226350.4427, -1651644.2320,  78898.7234,  2504162.7336,  295989.9238, -7568570.3479, -26132750.0685, -40579549.1316,  35047155.2953,  98391263.7015,  77831697.7316, -3382844.2294,  129373702.2385,  101778355.8554, },
-  { 699764880.5713,  538437245.9210,  406202494.7781,  400088820.0568,  394039538.9250,  326750012.5567,  210023048.5670,  95055534.5594,  25395633.9078,  986610.8104, -1203967.0208, -7052.6213, -3760125.8333, -1079391.6674, -4112813.0096, -8161749.2437, -13601179.3061, -12763288.8592, -16179049.9443, -44297.7328,  48789591.0364,  387491674.8881,  97822182.0773,  0.0000, -55511.3143, -97405.1819, -179783.9342, -696188.4421, -3377933.0978, -14798103.5048, -50844926.4883, -101109107.0843, -87888754.8981, -26465196.5804, -1972640.4741,  82963.4068,  2351745.5586,  56197.4090, -8794050.9369, -32336773.9238, -59077419.4250, -16189144.4543, -26131351.0371,  7874745.2686, -48267995.6545,  160907667.9435,  130354596.3394, },
-  { 1588708027.9021,  1224848449.5008,  956642034.0857,  1008456039.9308,  1002980441.5719,  793673735.2617,  499665566.6434,  221087443.7283,  54996013.4147, -801591.8684, -4110168.8455, -52399.1577, -13186366.2034, -1555202.2534, -14873083.5298, -40125172.0112, -66788885.2709, -25487106.5285, -150574061.6719, -2029933.2937,  805453311.5518,  897326087.1394,  228251835.1670,  0.0000, -164011.4371, -232825.7870, -435110.7699, -1743697.1434, -8311284.3067, -35363981.8607, -117165378.2539, -231353582.9221, -207568300.0875, -62116969.6945, -4464658.1308,  559189.4297,  21909288.9459,  6042484.8950, -44839546.5872, -142803085.2147, -148709442.2127,  692930547.1947,  1778384448.3467,  1153389127.9952,  332981390.5919,  183775448.9801,  37167726.2619, },
-  { 4161995341.2438,  3202957479.2736,  2419190001.6248,  2383789089.5570,  2341240148.5607,  1937679436.3457,  1244577029.6009,  562419073.4729,  150584159.5437,  5606416.6386, -7186223.2169, -41396.4469, -22832038.8243, -6707355.9007, -25691330.7519, -53519343.0485, -97006579.3404, -121674664.9631, -60543901.8734,  575252.3821, -115866023.0827,  2304454393.8727,  581330110.7685,  0.0000, -331559.3896, -578085.9578, -1050458.8869, -4039889.0999, -19684478.4384, -86399918.4925, -299081753.2790, -601795727.3830, -522589088.5350, -157142663.2801, -11715435.1861,  535246.8992,  12984909.3896, -1485819.5987, -65907998.3168, -268615477.2574, -587109758.6340, -773892028.4818, -1808086598.3890, -896607227.4806, -889282699.6676,  954256501.9162,  765289578.9861, },
-});
-		System.out.println(C);
-		System.out.println(V);
-		System.out.println(C.times(V));
+//				himmelblau, new double[] {.5, .5}, 1e-8)));
+		System.out.println(Arrays.toString(minimizeLBFGSB(
+				ellipse, new double[] {1.5,0}, new double[] {.5,-1.5}, new double[] {2,1.5}, 1e-8)));
 	}
-
 
 }

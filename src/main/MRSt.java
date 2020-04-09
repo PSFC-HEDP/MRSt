@@ -404,7 +404,7 @@ public class MRSt {
 					return err + penalty;
 //				})
 //		).getPoint();
-				}, initialGuess, lowerBounds, upperBounds, 1e-8);
+				}, initialGuess, lowerBounds, upperBounds, 1e-12);
 		
 		long endTime = System.currentTimeMillis();
 		if (logger != null)
