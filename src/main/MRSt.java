@@ -28,15 +28,6 @@ import java.util.Arrays;
 import java.util.Locale;
 import java.util.logging.Logger;
 
-import org.apache.commons.math3.optim.InitialGuess;
-import org.apache.commons.math3.optim.MaxEval;
-import org.apache.commons.math3.optim.MaxIter;
-import org.apache.commons.math3.optim.nonlinear.scalar.GoalType;
-import org.apache.commons.math3.optim.nonlinear.scalar.MultivariateOptimizer;
-import org.apache.commons.math3.optim.nonlinear.scalar.ObjectiveFunction;
-import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.MultiDirectionalSimplex;
-import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.PowellOptimizer;
-
 import main.NumericalMethods.DiscreteFunction;
 
 /**
@@ -53,9 +44,9 @@ public class MRSt {
 	private static final int STOPPING_DISTANCE_RESOLUTION = 64;
 	private static final double MIN_E = 12, MAX_E = 16; // histogram bounds [MeV]
 	private static final double MIN_T = 16.0, MAX_T = 16.5; // histogram bounds [ns]
-	private static final double E_RESOLUTION = .1, T_RESOLUTION = 13e-3; // resolutions [MeV], [ns]
-//	private static final double E_RESOLUTION = .5, T_RESOLUTION = 50e-3;
-	private static final int MIN_STATISTICS = 1000; // the minimum number of deuterons to define a spectrum at a time
+//	private static final double E_RESOLUTION = .1, T_RESOLUTION = 13e-3; // resolutions [MeV], [ns]
+	private static final double E_RESOLUTION = .3, T_RESOLUTION = 40e-3;
+	private static final int MIN_STATISTICS = 100; // the minimum number of deuterons to define a spectrum at a time
 	private static final int TRANSFER_MATRIX_TRIES = 10000; // the number of points to sample in each column of the transfer matrix
 	
 	private static final double[] PARAM_SCALES = { Double.NaN, 4, 100, 1 }; // I'm 68% sure the magnitudes of Y, v, T, and ρR won't exceed these
@@ -343,19 +334,19 @@ public class MRSt {
 		}
 		
 		if (logger != null)  logger.info("beginning fit process.");
-//		System.out.println(Arrays.toString(initialGuess)+",");
+		System.out.println(Arrays.toString(initialGuess)+",");
 		long startTime = System.currentTimeMillis();
-		MultivariateOptimizer optimizer = new PowellOptimizer(1e-14, 1);
-		double[] opt = optimizer.optimize(
-//		double[] opt = Optimization.minimizeLBFGS(
-				new InitialGuess(initialGuess),
-				new MultiDirectionalSimplex(dimensionScale),
-				new MaxIter(100000),
-				new MaxEval(1000000),
-				GoalType.MINIMIZE,
-//				new SimpleBounds(lowerBounds, upperBounds),
-				new ObjectiveFunction((double[] guess) -> {
-//				(double[] guess) -> {
+//		MultivariateOptimizer optimizer = new PowellOptimizer(1e-14, 1);
+//		double[] opt = optimizer.optimize(
+//				new InitialGuess(initialGuess),
+//				new MultiDirectionalSimplex(dimensionScale),
+//				new MaxIter(100000),
+//				new MaxEval(1000000),
+//				GoalType.MINIMIZE,
+////				new SimpleBounds(lowerBounds, upperBounds),
+//				new ObjectiveFunction((double[] guess) -> {
+		double[] opt = Optimization.minimizeLBFGSB(
+				(double[] guess) -> {
 //					if (Math.random() < 3e-4)
 //						System.out.println(Arrays.toString(guess)+",");
 					
@@ -365,24 +356,29 @@ public class MRSt {
 							params[k][i] = guess[i+k*timeAxis.length];
 					
 					for (int i = 0; i < timeAxis.length; i ++) { // check for illegal (prior = 0) values
-						if (params[0][i] < 0)   return Double.POSITIVE_INFINITY;
-						if (params[1][i] <= 0)  return Double.POSITIVE_INFINITY;
-						if (params[3][i] < 0)   return Double.POSITIVE_INFINITY;
+						if (params[0][i] < 0)  return Double.POSITIVE_INFINITY;
+						if (params[1][i] < 0)  return Double.POSITIVE_INFINITY;
+						if (params[3][i] < 0)  return Double.POSITIVE_INFINITY;
 					}
 					
+//					System.out.println(Arrays.toString(guess)+",");
 					double[][] teoSpectrum = generateSpectrum(
 							params[0], params[1], params[2], params[3], energyBins, timeBins); // generate the neutron spectrum based on those
 					double[][] fitSpectrum = this.response(
 							energyBins, timeBins, teoSpectrum, false); // blur it according to the transfer matrix
 					
 					double err = 0; // negative Bayes factor (in nepers)
-					for (int i = 0; i < spectrum.length; i ++)
-						for (int j = 0; j < spectrum[i].length; j ++) // compute the error between it and the actual spectrum
-							if (!(fitSpectrum[i][j] + noiseVar[j] == 0 && spectrum[i][j] == 0)) // skipping places where we expect 0 and got 0
+					for (int i = 0; i < spectrum.length; i ++) {
+						for (int j = 0; j < spectrum[i].length; j ++) { // compute the error between it and the actual spectrum
+							if (fitSpectrum[i][j] + noiseVar[j] > 0) // skipping places where we expect 0 and got 0
 								err += Math.log(fitSpectrum[i][j] + noiseVar[j])/2 +
 										Math.pow(fitSpectrum[i][j] - spectrum[i][j], 2)/
 												(2*(fitSpectrum[i][j] + noiseVar[j]));
-					assert Double.isFinite(err);
+							else if (spectrum[i][j] != 0) // but throwing infinity if we expect 0 and got not 0
+								err = Double.POSITIVE_INFINITY;
+						}
+					}
+					assert Double.isFinite(err) : err;
 					
 					double penalty = 0; // negative log of prior (ignoring global normalization)
 					for (int i = 0; i < spectrum.length; i ++) {
@@ -404,10 +400,11 @@ public class MRSt {
 						}
 					}
 					
+//					System.out.println(err+penalty);
 					return err + penalty;
-				})
-		).getPoint();
-//				}, initialGuess, 1e-14);
+//				})
+//		).getPoint();
+				}, initialGuess, lowerBounds, upperBounds, 1e-8);
 		
 		long endTime = System.currentTimeMillis();
 		if (logger != null)
@@ -670,12 +667,16 @@ public class MRSt {
 		double[] pdf = new double[eBins.length]; // probability distribution at edges
 		double[] counts = new double[eBins.length-1]; // spectrum counts in bins
 		for (int i = eBins.length-1; i >= 0; i --) {
-			double E = eBins[i]; // x coordinate [MeV]
-			double primaryDistribution = (1 - Ps)/Math.sqrt(2*Math.PI*s2)*
-					Math.exp(-Math.pow(E - μ, 2)/(2*s2)); // primary distribution [MeV^-1]
-			double dsDistribution = p/2*Math.exp(λ*(E - μ + s2*λ/2))*
-					(1 + NumericalMethods.erf((μ - E + s2*λ)/Math.sqrt(2*s2))); // secondary distribution [MeV^-1]
-			pdf[i] = primaryDistribution + dsDistribution; // combine the two distributions
+			if (Ti > 0) {
+				double E = eBins[i]; // x coordinate [MeV]
+				double primaryDistribution = (1 - Ps)/Math.sqrt(2*Math.PI*s2)*
+						Math.exp(-Math.pow(E - μ, 2)/(2*s2)); // primary distribution [MeV^-1]
+				double dsDistribution = p/2*Math.exp(λ*(E - μ + s2*λ/2))*
+						(1 + NumericalMethods.erf((μ - E + s2*λ)/Math.sqrt(2*s2))); // secondary distribution [MeV^-1]
+				pdf[i] = primaryDistribution + dsDistribution; // combine the two distributions
+			}
+			else
+				pdf[i] = 0;
 			if (i < eBins.length-1) // if we have the pdf at both edges of this bin
 				counts[i] = Yn*1e15*(pdf[i] + pdf[i+1])/2*(eBins[i+1] - eBins[i]); // fill it trapezoidally []
 		}

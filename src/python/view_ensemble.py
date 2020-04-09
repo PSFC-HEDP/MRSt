@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 
-simulations = pd.read_csv('../../working/ensemble.csv')
+simulations = pd.read_csv('../../working/default.csv')
 # print(simulations)
 
 for axis in [
