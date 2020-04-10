@@ -7,7 +7,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
@@ -68,26 +67,26 @@ public class Optimization {
 		if (δf0 >= 0)
 			throw new IllegalArgumentException("Initial step must be downhill.");// if the gradient here is naught, there's absolutely noting we can do
 		
-		System.out.println("wolf ");
-		System.out.println("["+x0+", "+f0+", "+δf0+", "+x0+", "+(x0+stepMax)+"],");
 		final double α = 1e-4, β = 0.9;
 		
 		double med = x0 + step0; // take an initial downhill step
 		double min = x0, max = x0 + 2*stepMax;
 		double truMax = x0 + stepMax;
+		double lowestPlace = x0, lowestValue = f0;
 		while (true) {
-			if (max - min < 1e-15) // make sure it doesn't get stuck with an impossible function
-				throw new RuntimeException("Could not find suitable minimum.");
+			if (max - min < 1e-10) { // if this has become quite tight
+				return lowestPlace;
+			}
 			med = Math.min(med, truMax); // enforce that it not go past its true maximum
 			double f = func.apply(med);
-			System.out.println("["+med+", "+f+", "+grad.apply(med)+", "+min+", "+max+"],");
+			if (f < lowestValue) { // keep track of the lowest value we could find just in case all fails
+				lowestPlace = med;
+				lowestValue = f;
+			}
 			if (f > f0 + α*(med - x0)*δf0) { // if the decrease condition is not met
 				max = med; // we need to go closer
 				med = (max + min)/2;
 				continue;
-			}
-			if (max - min <= 1e-10*step0) { // if this has become quite tight
-				return min; // there's most likely a discontinuity
 			}
 			double δf = grad.apply(med);
 			if (Math.abs(δf) > β*Math.abs(δf0)) { // if the curvature condition is not met
@@ -96,7 +95,6 @@ public class Optimization {
 					med = (max + min)/2;
 				}
 				else if (med == truMax) {
-					System.out.println("this boundary is likely the best we can do");
 					return truMax; // this might be the best we can get
 				}
 				else {
@@ -106,7 +104,6 @@ public class Optimization {
 				continue;
 			}
 			
-			System.out.println("awøøøøø");
 			return med; // if both are met, we're done here
 		}
 	}
@@ -469,43 +466,12 @@ public class Optimization {
 			throw new IllegalArgumentException("Initial guess yielded bunk value");
 		
 		while (true) {
-			System.out.println(Arrays.toString(xk.T().values[0]));
 			final int m = yHist.size();
 			Matrix dk;
 			if (m > 0) {
-				
-				assert θ > 0;
-				for (int i = 0; i < m; i ++)
-					assert sHist.get(i).dot(yHist.get(i)) > 0;
-//				Matrix Dk = new Matrix(m, m); // STEP 1: approximate the inverse Hessian
-//				for (int i = 0; i < m; i ++)
-//					Dk.set(i, i, yHist.get(i).dot(sHist.get(i)));
-//				Matrix Wk = new Matrix(n, 2*m);
-//				for (int i = 0; i < n; i ++) {
-//					for (int j = 0; j < m; j ++) {
-//						Wk.set(i, j,   yHist.get(j).get(i, 0));
-//						Wk.set(i, j+m, θ*sHist.get(j).get(i, 0));
-//					}
-//				}
-//				Matrix Lk = new Matrix(m, m);
-//				for (int i = 0; i < m; i ++)
-//					for (int j = 0; j < m; j ++)
-//						if (i > j)
-//							Lk.set(i, j, sHist.get(i).dot(yHist.get(j)));
-//				Matrix Mkinv = new Matrix(2*m, 2*m);
-//				for (int i = 0; i < m; i ++) {
-//					Mkinv.set(i, i, -Dk.get(i, i));
-//					for (int j = 0; j < m; j ++) {
-//						Mkinv.set(i+m, j, Lk.get(i, j));
-//						Mkinv.set(i, j+m, Lk.get(j, i));
-//						Mkinv.set(i+m, j+m, θ*sHist.get(i).dot(sHist.get(j)));
-//					}
-//				}
-//				Matrix Mk = Mkinv.inv();
-				Matrix B0 = new Matrix(n, n);
+				Matrix B0 = new Matrix(n, n); // STEP 1: Construct the reduced Hessian and its inverse
 				for (int i = 0; i < n; i ++)
 					B0.set(i, i, θ);
-//				Matrix Bk = B0.minus(Wk.times(Mk.times(Wk.T())));
 				Matrix Bk = B0;
 				for (int j = 0; j < m; j ++) {
 					Matrix s = sHist.get(j);
@@ -513,13 +479,6 @@ public class Optimization {
 					Bk = Bk.minus(Bk.times(s.times(s.T().times(Bk))).over(s.dot(Bk.times(s)))).plus(y.times(y.T()).over(y.dot(s)));
 				}
 				
-				for (int i = 0; i < 10000; i ++) {
-					Matrix u = new Matrix(n, 1);
-					for (int j = 0; j < n; j ++)
-						u.set(j, 0, 2*Math.random() - 1);
-					assert u.dot(Bk.times(u)) > 0: Bk;
-				}
-					
 				double[] breakpoints = new double[n]; // STEP 2: find the Cauchy point -- the quadratic minimum in the downhill direction
 				Matrix d = new Matrix(n, 1);
 				for (int i = 0; i < n; i ++) {
@@ -537,28 +496,15 @@ public class Optimization {
 					if (breakpoints[i] > 0)
 						breakpointOrder.add(i);
 				breakpointOrder.sort((iA, iB) -> (int)Math.signum(breakpoints[iA] - breakpoints[iB]));
-//				System.out.println(breakpointOrder);
 				
-//				Matrix p = Wk.T().times(d); // first look for minimum in first segment
-//				Matrix c = new Matrix(2*m, 1);
 				double told = 0;
 				int b = breakpointOrder.pop(); // the index that hits bound at the end of this interval
 				double t = breakpoints[b];
 				double Δt = t;
 				double dfdt = d.dot(gk);
-//				double d2fdt2 = -θ*dfdt - p.dot(Mk.times(p));
 				double d2fdt2 = d.dot(Bk.times(d));
 				double Δtmin = -dfdt/d2fdt2;
-//				System.out.println("f′ = "+dfdt+" = "+d.dot(gk));
-//				System.out.println("f″ = "+d2fdt2+" = "+d.dot(Bk.times(d)));
-				System.out.println("["+told+", "+t+", "+0+", "+dfdt+", "+d2fdt2+"],");
 				while (Δtmin >= Δt) { // then check all subsequent segments
-//					System.out.println("your minimum is in another interval!");
-//					double xCb = (d.get(b, 0) > 0) ? upper[b] : lower[b];
-//					double zb = xCb - xk.get(b, 0);
-//					double gb = gk.get(b, 0);
-//					Matrix wb = Wk.getRow(b);
-//					c = c.plus(p.times(Δt));
 					d.set(b, 0, 0);
 					told = t;
 					b = breakpointOrder.pop();
@@ -570,19 +516,12 @@ public class Optimization {
 							xB.set(i, 0, (gk.get(i, 0) < 0) ? upper[i] : lower[i]);
 					}
 					dfdt = d.dot(gk.plus(Bk.times(xB.minus(xk))));
-//					d2fdt2 = d2fdt2 - θ*gb*gb - 2*gb*wb.dot(Mk.times(p)) - gb*gb*wb.dot(Mk.times(wb));
 					d2fdt2 = d.dot(Bk.times(d));
-					Δtmin = -dfdt/d2fdt2;
 					assert d2fdt2 > 0 : d2fdt2;
-//					p = p.plus(wb.times(gb));
-//					System.out.println("f′ = "+dfdt+" = "+d.dot(gk.plus(Bk.times(xC.minus(xk)))));
-//					System.out.println("f″ = "+d2fdt2+" = "+d.dot(Bk.times(d)));
-					System.out.println("["+told+", "+t+", "+(gk.dot(xB.minus(xk))+0.5*xB.minus(xk).dot(Bk.times(xB.minus(xk))))+", "+dfdt+", "+d2fdt2+"],");
+					Δtmin = -dfdt/d2fdt2;
 				}
 				Δtmin = Math.max(Δtmin, 0);
 				double tC = told + Δtmin;
-//				System.out.println("Looks like the min ended up being at "+told);
-//				c = c.plus(p.times(Δtmin));
 				List<Integer> F = new ArrayList<Integer>(breakpointOrder.size()+1);
 				Matrix xC = new Matrix(n, 1);
 				for (int i = 0; i < n; i ++) { // I'm setting xC here not how it's done in the paper, because the paper version is _totally_ wrong for this part
@@ -593,41 +532,22 @@ public class Optimization {
 					if (xC.get(i, 0) != lower[i] && xC.get(i, 0) != upper[i])
 						F.add(i);
 				}
-//				System.out.println(xk.T());
-//				System.out.println(xC.T());
-//				System.out.println(gk.dot(xC.minus(xk)) + 0.5*xC.minus(xk).dot(Bk.times(xC.minus(xk))));
-//				System.out.println(c.T());
-//				System.out.println(Wk.T().times(xC.minus(xk)).T());
-				System.out.println(F.size()+"/"+n);
 				assert xC.equals(P(xC, lower, upper));
-				assert xC.minus(xk).dot(gk) < 0 : xC.minus(xk).T()+" should be in the opposite direciton as "+gk.T();
-				assert xC.minus(xk).dot(Bk.times(xC.minus(xk))) > 0;
-				assert fxk + gk.dot(xC.minus(xk)) + 0.5*xC.minus(xk).dot(Bk.times(xC.minus(xk))) < fxk;
+//				assert gk.dot(xC.minus(xk)) + xC.minus(xk).dot(Bk.times(xC.minus(xk)))/2 < 0 :
+//					F.size()+"/"+n+" : "+(fxk + gk.dot(xC.minus(xk)) + xC.minus(xk).dot(Bk.times(xC.minus(xk)))/2) +">="+ fxk;
 				
 				if (F.size() >= 1) {
-					System.out.println(θ);
 					Matrix Zk = new Matrix(n, F.size()); // STEP 3: find an approximate bound minimum (direct primal method)
 					for (int f = 0; f < F.size(); f ++)
 						Zk.set(F.get(f), f, 1);
-					assert Zk.T().times(Zk).inv().equals(Zk.T().times(Zk));
 					Matrix rHatC = Zk.T().times(gk.plus(Bk.times(xC.minus(xk))));
 					Matrix BHatk = Zk.T().times(Bk.times(Zk));
-//					System.out.println(Zk.T().times(gk.plus(Bk.times(xC.minus(xk)))).T());
-//					System.out.println(rHatC.T());
-//					Matrix v = Wk.T().times(Zk.times(rHatC));
-//					v = Mk.times(v);
-//					Matrix N = Mk.times(Wk.T().times(Zk.times(Zk.T().times(Wk)))).over(-θ);
-//					assert N.getN() == 2*m && N.getM() == 2*m;
-//					for (int i = 0; i < 2*m; i ++)
-//						N.set(i, i, 1 + N.get(i, i));
-//					v = N.inv().times(v);
-//					Matrix dHatU = rHatC.over(θ).plus(Zk.T().times(Wk.times(v)).over(θ*θ)).times(-1); // the paper has a sign error
-					Matrix dHatU = BHatk.inv().times(rHatC).times(-1);
-//					for (int i = 0; i < F.size(); i ++)
-//						System.out.print(dHatU.get(i, 0) / BHatk.inv().times(rHatC).times(-1).get(i, 0) + " ");
-//					System.out.println();
-					if (dHatU.dot(BHatk.times(dHatU)) < 0) // B should always be positive definite, but occasionally roundoff turns this into a maximization problem
+					Matrix dHatU = BHatk.inv().times(rHatC).times(-1); // XXX this inverse is a n^4 operation
+					if (dHatU.dot(BHatk.times(dHatU)) < 0) { // B should always be positive definite, but occasionally roundoff turns this into a maximization problem
 						dHatU = dHatU.times(-1); // just turn around and go the other way if it does
+						System.out.println("LOOK OUT!");
+					}
+					assert dHatU.dot(rHatC) < 0; // this part is tricky; make sure you're stepping downhill from the Cauchy point
 					Matrix dU = Zk.times(dHatU);
 					double αStar = 1;
 					for (int i = 0; i < n; i ++) {
@@ -636,96 +556,41 @@ public class Optimization {
 						else if (xC.get(i, 0) + dU.get(i, 0) < lower[i])
 							αStar = Math.min(αStar, (lower[i] - xC.get(i, 0)/dU.get(i, 0)));
 					}
-					System.out.println(αStar);
 					assert αStar > 0 && αStar <= 1 : αStar;
 					Matrix xBar = xC.plus(dU.times(αStar));
 					xBar = P(xBar, lower, upper); // strictly speaking I shouldn't need this, but roundoff
-					System.out.println("[0, "+(1/αStar)+", "+(fxk + gk.dot(xC.minus(xk)) + xC.minus(xk).dot(Bk.times(xC.minus(xk))))+", "+(dU.times(αStar).dot(gk.plus(Bk.times(xC.minus(xk)))))+", "+(dU.times(αStar).dot(Bk.times(dU.times(αStar))))+"]");
-//					if (xBar.minus(xk).dot(Bk.times(xBar.minus(xk))) <= 0) {
-//						System.out.println("not positive definite!!");
-//						System.out.println(sHist);
-//						System.out.println(yHist);
-//						System.out.println(Bk);
-//						System.out.println(xBar.minus(xk).T());
-//						System.out.println(xBar.minus(xk).dot(Bk.times(xBar.minus(xk))));
-//						assert false;
-//					}
-					
-					if (gk.dot(xBar.minus(xk)) + 0.5*xBar.minus(xk).dot(Bk.times(xBar.minus(xk))) > gk.dot(xC.minus(xk)) + 0.5*xC.minus(xk).dot(Bk.times(xC.minus(xk)))) {
-//						Bk = B0;
-//						for (int j = 0; j < m; j ++) {
-//							Matrix s = sHist.get(j);
-//							Matrix y = yHist.get(j);
-//							Bk = Bk.minus(Bk.times(s.times(s.T().times(Bk))).over(s.dot(Bk.times(s)))).plus(y.times(y.T()).over(y.dot(s)));
-//						}
-//						System.out.println(Arrays.deepToString(Bk.values));
-//						System.out.println(Arrays.deepToString(BHatk.values));
-						System.out.println(BHatk);
-//						Matrix BHatL = Zk.T().times(Wk).times(Mk.times(Wk.T().times(Zk))).times(-1);
-//						for (int i = 0; i < BHatL.getN(); i ++)
-//							BHatL.set(i, i, θ + BHatL.get(i, i));
-//						System.out.println(Arrays.deepToString(BHatL.values));
-						System.out.println("invert!");
-						System.out.println(BHatk.inv());
-						System.out.println(BHatk.times(BHatk.inv()));
-//						Matrix BHatinv = new Matrix(F.size(), F.size());
-//						for (int i = 0; i < F.size(); i ++)
-//							BHatinv.set(i, i, 1/θ);
-//						Matrix inner = new Matrix(2*m, 2*m);
-//						for (int i = 0; i < 2*m; i ++)
-//							inner.set(i, i, 1);
-//						inner = inner.minus(Mk.times(Wk.T().times(Zk.times(Zk.T().times(Wk)))).over(θ));
-//						BHatinv = BHatinv.plus(Zk.T().times(Wk.times(inner.inv().times(Mk.times(Wk.T().times(Zk))))).over(θ*θ));
-//						System.out.println(Arrays.deepToString(BHatinv.values));
-//						System.out.println("just to check...");
-//						System.out.println(Arrays.deepToString(inner.times(inner.inv()).values));
-//						System.out.println(Arrays.deepToString(inner.inv().times(inner).values));
-//						System.out.println("ANd then some other stuff me lew jana esa galti");
-//						System.out.println(BHatk.inv().times(rHatC).times(-1).T());
+//					if (gk.dot(xBar.minus(xk)) + xBar.minus(xk).dot(Bk.times(xBar.minus(xk)))/2 > (gk.dot(xC.minus(xk)) + xC.minus(xk).dot(Bk.times(xC.minus(xk)))/2)*1.00000000001) {
+//						System.out.println("And the reduced Hessian is ");
+//						System.out.println(BHatk);
+//						System.out.println("I thought I'd fixed this. Sad. Well, the reduced gradient at C is");
+//						System.out.println(rHatC.T());
+//						System.out.println("Accordingly, the reduced solution to r = -Bd is d=");
 //						System.out.println(dHatU.T());
-						System.out.println(" is the step and the new gradient should be not ");
-						System.out.println(Zk.times(rHatC).T());
-						System.out.println("but");
-						System.out.println(Zk.times(rHatC.plus(BHatk.times(BHatk.inv().times(rHatC).times(-1)))).T());
-						System.out.println(Zk.times(rHatC.plus(BHatk.times(dHatU))).T());
-						System.out.println(Zk.times(rHatC.plus(Zk.T().times(Bk.times(Zk.times(dHatU))))).T());
-						System.out.println(Zk.times(rHatC).plus(Zk.times(Zk.T().times(Bk.times(Zk.times(dHatU))))).T());
-						System.out.println(Zk.times(Zk.T().times(gk.plus(Bk.times(xC.minus(xk))))).plus(Zk.times(Zk.T().times(Bk.times(dU)))).T());
-						System.out.println(gk.plus(Bk.times(xC.minus(xk))).plus(Bk.times(xBar.minus(xC))).T());
-						System.out.println(gk.plus(Bk.times(xC.minus(xk))).plus(Bk.times(xBar.minus(xC))).T());
-						System.out.println(gk.plus(Bk.times(xBar.minus(xk))).T());
-						System.out.println("in conclusion...");
-						Matrix A = new Matrix(F.size(), F.size());
-						for (int i = 0; i < F.size(); i ++)
-							A.set(i, i, θ);
-//						Matrix U = Zk.T().times(Wk);
-//						Matrix C = Mk.times(-1);
-//						Matrix V = Wk.T().times(Zk);
-//						System.out.println("A = "+A);
-//						System.out.println("U = "+U);
-//						System.out.println("C = "+C);
-//						System.out.println("V = "+V);
-//						System.out.println("CV = "+C.times(V));
-//						double sum = 0;
-//						for (int i = 0; i < V.getN(); i ++) {
-//							sum += C.get(0, i)*V.get(i, 0);
-//							System.out.print(C.get(0, i)+"*"+V.get(i, 0)+" + ");
-//						}
-//						System.out.println("= "+sum);
-//						System.out.println("UCV = "+U.times(C.times(V)));
-//						System.out.println("A + UCV = "+A.plus(U.times(C.times(V))));
-//						System.out.println("(A + UCV)^-1 = "+A.plus(U.times(C.times(V))).inv());
-//						System.out.println("A^-1 - A^-1U(C^-1 + VA^-1U)^-1VA^-1 = "+BHatinv);
-					}
-	//				System.out.println("That looks like a minimum.");
-					//				for (int i = 0; i < n; i ++) {
-	//					assert xBar.get(i, 0) >= lower[i] : xBar.get(i, 0)+"<"+lower[i]; // if this is violated it's only because of roundoff
-	//					assert xBar.get(i, 0) <= upper[i] : xBar.get(i, 0)+">"+upper[i];
-	//				}
-					for (int i = 0; i < n; i ++)
-						assert F.contains(i) || xBar.get(i, 0) == xC.get(i, 0);
-					assert gk.dot(xBar.minus(xk)) + 0.5*xBar.minus(xk).dot(Bk.times(xBar.minus(xk))) <= gk.dot(xC.minus(xk)) + 0.5*xC.minus(xk).dot(Bk.times(xC.minus(xk)))*1.00000000001 :
-						(fxk+gk.dot(xBar.minus(xk)) + 0.5*xBar.minus(xk).dot(Bk.times(xBar.minus(xk))))+" > "+(fxk+gk.dot(xC.minus(xk)) + 0.5*xC.minus(xk).dot(Bk.times(xC.minus(xk))));
+//						double fxC = fxk + gk.dot(xC.minus(xk)) + xC.minus(xk).dot(Bk.times(xC.minus(xk)))/2;
+//						System.out.println("Given that the estimated function at the Cauchy point is");
+//						System.out.println(fxC);
+//						System.out.println("We should expect the d-aligned component of the reduced gradient to be");
+//						System.out.println(dHatU.dot(rHatC));
+//						System.out.println("And the curvature in the d direction to be");
+//						System.out.println(dHatU.dot(BHatk.times(dHatU)));
+//						System.out.println("therefore the new value according to the reduced coordinate system should be");
+//						System.out.println(fxC + dHatU.dot(rHatC) + dHatU.dot(BHatk.times(dHatU))/2);
+//						System.out.println("And the new reduced gradient there");
+//						System.out.println(rHatC.plus(BHatk.times(dHatU)).T());
+//						System.out.println("Of course, alpha is ");
+//						System.out.println(αStar);
+//						System.out.println("So the new value is actually ");
+//						System.out.println(fxC + gk.plus(Bk.times(xC.minus(xk))).dot(xBar.minus(xC)) + xBar.minus(xC).dot(Bk.times(xBar.minus(xC)))/2);
+//						System.out.println("And the new gradient actually");
+//						System.out.println(gk.plus(Bk.times(xC.minus(xk))).plus(Bk.times(xBar.minus(xC))).T());
+//						System.out.println("Resolving for value directly from xk...");
+//						System.out.println(fxk + gk.dot(xBar.minus(xk)) + xBar.minus(xk).dot(Bk.times(xBar.minus(xk)))/2);
+//						System.out.println("So... yeah.");
+//						System.out.println(BHatk.times(BHatk.inv()));
+//						System.out.println("[0, "+(1/αStar)+", "+(fxk + gk.dot(xC.minus(xk)) + 0.5*xC.minus(xk).dot(Bk.times(xC.minus(xk))))+", "+(dU.times(αStar).dot(gk.plus(Bk.times(xC.minus(xk)))))+", "+(dU.times(αStar).dot(Bk.times(dU.times(αStar))))+"]");
+//					}
+//					assert gk.dot(xBar.minus(xk)) + xBar.minus(xk).dot(Bk.times(xBar.minus(xk)))/2 <= (gk.dot(xC.minus(xk)) + xC.minus(xk).dot(Bk.times(xC.minus(xk)))/2)*1.00000000001 :
+//						(fxk+gk.dot(xBar.minus(xk)) + xBar.minus(xk).dot(Bk.times(xBar.minus(xk)))/2)+" > "+(fxk+gk.dot(xC.minus(xk)) + xC.minus(xk).dot(Bk.times(xC.minus(xk)))/2);
 					dk = xBar.minus(xk);
 				}
 				else {
@@ -747,7 +612,7 @@ public class Optimization {
 				if (λBi < λMax)
 					λMax = λBi;
 			}
-			assert λMax >= 1 : "Why is lambda max imposing "+λMax;
+			assert λMax >= 1: λMax;
 			final Matrix Xk = xk;
 			double λk = minimizeWolfe(
 					(λ) -> {
@@ -771,8 +636,6 @@ public class Optimization {
 				sHist.addLast(sk);
 				θ = yk.dot(yk)/yk.dot(sk);
 			}
-			else
-				System.out.println("SKIPPING");
 			if (yHist.size() > mMax) {
 				yHist.removeFirst();
 				sHist.removeFirst();
@@ -1063,19 +926,6 @@ public class Optimization {
 		}
 		
 		/**
-		 * Extract a single row as a column vector.
-		 * @param i
-		 * @param j
-		 * @return the value this_{i,j}
-		 */
-		public Matrix getRow(int i) {
-			Matrix row = new Matrix(this.getM(), 1);
-			for (int j = 0; j < this.getM(); j ++)
-				row.set(j, 0, this.get(i, j));
-			return row;
-		}
-		
-		/**
 		 * Set a single scalar value.
 		 * @param i
 		 * @param j
@@ -1234,20 +1084,20 @@ public class Optimization {
 //			System.out.printf("[%.4f, %.4f, %.4f],\n", x, y, z);
 //			return z;
 //		};
-		Function<double[], Double> ellipse = (v) -> {
-			double x = v[0], y = v[1];
-			double z = 2*Math.sqrt(1 + x*x - 1.5*x*y + y*y);
-//			System.out.printf("[%.4f, %.4f, %.4f],\n", x, y, z);
-			return z;
-		};
-		Function<double[], double[]> ellipseGrad = (v) -> {
-			double x = v[0], y = v[1];
-			double z = ellipse.apply(v);
-			return new double[] {
-				(2*x - 1.5*y)/(z/2),
-				(2*y - 1.5*x)/(z/2),
-			};
-		};
+//		Function<double[], Double> ellipse = (v) -> {
+//			double x = v[0], y = v[1];
+//			double z = 2*Math.sqrt(1 + x*x - 1.5*x*y + y*y);
+////			System.out.printf("[%.4f, %.4f, %.4f],\n", x, y, z);
+//			return z;
+//		};
+//		Function<double[], double[]> ellipseGrad = (v) -> {
+//			double x = v[0], y = v[1];
+//			double z = ellipse.apply(v);
+//			return new double[] {
+//				(2*x - 1.5*y)/(z/2),
+//				(2*y - 1.5*x)/(z/2),
+//			};
+//		};
 		
 //		System.out.println(Arrays.toString(minimizeNelderMead(
 //				simionescu, new double[] {.5,.5}, 1e-8)));
@@ -1257,8 +1107,8 @@ public class Optimization {
 //				himmelblau, new double[] {0,0}, new double[] {1,1}, 1e-8)));
 //		System.out.println(Arrays.toString(minimizeLBFGS(
 //				himmelblau, new double[] {.5, .5}, 1e-8)));
-		System.out.println(Arrays.toString(minimizeLBFGSB(
-				ellipse, new double[] {1.5,0}, new double[] {.5,-1.5}, new double[] {2,1.5}, 1e-8)));
+//		System.out.println(Arrays.toString(minimizeLBFGSB(
+//				ellipse, new double[] {1.5,0}, new double[] {.5,-1.5}, new double[] {2,1.5}, 1e-8)));
 	}
 
 }

@@ -44,8 +44,8 @@ public class MRSt {
 	private static final int STOPPING_DISTANCE_RESOLUTION = 64;
 	private static final double MIN_E = 12, MAX_E = 16; // histogram bounds [MeV]
 	private static final double MIN_T = 16.0, MAX_T = 16.5; // histogram bounds [ns]
-//	private static final double E_RESOLUTION = .1, T_RESOLUTION = 13e-3; // resolutions [MeV], [ns]
-	private static final double E_RESOLUTION = .3, T_RESOLUTION = 40e-3;
+	private static final double E_RESOLUTION = .1, T_RESOLUTION = 13e-3; // resolutions [MeV], [ns]
+//	private static final double E_RESOLUTION = .3, T_RESOLUTION = 40e-3;
 	private static final int MIN_STATISTICS = 100; // the minimum number of deuterons to define a spectrum at a time
 	private static final int TRANSFER_MATRIX_TRIES = 10000; // the number of points to sample in each column of the transfer matrix
 	
@@ -328,7 +328,14 @@ public class MRSt {
 		for (int i = 0; i < timeAxis.length; i ++) {
 			for (int k = 0; k < 4; k ++) {
 				dimensionScale[i+k*timeAxis.length] = PARAM_SCALES[k]/6;
-				lowerBounds[i+k*timeAxis.length] = (k == 2) ? Double.NEGATIVE_INFINITY : 0;
+				if (k == 0)
+					lowerBounds[i+k*timeAxis.length] = 0;
+				else if (k == 1)
+					lowerBounds[i+k*timeAxis.length] = 0.1;
+				else if (k == 2)
+					lowerBounds[i+k*timeAxis.length] = Double.NEGATIVE_INFINITY;
+				else
+					lowerBounds[i+k*timeAxis.length] = 0.01;
 				upperBounds[i+k*timeAxis.length] = Double.POSITIVE_INFINITY;
 			}
 		}
@@ -347,8 +354,8 @@ public class MRSt {
 //				new ObjectiveFunction((double[] guess) -> {
 		double[] opt = Optimization.minimizeLBFGSB(
 				(double[] guess) -> {
-//					if (Math.random() < 3e-4)
-//						System.out.println(Arrays.toString(guess)+",");
+					if (Math.random() < 3e-4)
+						System.out.println(Arrays.toString(guess)+",");
 					
 					double[][] params = new double[4][timeAxis.length];
 					for (int k = 0; k < 4; k ++) // first unpack the state vector
@@ -396,7 +403,7 @@ public class MRSt {
 						if (k == 0)
 							curveScale = 8*spectrumScale/Math.pow(MAX_T - MIN_T, 2);
 						for (int i = 1; i < timeAxis.length - 1; i ++) {
-							penalty += 0.02*Math.pow((params[k][i-1] - 2*params[k][i] + params[k][i+1])/(dt*dt)/curveScale, 2);
+							penalty += 0.01*Math.pow((params[k][i-1] - 2*params[k][i] + params[k][i+1])/(dt*dt)/curveScale, 2);
 						}
 					}
 					
@@ -404,7 +411,7 @@ public class MRSt {
 					return err + penalty;
 //				})
 //		).getPoint();
-				}, initialGuess, lowerBounds, upperBounds, 1e-12);
+				}, initialGuess, lowerBounds, upperBounds, 1e-14);
 		
 		long endTime = System.currentTimeMillis();
 		if (logger != null)
