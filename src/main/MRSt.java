@@ -364,7 +364,7 @@ public class MRSt {
 				new ObjectiveFunction((double[] guess) -> {
 //		double[] opt = Optimization.minimizeLBFGSB(
 //				(double[] guess) -> {
-					if (Math.random() < 3e-4)
+					if (Math.random() < 2e-4)
 						System.out.println(Arrays.toString(guess)+",");
 					
 					double[][] params = new double[4][timeAxis.length];
@@ -413,7 +413,7 @@ public class MRSt {
 						if (k == 0)
 							curveScale = 8*spectrumScale/Math.pow(MAX_T - MIN_T, 2);
 						for (int i = 1; i < timeAxis.length - 1; i ++) {
-							penalty += 0.01*Math.pow((params[k][i-1] - 2*params[k][i] + params[k][i+1])/(dt*dt)/curveScale, 2);
+							penalty += 0.08*Math.pow((params[k][i-1] - 2*params[k][i] + params[k][i+1])/(dt*dt)/curveScale, 2);
 						}
 					}
 					
