@@ -28,6 +28,15 @@ import java.util.Arrays;
 import java.util.Locale;
 import java.util.logging.Logger;
 
+import org.apache.commons.math3.optim.InitialGuess;
+import org.apache.commons.math3.optim.MaxEval;
+import org.apache.commons.math3.optim.MaxIter;
+import org.apache.commons.math3.optim.nonlinear.scalar.GoalType;
+import org.apache.commons.math3.optim.nonlinear.scalar.MultivariateOptimizer;
+import org.apache.commons.math3.optim.nonlinear.scalar.ObjectiveFunction;
+import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.MultiDirectionalSimplex;
+import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.PowellOptimizer;
+
 import main.NumericalMethods.DiscreteFunction;
 
 /**
@@ -321,21 +330,22 @@ public class MRSt {
 		}
 		final double spectrumScale = totalYield/(energyBins.length-1)/(timeBins.length-1);
 		PARAM_SCALES[0] = totalYield/1e15/(timeBins[1] - timeBins[0])/(timeBins.length-1);
+		for (int i = 0; i < timeAxis.length; i ++) {
+			initialGuess[i+1*timeAxis.length] = PARAM_SCALES[1]*(1 + initialGuess[i]/PARAM_SCALES[0])/2;
+			initialGuess[i+2*timeAxis.length] = 0;
+			initialGuess[i+3*timeAxis.length] = PARAM_SCALES[3]*(1 + initialGuess[i]/PARAM_SCALES[0])/2;
+		}
 		
-		double[] dimensionScale = new double[4*timeAxis.length];
 		double[] lowerBounds = new double[4*timeAxis.length];
+		double[] dimensionScale = new double[4*timeAxis.length];
 		double[] upperBounds = new double[4*timeAxis.length];
 		for (int i = 0; i < timeAxis.length; i ++) {
+			lowerBounds[i+0*timeAxis.length] = 0;
+			lowerBounds[i+1*timeAxis.length] = 0;
+			lowerBounds[i+2*timeAxis.length] = Double.NEGATIVE_INFINITY;
+			lowerBounds[i+3*timeAxis.length] = 0;
 			for (int k = 0; k < 4; k ++) {
 				dimensionScale[i+k*timeAxis.length] = PARAM_SCALES[k]/6;
-				if (k == 0)
-					lowerBounds[i+k*timeAxis.length] = 0;
-				else if (k == 1)
-					lowerBounds[i+k*timeAxis.length] = 0.1;
-				else if (k == 2)
-					lowerBounds[i+k*timeAxis.length] = Double.NEGATIVE_INFINITY;
-				else
-					lowerBounds[i+k*timeAxis.length] = 0.01;
 				upperBounds[i+k*timeAxis.length] = Double.POSITIVE_INFINITY;
 			}
 		}
@@ -343,17 +353,17 @@ public class MRSt {
 		if (logger != null)  logger.info("beginning fit process.");
 		System.out.println(Arrays.toString(initialGuess)+",");
 		long startTime = System.currentTimeMillis();
-//		MultivariateOptimizer optimizer = new PowellOptimizer(1e-14, 1);
-//		double[] opt = optimizer.optimize(
-//				new InitialGuess(initialGuess),
-//				new MultiDirectionalSimplex(dimensionScale),
-//				new MaxIter(100000),
-//				new MaxEval(1000000),
-//				GoalType.MINIMIZE,
-////				new SimpleBounds(lowerBounds, upperBounds),
-//				new ObjectiveFunction((double[] guess) -> {
-		double[] opt = Optimization.minimizeLBFGSB(
-				(double[] guess) -> {
+		MultivariateOptimizer optimizer = new PowellOptimizer(1e-14, 1);
+		double[] opt = optimizer.optimize(
+				new InitialGuess(initialGuess),
+				new MultiDirectionalSimplex(dimensionScale),
+				new MaxIter(100000),
+				new MaxEval(1000000),
+				GoalType.MINIMIZE,
+//				new SimpleBounds(lowerBounds, upperBounds),
+				new ObjectiveFunction((double[] guess) -> {
+//		double[] opt = Optimization.minimizeLBFGSB(
+//				(double[] guess) -> {
 					if (Math.random() < 3e-4)
 						System.out.println(Arrays.toString(guess)+",");
 					
@@ -409,9 +419,9 @@ public class MRSt {
 					
 //					System.out.println(err+penalty);
 					return err + penalty;
-//				})
-//		).getPoint();
-				}, initialGuess, lowerBounds, upperBounds, 1e-14);
+				})
+		).getPoint();
+//				}, initialGuess, lowerBounds, upperBounds, 1e-14);
 		
 		long endTime = System.currentTimeMillis();
 		if (logger != null)

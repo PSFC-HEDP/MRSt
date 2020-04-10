@@ -533,8 +533,6 @@ public class Optimization {
 						F.add(i);
 				}
 				assert xC.equals(P(xC, lower, upper));
-//				assert gk.dot(xC.minus(xk)) + xC.minus(xk).dot(Bk.times(xC.minus(xk)))/2 < 0 :
-//					F.size()+"/"+n+" : "+(fxk + gk.dot(xC.minus(xk)) + xC.minus(xk).dot(Bk.times(xC.minus(xk)))/2) +">="+ fxk;
 				
 				if (F.size() >= 1) {
 					Matrix Zk = new Matrix(n, F.size()); // STEP 3: find an approximate bound minimum (direct primal method)
@@ -543,10 +541,8 @@ public class Optimization {
 					Matrix rHatC = Zk.T().times(gk.plus(Bk.times(xC.minus(xk))));
 					Matrix BHatk = Zk.T().times(Bk.times(Zk));
 					Matrix dHatU = BHatk.inv().times(rHatC).times(-1); // XXX this inverse is a n^4 operation
-					if (dHatU.dot(BHatk.times(dHatU)) < 0) { // B should always be positive definite, but occasionally roundoff turns this into a maximization problem
+					if (dHatU.dot(BHatk.times(dHatU)) < 0) // B should always be positive definite, but occasionally roundoff turns this into a maximization problem
 						dHatU = dHatU.times(-1); // just turn around and go the other way if it does
-						System.out.println("LOOK OUT!");
-					}
 					assert dHatU.dot(rHatC) < 0; // this part is tricky; make sure you're stepping downhill from the Cauchy point
 					Matrix dU = Zk.times(dHatU);
 					double αStar = 1;
@@ -559,38 +555,6 @@ public class Optimization {
 					assert αStar > 0 && αStar <= 1 : αStar;
 					Matrix xBar = xC.plus(dU.times(αStar));
 					xBar = P(xBar, lower, upper); // strictly speaking I shouldn't need this, but roundoff
-//					if (gk.dot(xBar.minus(xk)) + xBar.minus(xk).dot(Bk.times(xBar.minus(xk)))/2 > (gk.dot(xC.minus(xk)) + xC.minus(xk).dot(Bk.times(xC.minus(xk)))/2)*1.00000000001) {
-//						System.out.println("And the reduced Hessian is ");
-//						System.out.println(BHatk);
-//						System.out.println("I thought I'd fixed this. Sad. Well, the reduced gradient at C is");
-//						System.out.println(rHatC.T());
-//						System.out.println("Accordingly, the reduced solution to r = -Bd is d=");
-//						System.out.println(dHatU.T());
-//						double fxC = fxk + gk.dot(xC.minus(xk)) + xC.minus(xk).dot(Bk.times(xC.minus(xk)))/2;
-//						System.out.println("Given that the estimated function at the Cauchy point is");
-//						System.out.println(fxC);
-//						System.out.println("We should expect the d-aligned component of the reduced gradient to be");
-//						System.out.println(dHatU.dot(rHatC));
-//						System.out.println("And the curvature in the d direction to be");
-//						System.out.println(dHatU.dot(BHatk.times(dHatU)));
-//						System.out.println("therefore the new value according to the reduced coordinate system should be");
-//						System.out.println(fxC + dHatU.dot(rHatC) + dHatU.dot(BHatk.times(dHatU))/2);
-//						System.out.println("And the new reduced gradient there");
-//						System.out.println(rHatC.plus(BHatk.times(dHatU)).T());
-//						System.out.println("Of course, alpha is ");
-//						System.out.println(αStar);
-//						System.out.println("So the new value is actually ");
-//						System.out.println(fxC + gk.plus(Bk.times(xC.minus(xk))).dot(xBar.minus(xC)) + xBar.minus(xC).dot(Bk.times(xBar.minus(xC)))/2);
-//						System.out.println("And the new gradient actually");
-//						System.out.println(gk.plus(Bk.times(xC.minus(xk))).plus(Bk.times(xBar.minus(xC))).T());
-//						System.out.println("Resolving for value directly from xk...");
-//						System.out.println(fxk + gk.dot(xBar.minus(xk)) + xBar.minus(xk).dot(Bk.times(xBar.minus(xk)))/2);
-//						System.out.println("So... yeah.");
-//						System.out.println(BHatk.times(BHatk.inv()));
-//						System.out.println("[0, "+(1/αStar)+", "+(fxk + gk.dot(xC.minus(xk)) + 0.5*xC.minus(xk).dot(Bk.times(xC.minus(xk))))+", "+(dU.times(αStar).dot(gk.plus(Bk.times(xC.minus(xk)))))+", "+(dU.times(αStar).dot(Bk.times(dU.times(αStar))))+"]");
-//					}
-//					assert gk.dot(xBar.minus(xk)) + xBar.minus(xk).dot(Bk.times(xBar.minus(xk)))/2 <= (gk.dot(xC.minus(xk)) + xC.minus(xk).dot(Bk.times(xC.minus(xk)))/2)*1.00000000001 :
-//						(fxk+gk.dot(xBar.minus(xk)) + xBar.minus(xk).dot(Bk.times(xBar.minus(xk)))/2)+" > "+(fxk+gk.dot(xC.minus(xk)) + xC.minus(xk).dot(Bk.times(xC.minus(xk)))/2);
 					dk = xBar.minus(xk);
 				}
 				else {
