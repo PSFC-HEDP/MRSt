@@ -212,6 +212,8 @@ public class ConfigurationEvaluator extends Application {
 					double[][] results = new double[NUM_YIELDS][17];
 					for (int y = 0; y < NUM_YIELDS; y ++) {
 						double yield = Math.pow(10, -4 + 5*y/(NUM_YIELDS-1.));
+						logger.info(String.format("Yn = %f (%d/%d)", yield, y, NUM_YIELDS));
+						
 						double[][] scaledSpec = new double[eBins.length-1][tBins.length-1];
 						for (int i = 0; i < eBins.length - 1; i ++)
 							for (int j = 0; j < tBins.length - 1; j ++)
