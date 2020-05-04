@@ -75,6 +75,7 @@ public class SpectrumViewer extends Application {
 	private Spinner<Double> apertureHeight;
 	private Spinner<Double> focalPlaneTilt;
 	private ChoiceBox<Integer> order;
+	private Spinner<Double> yieldFactor;
 	private double[][] stoppingPowerData;
 	private double[][] cosyCoefficients;
 	private int[][] cosyExponents;
@@ -163,19 +164,25 @@ public class SpectrumViewer extends Application {
 				(file) -> {
 					this.energyBins = CSV.readColumn(file);
 				}));
-		row ++;
 		
 		rightPane.getChildren().add(chooseFileWidget("Time bin file:", stage, "nsp_150327_16p26_time.txt",
 				(file) -> {
 					this.timeBins = CSV.readColumn(file);
 				}));
-		row ++;
 		
 		rightPane.getChildren().add(chooseFileWidget("Spectrum file:", stage, "nsp_150327_16p26.txt",
 				(file) -> {
 					this.spectrum = CSV.read(file, '\t');
 				}));
-		row ++;
+		
+		this.yieldFactor = new Spinner<Double>(1e-5, 1e+2, 1, 0.1);
+		yieldFactor.setEditable(true);
+		GridPane container = new GridPane();
+		container.setHgap(SPACING_1);
+		container.add(new Label("Yield factor"), 0, 0);
+		container.add(yieldFactor, 1, 0);
+		container.add(new Label(""), 2, 0);
+		rightPane.getChildren().add(container);
 		
 		this.stoppingPowerData = CSV.read(STOPPING_POWER_FILE, ',');
 		
@@ -194,9 +201,12 @@ public class SpectrumViewer extends Application {
 					double[] eBins, tBins;
 					double[][] spec;
 					try {
-						eBins = energyBins.clone();
+						eBins = energyBins.clone(); // save the current values of these spectra
 						tBins = timeBins.clone();
-						spec = MRSt.interpretSpectrumFile(tBins, eBins, spectrum);
+						spec = MRSt.interpretSpectrumFile(tBins, eBins, spectrum); // deal with the necessary differentiation etc
+						for (int i = 0; i < spec.length; i ++)
+							for (int j = 0; j < spec[i].length; j ++)
+								spec[i][j] *= yieldFactor.getValue(); // scale by the desired value
 					} catch (ArrayIndexOutOfBoundsException e) {
 						logger.severe("Invalid input spectrum file.");
 						return;
