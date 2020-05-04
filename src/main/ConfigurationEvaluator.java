@@ -25,6 +25,7 @@ package main;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
@@ -37,6 +38,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
@@ -68,7 +70,7 @@ public class ConfigurationEvaluator extends Application {
 	private static final int SPACING_1 = 10;
 	private static final int SPACING_2 = 4;
 	
-	private static final int NUM_YIELDS = 120;
+	private static final int NUM_YIELDS = 100;
 	
 	private Spinner<Double> foilDistance;
 	private Spinner<Double> foilRadius;
@@ -78,6 +80,7 @@ public class ConfigurationEvaluator extends Application {
 	private Spinner<Double> apertureHeight;
 	private Spinner<Double> focalPlaneTilt;
 	private ChoiceBox<Integer> order;
+	private CheckBox[] variations;
 	private TextField saveFile;
 	private double[][] stoppingPowerData;
 	private double[][] cosyCoefficients;
@@ -162,6 +165,16 @@ public class ConfigurationEvaluator extends Application {
 		
 		this.stoppingPowerData = CSV.read(STOPPING_POWER_FILE, ',');
 		
+		this.variations = new CheckBox[4];
+		this.variations[0] = new CheckBox("Vary yield");
+		this.variations[1] = new CheckBox("Vary temperature");
+		this.variations[2] = new CheckBox("Vary density");
+		this.variations[3] = new CheckBox("Vary velocity");
+		for (CheckBox checkBox: variations) {
+			checkBox.setSelected(true);
+			rightPane.getChildren().add(checkBox);
+		}
+		
 		this.saveFile = new TextField("ensemble.csv");
 		rightPane.getChildren().add(new VBox(SPACING_2,
 				new Label("Output file:"),
@@ -209,27 +222,72 @@ public class ConfigurationEvaluator extends Application {
 						logger.log(Level.SEVERE, e.getMessage(), e);
 					}
 					
-					double[][] results = new double[NUM_YIELDS][17];
-					for (int y = 0; y < NUM_YIELDS; y ++) {
-						double yield = Math.pow(10, -4 + 5*y/(NUM_YIELDS-1.));
-						logger.info(String.format("Yn = %f (%d/%d)", yield, y, NUM_YIELDS));
+					double[][] results = new double[NUM_YIELDS][20];
+					for (int k = 0; k < NUM_YIELDS; k ++) {
+						double yield = (variations[0].isSelected()) ? Math.pow(10, -4 + 5*Math.random()) : 1; // roll the dies on the spectrum modifications
+						double temp =  (variations[1].isSelected()) ? Math.exp(Math.random() - 0.5) : 1;
+						double downS = (variations[2].isSelected()) ? Math.exp(Math.random() - 0.5) : 1;
+						double flow =  (variations[3].isSelected()) ? 200*Math.random()*(2*Math.random() - 1) : 0;
 						
-						double[][] scaledSpec = new double[eBins.length-1][tBins.length-1];
-						for (int i = 0; i < eBins.length - 1; i ++)
-							for (int j = 0; j < tBins.length - 1; j ++)
-								scaledSpec[i][j] = yield*spec[i][j];
-						double[] result = mc.respond(eBins, tBins, scaledSpec); // and run it many times!
-						results[y][0] = yield;
+						logger.info(String.format("Yn = %f (%d/%d)", yield, k, NUM_YIELDS));
+						
+						System.out.println(Arrays.toString(eBins));
+						double[][] scaledSpec = new double[eBins.length-1][tBins.length-1]; // adjust the spectrum accordingly:
+						for (int i = 0; i < eBins.length - 1; i ++) { // scale the whole thing up or down to change yield (and account for the broadening)
+							for (int j = 0; j < tBins.length - 1; j ++) {
+								if (eBins[i] >= 13.3)
+									scaledSpec[i][j] = yield/Math.sqrt(temp)*spec[i][j];
+								else
+									scaledSpec[i][j] = yield*downS/Math.sqrt(temp)*spec[i][j];
+							}
+						}
+						double[][] broadSpec = new double[eBins.length-1][tBins.length-1];
+						for (int j = 0; j < tBins.length - 1; j ++) { // scale it in energy space to change temperature
+							double[] slice = new double[eBins.length - 1];
+							for (int i = 0; i < eBins.length - 1; i ++)
+								slice[i] = scaledSpec[i][j];
+							int argmax = NumericalMethods.argmax(slice);
+							double ePeak = NumericalMethods.mean(eBins, slice);
+							double iPeak = argmax + (ePeak - eBins[argmax])/(eBins[1] - eBins[0]); // find the peak index (assume equally spaced energy bins)
+							iPeak = NumericalMethods.coerce(argmax-1, argmax+1, iPeak);
+							for (int i = 0; i < eBins.length - 1; i ++) {
+								double iP = iPeak + (i - iPeak)/Math.sqrt(temp);
+								if (iP >= 0 && iP < eBins.length-2)
+									broadSpec[i][j] = (1-iP%1)*scaledSpec[(int)iP][j] + (iP%1)*scaledSpec[(int)iP+1][j];
+							}
+						}
+						double[] scaledEBins = new double[eBins.length];
+						for (int i = 0; i < eBins.length; i ++)
+							scaledEBins[i] = eBins[i] - .54e-3*flow;
+						
+//						try {
+//							CSV.writeColumn(tBins, new File(String.format("working/%s_x.csv", "test")));
+//							CSV.writeColumn(scaledEBins, new File(String.format("working/%s_y.csv", "test")));
+//							CSV.write(broadSpec, new File(String.format("working/%s_z.csv", "test")), ',');
+//							ProcessBuilder plotPB = new ProcessBuilder("python", "src/python/plot2.py",
+//									"time", "ennerhea", "test");
+//							plotPB.start();
+//						} catch (IOException e) {
+//							// TODO Auto-generated catch block
+//							e.printStackTrace();
+//						}
+						
+						double[] result = mc.respond(scaledEBins, tBins, broadSpec); // and run it many times!
+						results[k][0] = yield;
+						results[k][1] = temp;
+						results[k][2] = downS;
+						results[k][3] = flow;
 						if (result != null)
-							System.arraycopy(result, 0, results[y], 1, result.length);
+							System.arraycopy(result, 0, results[k], 4, result.length);
 						else
-							for (int k = 0; k < results[y].length; k ++)
-								results[y][k] = Double.NaN;
+							for (int i = 4; i < results[k].length; i ++)
+								results[k][i] = Double.NaN;
 					}
 					
 					try {
 						CSV.write(results, new File("working/"+saveFile.getText()), ',', new String[] {
-								"Yield factor", "Computation time (s)", "Bang time (ns)", "Max ρR (ns)",
+								"Yield factor", "Temperature factor", "Density factor", "Velocity shift (μm/ns)",
+								"Computation time (s)", "Bang time (ns)", "Max ρR (ns)",
 								"Max dρR/dt (ns)", "Ti at BT (keV)", "ρR at BT (g/cm^2)",
 								"vi at BT (μm/ns)", "dTi/dt at BT (keV/ns)",
 								"dρR/dt at BT (g/cm^2/ns)", "dvi/dt at BT (μm/ns^2)",
