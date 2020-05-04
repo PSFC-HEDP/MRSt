@@ -336,19 +336,10 @@ public class MRSt {
 			initialGuess[i+3*timeAxis.length] = PARAM_SCALES[3]*(1 + initialGuess[i]/PARAM_SCALES[0])/2;
 		}
 		
-		double[] lowerBounds = new double[4*timeAxis.length];
 		double[] dimensionScale = new double[4*timeAxis.length];
-		double[] upperBounds = new double[4*timeAxis.length];
-		for (int i = 0; i < timeAxis.length; i ++) {
-			lowerBounds[i+0*timeAxis.length] = 0;
-			lowerBounds[i+1*timeAxis.length] = 0;
-			lowerBounds[i+2*timeAxis.length] = Double.NEGATIVE_INFINITY;
-			lowerBounds[i+3*timeAxis.length] = 0;
-			for (int k = 0; k < 4; k ++) {
+		for (int i = 0; i < timeAxis.length; i ++)
+			for (int k = 0; k < 4; k ++)
 				dimensionScale[i+k*timeAxis.length] = PARAM_SCALES[k]/6;
-				upperBounds[i+k*timeAxis.length] = Double.POSITIVE_INFINITY;
-			}
-		}
 		
 		if (logger != null)  logger.info("beginning fit process.");
 		System.out.println(Arrays.toString(initialGuess)+",");
@@ -360,10 +351,7 @@ public class MRSt {
 				new MaxIter(100000),
 				new MaxEval(1000000),
 				GoalType.MINIMIZE,
-//				new SimpleBounds(lowerBounds, upperBounds),
 				new ObjectiveFunction((double[] guess) -> {
-//		double[] opt = Optimization.minimizeLBFGSB(
-//				(double[] guess) -> {
 					if (Math.random() < 2e-4)
 						System.out.println(Arrays.toString(guess)+",");
 					
@@ -421,7 +409,6 @@ public class MRSt {
 					return err + penalty;
 				})
 		).getPoint();
-//				}, initialGuess, lowerBounds, upperBounds, 1e-14);
 		
 		long endTime = System.currentTimeMillis();
 		if (logger != null)
