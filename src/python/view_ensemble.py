@@ -2,9 +2,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 
-X_LABEL = "Yield factor"
+X_LABEL = "Density factor"
 
-simulations = pd.read_csv('../../working/yield.csv')
+simulations = pd.read_csv('../../working/density.csv')
 simulations["Total yield"] = simulations["Total yield (10^15)"]*1e15
 simulations["Temperature factor"] = simulations["Temperature factor"]**2
 
@@ -16,7 +16,14 @@ for axis, true in [
 		("Total yield", 4.25e19), ("Burn mean (ns)", 16.357),
 		("Burn width (ns)", .0657), ("Burn skew", -1.15), ("Burn kurtosis", 6.45)
 		]:
-		
+
+	if 'keV' in axis:      yFactor = simulations["Temperature factor"]
+	elif 'g/cm^2' in axis: yFactor = simulations["Density factor"]
+	elif 'yield' in axis:  yFactor = simulations["Yield factor"]
+	else:                  yFactor = np.ones(len(simulations.index))
+	order = np.argsort(simulations[X_LABEL])
+	order = order[np.isfinite(simulations["Total yield"].values[order])].values
+
 	title = axis
 	title = title[0].lower() + title[1:]
 	if '(' in title:
@@ -26,14 +33,13 @@ for axis, true in [
 	plt.plot(simulations[X_LABEL], simulations[axis], 'o', label="Based on fit to synthetic data")
 	if simulations[axis].min() > 0 and simulations[axis].max()/simulations[axis].min() >= 100:
 		plt.yscale('log')
-	else:
-		plt.plot([simulations[X_LABEL].min(), simulations[X_LABEL].max()], [true, true], '--', label="Based on original data")
+	plt.plot(simulations[X_LABEL][order], yFactor[order]*true, '--', label="Based on original data")
 	if 'ield' in X_LABEL:
 		plt.xscale('log')
 	plt.legend()
 	plt.xlabel(X_LABEL)
 	plt.ylabel(axis)
-	plt.title("Variation in {} measurement with varying yield".format(title))
+	plt.title("Variation in {} measurement with varying spectra".format(title))
 	plt.tight_layout()
 
 plt.show()
