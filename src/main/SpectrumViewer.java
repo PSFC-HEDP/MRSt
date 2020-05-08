@@ -62,7 +62,6 @@ public class SpectrumViewer extends Application {
 	private static final double COSY_MINIMUM_ENERGY = 10.7e6;
 	private static final double COSY_MAXIMUM_ENERGY = 14.2e6;
 	private static final double COSY_REFERENCE_ENERGY = 12.45e6;
-	private static final int NUM_BINS = 150;
 	private static final int SPACING_0 = 16;
 	private static final int SPACING_1 = 10;
 	private static final int SPACING_2 = 4;
@@ -204,9 +203,7 @@ public class SpectrumViewer extends Application {
 						eBins = energyBins.clone(); // save the current values of these spectra
 						tBins = timeBins.clone();
 						spec = MRSt.interpretSpectrumFile(tBins, eBins, spectrum); // deal with the necessary differentiation etc
-						for (int i = 0; i < spec.length; i ++)
-							for (int j = 0; j < spec[i].length; j ++)
-								spec[i][j] *= yieldFactor.getValue(); // scale by the desired value
+						MRSt.modifySpectrum(tBins, eBins, spec, yieldFactor.getValue(), 1, 1, 0);
 					} catch (ArrayIndexOutOfBoundsException e) {
 						logger.severe("Invalid input spectrum file.");
 						return;
@@ -229,7 +226,6 @@ public class SpectrumViewer extends Application {
 								cosyCoefficients,
 								cosyExponents,
 								focalPlaneTilt.getValue(),
-								NUM_BINS,
 								logger); // make the simulation
 						mc.respond(eBins, tBins, spec); // and run it!
 					} catch (Exception e) {

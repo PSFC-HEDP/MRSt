@@ -2,19 +2,19 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 
-X_LABEL = "Density factor"
+X_LABEL = "Yield factor"
 
-simulations = pd.read_csv('../../working/density.csv')
+simulations = pd.read_csv('../../working/unity.csv')
 simulations["Total yield"] = simulations["Total yield (10^15)"]*1e15
-simulations["Temperature factor"] = simulations["Temperature factor"]**2
 
 for axis, true in [
-		("Bang time (ns)", 16.362), ("Max ρR (ns)", 16.309), ("Max dρR/dt (ns)", 16.257),
-		("Ti at BT (keV)", 10.293), ("ρR at BT (g/cm^2)", 0.7), ("vi at BT (μm/ns)", -54.795),
-		("dTi/dt at BT (keV/ns)", 111.827), ("dρR/dt at BT (g/cm^2/ns)", -3.478),
-		("dvi/dt at BT (μm/ns^2)", -660.832), ("Max ρR (g/cm^2)", 0.877),
-		("Total yield", 4.25e19), ("Burn mean (ns)", 16.357),
-		("Burn width (ns)", .0657), ("Burn skew", -1.15), ("Burn kurtosis", 6.45)
+		# ("Bang time (ns)", 16.362), ("Max ρR (ns)", 16.309), ("Max dρR/dt (ns)", 16.257),
+		# ("Ti at BT (keV)", 10.293), ("ρR at BT (g/cm^2)", 0.7), ("vi at BT (μm/ns)", -54.795),
+		# ("dTi/dt at BT (keV/ns)", 111.827), ("dρR/dt at BT (g/cm^2/ns)", -3.478),
+		# ("dvi/dt at BT (μm/ns^2)", -660.832), ("Max ρR (g/cm^2)", 0.877),
+		# ("Total yield", 4.25e19), ("Burn mean (ns)", 16.357),
+		# ("Burn width (ns)", .0657), ("Burn skew", -1.15), ("Burn kurtosis", 6.45)
+		("Max ρR (ns)", 16.309), ("Max ρR (g/cm^2)", 0.877),# ("Max dρR/dt (ns)", 16.257), ("ρR at BT (g/cm^2)", 0.7),
 		]:
 
 	if 'keV' in axis:      yFactor = simulations["Temperature factor"]

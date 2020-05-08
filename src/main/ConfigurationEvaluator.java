@@ -25,7 +25,6 @@ package main;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
@@ -65,7 +64,7 @@ public class ConfigurationEvaluator extends Application {
 	private static final double COSY_MINIMUM_ENERGY = 10.7e6;
 	private static final double COSY_MAXIMUM_ENERGY = 14.2e6;
 	private static final double COSY_REFERENCE_ENERGY = 12.45e6;
-	private static final int NUM_BINS = 150;
+	
 	private static final int SPACING_0 = 16;
 	private static final int SPACING_1 = 10;
 	private static final int SPACING_2 = 4;
@@ -171,9 +170,10 @@ public class ConfigurationEvaluator extends Application {
 		this.variations[2] = new CheckBox("Vary density");
 		this.variations[3] = new CheckBox("Vary velocity");
 		for (CheckBox checkBox: variations) {
-			checkBox.setSelected(true);
+			checkBox.setSelected(false);
 			rightPane.getChildren().add(checkBox);
 		}
+		this.variations[0].setSelected(true);
 		
 		this.saveFile = new TextField("ensemble.csv");
 		rightPane.getChildren().add(new VBox(SPACING_2,
@@ -186,19 +186,6 @@ public class ConfigurationEvaluator extends Application {
 				logger.severe("Please select a COSY map file.");
 			else {
 				new Thread(() -> {
-					double[] eBins = null, tBins = null;
-					double[][] spec = null;
-					try {
-						eBins = CSV.readColumn(new File("data/Energy bins.txt"));
-						tBins = CSV.readColumn(new File("data/nsp_150327_16p26_time.txt"));
-						spec = CSV.read(new File("data/nsp_150327_16p26.txt"), '\t');
-						spec = MRSt.interpretSpectrumFile(tBins, eBins, spec);
-					} catch (ArrayIndexOutOfBoundsException | NumberFormatException e) {
-						logger.log(Level.SEVERE, e.getMessage(), e);
-					} catch (IOException e) {
-						logger.log(Level.SEVERE, e.getMessage(), e);
-					}
-					
 					MRSt mc = null;
 					try {
 						mc = new MRSt(
@@ -216,7 +203,6 @@ public class ConfigurationEvaluator extends Application {
 								cosyCoefficients,
 								cosyExponents,
 								focalPlaneTilt.getValue(),
-								NUM_BINS,
 								logger); // make the simulation
 					} catch (Exception e) {
 						logger.log(Level.SEVERE, e.getMessage(), e);
@@ -224,41 +210,26 @@ public class ConfigurationEvaluator extends Application {
 					
 					double[][] results = new double[NUM_YIELDS][20];
 					for (int k = 0; k < NUM_YIELDS; k ++) {
+						double[] eBins = null, tBins = null;
+						double[][] spec = null;
+						try {
+							eBins = CSV.readColumn(new File("data/Energy bins.txt"));
+							tBins = CSV.readColumn(new File("data/nsp_150327_16p26_time.txt"));
+							spec = CSV.read(new File("data/nsp_150327_16p26.txt"), '\t');
+							spec = MRSt.interpretSpectrumFile(tBins, eBins, spec);
+						} catch (ArrayIndexOutOfBoundsException | NumberFormatException e) {
+							logger.log(Level.SEVERE, e.getMessage(), e);
+						} catch (IOException e) {
+							logger.log(Level.SEVERE, e.getMessage(), e);
+						}
+						
 						double yield = (variations[0].isSelected()) ? Math.pow(10, -4 + 5*Math.random()) : 1; // roll the dies on the spectrum modifications
 						double temp =  (variations[1].isSelected()) ? Math.exp(Math.random() - 0.5) : 1;
 						double downS = (variations[2].isSelected()) ? Math.exp(Math.random() - 0.5) : 1;
 						double flow =  (variations[3].isSelected()) ? 200*Math.random()*(2*Math.random() - 1) : 0;
+						MRSt.modifySpectrum(tBins, eBins, spec, yield, temp, downS, flow);
 						
 						logger.info(String.format("Yn = %f (%d/%d)", yield, k, NUM_YIELDS));
-						
-						System.out.println(Arrays.toString(eBins));
-						double[][] scaledSpec = new double[eBins.length-1][tBins.length-1]; // adjust the spectrum accordingly:
-						for (int i = 0; i < eBins.length - 1; i ++) { // scale the whole thing up or down to change yield (and account for the broadening)
-							for (int j = 0; j < tBins.length - 1; j ++) {
-								if (eBins[i] >= 13.3)
-									scaledSpec[i][j] = yield/Math.sqrt(temp)*spec[i][j];
-								else
-									scaledSpec[i][j] = yield*downS/Math.sqrt(temp)*spec[i][j];
-							}
-						}
-						double[][] broadSpec = new double[eBins.length-1][tBins.length-1];
-						for (int j = 0; j < tBins.length - 1; j ++) { // scale it in energy space to change temperature
-							double[] slice = new double[eBins.length - 1];
-							for (int i = 0; i < eBins.length - 1; i ++)
-								slice[i] = scaledSpec[i][j];
-							int argmax = NumericalMethods.argmax(slice);
-							double ePeak = NumericalMethods.mean(eBins, slice);
-							double iPeak = argmax + (ePeak - eBins[argmax])/(eBins[1] - eBins[0]); // find the peak index (assume equally spaced energy bins)
-							iPeak = NumericalMethods.coerce(argmax-1, argmax+1, iPeak);
-							for (int i = 0; i < eBins.length - 1; i ++) {
-								double iP = iPeak + (i - iPeak)/Math.sqrt(temp);
-								if (iP >= 0 && iP < eBins.length-2)
-									broadSpec[i][j] = (1-iP%1)*scaledSpec[(int)iP][j] + (iP%1)*scaledSpec[(int)iP+1][j];
-							}
-						}
-						double[] scaledEBins = new double[eBins.length];
-						for (int i = 0; i < eBins.length; i ++)
-							scaledEBins[i] = eBins[i] - .54e-3*flow;
 						
 //						try {
 //							CSV.writeColumn(tBins, new File(String.format("working/%s_x.csv", "test")));
@@ -272,7 +243,7 @@ public class ConfigurationEvaluator extends Application {
 //							e.printStackTrace();
 //						}
 						
-						double[] result = mc.respond(scaledEBins, tBins, broadSpec); // and run it many times!
+						double[] result = mc.respond(eBins, tBins, spec); // and run it many times!
 						results[k][0] = yield;
 						results[k][1] = temp;
 						results[k][2] = downS;
