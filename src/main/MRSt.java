@@ -58,7 +58,7 @@ public class MRSt {
 	private static final int MIN_STATISTICS = 100; // the minimum number of deuterons to define a spectrum at a time
 	private static final int TRANSFER_MATRIX_TRIES = 10000; // the number of points to sample in each column of the transfer matrix
 	
-	private static final double[] PARAM_SCALES = { Double.NaN, 4, 100, .5 }; // I'm 68% sure the magnitudes of Y, v, T, and ρR won't exceed these
+	private static final double[] PARAM_SCALES = { Double.NaN, 4, 100, 1 }; // I'm 68% sure the magnitudes of Y, v, T, and ρR won't exceed these
 	
 	private final double foilDistance; // z coordinate of midplane of foil [m]
 	private final double foilThickness; // thickness of foil [m]
@@ -396,13 +396,10 @@ public class MRSt {
 						}
 					}
 					final double dt = timeAxis[1] - timeAxis[0];
-					for (int k = 0; k < 4; k ++) {
-						double curveScale = 8*PARAM_SCALES[k]/Math.pow(MAX_T - MIN_T, 2); // discourage egregious curvature
-						if (k == 0)
-							curveScale = 8*spectrumScale/Math.pow(MAX_T - MIN_T, 2);
-						for (int i = 1; i < timeAxis.length - 1; i ++) {
+					for (int k = 1; k < 4; k ++) {
+						double curveScale = 8*PARAM_SCALES[k]/Math.pow(MAX_T - MIN_T, 2); // discourage egregious curvature in the finer parameters
+						for (int i = 1; i < timeAxis.length - 1; i ++)
 							penalty += 0.05*Math.pow((params[k][i-1] - 2*params[k][i] + params[k][i+1])/(dt*dt)/curveScale, 2);
-						}
 					}
 					
 //					System.out.println(err+penalty);
