@@ -279,7 +279,7 @@ public class SpectrumViewer extends Application {
 		root.getChildren().add(new HBox(SPACING_0, leftPane, rightPane));
 		Scene scene = new Scene(root);
 		
-		stage.setTitle("MRSt");
+		stage.setTitle("Spectrum viewer");
 		stage.setScene(scene);
 		stage.show();
 	}

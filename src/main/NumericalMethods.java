@@ -287,6 +287,47 @@ public class NumericalMethods {
 				argmin = i;
 		return argmin;
 	}
+	/**
+	 * find the interpolative index of the highest value
+	 * @param x the array of values
+	 * @return i such that x[i] >= x[j] for all j
+	 */
+	public static double quadargmax(double[] x) {
+		int i = argmax(x);
+		if (i <= 0 || Double.isNaN(x[i-1]) || i == x.length-1 || Double.isNaN(x[i+1])) return i;
+		double dxdi = (x[i+1] - x[i-1])/2;
+		double d2xdi2 = (x[i+1] - 2*x[i] + x[i-1]);
+		assert d2xdi2 < 0;
+		return i - dxdi/d2xdi2;
+	}
+	
+	/**
+	 * find the x coordinate of the highest value
+	 * @param x the horizontal axis
+	 * @param y the array of values
+	 * @return x such that y(x) >= y(z) for all z
+	 */
+	public static double quadargmax(double[] x, double[] y) {
+		try {
+			return interp(x, quadargmax(y));
+		} catch (IndexOutOfBoundsException e) { // y is empty or all NaN
+			return -1;
+		}
+	}
+	
+	/**
+	 * take the floating-point index of an array using linear interpolation.
+	 * @param x the array of values
+	 * @param i the partial index
+	 * @return x[i], more or less
+	 */
+	public static double interp(double[] x, double i) {
+		if (i < 0 || i > x.length-1)
+			throw new IndexOutOfBoundsException("Even partial indices have limits: "+i);
+		if (i == x.length-1)
+			return x[(int)i];
+		return (1 - i%1)*x[(int)i] + (i%1)*x[(int)i+1];
+	}
 	
 	/**
 	 * find the second order finite difference derivative. for best results, x

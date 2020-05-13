@@ -243,7 +243,13 @@ public class ConfigurationEvaluator extends Application {
 //							e.printStackTrace();
 //						}
 						
-						double[] result = mc.respond(eBins, tBins, spec); // and run it many times!
+						double[] result;
+						try {
+							result = mc.respond(eBins, tBins, spec); // and run it many times!
+						} catch (Exception e) {
+							logger.log(Level.SEVERE, e.getMessage(), e);
+							result = null;
+						}
 						results[k][0] = yield;
 						results[k][1] = temp;
 						results[k][2] = downS;
@@ -257,7 +263,7 @@ public class ConfigurationEvaluator extends Application {
 					
 					try {
 						CSV.write(results, new File("working/"+saveFile.getText()), ',', new String[] {
-								"Yield factor", "Temperature factor", "Density factor", "Velocity shift (μm/ns)",
+								"Yield factor", "Temperature factor", "Down-scatter factor", "Velocity shift (μm/ns)",
 								"Computation time (s)", "Bang time (ns)", "Max ρR (ns)",
 								"Max dρR/dt (ns)", "Ti at BT (keV)", "ρR at BT (g/cm^2)",
 								"vi at BT (μm/ns)", "dTi/dt at BT (keV/ns)",
@@ -293,7 +299,7 @@ public class ConfigurationEvaluator extends Application {
 		root.getChildren().add(new HBox(SPACING_0, leftPane, rightPane));
 		Scene scene = new Scene(root);
 		
-		stage.setTitle("MRSt");
+		stage.setTitle("Configuration evaluator");
 		stage.setScene(scene);
 		stage.show();
 	}

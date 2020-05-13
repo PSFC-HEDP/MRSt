@@ -18,7 +18,7 @@ for axis, true in [
 		]:
 
 	if 'keV' in axis:      yFactor = simulations["Temperature factor"]
-	elif 'g/cm^2' in axis: yFactor = simulations["Density factor"]
+	elif 'g/cm^2' in axis: yFactor = simulations["Down-scatter factor"]
 	elif 'yield' in axis:  yFactor = simulations["Yield factor"]
 	else:                  yFactor = np.ones(len(simulations.index))
 	order = np.argsort(simulations[X_LABEL])
