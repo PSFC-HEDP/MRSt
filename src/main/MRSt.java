@@ -23,7 +23,6 @@
  */
 package main;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.logging.Logger;
@@ -53,12 +52,12 @@ public class MRSt {
 	private static final int STOPPING_DISTANCE_RESOLUTION = 64;
 	private static final double MIN_E = 12, MAX_E = 16; // histogram bounds [MeV]
 	private static final double MIN_T = 16.0, MAX_T = 16.5; // histogram bounds [ns]
-	private static final double E_RESOLUTION = .1, T_RESOLUTION = 13e-3; // resolutions [MeV], [ns]
+	private static final double E_RESOLUTION = .09, T_RESOLUTION = 20e-3; // resolutions [MeV], [ns]
 //	private static final double E_RESOLUTION = .3, T_RESOLUTION = 40e-3;
 	private static final int MIN_STATISTICS = 100; // the minimum number of deuterons to define a spectrum at a time
 	private static final int TRANSFER_MATRIX_TRIES = 10000; // the number of points to sample in each column of the transfer matrix
 	
-	private static final double[] PARAM_SCALES = { Double.NaN, 4, 100, 1 }; // I'm 68% sure the magnitudes of Y, v, T, and ρR won't exceed these
+	private static final double[] PARAM_SCALES = { Double.NaN, 4, 100, .8 };
 	
 	private final double foilDistance; // z coordinate of midplane of foil [m]
 	private final double foilThickness; // thickness of foil [m]
@@ -416,6 +415,13 @@ public class MRSt {
 		for (int k = 0; k < 4; k ++) // first unpack the state vector
 			for (int i = 0; i < timeAxis.length; i ++)
 				params[k][i] = opt[i+k*timeAxis.length];
+//		for (int i = 0; i < timeAxis.length; i ++) {
+//			double t = timeAxis[i];
+//			params[0][i] = 1000*Math.exp(-(t - 16.35)*(t - 16.35)/(2*.1*.1));
+//			params[1][i] = 1 + 20*(t - 16);
+//			params[2][i] = 60*Math.sin(t*20);
+//			params[3][i] = 500*Math.pow((t - 15.8), 3)*Math.exp(-9*(t - 15.8));
+//		}
 		this.neutronYield   = params[0];
 		this.ionTemperature = params[1];
 		this.flowVelocity   = params[2];
@@ -555,14 +561,14 @@ public class MRSt {
 			nHat[i] /= norm;
 		
 		double[] dHat = { // and the unit vector in the direction of the ion
-				rAperture[0] - rFoil[0], rAperture[1] - rFoil[1], rAperture[2] - rFoil[2] };
+				rAperture[x] - rFoil[x], rAperture[y] - rFoil[y], rAperture[z] - rFoil[z] };
 		norm = Math.sqrt(sqr(dHat));
 		for (int i = 0; i < 3; i ++)
 			dHat[i] /= norm;
 		
 		double cosθ = nHat[x]*dHat[x] + nHat[y]*dHat[y] + nHat[z]*dHat[z];
 		double E1 = energyFactor*E0*cosθ*cosθ; // assume elastic collision between neutron and ion
-		double distance = (foilDistance + foilThickness/2 - rFoil[2])/dHat[2];
+		double distance = (foilDistance + foilThickness/2 - rFoil[z])/dHat[z];
 		E1 = energyVsDistance.evaluate(distanceVsEnergy.evaluate(E1) - distance); // lose some energy by dragging through the foil
 		
 //		System.out.print(E1/Particle.P.charge/1e6+", ");
@@ -627,6 +633,46 @@ public class MRSt {
 		}
 		return output;
 	}
+	
+	public double[] getTimeBins() {
+		return this.timeBins;
+	}
+	
+	public double[] getEnergyBins() {
+		return this.energyBins;
+	}
+	
+	public double[][] getCorrectedSpectrum() {
+		return this.deuteronSpectrum;
+	}
+	
+	public double[][] getInferredSpectrum() {
+		return this.fitNeutronSpectrum;
+	}
+	
+	public double[][] getFittedSpectrum() {
+		return this.fitDeuteronSpectrum;
+	}
+	
+	public double[] getTimeAxis() {
+		return this.timeAxis;
+	}
+	
+	public double[] getIonTemperature() {
+		return this.ionTemperature;
+	}
+	
+	public double[] getFlowVelocity() {
+		return this.flowVelocity;
+	}
+	
+	public double[] getArealDensity() {
+		return this.arealDensity;
+	}
+	
+	public double[] getNeutronYield() {
+		return this.neutronYield;
+	}
 	/**
 	 * generate a time-resolved spectrum based on some parameters that vary with time.
 	 * @param Yn the neutron yield rate [10^15/ns]
@@ -682,46 +728,6 @@ public class MRSt {
 				counts[i] = Yn*1e15*(pdf[i] + pdf[i+1])/2*(eBins[i+1] - eBins[i]); // fill it trapezoidally []
 		}
 		return counts;
-	}
-	
-	public double[] getTimeBins() {
-		return this.timeBins;
-	}
-	
-	public double[] getEnergyBins() {
-		return this.energyBins;
-	}
-	
-	public double[][] getCorrectedSpectrum() {
-		return this.deuteronSpectrum;
-	}
-	
-	public double[][] getInferredSpectrum() {
-		return this.fitNeutronSpectrum;
-	}
-	
-	public double[][] getFittedSpectrum() {
-		return this.fitDeuteronSpectrum;
-	}
-	
-	public double[] getTimeAxis() {
-		return this.timeAxis;
-	}
-	
-	public double[] getIonTemperature() {
-		return this.ionTemperature;
-	}
-	
-	public double[] getFlowVelocity() {
-		return this.flowVelocity;
-	}
-	
-	public double[] getArealDensity() {
-		return this.arealDensity;
-	}
-	
-	public double[] getNeutronYield() {
-		return this.neutronYield;
 	}
 	
 	/**
@@ -799,46 +805,5 @@ public class MRSt {
 		for (double x: v)
 			s += Math.pow(x, 2);
 		return s;
-	}
-	
-	
-	/**
-	 * @param args
-	 * @throws IOException 
-	 * @throws NumberFormatException 
-	 */
-	public static void main(String[] args) throws NumberFormatException, IOException {
-//		MRSt sim = new MRSt(
-//				Particle.D, 3.0e-3, 0.3e-3, 80e-6,
-//				CSV.read(new File("data/stopping_power_deuterons.csv"), ','),
-//				6e0, 4.0e-3, 20.0e-3, 10.7e6, 14.2e6, 12.45e6,
-//				CSV.readCosyCoefficients(new File("data/MRSt_IRF_FP tilted.txt"), 3),
-////				CSV.readCosyCoefficients(new File("data/MRSt_IRF_FP not tilted.txt"), 3),
-//				CSV.readCosyExponents(new File("data/MRSt_IRF_FP tilted.txt"), 3), 70.3,
-//				100, null);
-//		
-//		double[][] spectrum = CSV.read(new File("data/nsp_150327_16p26.txt"), '\t');
-//		double[] timeAxis = CSV.readColumn(new File("data/nsp_150327_16p26_time.txt"));
-//		double[] energyAxis = CSV.readColumn(new File("data/Energy bins.txt"));
-//		spectrum = interpretSpectrumFile(timeAxis, energyAxis, spectrum);
-		
-//		for (int i = 0; i < 216; i ++) {
-//			double e0 = 12+Math.random()*5;
-//			System.out.print("["+e0+", ");
-//			double[] xt = sim.simulate(e0*1e6, 0);
-//			System.out.print(xt[0]/1e-2+", ");
-//			double[] et = sim.backCalculate(xt[0], xt[1]);
-//			double e = et[0]/(-Particle.E.charge)/1e6, t0 = et[1]/1e-9;
-//			System.out.println(e+", "+t0+"],");
-//		}
-		
-		int n = 40;
-		double[] E = new double[n+1];
-		for (int i = 0; i < n+1; i ++)
-			E[i] = 12 + 4./n*i;
-		System.out.println(Arrays.toString(E));
-		System.out.println(Arrays.toString(generateSpectrum(10, 2, 100, 0.5, E)));
-		
-//		sim.respond(energyAxis, timeAxis, spectrum);
 	}
 }
