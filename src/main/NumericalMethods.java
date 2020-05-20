@@ -260,6 +260,7 @@ public class NumericalMethods {
 		return argmax;
 	}
 	
+	
 	/**
 	 * find the last index of the second highest value
 	 * @param x the array of values

@@ -235,9 +235,9 @@ public class SpectrumViewer extends Application {
 					double[][] smallSpec = NumericalMethods.downsample(tBins, eBins, spec, mc.getTimeBins(), mc.getEnergyBins());
 					try { // send the data to python for plotting
 						plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), smallSpec,
-								"Time (ns)", "Energy (MeV)", "Actual neutron spectrum");
+								"Time (ns)", "Energy (MeV)", "Original neutron spectrum");
 						plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getCorrectedSpectrum(),
-								"Time (ns)", "Energy (MeV)", "Measured deuteron spectrum");
+								"Time (ns)", "Energy (MeV)", "Synthesized deuteron spectrum");
 						plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getInferredSpectrum(),
 								"Time (ns)", "Energy (MeV)", "Fitted neutron spectrum");
 						plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getFittedSpectrum(),

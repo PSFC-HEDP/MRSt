@@ -25,6 +25,7 @@ package main;
 
 import java.util.Arrays;
 import java.util.Locale;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.apache.commons.math3.optim.InitialGuess;
@@ -55,9 +56,9 @@ public class MRSt {
 	private static final double E_RESOLUTION = .09, T_RESOLUTION = 20e-3; // resolutions [MeV], [ns]
 //	private static final double E_RESOLUTION = .3, T_RESOLUTION = 40e-3;
 	private static final int MIN_STATISTICS = 100; // the minimum number of deuterons to define a spectrum at a time
-	private static final int TRANSFER_MATRIX_TRIES = 10000; // the number of points to sample in each column of the transfer matrix
+	private static final int TRANSFER_MATRIX_TRIES = 100000; // the number of points to sample in each column of the transfer matrix
 	
-	private static final double[] PARAM_SCALES = { Double.NaN, 4, 100, .8 };
+	private static final double[] PARAM_SCALES = { Double.NaN, 4, 100, .5 };
 	
 	private final double foilDistance; // z coordinate of midplane of foil [m]
 	private final double foilThickness; // thickness of foil [m]
@@ -306,7 +307,7 @@ public class MRSt {
 	 * @param tBins the edges of the time bins
 	 * @param spectrum the time-corrected spectrum we want to understand
 	 * @return {computation time, BT, peak-ρR, peak-ρR-ramp, Ti(BT), ρR(BT), vi(BT),
-	 *   Ti-ramp(BT), ρR-ramp(BT), vi-ramp(BT), max ρR, yield, μ1, μ2, μ3}
+	 *   Ti-ramp(BT), ρR-ramp(BT), vi-ramp(BT), max ρR, yield, μ1, μ2, μ3} or null if it can't even
 	 */
 	private double[] analyze(double[][] spectrum) {
 		if (spectrum.length != energyBins.length-1 || spectrum[0].length != timeBins.length-1)
@@ -335,7 +336,12 @@ public class MRSt {
 			initialGuess[i+3*timeAxis.length] = PARAM_SCALES[3]*(1 + initialGuess[i]/PARAM_SCALES[0])/2;
 		}
 		
-		double[] dimensionScale = new double[4*timeAxis.length];
+		if (totalYield == 0) {
+			logger.log(Level.SEVERE, "The deuteron spectrum is empty.");
+			return null;
+		}
+		
+		double[] dimensionScale = new double[4*timeAxis.length]; // and we need an initial simplex
 		for (int i = 0; i < timeAxis.length; i ++)
 			for (int k = 0; k < 4; k ++)
 				dimensionScale[i+k*timeAxis.length] = PARAM_SCALES[k]/6;
@@ -747,9 +753,9 @@ public class MRSt {
 	}
 	
 	/**
-	 * convert a time-cumulative spectrum, as read from an input file, into an array of counts
-	 * densities. also, edit energies to make it bin edges. this will remove the last row of
-	 * energies. given that the last row is over 29 MeV, I think that's fine.
+	 * convert a time-cumulative spectrum, as read from an input file, into an array of counts.
+	 * also, edit energies to make it bin edges. this will remove the last row of energies.
+	 * given that the last row is over 29 MeV, I think that's fine.
 	 * @param timeAxis the time bin boundaries [ns]
 	 * @param energyAxis the energy bin midpoints [MeV]
 	 * @param spectrum array of the neutron spectrum integrated in time [#/MeV]

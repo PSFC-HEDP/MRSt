@@ -14,7 +14,6 @@ for axis, true in [
 		("dvi/dt at BT (μm/ns^2)", -660.832), ("Max ρR (g/cm^2)", 0.877),
 		("Total yield", 4.25e19), ("Burn mean (ns)", 16.357),
 		("Burn width (ns)", .0657), ("Burn skew", -1.15), ("Burn kurtosis", 6.45)
-		# ("Max ρR (ns)", 16.309), ("Max ρR (g/cm^2)", 0.877),# ("Max dρR/dt (ns)", 16.257), ("ρR at BT (g/cm^2)", 0.7),
 		]:
 
 	if 'keV' in axis:      yFactor = simulations["Temperature factor"]
