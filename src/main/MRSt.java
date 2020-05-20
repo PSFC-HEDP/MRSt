@@ -27,15 +27,6 @@ import java.util.Arrays;
 import java.util.Locale;
 import java.util.logging.Logger;
 
-import org.apache.commons.math3.optim.InitialGuess;
-import org.apache.commons.math3.optim.MaxEval;
-import org.apache.commons.math3.optim.MaxIter;
-import org.apache.commons.math3.optim.nonlinear.scalar.GoalType;
-import org.apache.commons.math3.optim.nonlinear.scalar.MultivariateOptimizer;
-import org.apache.commons.math3.optim.nonlinear.scalar.ObjectiveFunction;
-import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.MultiDirectionalSimplex;
-import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.PowellOptimizer;
-
 import main.NumericalMethods.DiscreteFunction;
 
 /**
@@ -266,7 +257,7 @@ public class MRSt {
 	 * analysis.
 	 * @param energies the edges of the energy bins
 	 * @param times the edges of the time bins
-	 * @param neutronSpectrum the counts in each bin
+	 * @param inSpectrum the neutron counts in each bin
 	 * @param stochastic whether to add noise to mimic real data
 	 * @return the counts in the measured spectrum bins
 	 */
@@ -312,120 +303,136 @@ public class MRSt {
 		if (spectrum.length != energyBins.length-1 || spectrum[0].length != timeBins.length-1)
 			throw new IllegalArgumentException("These dimensions are wrong.");
 		
-		double[] initialGuess = new double[4*timeAxis.length]; // first we need a half decent guess
-		double totalYield = 0; // also the rough mean estimate of neutron spectrum magnitude for entropy purposes
-		final double[] noiseVar = new double[timeAxis.length]; // assume some unknown distribution of this variance, so don't freak out when you see n-knockons
-		for (int i = 0; i < timeAxis.length; i ++) {
-			double[] timeSlice = new double[energyBins.length-1]; // for that we'll want to do some rudimentary analysis
-			for (int j = 0; j < timeSlice.length; j ++)
-				timeSlice[j] = spectrum[j][i];
-			double yieldEstimate = NumericalMethods.definiteIntegral(energyBins, timeSlice)/
-					this.efficiency(14.1e6); // measure the yield in the most basic way possible
-			totalYield += yieldEstimate; // [#]
-			noiseVar[i] = Math.pow(NumericalMethods.max(timeSlice)/1e3, 2);
-			initialGuess[i] = yieldEstimate/1e15/(timeBins[i+1] - timeBins[i]); // [10^15/ns]
-			for (int k = 1; k < 4; k ++)
-				initialGuess[i+k*timeAxis.length] = PARAM_SCALES[k]; // the initial guess for Ti, vi, and ρR can be uniform
-		}
-		final double spectrumScale = totalYield/(energyBins.length-1)/(timeBins.length-1);
-		PARAM_SCALES[0] = totalYield/1e15/(timeBins[1] - timeBins[0])/(timeBins.length-1);
-		for (int i = 0; i < timeAxis.length; i ++) {
-			initialGuess[i+1*timeAxis.length] = PARAM_SCALES[1]*(1 + initialGuess[i]/PARAM_SCALES[0])/2;
-			initialGuess[i+2*timeAxis.length] = 0;
-			initialGuess[i+3*timeAxis.length] = PARAM_SCALES[3]*(1 + initialGuess[i]/PARAM_SCALES[0])/2;
-		}
+		double[][] F = spectrum;
 		
-		double[] dimensionScale = new double[4*timeAxis.length];
-		for (int i = 0; i < timeAxis.length; i ++)
-			for (int k = 0; k < 4; k ++)
-				dimensionScale[i+k*timeAxis.length] = PARAM_SCALES[k]/6;
+		double[][] D = new double[energyBins.length-1][timeBins.length-1];
+		double[][] g = new double[energyBins.length-1][timeBins.length-1];
+		for (int i = 0; i < energyBins.length-1; i ++) {
+			for (int j = 0; j < timeBins.length-1; j ++) {
+				D[i][j] = Math.max(1, spectrum[i][j]);
+				g[i][j] = 1.;
+			}
+		}
+		double G;
 		
 		if (logger != null)  logger.info("beginning fit process.");
-		System.out.println(Arrays.toString(initialGuess)+",");
 		long startTime = System.currentTimeMillis();
-		MultivariateOptimizer optimizer = new PowellOptimizer(1e-14, 1);
-		double[] opt = optimizer.optimize(
-				new InitialGuess(initialGuess),
-				new MultiDirectionalSimplex(dimensionScale),
-				new MaxIter(100000),
-				new MaxEval(1000000),
-				GoalType.MINIMIZE,
-				new ObjectiveFunction((double[] guess) -> {
-					if (Math.random() < 2e-4)
-						System.out.println(Arrays.toString(guess)+",");
-					
-					double[][] params = new double[4][timeAxis.length];
-					for (int k = 0; k < 4; k ++) // first unpack the state vector
-						for (int i = 0; i < timeAxis.length; i ++)
-							params[k][i] = guess[i+k*timeAxis.length];
-					
-					for (int i = 0; i < timeAxis.length; i ++) { // check for illegal (prior = 0) values
-						if (params[0][i] < 0)  return Double.POSITIVE_INFINITY;
-						if (params[1][i] < 0)  return Double.POSITIVE_INFINITY;
-						if (params[3][i] < 0)  return Double.POSITIVE_INFINITY;
-					}
-					
-//					System.out.println(Arrays.toString(guess)+",");
-					double[][] teoSpectrum = generateSpectrum(
-							params[0], params[1], params[2], params[3], energyBins, timeBins); // generate the neutron spectrum based on those
-					double[][] fitSpectrum = this.response(
-							energyBins, timeBins, teoSpectrum, false); // blur it according to the transfer matrix
-					
-					double err = 0; // negative Bayes factor (in nepers)
-					for (int i = 0; i < spectrum.length; i ++) {
-						for (int j = 0; j < spectrum[i].length; j ++) { // compute the error between it and the actual spectrum
-							if (fitSpectrum[i][j] + noiseVar[j] > 0) // skipping places where we expect 0 and got 0
-								err += Math.log(fitSpectrum[i][j] + noiseVar[j])/2 +
-										Math.pow(fitSpectrum[i][j] - spectrum[i][j], 2)/
-												(2*(fitSpectrum[i][j] + noiseVar[j]));
-							else if (spectrum[i][j] != 0) // but throwing infinity if we expect 0 and got not 0
-								err = Double.POSITIVE_INFINITY;
+		
+		double L = Double.NEGATIVE_INFINITY, Lprev;
+		do { // use Gelfgat et. al.'s program to deconvolve the neutron spectrum
+			double Σg = 0;
+			for (int i = 0; i < energyBins.length-1; i ++)
+				for (int j = 0; j < timeBins.length-1; j ++)
+					Σg += g[i][j];
+			for (int i = 0; i < energyBins.length-1; i ++)
+				for (int j = 0; j < timeBins.length-1; j ++)
+					g[i][j] /= Σg;
+			
+			double[][] s = this.response(energyBins, timeBins, g, false);
+			double ΣFs = 0, Σss = 0;
+			for (int k = 0; k < energyBins.length-1; k ++) {
+				for (int l = 0; l < timeBins.length-1; l ++) {
+					ΣFs += F[k][l]*s[k][l]/D[k][l];
+					Σss += s[k][l]*s[k][l]/D[k][l];
+				}
+			}
+			G = ΣFs/Σss;
+			
+			double[][] δg = new double[energyBins.length-1][timeBins.length-1];
+			for (int i = 0; i < energyBins.length-1; i ++) {
+				for (int j = 0; j < timeBins.length-1; j ++) {
+					for (int k = 0; k < energyBins.length-1; k ++) {
+						for (int l = 0; l < timeBins.length-1; l ++) {
+							double Pijkl = this.transferMatrix[(timeBins.length-1)*k + l][(timeBins.length-1)*i + j];
+							δg[i][j] += g[i][j] * Pijkl*(F[k][l] - G*s[k][l])/D[k][l];
 						}
 					}
-					assert Double.isFinite(err) : err;
-					
-					double penalty = 0; // negative log of prior (ignoring global normalization)
-					for (int i = 0; i < spectrum.length; i ++) {
-						for (int j = 0; j < spectrum[i].length; j ++) {
-							if (teoSpectrum[i][j] > 1e-300)
-								penalty -= 1.0*teoSpectrum[i][j]*
-										(1 - Math.log(teoSpectrum[i][j]/spectrumScale))/spectrumScale; // encourage entropy
-							else
-								penalty -= 0;
-						}
-					}
-					final double dt = timeAxis[1] - timeAxis[0];
-					for (int k = 1; k < 4; k ++) {
-						double curveScale = 8*PARAM_SCALES[k]/Math.pow(MAX_T - MIN_T, 2); // discourage egregious curvature in the finer parameters
-						for (int i = 1; i < timeAxis.length - 1; i ++)
-							penalty += 0.05*Math.pow((params[k][i-1] - 2*params[k][i] + params[k][i+1])/(dt*dt)/curveScale, 2);
-					}
-					
-//					System.out.println(err+penalty);
-					return err + penalty;
-				})
-		).getPoint();
+				}
+			}
+			double[][] δs = this.response(energyBins, timeBins, δg, false);
+			
+			double Fs = 0, Fδ = 0, Ss = 0, Sδ = 0, Dδ = 0;
+			for (int k = 0; k < energyBins.length-1; k ++) {
+				for (int l = 0; l < timeBins.length-1; l ++) {
+					Fs += F[k][l]*s[k][l]/D[k][l];
+					Fδ += F[k][l]*δs[k][l]/D[k][l];
+					Ss += s[k][l]*s[k][l]/D[k][l];
+					Sδ += s[k][l]*δs[k][l]/D[k][l];
+					Dδ += δs[k][l]*δs[k][l]/D[k][l];
+				}
+			}
+			double h = (Fδ - G*Sδ)/(G*Dδ - Fδ*Sδ/Ss);
+			
+			for (int i = 0; i < energyBins.length-1; i ++)
+				for (int j = 0; j < timeBins.length-1; j ++)
+					g[i][j] += h/2*δg[i][j];
+			
+			Lprev = L;
+			L = 0;
+			for (int k = 0; k < energyBins.length-1; k ++)
+				for (int l = 0; l < timeBins.length-1; l ++)
+					L += -1/2.*Math.pow(F[k][l] - G*s[k][l], 2)/D[k][l];
+			System.out.println(L);
+		} while ((L - Lprev)/Math.abs(L) > 1e-4);
+		
+		double[][] s = this.response(energyBins, timeBins, g, false); // remember to finalize the value of G
+		double ΣFs = 0, Σss = 0;
+		for (int k = 0; k < energyBins.length-1; k ++) {
+			for (int l = 0; l < timeBins.length-1; l ++) {
+				ΣFs += F[k][l]*s[k][l]/D[k][l];
+				Σss += s[k][l]*s[k][l]/D[k][l];
+			}
+		}
+		G = ΣFs/Σss;
+		
+		double fitSpectrum[][] = new double[energyBins.length-1][timeBins.length-1];
+		for (int i = 0; i < energyBins.length-1; i ++)
+			for (int j = 0; j < timeBins.length-1; j ++)
+				fitSpectrum[i][j] =  G*g[i][j];
+		System.out.println(Arrays.deepToString(fitSpectrum));
+		
+		double[] weight = new double[energyBins.length-1]; // get some sums of columns of the transfer matrix
+		for (int i = 0; i < energyBins.length-1; i ++)
+			for (int j = 0; j < timeBins.length-1; j ++)
+				for (int k = 0; k < energyBins.length-1; k ++)
+					for (int l = 0; l < timeBins.length-1; l ++)
+						weight[i] += this.transferMatrix[(timeBins.length-1)*k + l][(timeBins.length-1)*i + j];
+		double maxWeight = NumericalMethods.max(weight);
+		for (int i = 0; i < energyBins.length-1; i ++) // to find the rows of pixels that don't contribute much to the deuteron spectrum
+				weight[i] /= maxWeight; // these will be devalued in the fitting process
+		System.out.println(Arrays.toString(weight));
+		
+		this.neutronYield = new double[timeAxis.length];
+		this.ionTemperature = new double[timeAxis.length];
+		this.flowVelocity = new double[timeAxis.length];
+		this.arealDensity = new double[timeAxis.length];
+		for (int j = 0; j < timeAxis.length; j ++) { // then fit to that neutron spectrum
+			double[] exp = new double[energyBins.length-1];
+			for (int i = 0; i < exp.length; i ++)
+				exp[i] = fitSpectrum[i][j];
+			double[] fit = Optimization.minimizeNelderMead((params) -> {
+				if (params[0] < 0 || params[1] <= 0 || params[3] < 0)
+					return Double.POSITIVE_INFINITY;
+				
+				double[] teo = generateSpectrum(
+							params[0], params[1], params[2], params[3], energyBins);
+				double minVar = Math.pow(NumericalMethods.max(exp)/1e3, 2);
+				double err = 0;
+				for (int i = 3; i < timeAxis.length; i ++) // I'm not sure why the bottom two rows are so unusable
+					err += Math.pow(teo[i] - exp[i], 2)/(teo[i] + minVar) + Math.log(teo[i] + minVar);
+				return err;
+			}, new double[] {NumericalMethods.sum(exp)/1e15, 4, 100, 1}, 1e-8);
+			
+			this.neutronYield[j] = fit[0]/(timeBins[j+1] - timeBins[j]);
+			this.ionTemperature[j] = fit[1];
+			this.flowVelocity[j] = fit[2];
+			this.arealDensity[j] = fit[3];
+		}
 		
 		long endTime = System.currentTimeMillis();
 		if (logger != null)
 			logger.info(String.format(Locale.US, "completed in %.2f minutes.",
 					(endTime - startTime)/60000.));
-		
-		double[][] params = new double[4][timeAxis.length];
-		for (int k = 0; k < 4; k ++) // first unpack the state vector
-			for (int i = 0; i < timeAxis.length; i ++)
-				params[k][i] = opt[i+k*timeAxis.length];
-//		for (int i = 0; i < timeAxis.length; i ++) {
-//			double t = timeAxis[i];
-//			params[0][i] = 1000*Math.exp(-(t - 16.35)*(t - 16.35)/(2*.1*.1));
-//			params[1][i] = 1 + 20*(t - 16);
-//			params[2][i] = 60*Math.sin(t*20);
-//			params[3][i] = 500*Math.pow((t - 15.8), 3)*Math.exp(-9*(t - 15.8));
-//		}
-		this.neutronYield   = params[0];
-		this.ionTemperature = params[1];
-		this.flowVelocity   = params[2];
-		this.arealDensity   = params[3];
 		
 		this.fitNeutronSpectrum = generateSpectrum( // and then interpret it
 				neutronYield, ionTemperature, flowVelocity, arealDensity, energyBins, timeBins);
