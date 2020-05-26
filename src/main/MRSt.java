@@ -373,7 +373,7 @@ public class MRSt {
 				for (int l = 0; l < timeBins.length-1; l ++)
 					L += -1/2.*Math.pow(F[k][l] - G*s[k][l], 2)/D[k][l];
 			System.out.println(L);
-		} while ((L - Lprev)/Math.abs(L) > 1e-4);
+		} while ((L - Lprev)/Math.abs(L) > 1e-3);
 		
 		double[][] s = this.response(energyBins, timeBins, g, false); // remember to finalize the value of G
 		double ΣFs = 0, Σss = 0;
@@ -420,8 +420,9 @@ public class MRSt {
 				double err = 0;
 				for (int i = 3; i < timeAxis.length; i ++) // I'm not sure why the bottom two rows are so unusable
 					err += Math.pow(teo[i] - exp[i], 2)/(teo[i] + minVar) + Math.log(teo[i] + minVar);
-				return err;
-			}, new double[] {NumericalMethods.sum(exp)/1e15, 4, 100, 1}, 1e-8);
+				double penalty = Math.pow(params[2]/100, 2);
+				return penalty + err;
+			}, new double[] {NumericalMethods.sum(exp)/1e15, 4, 50, 1}, 1e-8);
 			
 			this.neutronYield[j] = fit[0]/(timeBins[j+1] - timeBins[j]);
 			this.ionTemperature[j] = fit[1];
@@ -437,6 +438,7 @@ public class MRSt {
 		this.fitNeutronSpectrum = generateSpectrum( // and then interpret it
 				neutronYield, ionTemperature, flowVelocity, arealDensity, energyBins, timeBins);
 		this.fitDeuteronSpectrum = this.response(energyBins, timeBins, fitNeutronSpectrum, false);
+		this.fitNeutronSpectrum = fitSpectrum;
 		
 		final double dt = (timeBins[1] - timeBins[0]);
 		boolean anyData = false;
