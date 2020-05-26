@@ -496,8 +496,39 @@ public class NumericalMethods {
 		}
 		return t * Math.exp(-z * z + 0.5 * (cof[0] + ty * d) - dd);
 	}
-
 	
+	/**
+	 * Legendre polynomial of degree n
+	 * @param n the order of the polynomial
+	 * @param z the cosine of the angle at which this is evaluated
+	 * @return P_l(z)
+	 */
+	public static double legengre(int n, double z) {
+		if (n == 0)
+			return 1;
+		else if (n == 1)
+			return z;
+		else if (n == 2)
+			return (3*z*z - 1)/2.;
+		else if (n == 3)
+			return (5*z*z - 3)*z/2.;
+		else if (n == 4)
+			return ((35*z*z - 30)*z*z + 3)/8.;
+		else if (n == 5)
+			return ((63*z*z - 70)*z*z + 15)*z/8.;
+		else if (n == 6)
+			return (((231*z*z - 315)*z*z + 105)*z*z - 5)/16.;
+		else if (n == 7)
+			return (((429*z*z - 693)*z*z + 315)*z*z - 35)*z/16.;
+		else if (n == 8)
+			return ((((6435*z*z - 12012)*z*z + 6930)*z*z - 1260)*z*z + 35)/128.;
+		else if (n == 9)
+			return ((((12155*z*z - 25740)*z*z + 18018)*z*z - 4620)*z*z + 315)*z/128.;
+		else
+			throw new IllegalArgumentException("I don't know Legendre polynomials that high.");
+	}
+
+
 	/**
 	 * a discrete representation of an unknown function, capable of evaluating in log time.
 	 * 

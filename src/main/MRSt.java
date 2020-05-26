@@ -49,6 +49,11 @@ public class MRSt {
 	private static final int x = 0, y = 1, z = 2;
 	
 	private static final double SPEED_OF_LIGHT = 2.99792458e8;
+	private static final double[][] SIGMA_COEFFICIENTS = {
+			{}, {},
+			{51.6e-31, 52.5e-31, 59.5e-31, -17.4e-31, 20.8e-31, -14.8e-31, 7.73e-31, -4.92e-31, 3.11e-31},
+			{79.2e-31, 116e-31, 118e-31, 14.8e-31, 14.8e-31},
+	}; // m^2/sr
 	
 	private static final int STOPPING_DISTANCE_RESOLUTION = 64;
 	private static final double MIN_E = 12, MAX_E = 16; // histogram bounds [MeV]
@@ -728,27 +733,59 @@ public class MRSt {
 	 */
 	public static double[] generateSpectrum(double Yn, double Ti, double vi, double ρR,
 			double[] eBins) {
-		double Ps = 1 - Math.exp(-0.212*ρR); // probability of any scattering or absorption (1.80b/5u) []
-		double p = .0590*ρR; // DS spectrum parameter (.493b/MeV)/5u [MeV^-1]
-		double λ = 0.313; // DS spectrum parameter (1/3.19MeV) [MeV^-1]
-		double μ = 14.1 + .54e-3*vi; // primary peak (see paper), [MeV]
-		double s2 = 0.403e-3*μ*Ti; // primary variance (see paper) [MeV^2]
-		double[] pdf = new double[eBins.length]; // probability distribution at edges
-		double[] counts = new double[eBins.length-1]; // spectrum counts in bins
-		for (int i = eBins.length-1; i >= 0; i --) {
-			if (Ti > 0) {
-				double E = eBins[i]; // x coordinate [MeV]
-				double primaryDistribution = (1 - Ps)/Math.sqrt(2*Math.PI*s2)*
-						Math.exp(-Math.pow(E - μ, 2)/(2*s2)); // primary distribution [MeV^-1]
-				double dsDistribution = p/2*Math.exp(λ*(E - μ + s2*λ/2))*
-						(1 + NumericalMethods.erf((μ - E + s2*λ)/Math.sqrt(2*s2))); // secondary distribution [MeV^-1]
-				pdf[i] = primaryDistribution + dsDistribution; // combine the two distributions
-			}
+		double nR = ρR/8.35276208e-28; // areal DT number density [m^-2]
+		double ΔEth = 5.30509e-3/(1 + 2.4736e-3*Math.pow(Ti, 1.84))*Math.pow(Ti, 2/3.) + 1.3818e-3*Ti;
+		double δω =  5.1068e-4/(1 + 7.6223e-3*Math.pow(Ti, 1.78))*Math.pow(Ti, 2/3.) + 8.7691e-5*Ti;
+		double avgE = 14.029 + ΔEth + .54e-3*vi; // primary peak (see paper) [MeV]
+		double σth = 177.259e-3/2.35482005*(1 + δω)*Math.sqrt(Ti); // primary width (see paper) [MeV]
+		double μ = avgE*Math.sqrt(1 - 3/2.*Math.pow(σth/avgE, 2));
+		double σ2 = 4/3.*μ*(avgE - μ);
+		double[] Isrc = new double[eBins.length]; // probability distribution at edges [MeV^-1]
+		for (int i = 0; i < eBins.length; i ++) {
+			if (Ti > 0)
+				Isrc[i] = Yn*1e15/Math.sqrt(2*Math.PI*σ2)*Math.exp(-2*μ/σ2*Math.pow(Math.sqrt(eBins[i]) - Math.sqrt(μ), 2));
 			else
-				pdf[i] = 0;
-			if (i < eBins.length-1) // if we have the pdf at both edges of this bin
-				counts[i] = Yn*1e15*(pdf[i] + pdf[i+1])/2*(eBins[i+1] - eBins[i]); // fill it trapezoidally []
+				Isrc[i] = 0;
 		}
+		double[] Iprim = Isrc.clone();
+		double[] Iscat = new double[eBins.length]; // now do the downscatter spectrum
+		final double mn = 939.56563; // [MeV/c^2]
+		for (int A = 2; A <= 3; A ++) { // for both deuterium and tritium
+			final double mS = (A == 2) ? 1875.61296 : 2808.92116; // [MeV/c^2]
+//			final double mR = mS; // because we are not accounting for any inelastic scattering
+			final double α = 4*mn*mS/Math.pow(mn + mS, 2);
+			for (int i = 0; i < eBins.length; i ++) {
+				Iscat[i] = 0;
+				double[] cosθ = new double[eBins.length]; // create an array of angles corresponding to energies
+				for (int j = i; j < eBins.length; j ++) {
+//					double EfLab = eBins[i], EiLab = eBins[j];
+//					double EtCM = Math.sqrt(mn*mn + mS*mS + 2*(EiLab + mn)*mS);
+//					double EfCM = (EtCM*EtCM + mn*mn + mR*mR)/(2*EtCM);
+//					double pfCM = Math.sqrt(EfCM*EfCM - mn*mn);
+//					double piLab = Math.sqrt(EiLab*(EiLab + 2*mn));
+//					double EtLab = EiLab + mn + mS;
+//					cosθ[j] = ((EfLab + mn)*EtCM - EfCM*EtLab)/(piLab*pfCM);
+					cosθ[j] = 1 - (1 - eBins[i]/eBins[j])/(α/2); // XXX these equations from Hatarik et al. are just wrong
+				}
+				for (int j = i; j < eBins.length-1; j ++) {
+					double dσdΩ = 0;
+					for (int l = 0; l < SIGMA_COEFFICIENTS[A].length; l ++)
+						dσdΩ += SIGMA_COEFFICIENTS[A][l]*NumericalMethods.legengre(l, cosθ[j]);
+					double dcosθ = (j == i) ? (cosθ[j+1] - cosθ[j])/2 : (cosθ[j+1] - cosθ[j-1])/2;
+					double dΩ = -2*Math.PI*dcosθ;
+					Iprim[j] -= Isrc[j]*nR*dσdΩ*dΩ;
+					Iscat[i] += Isrc[j]*nR*dσdΩ*dΩ;
+				}
+			}
+		}
+		
+		double[] Itot = new double[eBins.length];
+		for (int i = 0; i < eBins.length; i ++)
+			Itot[i] = Iprim[i] + Iscat[i];
+		
+		double[] counts = new double[eBins.length-1];
+		for (int i = 0; i < counts.length; i ++)
+			counts[i] = (Itot[i] + Itot[i+1])/2.*(eBins[i+1] - eBins[i]);
 		return counts;
 	}
 	
