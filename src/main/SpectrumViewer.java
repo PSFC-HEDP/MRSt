@@ -237,7 +237,7 @@ public class SpectrumViewer extends Application {
 						plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), smallSpec,
 								"Time (ns)", "Energy (MeV)", "Original neutron spectrum");
 						plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getCorrectedSpectrum(),
-								"Time (ns)", "Energy (MeV)", "Synthesized deuteron spectrum");
+								"Time (ns)", "Energy (MeV)", "Synthetic deuteron spectrum");
 						plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getInferredSpectrum(),
 								"Time (ns)", "Energy (MeV)", "Fitted neutron spectrum");
 						plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getFittedSpectrum(),
@@ -245,12 +245,12 @@ public class SpectrumViewer extends Application {
 						plotLines(mc.getTimeAxis(), "Time (ns)",
 								mc.getIonTemperature(), "Ti (keV)",
 								mc.getArealDensity(), "ρR (g/cm^2)",
-								mc.getNeutronYield(), "Yn (10^15/ns)",
-								mc.getFlowVelocity(), "Vcosθ (μm/ns)");
+								mc.getNeutronYield(), "Yn (10^15/ns)");
+//								mc.getFlowVelocity(), "Vcosθ (μm/ns)");
 						compareHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getCorrectedSpectrum(), mc.getFittedSpectrum(),
-								"Time", "Energy (MeV)", "Measured deuteron spectrum", "Reconstructed deuteron spectrum");
+								"Time", "Energy (MeV)", "Synthetic deuteron spectrum", "Fitted deuteron spectrum");
 						compareHeatmap(mc.getTimeBins(), mc.getEnergyBins(), smallSpec, mc.getInferredSpectrum(),
-								"Time", "Energy (MeV)", "Actual neutron spectrum", "Reconstructed neutron spectrum");
+								"Time", "Energy (MeV)", "Original neutron spectrum", "Fitted neutron spectrum");
 					} catch (IOException e) {
 						logger.log(Level.SEVERE, "Could not access plotting scripts and/or plots", e);
 					}

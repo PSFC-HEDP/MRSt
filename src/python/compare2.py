@@ -12,6 +12,9 @@ Z = (
 	np.genfromtxt('working/{}_z.csv'.format(titleB), delimiter=','),
 )
 
+if 'euteron' in titleA:
+	X *= 8/9
+
 X = (X[1:] + X[:-1])/2
 Y = (Y[1:] + Y[:-1])/2
 

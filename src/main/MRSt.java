@@ -61,7 +61,7 @@ public class MRSt {
 	private static final double E_RESOLUTION = .09, T_RESOLUTION = 20e-3; // resolutions [MeV], [ns]
 //	private static final double E_RESOLUTION = .3, T_RESOLUTION = 40e-3;
 	private static final int MIN_STATISTICS = 100; // the minimum number of deuterons to define a spectrum at a time
-	private static final int TRANSFER_MATRIX_TRIES = 100000; // the number of points to sample in each column of the transfer matrix
+	private static final int TRANSFER_MATRIX_TRIES = 10000; // the number of points to sample in each column of the transfer matrix
 	
 	private static final double[] PARAM_SCALES = { Double.NaN, 4, 100, .5 };
 	
