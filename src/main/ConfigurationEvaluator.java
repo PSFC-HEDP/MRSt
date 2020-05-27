@@ -223,9 +223,9 @@ public class ConfigurationEvaluator extends Application {
 							logger.log(Level.SEVERE, e.getMessage(), e);
 						}
 						
-						double yield = (variations[0].isSelected()) ? Math.pow(10, -4 + 5*Math.random()) : 1; // roll the dies on the spectrum modifications
-						double temp =  (variations[1].isSelected()) ? Math.exp(Math.random() - 0.5) : 1;
-						double downS = (variations[2].isSelected()) ? Math.exp(Math.random() - 0.5) : 1;
+						double yield = (variations[0].isSelected()) ? Math.pow(10, -4*Math.random()) : 1; // roll the dies on the spectrum modifications
+						double temp =  (variations[1].isSelected()) ? Math.exp(2*Math.random() - 1) : 1;
+						double downS = (variations[2].isSelected()) ? Math.exp(2*Math.random() - 1) : 1;
 						double flow =  (variations[3].isSelected()) ? 200*Math.random()*(2*Math.random() - 1) : 0;
 						MRSt.modifySpectrum(tBins, eBins, spec, yield, temp, downS, flow);
 						
