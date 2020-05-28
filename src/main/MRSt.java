@@ -54,8 +54,6 @@ public class MRSt {
 	private static final int MIN_STATISTICS = 100; // the minimum number of deuterons to define a spectrum at a time
 	private static final int TRANSFER_MATRIX_TRIES = 10000; // the number of points to sample in each column of the transfer matrix
 	
-	private static final double[] PARAM_SCALES = { Double.NaN, 4, 100, .5 };
-	
 	private final double foilDistance; // z coordinate of midplane of foil [m]
 	private final double foilThickness; // thickness of foil [m]
 	private final double apertureDistance; // distance from TCC to aperture [m]
@@ -311,7 +309,7 @@ public class MRSt {
 		
 		double[][] F = spectrum;
 		
-		if (totalYield == 0) {
+		if (NumericalMethods.max(spectrum) == 0) {
 			logger.log(Level.SEVERE, "The deuteron spectrum is empty.");
 			return null;
 		}
@@ -337,7 +335,7 @@ public class MRSt {
 					Σg += g[i][j];
 			for (int i = 0; i < energyBins.length-1; i ++)
 				for (int j = 0; j < timeBins.length-1; j ++)
-					g[i][j] /= Σg;
+					g[i][j] /= Σg; // renormalize g to account for roundoff
 			
 			double[][] s = this.response(energyBins, timeBins, g, false);
 			double ΣFs = 0, Σss = 0;
@@ -347,7 +345,7 @@ public class MRSt {
 					Σss += s[k][l]*s[k][l]/D[k][l];
 				}
 			}
-			G = ΣFs/Σss;
+			G = ΣFs/Σss; // compute the optimal G
 			
 			double[][] δg = new double[energyBins.length-1][timeBins.length-1];
 			for (int i = 0; i < energyBins.length-1; i ++) {
