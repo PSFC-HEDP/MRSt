@@ -196,7 +196,7 @@ public class MRSt {
 		long startTime = System.currentTimeMillis();
 		
 		int n = (energyBins.length-1)*(timeBins.length-1);
-		double[][] matrix = new double[n+(timeBins.length-1)][n];
+		double[][] matrix = new double[n][n];
 		int j0 = timeBins.length/2; // time symmetry means we only need to evaluate at one time
 		for (int i = 0; i < energyBins.length-1; i ++) { // sweep through all energies
 			double energy0 = energyBins[i]*1e6, energy1 = energyBins[i+1]*1e6; // [eV]
@@ -209,19 +209,14 @@ public class MRSt {
 				double[] xt = this.simulate(energy, time); // do the simulation!
 				simulationCount ++;
 				
-				if (Double.isNaN(xt[0])) { // sometimes, they won't hit the CSI. That's fine.
-					matrix[n + j0][(timeBins.length-1)*i + j0] += weight; // but note them in the bottom row
-					continue;
-				}
+				if (Double.isNaN(xt[0]))	continue; // sometimes, they won't hit the CSI. That's fine.
 				double[] et = this.backCalculate(xt[0], xt[1]); // otherwise do the stretch/compress time correction
 				
 				double e = et[0]/(-Particle.E.charge)/1e6, t = et[1]/1e-9; // then convert to the same units as the bins
 //				e = energy/1e6; t = time/1e-9;
 				int eBin = (int)((e - MIN_E)/(MAX_E - MIN_E)*(energyBins.length-1));
 				int tBin = (int)((t - MIN_T)/(MAX_T - MIN_T)*(timeBins.length-1));
-				if (eBin < 0)
-					matrix[n + j0][(timeBins.length-1)*i + j0] += weight; // otherwise add it to the trash row
-				else if (eBin < energyBins.length-1 && tBin >= 0 && tBin < timeBins.length-1) // if it falls in detectable bounds
+				if (eBin >= 0 && eBin < energyBins.length-1 && tBin >= 0 && tBin < timeBins.length-1) // if it falls in detectable bounds
 					matrix[(timeBins.length-1)*eBin + tBin][(timeBins.length-1)*i + j0] += weight; // add it to the row
 			}
 		}
@@ -231,7 +226,7 @@ public class MRSt {
 			logger.info(String.format(Locale.US, "completed %d simulations in %.2f minutes.",
 					simulationCount, (endTime - startTime)/60000.));
 		
-		for (int i = 0; i < n+(timeBins.length-1); i ++) { // now iterate through all of the rows
+		for (int i = 0; i < n; i ++) { // now iterate through all of the rows
 			for (int j = 0; j < n; j ++) { // and all of the columns, of which we still don't have many
 				int jRef = j/(timeBins.length-1)*(timeBins.length-1) + j0; // look for the nearest column that is filled
 				int iRef = i - j + jRef; // [i,j] is equivalent to an [iRef,jRef] by time symmetry
@@ -272,23 +267,6 @@ public class MRSt {
 	 */
 	public double[][] response(double[] inEBins, double[] inTBins, double[][] inSpectrum,
 			boolean stochastic) {
-		return response(inEBins, inTBins, inSpectrum, stochastic, false);
-	}
-	
-	/**
-	 * compute the total response to an implosion with the given neutron spectrum using the
-	 * precomputed transfer matrix. account for electrostatic time correction, but not for any
-	 * analysis.
-	 * @param energies the edges of the energy bins
-	 * @param times the edges of the time bins
-	 * @param inSpectrum the neutron counts in each bin
-	 * @param stochastic whether to add noise to mimic real data
-	 * @param extraRow if true, add an extra row at the bottom for all the deuterons that miss
-	 *   the detector.
-	 * @return the counts in the measured spectrum bins
-	 */
-	public double[][] response(double[] inEBins, double[] inTBins, double[][] inSpectrum,
-			boolean stochastic, boolean extraRow) {
 		if (inSpectrum.length != inEBins.length-1 || inSpectrum[0].length != inTBins.length-1)
 			throw new IllegalArgumentException("These dimensions don't make any sense.");
 		
@@ -302,8 +280,8 @@ public class MRSt {
 		
 		double[] v = NumericalMethods.matmul(transferMatrix, u); // then do the multiplication
 		
-		double[][] outSpectrum = new double[extraRow ? energyBins.length : energyBins.length-1][timeBins.length-1];
-		for (int i = 0; i < outSpectrum.length; i ++)
+		double[][] outSpectrum = new double[energyBins.length-1][timeBins.length-1];
+		for (int i = 0; i < energyBins.length-1; i ++)
 			for (int j = 0; j < timeBins.length-1; j ++)
 				outSpectrum[i][j] = v[(timeBins.length-1)*i + j]; // finally, unflatten. inflate. rounden.
 		
@@ -329,22 +307,20 @@ public class MRSt {
 		if (spectrum.length != energyBins.length-1 || spectrum[0].length != timeBins.length-1)
 			throw new IllegalArgumentException("These dimensions are wrong.");
 		
+		double[][] F = spectrum;
+		
 		if (NumericalMethods.max(spectrum) == 0) {
 			logger.log(Level.SEVERE, "The deuteron spectrum is empty.");
 			return null;
 		}
-		
-		double[][] F = new double[energyBins.length][timeBins.length-1];
-		System.arraycopy(spectrum, 0, F, 0, spectrum.length); // leave an empty row at the bottom to bring down the lower energies
 
-		double[][] D = new double[energyBins.length][timeBins.length-1];
+		double[][] D = new double[energyBins.length-1][timeBins.length-1];
 		double[][] g = new double[energyBins.length-1][timeBins.length-1];
-		for (int j = 0; j < timeBins.length-1; j ++) {
-			for (int i = 0; i < energyBins.length-1; i ++) {
+		for (int i = 0; i < energyBins.length-1; i ++) {
+			for (int j = 0; j < timeBins.length-1; j ++) {
 				D[i][j] = Math.max(1, spectrum[i][j]);
 				g[i][j] = 1.;
 			}
-			D[energyBins.length-1][j] = 1e4*D[energyBins.length-2][j];
 		}
 		double G;
 		
@@ -361,9 +337,9 @@ public class MRSt {
 				for (int j = 0; j < timeBins.length-1; j ++)
 					g[i][j] /= Σg; // renormalize g to account for roundoff
 			
-			double[][] s = this.response(energyBins, timeBins, g, false, true);
+			double[][] s = this.response(energyBins, timeBins, g, false);
 			double ΣFs = 0, Σss = 0;
-			for (int k = 0; k < energyBins.length; k ++) {
+			for (int k = 0; k < energyBins.length-1; k ++) {
 				for (int l = 0; l < timeBins.length-1; l ++) {
 					ΣFs += F[k][l]*s[k][l]/D[k][l];
 					Σss += s[k][l]*s[k][l]/D[k][l];
@@ -374,7 +350,7 @@ public class MRSt {
 			double[][] δg = new double[energyBins.length-1][timeBins.length-1];
 			for (int i = 0; i < energyBins.length-1; i ++) {
 				for (int j = 0; j < timeBins.length-1; j ++) {
-					for (int k = 0; k < energyBins.length; k ++) {
+					for (int k = 0; k < energyBins.length-1; k ++) {
 						for (int l = 0; l < timeBins.length-1; l ++) {
 							double Pijkl = this.transferMatrix[(timeBins.length-1)*k + l][(timeBins.length-1)*i + j];
 							δg[i][j] += g[i][j] * Pijkl*(F[k][l] - G*s[k][l])/D[k][l];
@@ -382,10 +358,10 @@ public class MRSt {
 					}
 				}
 			}
-			double[][] δs = this.response(energyBins, timeBins, δg, false, true);
+			double[][] δs = this.response(energyBins, timeBins, δg, false);
 			
 			double Fs = 0, Fδ = 0, Ss = 0, Sδ = 0, Dδ = 0;
-			for (int k = 0; k < energyBins.length; k ++) {
+			for (int k = 0; k < energyBins.length-1; k ++) {
 				for (int l = 0; l < timeBins.length-1; l ++) {
 					Fs += F[k][l]*s[k][l]/D[k][l];
 					Fδ += F[k][l]*δs[k][l]/D[k][l];
@@ -402,15 +378,15 @@ public class MRSt {
 			
 			Lprev = L;
 			L = 0;
-			for (int k = 0; k < energyBins.length; k ++)
+			for (int k = 0; k < energyBins.length-1; k ++)
 				for (int l = 0; l < timeBins.length-1; l ++)
 					L += -1/2.*Math.pow(F[k][l] - G*s[k][l], 2)/D[k][l];
 			System.out.println(L);
 		} while ((L - Lprev)/Math.abs(L) > 1e-3);
 		
-		double[][] s = this.response(energyBins, timeBins, g, false, true); // remember to finalize the value of G
+		double[][] s = this.response(energyBins, timeBins, g, false); // remember to finalize the value of G
 		double ΣFs = 0, Σss = 0;
-		for (int k = 0; k < energyBins.length; k ++) {
+		for (int k = 0; k < energyBins.length-1; k ++) {
 			for (int l = 0; l < timeBins.length-1; l ++) {
 				ΣFs += F[k][l]*s[k][l]/D[k][l];
 				Σss += s[k][l]*s[k][l]/D[k][l];
@@ -422,6 +398,18 @@ public class MRSt {
 		for (int i = 0; i < energyBins.length-1; i ++)
 			for (int j = 0; j < timeBins.length-1; j ++)
 				fitSpectrum[i][j] =  G*g[i][j];
+		System.out.println(Arrays.deepToString(fitSpectrum));
+		
+		double[] weight = new double[energyBins.length-1]; // get some sums of columns of the transfer matrix
+		for (int i = 0; i < energyBins.length-1; i ++)
+			for (int j = 0; j < timeBins.length-1; j ++)
+				for (int k = 0; k < energyBins.length-1; k ++)
+					for (int l = 0; l < timeBins.length-1; l ++)
+						weight[i] += this.transferMatrix[(timeBins.length-1)*k + l][(timeBins.length-1)*i + j];
+		double maxWeight = NumericalMethods.max(weight);
+		for (int i = 0; i < energyBins.length-1; i ++) // to find the rows of pixels that don't contribute much to the deuteron spectrum
+				weight[i] /= maxWeight; // these will be devalued in the fitting process
+		System.out.println(Arrays.toString(weight));
 		
 		this.neutronYield = new double[timeAxis.length];
 		this.ionTemperature = new double[timeAxis.length];
@@ -458,7 +446,7 @@ public class MRSt {
 		
 		this.fitNeutronSpectrum = generateSpectrum( // and then interpret it
 				neutronYield, ionTemperature, flowVelocity, arealDensity, energyBins, timeBins);
-		this.fitDeuteronSpectrum = this.response(energyBins, timeBins, fitNeutronSpectrum, false, true);
+		this.fitDeuteronSpectrum = this.response(energyBins, timeBins, fitNeutronSpectrum, false);
 		this.fitNeutronSpectrum = fitSpectrum;
 		
 		final double dt = (timeBins[1] - timeBins[0]);
