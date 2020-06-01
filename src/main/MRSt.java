@@ -322,35 +322,35 @@ public class MRSt {
 		if (logger != null)  logger.info("beginning fit process.");
 		long startTime = System.currentTimeMillis();
 		
-		double fitSpectrum[][] = Optimization.optimizeGelfgat(F, D, this.transferMatrix);
+		double gelf[][] = Optimization.optimizeGelfgat(F, D, this.transferMatrix);
 		
-		this.neutronYield = new double[timeAxis.length];
-		this.ionTemperature = new double[timeAxis.length];
-		this.flowVelocity = new double[timeAxis.length];
-		this.arealDensity = new double[timeAxis.length];
-		for (int j = 0; j < timeAxis.length; j ++) { // then fit to that neutron spectrum
+		double[] guess = new double[4*timeAxis.length]; // initial guess for the coming Powell fit
+		for (int j = 0; j < timeAxis.length; j ++) {
 			double[] exp = new double[energyBins.length-1];
-			for (int i = 0; i < exp.length; i ++)
-				exp[i] = fitSpectrum[i][j];
-			double[] fit = Optimization.minimizeNelderMead((params) -> {
-				if (params[0] < 0 || params[1] <= 0 || params[3] < 0)
+			for (int i = 0; i < energyBins.length-1; i ++)
+				exp[i] = gelf[i][j];
+			
+			double[] fit = Optimization.minimizeNelderMead((x) -> {
+				if (x[0] < 0 || x[1] <= 0 || x[3] < 0)
 					return Double.POSITIVE_INFINITY;
-				
-				double[] teo = generateSpectrum(
-							params[0], params[1], params[2], params[3], energyBins);
-				double minVar = Math.pow(NumericalMethods.max(exp)/1e3, 2);
+				double[] teo = generateSpectrum(x[0], x[1], x[2], x[3], energyBins);
 				double err = 0;
 				for (int i = 3; i < timeAxis.length; i ++) // I'm not sure why the bottom two rows are so unusable
-					err += Math.pow(teo[i] - exp[i], 2)/(teo[i] + minVar) + Math.log(teo[i] + minVar);
-				double penalty = Math.pow(params[2]/100, 2);
-				return penalty + err;
+					err += Math.pow(teo[i] - exp[i], 2);
+				return err + Math.pow(x[2]/100, 2);
 			}, new double[] {NumericalMethods.sum(exp)/1e15, 4, 50, 1}, 1e-8);
 			
-			this.neutronYield[j] = fit[0]/(timeBins[j+1] - timeBins[j]);
-			this.ionTemperature[j] = fit[1];
-			this.flowVelocity[j] = fit[2];
-			this.arealDensity[j] = fit[3];
+			System.arraycopy(fit, 0, guess, 4*j, 4);
 		}
+		
+		double[][] params = new double[4][timeAxis.length]; // unpack the optimized vector
+		for (int k = 0; k < 4; k ++)
+			for (int j = 0; j < timeAxis.length; j ++)
+				params[k][j] = guess[4*j+k];
+		this.neutronYield = params[0];
+		this.ionTemperature = params[1];
+		this.flowVelocity = params[2];
+		this.arealDensity = params[3];
 		
 		long endTime = System.currentTimeMillis();
 		if (logger != null)
@@ -360,7 +360,7 @@ public class MRSt {
 		this.fitNeutronSpectrum = generateSpectrum( // and then interpret it
 				neutronYield, ionTemperature, flowVelocity, arealDensity, energyBins, timeBins);
 		this.fitDeuteronSpectrum = this.response(energyBins, timeBins, fitNeutronSpectrum, false);
-		this.fitNeutronSpectrum = fitSpectrum;
+		this.fitNeutronSpectrum = gelf;
 		
 		final double dt = (timeBins[1] - timeBins[0]);
 		boolean anyData = false;
