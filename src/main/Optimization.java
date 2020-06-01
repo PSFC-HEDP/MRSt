@@ -720,6 +720,108 @@ public class Optimization {
 	
 	
 	/**
+	 * A special case of Gelfgat et al.'s deconvolution scheme. Images are rectangular and the
+	 * input and output have the same size.
+	 * @param F n×m desired image
+	 * @param D n×m measurement variance matrix
+	 * @param P nm×nm transfer matrix
+	 * @return
+	 */
+	public static double[][] optimizeGelfgat(double[][] F, double[][] D, double[][] P) {
+		final int n = F.length, m = F[0].length;
+		
+		double[][] g = new double[n][m];
+		for (int i = 0; i < n; i ++)
+			for (int j = 0; j < m; j ++)
+				g[i][j] = 1.;
+		double G;
+		
+		double L = Double.NEGATIVE_INFINITY, Lprev;
+		do { // use Gelfgat et al.'s program to deconvolve the spectrum
+			double Σg = 0;
+			for (int i = 0; i < g.length; i ++)
+				for (int j = 0; j < g[i].length; j ++)
+					Σg += g[i][j];
+			for (int i = 0; i < g.length; i ++)
+				for (int j = 0; j < g[i].length; j ++)
+					g[i][j] /= Σg; // renormalize g to account for roundoff
+			
+			double[][] s = new double[n][m];
+			for (int i = 0; i < n; i ++)
+				for (int j = 0; j < m; j ++)
+					for (int k = 0; k < n; k ++)
+						for (int l = 0; l < m; l ++)
+							s[k][l] += P[m*k+l][m*i+j]*g[i][j];
+			
+			double ΣFs = 0, Σss = 0;
+			for (int k = 0; k < n; k ++) {
+				for (int l = 0; l < m; l ++) {
+					ΣFs += F[k][l]*s[k][l]/D[k][l];
+					Σss += s[k][l]*s[k][l]/D[k][l];
+				}
+			}
+			G = ΣFs/Σss; // compute the optimal G
+			
+			double[][] δg = new double[n][m];
+			for (int i = 0; i < n; i ++)
+				for (int j = 0; j < m; j ++)
+					for (int k = 0; k < n; k ++)
+						for (int l = 0; l < m; l ++)
+							δg[i][j] += g[i][j] * P[m*k+l][m*i+j]*(F[k][l] - G*s[k][l])/D[k][l];
+			
+			double[][] δs = new double[n][m];
+			for (int i = 0; i < n; i ++)
+				for (int j = 0; j < m; j ++)
+					for (int k = 0; k < n; k ++)
+						for (int l = 0; l < m; l ++)
+							δs[k][l] += P[m*k+l][m*i+j]*δg[i][j];
+			
+			double Fδ = 0, Ss = 0, Sδ = 0, Dδ = 0;
+			for (int k = 0; k < n; k ++) {
+				for (int l = 0; l < m; l ++) {
+					Fδ += F[k][l]*δs[k][l]/D[k][l];
+					Ss += s[k][l]*s[k][l]/D[k][l];
+					Sδ += s[k][l]*δs[k][l]/D[k][l];
+					Dδ += δs[k][l]*δs[k][l]/D[k][l];
+				}
+			}
+			double h = (Fδ - G*Sδ)/(G*Dδ - Fδ*Sδ/Ss);
+			
+			for (int i = 0; i < n; i ++)
+				for (int j = 0; j < m; j ++)
+					g[i][j] += h/2*δg[i][j];
+			
+			Lprev = L;
+			L = 0;
+			for (int k = 0; k < n; k ++)
+				for (int l = 0; l < m; l ++)
+					L += -1/2.*Math.pow(F[k][l] - G*s[k][l], 2)/D[k][l];
+		} while ((L - Lprev)/Math.abs(L) > 1e-3);
+		
+		double[][] s = new double[n][m];
+		for (int i = 0; i < n; i ++)
+			for (int j = 0; j < m; j ++)
+				for (int k = 0; k < n; k ++)
+					for (int l = 0; l < m; l ++)
+						s[k][l] += P[m*k+l][m*i+j]*g[i][j];		double ΣFs = 0, Σss = 0;
+		
+		for (int k = 0; k < n; k ++) {
+			for (int l = 0; l < m; l ++) {
+				ΣFs += F[k][l]*s[k][l]/D[k][l]; // finalize the value of G
+				Σss += s[k][l]*s[k][l]/D[k][l];
+			}
+		}
+		G = ΣFs/Σss;
+		
+		double[][] source = new double[n][m];
+		for (int i = 0; i < n; i ++)
+			for (int j = 0; j < m; j ++)
+				source[i][j] = G*g[i][j];
+		return source; // finally, return the answer
+	}
+	
+	
+	/**
 	 * A two-dimensional array of numbers.
 	 * 
 	 * @author Justin Kunimune

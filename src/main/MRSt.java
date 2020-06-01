@@ -315,101 +315,14 @@ public class MRSt {
 		}
 
 		double[][] D = new double[energyBins.length-1][timeBins.length-1];
-		double[][] g = new double[energyBins.length-1][timeBins.length-1];
-		for (int i = 0; i < energyBins.length-1; i ++) {
-			for (int j = 0; j < timeBins.length-1; j ++) {
+		for (int i = 0; i < energyBins.length-1; i ++)
+			for (int j = 0; j < timeBins.length-1; j ++)
 				D[i][j] = Math.max(1, spectrum[i][j]);
-				g[i][j] = 1.;
-			}
-		}
-		double G;
 		
 		if (logger != null)  logger.info("beginning fit process.");
 		long startTime = System.currentTimeMillis();
 		
-		double L = Double.NEGATIVE_INFINITY, Lprev;
-		do { // use Gelfgat et. al.'s program to deconvolve the neutron spectrum
-			double Σg = 0;
-			for (int i = 0; i < energyBins.length-1; i ++)
-				for (int j = 0; j < timeBins.length-1; j ++)
-					Σg += g[i][j];
-			for (int i = 0; i < energyBins.length-1; i ++)
-				for (int j = 0; j < timeBins.length-1; j ++)
-					g[i][j] /= Σg; // renormalize g to account for roundoff
-			
-			double[][] s = this.response(energyBins, timeBins, g, false);
-			double ΣFs = 0, Σss = 0;
-			for (int k = 0; k < energyBins.length-1; k ++) {
-				for (int l = 0; l < timeBins.length-1; l ++) {
-					ΣFs += F[k][l]*s[k][l]/D[k][l];
-					Σss += s[k][l]*s[k][l]/D[k][l];
-				}
-			}
-			G = ΣFs/Σss; // compute the optimal G
-			
-			double[][] δg = new double[energyBins.length-1][timeBins.length-1];
-			for (int i = 0; i < energyBins.length-1; i ++) {
-				for (int j = 0; j < timeBins.length-1; j ++) {
-					for (int k = 0; k < energyBins.length-1; k ++) {
-						for (int l = 0; l < timeBins.length-1; l ++) {
-							double Pijkl = this.transferMatrix[(timeBins.length-1)*k + l][(timeBins.length-1)*i + j];
-							δg[i][j] += g[i][j] * Pijkl*(F[k][l] - G*s[k][l])/D[k][l];
-						}
-					}
-				}
-			}
-			double[][] δs = this.response(energyBins, timeBins, δg, false);
-			
-			double Fs = 0, Fδ = 0, Ss = 0, Sδ = 0, Dδ = 0;
-			for (int k = 0; k < energyBins.length-1; k ++) {
-				for (int l = 0; l < timeBins.length-1; l ++) {
-					Fs += F[k][l]*s[k][l]/D[k][l];
-					Fδ += F[k][l]*δs[k][l]/D[k][l];
-					Ss += s[k][l]*s[k][l]/D[k][l];
-					Sδ += s[k][l]*δs[k][l]/D[k][l];
-					Dδ += δs[k][l]*δs[k][l]/D[k][l];
-				}
-			}
-			double h = (Fδ - G*Sδ)/(G*Dδ - Fδ*Sδ/Ss);
-			
-			for (int i = 0; i < energyBins.length-1; i ++)
-				for (int j = 0; j < timeBins.length-1; j ++)
-					g[i][j] += h/2*δg[i][j];
-			
-			Lprev = L;
-			L = 0;
-			for (int k = 0; k < energyBins.length-1; k ++)
-				for (int l = 0; l < timeBins.length-1; l ++)
-					L += -1/2.*Math.pow(F[k][l] - G*s[k][l], 2)/D[k][l];
-			System.out.println(L);
-		} while ((L - Lprev)/Math.abs(L) > 1e-3);
-		
-		double[][] s = this.response(energyBins, timeBins, g, false); // remember to finalize the value of G
-		double ΣFs = 0, Σss = 0;
-		for (int k = 0; k < energyBins.length-1; k ++) {
-			for (int l = 0; l < timeBins.length-1; l ++) {
-				ΣFs += F[k][l]*s[k][l]/D[k][l];
-				Σss += s[k][l]*s[k][l]/D[k][l];
-			}
-		}
-		G = ΣFs/Σss;
-		
-		double fitSpectrum[][] = new double[energyBins.length-1][timeBins.length-1];
-		for (int i = 0; i < energyBins.length-1; i ++)
-			for (int j = 0; j < timeBins.length-1; j ++)
-				fitSpectrum[i][j] =  G*g[i][j];
-		System.out.println(Arrays.deepToString(fitSpectrum));
-		
-		double[] weight = new double[energyBins.length-1]; // get some sums of columns of the transfer matrix
-		for (int i = 0; i < energyBins.length-1; i ++)
-			for (int j = 0; j < timeBins.length-1; j ++)
-				for (int k = 0; k < energyBins.length-1; k ++)
-					for (int l = 0; l < timeBins.length-1; l ++)
-						weight[i] += this.transferMatrix[(timeBins.length-1)*k + l][(timeBins.length-1)*i + j];
-		double maxWeight = NumericalMethods.max(weight);
-		for (int i = 0; i < energyBins.length-1; i ++) // to find the rows of pixels that don't contribute much to the deuteron spectrum
-				weight[i] /= maxWeight; // these will be devalued in the fitting process
-		System.out.println(Arrays.toString(weight));
+		double fitSpectrum[][] = Optimization.optimizeGelfgat(F, D, this.transferMatrix);
 		
 		this.neutronYield = new double[timeAxis.length];
 		this.ionTemperature = new double[timeAxis.length];
