@@ -25,7 +25,7 @@ package main;
 
 import java.util.Arrays;
 import java.util.Locale;
-import java.util.function.ToDoubleFunction;
+import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -334,7 +334,7 @@ public class MRSt {
 		
 		double gelf[][] = Optimization.optimizeGelfgat(F, D, this.transferMatrix);
 		
-		double[] guess = new double[4*timeAxis.length]; // initial guess for the coming Powell fit
+		double[] opt = new double[4*timeAxis.length]; // initial guess for the coming Powell fit
 		for (int j = 0; j < timeAxis.length; j ++) {
 			double Δt = timeBins[j+1] - timeBins[j];
 			double[] exp = new double[energyBins.length-1];
@@ -351,7 +351,7 @@ public class MRSt {
 				return error;
 			}, new double[] {NumericalMethods.sum(exp)/1e15, 4, 50, 1}, 1e-8);
 			
-			System.arraycopy(fit, 0, guess, 4*j, 4);
+			System.arraycopy(fit, 0, opt, 4*j, 4);
 		}
 		
 		double[] noiseVar = new double[timeAxis.length]; // the variance of the upscatter spectrum, for which my model does not account
@@ -360,11 +360,10 @@ public class MRSt {
 				noiseVar[j] = Math.max(noiseVar[j], Math.pow(spectrum[i][j]/1e3, 2)); // TODO this could maybe be lower now
 		double spectrumScale = NumericalMethods.sum(gelf); // the characteristic magnitude of the neutron spectrum bins
 		
-		System.out.println(Arrays.toString(guess));
+		System.out.println(Arrays.toString(opt));
 		
-		ToDoubleFunction<double[]> logPosterior = (double[] x) -> {
-			if (Math.random() < 1e-3)
-				System.out.println(Arrays.toString(x)+",");
+		Function<double[], Double> logPosterior = (double[] x) -> {
+//			if (Math.random() < 1e-3) System.out.println(Arrays.toString(x)+",");
 			
 			double[][] params = new double[4][timeAxis.length];
 			for (int k = 0; k < 4; k ++) // first unpack the state vector
@@ -398,8 +397,8 @@ public class MRSt {
 			for (int j = 0; j < spectrum[0].length; j ++) {
 				for (int i = 0; i < spectrum.length; i ++) {
 					if (teoSpectrum[i][j] > 1e-300)
-						penalty += 1.0*teoSpectrum[i][j]/spectrumScale*
-								Math.log(teoSpectrum[i][j]/spectrumScale); // encourage entropy
+						penalty += 10000.0*teoSpectrum[i][j]/spectrumScale*
+								Math.log(teoSpectrum[i][j]/spectrumScale); // encourage entropy XXX what is this coefficient and how does it depend on yield?
 					else
 						penalty -= 0;
 				}
@@ -413,20 +412,24 @@ public class MRSt {
 		
 		double[] dimensionScale = new double[4*timeAxis.length];
 		for (int j = 0; j < timeAxis.length; j ++) {
-			dimensionScale[4*j+0] = guess[4*j]/3.;
+			dimensionScale[4*j+0] = opt[4*j]/3.;
 			dimensionScale[4*j+1] = 10;
 			dimensionScale[4*j+2] = 100;
 			dimensionScale[4*j+3] = 1;
 		}
 		
+		System.out.println(logPosterior.apply(opt));
 		MultivariateOptimizer optimizer = new PowellOptimizer(1e-14, 1);
-		double[] opt = optimizer.optimize(
-				GoalType.MAXIMIZE,
-				new ObjectiveFunction((x) -> {return logPosterior.applyAsDouble(x);}),
-				new InitialGuess(guess),
-				new MultiDirectionalSimplex(dimensionScale),
-				new MaxIter(10000),
-				new MaxEval(100000)).getPoint();
+		for (int i = 0; i < 6; i ++) { // TODO: see how much this actually affects results
+			opt = optimizer.optimize(
+					GoalType.MAXIMIZE,
+					new ObjectiveFunction((x) -> logPosterior.apply(x)),
+					new InitialGuess(opt),
+					new MultiDirectionalSimplex(dimensionScale),
+					new MaxIter(10000),
+					new MaxEval(100000)).getPoint();
+			System.out.println(logPosterior.apply(opt));
+		}
 		
 		double[][] params = new double[4][timeAxis.length]; // unpack the optimized vector
 		for (int k = 0; k < 4; k ++)

@@ -28,15 +28,17 @@ public class Optimization {
 	 */
 	public static double minimizeBacktrack(
 			Function<Double, Double> func, double grad, double x0, double stepSize) {
-		if (grad >= 0)
-			throw new IllegalArgumentException("Initial step must be downhill."); // if the gradient here is naught, there's absolutely noting we can do
+		if (grad > 0)
+			stepSize *= -1;
+		else if (grad == 0)
+			return x0; // if the gradient here is naught, there's absolutely noting we can do
 		
 		final double c = 0.4, τ = 0.5;
 		
 		double fx0 = func.apply(x0);
 		double x = x0 + stepSize; // take an initial downhill step
 		double fx = func.apply(x);
-		while (fx - fx0 > (x - x0)*c*grad && Math.abs(x - x0) > x*1e-15) { // if the function didn't decrease enough (or we hit roundoff error)
+		while (fx - fx0 > (x - x0)*c*grad && Math.abs(x - x0) > Math.abs(stepSize)*1e-15) { // if the function didn't decrease enough (or we hit roundoff error)
 			x = x0 + τ*(x - x0); // backstep and try again
 			fx = func.apply(x);
 		}
@@ -309,6 +311,7 @@ public class Optimization {
 					xp[I] = xi;
 					return func.apply(xp);
 				}, grad.get(i).apply(x), x[i], scale[i]);
+				System.out.println(-func.apply(x));
 			}
 			double fxp = func.apply(x);
 			if (Math.abs((fxp - fx)/fx) < tol)
@@ -1121,60 +1124,60 @@ public class Optimization {
 	}
 	
 	
-	/**
-	 * @param args
-	 */
-	public static void main(String[] args) {
-//		Function<double[], Double> simionescu = (v) -> {
-//			double x = v[0], y = v[1];
-//			double z;
-//			if (Math.hypot(x, y) > 1 + .2*Math.cos(8*Math.atan2(x, y)))
-//				z = Double.POSITIVE_INFINITY;
-//			else
-//				z = .1*x*y;
-//			System.out.printf("[%.4f, %.4f, %.4f],\n", x, y, z);
-//			return z;
-//		};
-//		List<Function<double[], Double>> simionescuGradient = new ArrayList<Function<double[], Double>>(Arrays.asList(
-//				(v) -> {
-//					double y = v[1];
-//					return .1*y;
-//				},
-//				(v) -> {
-//					double x = v[0];
-//					return .1*x;
-//				}));
-//		Function<double[], Double> himmelblau = (v) -> {
-//			double x = v[0], y = v[1];
-//			double z = Math.pow(x*x + y - 11, 2) + Math.pow(x + y*y - 7, 2) + 1;
-//			System.out.printf("[%.4f, %.4f, %.4f],\n", x, y, z);
-//			return z;
-//		};
-//		Function<double[], Double> ellipse = (v) -> {
-//			double x = v[0], y = v[1];
-//			double z = 2*Math.sqrt(1 + x*x - 1.5*x*y + y*y);
+//	/**
+//	 * @param args
+//	 */
+//	public static void main(String[] args) {
+////		Function<double[], Double> simionescu = (v) -> {
+////			double x = v[0], y = v[1];
+////			double z;
+////			if (Math.hypot(x, y) > 1 + .2*Math.cos(8*Math.atan2(x, y)))
+////				z = Double.POSITIVE_INFINITY;
+////			else
+////				z = .1*x*y;
 ////			System.out.printf("[%.4f, %.4f, %.4f],\n", x, y, z);
-//			return z;
-//		};
-//		Function<double[], double[]> ellipseGrad = (v) -> {
-//			double x = v[0], y = v[1];
-//			double z = ellipse.apply(v);
-//			return new double[] {
-//				(2*x - 1.5*y)/(z/2),
-//				(2*y - 1.5*x)/(z/2),
-//			};
-//		};
-		
-//		System.out.println(Arrays.toString(minimizeNelderMead(
-//				simionescu, new double[] {.5,.5}, 1e-8)));
-//		System.out.println(Arrays.toString(minimizeCoordinateDescent(
-//				simionescu, simionescuGradient, new double[] {.5, .5}, new double[] {1,1}, 1e-8)));
-//		System.out.println(Arrays.toString(minimizeCoordinateDescent(
-//				himmelblau, new double[] {0,0}, new double[] {1,1}, 1e-8)));
-//		System.out.println(Arrays.toString(minimizeLBFGS(
-//				himmelblau, new double[] {.5, .5}, 1e-8)));
-//		System.out.println(Arrays.toString(minimizeLBFGSB(
-//				ellipse, new double[] {1.5,0}, new double[] {.5,-1.5}, new double[] {2,1.5}, 1e-8)));
-	}
+////			return z;
+////		};
+////		List<Function<double[], Double>> simionescuGradient = new ArrayList<Function<double[], Double>>(Arrays.asList(
+////				(v) -> {
+////					double y = v[1];
+////					return .1*y;
+////				},
+////				(v) -> {
+////					double x = v[0];
+////					return .1*x;
+////				}));
+////		Function<double[], Double> himmelblau = (v) -> {
+////			double x = v[0], y = v[1];
+////			double z = Math.pow(x*x + y - 11, 2) + Math.pow(x + y*y - 7, 2) + 1;
+////			System.out.printf("[%.4f, %.4f, %.4f],\n", x, y, z);
+////			return z;
+////		};
+////		Function<double[], Double> ellipse = (v) -> {
+////			double x = v[0], y = v[1];
+////			double z = 2*Math.sqrt(1 + x*x - 1.5*x*y + y*y);
+//////			System.out.printf("[%.4f, %.4f, %.4f],\n", x, y, z);
+////			return z;
+////		};
+////		Function<double[], double[]> ellipseGrad = (v) -> {
+////			double x = v[0], y = v[1];
+////			double z = ellipse.apply(v);
+////			return new double[] {
+////				(2*x - 1.5*y)/(z/2),
+////				(2*y - 1.5*x)/(z/2),
+////			};
+////		};
+//		
+////		System.out.println(Arrays.toString(minimizeNelderMead(
+////				simionescu, new double[] {.5,.5}, 1e-8)));
+////		System.out.println(Arrays.toString(minimizeCoordinateDescent(
+////				simionescu, simionescuGradient, new double[] {.5, .5}, new double[] {1,1}, 1e-8)));
+////		System.out.println(Arrays.toString(minimizeCoordinateDescent(
+////				himmelblau, new double[] {0,0}, new double[] {1,1}, 1e-8)));
+////		System.out.println(Arrays.toString(minimizeLBFGS(
+////				himmelblau, new double[] {.5, .5}, 1e-8)));
+////		System.out.println(Arrays.toString(minimizeLBFGSB(
+////				ellipse, new double[] {1.5,0}, new double[] {.5,-1.5}, new double[] {2,1.5}, 1e-8)));
+//	}
 
 }
