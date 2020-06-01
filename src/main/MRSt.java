@@ -25,8 +25,18 @@ package main;
 
 import java.util.Arrays;
 import java.util.Locale;
+import java.util.function.ToDoubleFunction;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import org.apache.commons.math3.optim.InitialGuess;
+import org.apache.commons.math3.optim.MaxEval;
+import org.apache.commons.math3.optim.MaxIter;
+import org.apache.commons.math3.optim.nonlinear.scalar.GoalType;
+import org.apache.commons.math3.optim.nonlinear.scalar.MultivariateOptimizer;
+import org.apache.commons.math3.optim.nonlinear.scalar.ObjectiveFunction;
+import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.MultiDirectionalSimplex;
+import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.PowellOptimizer;
 
 import main.NumericalMethods.DiscreteFunction;
 
@@ -313,7 +323,7 @@ public class MRSt {
 			logger.log(Level.SEVERE, "The deuteron spectrum is empty.");
 			return null;
 		}
-
+		
 		double[][] D = new double[energyBins.length-1][timeBins.length-1];
 		for (int i = 0; i < energyBins.length-1; i ++)
 			for (int j = 0; j < timeBins.length-1; j ++)
@@ -326,27 +336,102 @@ public class MRSt {
 		
 		double[] guess = new double[4*timeAxis.length]; // initial guess for the coming Powell fit
 		for (int j = 0; j < timeAxis.length; j ++) {
+			double Δt = timeBins[j+1] - timeBins[j];
 			double[] exp = new double[energyBins.length-1];
 			for (int i = 0; i < energyBins.length-1; i ++)
-				exp[i] = gelf[i][j];
+				exp[i] = gelf[i][j]/Δt;
 			
 			double[] fit = Optimization.minimizeNelderMead((x) -> {
-				if (x[0] < 0 || x[1] <= 0 || x[3] < 0)
+				if (x[0] < 0 || x[1] <= 0 || Math.abs(x[2]) > 200 || x[3] < 0)
 					return Double.POSITIVE_INFINITY;
 				double[] teo = generateSpectrum(x[0], x[1], x[2], x[3], energyBins);
-				double err = 0;
+				double error = 0;
 				for (int i = 3; i < timeAxis.length; i ++) // I'm not sure why the bottom two rows are so unusable
-					err += Math.pow(teo[i] - exp[i], 2);
-				return err + Math.pow(x[2]/100, 2);
+					error += Math.pow(teo[i] - exp[i], 2);
+				return error;
 			}, new double[] {NumericalMethods.sum(exp)/1e15, 4, 50, 1}, 1e-8);
 			
 			System.arraycopy(fit, 0, guess, 4*j, 4);
 		}
 		
+		double[] noiseVar = new double[timeAxis.length]; // the variance of the upscatter spectrum, for which my model does not account
+		for (int i = 4; i < energyBins.length-1; i ++)
+			for (int j = 0; j < timeBins.length-1; j ++)
+				noiseVar[j] = Math.max(noiseVar[j], Math.pow(spectrum[i][j]/1e3, 2)); // TODO this could maybe be lower now
+		double spectrumScale = NumericalMethods.sum(gelf); // the characteristic magnitude of the neutron spectrum bins
+		
+		System.out.println(Arrays.toString(guess));
+		
+		ToDoubleFunction<double[]> logPosterior = (double[] x) -> {
+			if (Math.random() < 1e-3)
+				System.out.println(Arrays.toString(x)+",");
+			
+			double[][] params = new double[4][timeAxis.length];
+			for (int k = 0; k < 4; k ++) // first unpack the state vector
+				for (int i = 0; i < timeAxis.length; i ++)
+					params[k][i] = x[4*i+k];
+			
+			for (int i = 0; i < timeAxis.length; i ++) { // check for illegal (prior = 0) values
+				if (params[0][i] < 0)  return Double.NEGATIVE_INFINITY;
+				if (params[1][i] < 0)  return Double.NEGATIVE_INFINITY;
+				if (params[3][i] < 0)  return Double.NEGATIVE_INFINITY;
+			}
+			
+			double[][] teoSpectrum = generateSpectrum(
+					params[0], params[1], params[2], params[3], energyBins, timeBins); // generate the neutron spectrum based on those
+			double[][] fitSpectrum = this.response(
+					energyBins, timeBins, teoSpectrum, false); // blur it according to the transfer matrix
+			
+			double error = 0; // negative Bayes factor (in nepers)
+			for (int i = 0; i < spectrum.length; i ++) {
+				for (int j = 0; j < spectrum[i].length; j ++) { // compute the error between it and the actual spectrum
+					if (fitSpectrum[i][j] + noiseVar[j] > 0) // skipping places where we expect 0 and got 0
+						error += Math.log(fitSpectrum[i][j] + noiseVar[j])/2 +
+								Math.pow(fitSpectrum[i][j] - spectrum[i][j], 2)/
+										(2*(fitSpectrum[i][j] + noiseVar[j]));
+					else if (spectrum[i][j] != 0) // but throwing infinity if we expect 0 and got not 0
+						error = Double.POSITIVE_INFINITY;
+				}
+			}
+			
+			double penalty = 0; // negative log of prior (ignoring global normalization)
+			for (int j = 0; j < spectrum[0].length; j ++) {
+				for (int i = 0; i < spectrum.length; i ++) {
+					if (teoSpectrum[i][j] > 1e-300)
+						penalty += 1.0*teoSpectrum[i][j]/spectrumScale*
+								Math.log(teoSpectrum[i][j]/spectrumScale); // encourage entropy
+					else
+						penalty -= 0;
+				}
+				penalty += Math.pow(params[1][j]/20, 2);
+				penalty += Math.pow(params[2][j]/200, 2);
+				penalty += Math.pow(params[3][j]/3, 2);
+			}
+			
+			return - penalty - error;
+		};
+		
+		double[] dimensionScale = new double[4*timeAxis.length];
+		for (int j = 0; j < timeAxis.length; j ++) {
+			dimensionScale[4*j+0] = guess[4*j]/3.;
+			dimensionScale[4*j+1] = 10;
+			dimensionScale[4*j+2] = 100;
+			dimensionScale[4*j+3] = 1;
+		}
+		
+		MultivariateOptimizer optimizer = new PowellOptimizer(1e-14, 1);
+		double[] opt = optimizer.optimize(
+				GoalType.MAXIMIZE,
+				new ObjectiveFunction((x) -> {return logPosterior.applyAsDouble(x);}),
+				new InitialGuess(guess),
+				new MultiDirectionalSimplex(dimensionScale),
+				new MaxIter(10000),
+				new MaxEval(100000)).getPoint();
+		
 		double[][] params = new double[4][timeAxis.length]; // unpack the optimized vector
 		for (int k = 0; k < 4; k ++)
 			for (int j = 0; j < timeAxis.length; j ++)
-				params[k][j] = guess[4*j+k];
+				params[k][j] = opt[4*j+k];
 		this.neutronYield = params[0];
 		this.ionTemperature = params[1];
 		this.flowVelocity = params[2];
@@ -360,9 +445,8 @@ public class MRSt {
 		this.fitNeutronSpectrum = generateSpectrum( // and then interpret it
 				neutronYield, ionTemperature, flowVelocity, arealDensity, energyBins, timeBins);
 		this.fitDeuteronSpectrum = this.response(energyBins, timeBins, fitNeutronSpectrum, false);
-		this.fitNeutronSpectrum = gelf;
 		
-		final double dt = (timeBins[1] - timeBins[0]);
+		final double dt = timeBins[1] - timeBins[0];
 		boolean anyData = false;
 		for (int i = 0; i < timeAxis.length; i ++) {
 			if (neutronYield[i]*1e15*efficiency(14.1e6)*dt < MIN_STATISTICS) { // now remove any intensive values from times with insufficient statistics

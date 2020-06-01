@@ -237,6 +237,14 @@ public class NumericalMethods {
 		return s;
 	}
 	
+	public static double sum(double[][] arr) {
+		double s = 0;
+		for (double[] row: arr)
+			for (double x: row)
+				s += x;
+		return s;
+	}
+	
 	public static double max(double[] arr) {
 		double max = Double.NEGATIVE_INFINITY;
 		for (double x: arr)
