@@ -8,6 +8,7 @@ n = int(n)
 
 X = np.genfromtxt('working/{}_x.csv'.format(title), delimiter=',')
 Ys = [np.genfromtxt('working/{}_y_{}.csv'.format(title, i), delimiter=',') for i in range(n)]
+Δs = [np.genfromtxt('working/{}_err_{}.csv'.format(title, i), delimiter=',') for i in range(n)]
 
 fig, host_ax = plt.subplots()
 fig.subplots_adjust(right=1 - (0.12*(n-1)))
@@ -23,6 +24,7 @@ for i in range(n):
 		for sp in axes[i].spines.values(): sp.set_visible(False)
 		axes[i].spines['right'].set_visible(True)
 	plots.append(axes[i].plot(X, Ys[i], label=ylabels[i], color='C'+str(i))[0])
+	axes[i].fill_between(X, Ys[i] - Δs[i], Ys[i] + Δs[i], color='C'+str(i), alpha=0.3)
 	axes[i].set_ylabel(ylabels[i])
 
 axes[0].set_xlabel(xlabel)

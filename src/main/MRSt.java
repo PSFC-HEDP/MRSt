@@ -92,13 +92,13 @@ public class MRSt {
 	
 	private final double[] timeAxis; // 1D vectors for higher level measurements [ns]
 	private double[] ionTemperature; // [keV]
+	private double[] ionTemperatureError; // [keV]
 	private double[] flowVelocity; // [km/s]
+	private double[] flowVelocityError; // [km/s]
 	private double[] arealDensity; // [g/cm^2]
+	private double[] arealDensityError; // [g/cm^2]
 	private double[] neutronYield; // [10^15/ns]
-//	private double[] neutronMean; // [keV]
-//	private double[] neutronWidth; // [keV^2]
-//	private double[] neutronSkew; // [keV^3]
-//	private double[] neutronKurtosis; // [keV^4]
+	private double[] neutronYieldError; // [10^15/ns]
 	
 	private final Logger logger; // for logging
 	
@@ -398,7 +398,7 @@ public class MRSt {
 				for (int i = 0; i < spectrum.length; i ++) {
 					if (teoSpectrum[i][j] > 1e-300)
 						penalty += 10000.0*teoSpectrum[i][j]/spectrumScale*
-								Math.log(teoSpectrum[i][j]/spectrumScale); // encourage entropy XXX what is this coefficient and how does it depend on yield?
+								Math.log(teoSpectrum[i][j]/spectrumScale); // encourage entropy TODO what is this coefficient and how does it depend on yield?
 					else
 						penalty -= 0;
 				}
@@ -421,7 +421,7 @@ public class MRSt {
 		System.out.println(logPosterior.apply(opt));
 		MultivariateOptimizer optimizer = new PowellOptimizer(1e-14, 1);
 		for (int i = 0; i < 6; i ++) { // TODO: see how much this actually affects results
-			opt = optimizer.optimize(
+			opt = optimizer.optimize( // TODO see if L-BFGS does better
 					GoalType.MAXIMIZE,
 					new ObjectiveFunction((x) -> logPosterior.apply(x)),
 					new InitialGuess(opt),
@@ -431,14 +431,45 @@ public class MRSt {
 			System.out.println(logPosterior.apply(opt));
 		}
 		
+		double value = logPosterior.apply(opt); // now estimate some local derivatives
+		double[] gradient = new double[4*timeAxis.length];
+		for (int i = 0; i < 4*timeAxis.length; i ++) {
+			double dxi = dimensionScale[i]*1e-4; // TODO try out different small numbers
+			opt[i] += dxi;
+			gradient[i] = (logPosterior.apply(opt) - value)/dxi;
+			opt[i] -= dxi;
+		}
+		double[][] hessian = new double[4*timeAxis.length][4*timeAxis.length];
+		for (int i = 0; i < 4*timeAxis.length; i ++) {
+			double dxi = dimensionScale[i]*1e-4;
+			opt[i] += dxi;
+			for (int j = i; j < 4*timeAxis.length; j ++) {
+				double dxj = dimensionScale[j]*1e-4;
+				opt[j] += dxj;
+				hessian[i][j] = (logPosterior.apply(opt) - value - gradient[i]*dxi - gradient[j]*dxj)/(dxi*dxj);
+				hessian[j][i] = hessian[i][j];
+				opt[j] -= dxj;
+			}
+			opt[i] -= dxi;
+		}
+		System.out.println(Arrays.deepToString(hessian));
+		
 		double[][] params = new double[4][timeAxis.length]; // unpack the optimized vector
-		for (int k = 0; k < 4; k ++)
-			for (int j = 0; j < timeAxis.length; j ++)
+		double[][] errors = new double[4][timeAxis.length]; // and the associated basic errors
+		for (int k = 0; k < 4; k ++) {
+			for (int j = 0; j < timeAxis.length; j ++) {
 				params[k][j] = opt[4*j+k];
+				errors[k][j] = Math.pow(-hessian[4*j+k][4*j+k], -0.5);
+			}
+		}
 		this.neutronYield = params[0];
+		this.neutronYieldError = errors[0];
 		this.ionTemperature = params[1];
+		this.ionTemperatureError = errors[1];
 		this.flowVelocity = params[2];
+		this.flowVelocityError = errors[2];
 		this.arealDensity = params[3];
+		this.arealDensityError = errors[3];
 		
 		long endTime = System.currentTimeMillis();
 		if (logger != null)
@@ -449,72 +480,51 @@ public class MRSt {
 				neutronYield, ionTemperature, flowVelocity, arealDensity, energyBins, timeBins);
 		this.fitDeuteronSpectrum = this.response(energyBins, timeBins, fitNeutronSpectrum, false);
 		
-		final double dt = timeBins[1] - timeBins[0];
-		boolean anyData = false;
-		for (int i = 0; i < timeAxis.length; i ++) {
-			if (neutronYield[i]*1e15*efficiency(14.1e6)*dt < MIN_STATISTICS) { // now remove any intensive values from times with insufficient statistics
-				ionTemperature[i] = Double.NaN;
-				flowVelocity[i] = Double.NaN;
-				arealDensity[i] = Double.NaN;
-			}
-			else {
-				anyData = true;
-			}
-		}
+		double[] dTidt = NumericalMethods.derivative(timeAxis, ionTemperature); // now we can freely analyze the resulting profiles
+		double[] dρRdt = NumericalMethods.derivative(timeAxis, arealDensity);
+		double[] dvidt = NumericalMethods.derivative(timeAxis, flowVelocity);
 		
+		double iBT = NumericalMethods.quadargmax(neutronYield); // index of max yield
+		double bangTime = NumericalMethods.interp(timeAxis, iBT); // time of max yield
+		double maxCompress = NumericalMethods.quadargmax(timeAxis, arealDensity); // time of max compression
+		double maxPRRamp = NumericalMethods.quadargmax(timeAxis, dρRdt); // time of max rhoR ramp
+		double[] moments = new double[5];
+		for (int k = 0; k < moments.length; k ++)
+			moments[k] = NumericalMethods.moment(k, timeBins, neutronYield);
 		
-		if (!anyData) {
-			if (logger != null)
-				logger.warning("Insufficient statistics to analyze.");
-			return null;
+		double[] res = {
+				(endTime - startTime)/1000.,
+				bangTime, maxCompress, maxPRRamp,
+				NumericalMethods.interp(ionTemperature, iBT),
+				NumericalMethods.interp(arealDensity, iBT),
+				NumericalMethods.interp(flowVelocity, iBT),
+				NumericalMethods.interp(dTidt, iBT),
+				NumericalMethods.interp(dρRdt, iBT),
+				NumericalMethods.interp(dvidt, iBT),
+				NumericalMethods.max(arealDensity),
+				moments[0], moments[1], Math.sqrt(moments[2])*2.355, moments[3], moments[4]
+		}; // collect the figures of merit
+		
+		if (logger != null) {
+			logger.info(String.format("Bang time:         %8.3f ns", res[1]));
+			logger.info(String.format("Peak compression:  %8.3f ns", res[2]));
+			logger.info(String.format("            = BT + %8.3f ps", (res[2] - res[1])/1e-3));
+			logger.info(String.format("Max ρR ramp:       %8.3f ps", res[3]));
+			logger.info(String.format("            = BT + %8.3f ps", (res[3] - res[1])/1e-3));
+			logger.info(String.format("Ti at BT:          %8.3f keV", res[4]));
+			logger.info(String.format("\u03C1R at BT:          %8.3f μm/ns", res[5]));
+			logger.info(String.format("vi at BT:          %8.3f μm/ns", res[6]));
+			logger.info(String.format("dTi/dt at BT:      %8.3f keV/ns", res[7]));
+			logger.info(String.format("dρR/dt at BT:      %8.3f g/cm^2/ns", res[8]));
+			logger.info(String.format("dvi/dt at BT:      %8.3f μm/ns^2", res[9]));
+			logger.info(String.format("Peak ρR:           %8.3f g/cm^2", res[10]));
+			logger.info(String.format("Total yield (μ0):  %8.3g", res[11]));
+			logger.info(String.format("Burn mean (μ1):    %8.3g ns", res[12]));
+			logger.info(String.format("Burn width (μ2):   %8.3g ns", res[13]));
+			logger.info(String.format("Burn skewness (μ3):%8.3g", res[14]));
+			logger.info(String.format("Burn kurtosis (μ4):%8.3g", res[15]));
 		}
-		else {
-			double[] dTidt = NumericalMethods.derivative(timeAxis, ionTemperature); // now we can freely analyze the resulting profiles
-			double[] dρRdt = NumericalMethods.derivative(timeAxis, arealDensity);
-			double[] dvidt = NumericalMethods.derivative(timeAxis, flowVelocity);
-			
-			double iBT = NumericalMethods.quadargmax(neutronYield); // index of max yield
-			double bangTime = NumericalMethods.interp(timeAxis, iBT); // time of max yield
-			double maxCompress = NumericalMethods.quadargmax(timeAxis, arealDensity); // time of max compression
-			double maxPRRamp = NumericalMethods.quadargmax(timeAxis, dρRdt); // time of max rhoR ramp
-			double[] moments = new double[5];
-			for (int k = 0; k < moments.length; k ++)
-				moments[k] = NumericalMethods.moment(k, timeBins, neutronYield);
-			
-			double[] res = {
-					(endTime - startTime)/1000.,
-					bangTime, maxCompress, maxPRRamp,
-					NumericalMethods.interp(ionTemperature, iBT),
-					NumericalMethods.interp(arealDensity, iBT),
-					NumericalMethods.interp(flowVelocity, iBT),
-					NumericalMethods.interp(dTidt, iBT),
-					NumericalMethods.interp(dρRdt, iBT),
-					NumericalMethods.interp(dvidt, iBT),
-					NumericalMethods.max(arealDensity),
-					moments[0], moments[1], Math.sqrt(moments[2])*2.355, moments[3], moments[4]
-			}; // collect the figures of merit
-			
-			if (logger != null) {
-				logger.info(String.format("Bang time:         %8.3f ns", res[1]));
-				logger.info(String.format("Peak compression:  %8.3f ns", res[2]));
-				logger.info(String.format("            = BT + %8.3f ps", (res[2] - res[1])/1e-3));
-				logger.info(String.format("Max ρR ramp:       %8.3f ps", res[3]));
-				logger.info(String.format("            = BT + %8.3f ps", (res[3] - res[1])/1e-3));
-				logger.info(String.format("Ti at BT:          %8.3f keV", res[4]));
-				logger.info(String.format("\u03C1R at BT:          %8.3f μm/ns", res[5]));
-				logger.info(String.format("vi at BT:          %8.3f μm/ns", res[6]));
-				logger.info(String.format("dTi/dt at BT:      %8.3f keV/ns", res[7]));
-				logger.info(String.format("dρR/dt at BT:      %8.3f g/cm^2/ns", res[8]));
-				logger.info(String.format("dvi/dt at BT:      %8.3f μm/ns^2", res[9]));
-				logger.info(String.format("Peak ρR:           %8.3f g/cm^2", res[10]));
-				logger.info(String.format("Total yield (μ0):  %8.3g", res[11]));
-				logger.info(String.format("Burn mean (μ1):    %8.3g ns", res[12]));
-				logger.info(String.format("Burn width (μ2):   %8.3g ns", res[13]));
-				logger.info(String.format("Burn skewness (μ3):%8.3g", res[14]));
-				logger.info(String.format("Burn kurtosis (μ4):%8.3g", res[15]));
-			}
-			return res;
-		}
+		return res;
 	}
 	
 	/**
@@ -696,17 +706,33 @@ public class MRSt {
 		return this.ionTemperature;
 	}
 	
+	public double[] getIonTemperatureError() {
+		return this.ionTemperatureError;
+	}
+	
 	public double[] getFlowVelocity() {
 		return this.flowVelocity;
+	}
+	
+	public double[] getFlowVelocityError() {
+		return flowVelocityError;
 	}
 	
 	public double[] getArealDensity() {
 		return this.arealDensity;
 	}
 	
+	public double[] getArealDensityError() {
+		return arealDensityError;
+	}
+	
 	public double[] getNeutronYield() {
 		return this.neutronYield;
 	}
+	public double[] getNeutronYieldError() {
+		return neutronYieldError;
+	}
+	
 	/**
 	 * generate a time-resolved spectrum based on some parameters that vary with time.
 	 * @param Yn the neutron yield rate [10^15/ns]

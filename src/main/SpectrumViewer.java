@@ -243,10 +243,10 @@ public class SpectrumViewer extends Application {
 						plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getFittedSpectrum(),
 								"Time (ns)", "Energy (MeV)", "Fitted deuteron spectrum");
 						plotLines(mc.getTimeAxis(), "Time (ns)",
-								mc.getIonTemperature(), "Ti (keV)",
-								mc.getArealDensity(), "ρR (g/cm^2)",
-								mc.getNeutronYield(), "Yn (10^15/ns)");
-//								mc.getFlowVelocity(), "Vcosθ (μm/ns)");
+								mc.getIonTemperature(), mc.getIonTemperatureError(), "Ti (keV)",
+								mc.getArealDensity(), mc.getArealDensityError(), "ρR (g/cm^2)",
+								mc.getNeutronYield(), mc.getNeutronYieldError(), "Yn (10^15/ns)",
+								mc.getFlowVelocity(), mc.getFlowVelocityError(), "Vcosθ (μm/ns)");
 						compareHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getCorrectedSpectrum(), mc.getFittedSpectrum(),
 								"Time", "Energy (MeV)", "Synthetic deuteron spectrum", "Fitted deuteron spectrum");
 						compareHeatmap(mc.getTimeBins(), mc.getEnergyBins(), smallSpec, mc.getInferredSpectrum(),
@@ -303,20 +303,28 @@ public class SpectrumViewer extends Application {
 	
 	/**
 	 * send 1D data to a Python script for plotting in MatPlotLib
+	 * @param x the data for the x axis
+	 * @param xLabel the label for the x axis
+	 * @param yDatums {data for the y axis, error bar width for the y axis, label for that data,
+	 *   ...}
 	 * @throws IOException if there's an issue talking to disk
 	 */
 	private static void plotLines(double[] x, String xLabel, Object... yDatums) throws IOException {
-		double[][] ys = new double[yDatums.length/2][];
-		String[] yLabels = new String[yDatums.length/2];
-		for (int i = 0; i < yDatums.length/2; i ++) {
-			ys[i] = (double[]) yDatums[2*i];
-			yLabels[i] = (String) yDatums[2*i+1];
+		double[][] ys = new double[yDatums.length/3][];
+		double[][] Δs = new double[yDatums.length/3][];
+		String[] yLabels = new String[yDatums.length/3];
+		for (int i = 0; i < yDatums.length/3; i ++) {
+			ys[i] = (double[]) yDatums[3*i];
+			Δs[i] = (double[]) yDatums[3*i+1];
+			yLabels[i] = (String) yDatums[3*i+2];
 		}
 		
 		new File("working/").mkdir();
 		CSV.writeColumn(x, new File(String.format("working/%s_x.csv", "data")));
-		for (int i = 0; i < ys.length; i ++)
+		for (int i = 0; i < ys.length; i ++) {
 			CSV.writeColumn(ys[i], new File(String.format("working/%s_y_%d.csv", "Data", i)));
+			CSV.writeColumn(Δs[i], new File(String.format("working/%s_err_%d.csv", "Data", i)));
+		}
 		ProcessBuilder plotPB = new ProcessBuilder("python", "src/python/plot1.py",
 				xLabel, String.join("\n", yLabels), "data", Integer.toString(ys.length));
 		plotPB.start();
