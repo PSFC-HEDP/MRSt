@@ -1037,7 +1037,7 @@ public class Optimization {
 	 * @param a
 	 * @return
 	 */
-	public static double[][] invert(double a[][]) {
+	private static double[][] invert(double a[][]) {
 		int n = a.length;
 		double x[][] = new double[n][n];
 		double b[][] = new double[n][n];
@@ -1074,7 +1074,7 @@ public class Optimization {
 	 * @param a
 	 * @param index
 	 */
-	public static void gaussian(double a[][], int index[]) {
+	private static void gaussian(double a[][], int index[]) {
 		int n = index.length;
 		double c[] = new double[n];
 

@@ -61,7 +61,6 @@ public class MRSt {
 	private static final double MIN_T = 16.0, MAX_T = 16.5; // histogram bounds [ns]
 	private static final double E_RESOLUTION = .09, T_RESOLUTION = 20e-3; // resolutions [MeV], [ns]
 //	private static final double E_RESOLUTION = .3, T_RESOLUTION = 40e-3;
-	private static final int MIN_STATISTICS = 100; // the minimum number of deuterons to define a spectrum at a time
 	private static final int TRANSFER_MATRIX_TRIES = 10000; // the number of points to sample in each column of the transfer matrix
 	
 	private final double foilDistance; // z coordinate of midplane of foil [m]
@@ -420,7 +419,7 @@ public class MRSt {
 		
 		System.out.println(logPosterior.apply(opt));
 		MultivariateOptimizer optimizer = new PowellOptimizer(1e-14, 1);
-		for (int i = 0; i < 6; i ++) { // TODO: see how much this actually affects results
+		for (int i = 0; i < 12; i ++) { // TODO: see how much this actually affects results
 			opt = optimizer.optimize( // TODO see if L-BFGS does better
 					GoalType.MAXIMIZE,
 					new ObjectiveFunction((x) -> logPosterior.apply(x)),
@@ -452,14 +451,19 @@ public class MRSt {
 			}
 			opt[i] -= dxi;
 		}
+		double[][] covariance = NumericalMethods.pseudoinv(hessian);
 		System.out.println(Arrays.deepToString(hessian));
+		System.out.println(Arrays.deepToString(covariance));
+		for (int i = 0; i < 4*timeAxis.length; i ++)
+			for (int j = 0; j < 4*timeAxis.length; j ++)
+				covariance[i][j] *= -1; // there's a negative sign between the inverse hessian and covariance
 		
 		double[][] params = new double[4][timeAxis.length]; // unpack the optimized vector
 		double[][] errors = new double[4][timeAxis.length]; // and the associated basic errors
 		for (int k = 0; k < 4; k ++) {
 			for (int j = 0; j < timeAxis.length; j ++) {
 				params[k][j] = opt[4*j+k];
-				errors[k][j] = Math.pow(-hessian[4*j+k][4*j+k], -0.5);
+				errors[k][j] = Math.sqrt(covariance[4*j+k][4*j+k]);
 			}
 		}
 		this.neutronYield = params[0];
