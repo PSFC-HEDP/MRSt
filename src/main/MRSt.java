@@ -402,7 +402,7 @@ public class MRSt {
 						penalty -= 0;
 				}
 				penalty += Math.pow(params[1][j]/20, 2);
-				penalty += Math.pow(params[2][j]/200, 2);
+				penalty += Math.pow(params[2][j]/200, 2); // TODO tighten this one
 				penalty += Math.pow(params[3][j]/3, 2);
 			}
 			
@@ -419,8 +419,8 @@ public class MRSt {
 		
 		System.out.println(logPosterior.apply(opt));
 		MultivariateOptimizer optimizer = new PowellOptimizer(1e-14, 1);
-		for (int i = 0; i < 12; i ++) { // TODO: see how much this actually affects results
-			opt = optimizer.optimize( // TODO see if L-BFGS does better
+		for (int i = 0; i < 20; i ++) { // just optimize it over and over; you'll get there eventually
+			opt = optimizer.optimize(
 					GoalType.MAXIMIZE,
 					new ObjectiveFunction((x) -> logPosterior.apply(x)),
 					new InitialGuess(opt),
