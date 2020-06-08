@@ -89,6 +89,7 @@ public class MRSt {
 	private double[][] fitNeutronSpectrum; // backward-fit neutron counts
 	private double[][] fitDeuteronSpectrum; // backward-fit deuteron counts (this should be similar to deuteronSpectrum)
 	
+	private final double timeStep;
 	private final double[] timeAxis; // 1D vectors for higher level measurements [ns]
 	private double[] ionTemperature; // [keV]
 	private double[] ionTemperatureError; // [keV]
@@ -159,6 +160,7 @@ public class MRSt {
 		for (int i = 0; i < timeBins.length; i ++)
 			this.timeBins[i] = MIN_T + i*(MAX_T - MIN_T)/(timeBins.length-1);
 		
+		this.timeStep = timeBins[1] - timeBins[0];
 		this.timeAxis = new double[timeBins.length-1];
 		for (int i = 0; i < timeBins.length-1; i ++)
 			this.timeAxis[i] = (this.timeBins[i] + this.timeBins[i+1])/2;
@@ -406,7 +408,7 @@ public class MRSt {
 			}
 			for (int j = 1; j < timeAxis.length-1; j ++) {
 				double Tpp = (params[1][j-1] - 2*params[1][j] + params[1][j+1])/
-						Math.pow(timeBins[1] - timeBins[0], 2);
+						Math.pow(timeStep, 2);
 				penalty += Math.pow(Tpp/1000, 2)/2;
 			}
 			
@@ -517,7 +519,8 @@ public class MRSt {
 				NumericalMethods.interp(dρRdt, iBT),
 				NumericalMethods.interp(dvidt, iBT),
 				NumericalMethods.max(arealDensity),
-				moments[0], moments[1], Math.sqrt(moments[2])*2.355, moments[3], moments[4]
+				moments[0]*1e15*timeStep, moments[1],
+				Math.sqrt(moments[2])*2.355, moments[3], moments[4]
 		}; // collect the figures of merit
 		
 		if (logger != null) {

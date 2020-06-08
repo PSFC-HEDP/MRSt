@@ -739,6 +739,7 @@ public class Optimization {
 				g[i][j] = 1.;
 		double G;
 		
+		int iter = 0;
 		double L = Double.NEGATIVE_INFINITY, Lprev;
 		do { // use Gelfgat et al.'s program to deconvolve the spectrum
 			double Σg = 0;
@@ -799,7 +800,9 @@ public class Optimization {
 			for (int k = 0; k < n; k ++)
 				for (int l = 0; l < m; l ++)
 					L += -1/2.*Math.pow(F[k][l] - G*s[k][l], 2)/D[k][l];
-		} while ((L - Lprev)/Math.abs(L) > 1e-3);
+			
+			iter ++;
+		} while (iter < 6 || (L - Lprev)/Math.abs(L) > 1e-3);
 		
 		double[][] s = new double[n][m];
 		for (int i = 0; i < n; i ++)
