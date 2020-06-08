@@ -356,7 +356,7 @@ public class MRSt {
 		for (int i = 4; i < energyBins.length-1; i ++)
 			for (int j = 0; j < timeBins.length-1; j ++)
 				noiseVar[j] = Math.max(noiseVar[j], Math.pow(spectrum[i][j]/1e3, 2)); // TODO this could maybe be lower now
-		double spectrumScale = NumericalMethods.sum(gelf); // the characteristic magnitude of the neutron spectrum bins
+		double spectrumScale = NumericalMethods.sum(gelf)/(timeBins.length-1)/(energyBins.length-1); // the characteristic magnitude of the neutron spectrum bins
 		
 		System.out.println(Arrays.toString(opt));
 		
@@ -395,14 +395,19 @@ public class MRSt {
 			for (int j = 0; j < spectrum[0].length; j ++) {
 				for (int i = 0; i < spectrum.length; i ++) {
 					if (teoSpectrum[i][j] > 1e-300)
-						penalty += 10000.0*teoSpectrum[i][j]/spectrumScale*
+						penalty += 1.0*teoSpectrum[i][j]/spectrumScale*
 								Math.log(teoSpectrum[i][j]/spectrumScale); // encourage entropy TODO what is this coefficient and how does it depend on yield?
 					else
 						penalty -= 0;
 				}
-				penalty += Math.pow(params[1][j]/20, 2);
-				penalty += Math.pow(params[2][j]/200, 2); // TODO tighten this one
-				penalty += Math.pow(params[3][j]/3, 2);
+				penalty += Math.pow(params[1][j]/15, 2)/2;
+				penalty += Math.pow(params[2][j]/50, 2)/2;
+				penalty += Math.pow(params[3][j]/1, 2)/2;
+			}
+			for (int j = 1; j < timeAxis.length-1; j ++) {
+				double Tpp = (params[1][j-1] - 2*params[1][j] + params[1][j+1])/
+						Math.pow(timeBins[1] - timeBins[0], 2);
+				penalty += Math.pow(Tpp/1000, 2)/2;
 			}
 			
 			return - penalty - error;
@@ -420,19 +425,19 @@ public class MRSt {
 		}
 		
 		double[][] covariance;
-		if (errorBars) {
+		System.out.println(logPosterior.apply(opt));
+		MultivariateOptimizer optimizer = new PowellOptimizer(1e-14, 1);
+		for (int i = 0; i < 6; i ++) { // just optimize it over and over; you'll get there eventually
+			opt = optimizer.optimize(
+					GoalType.MAXIMIZE,
+					new ObjectiveFunction((x) -> logPosterior.apply(x)),
+					new InitialGuess(opt),
+					new MultiDirectionalSimplex(dimensionScale),
+					new MaxIter(10000),
+					new MaxEval(100000)).getPoint();
 			System.out.println(logPosterior.apply(opt));
-			MultivariateOptimizer optimizer = new PowellOptimizer(1e-14, 1);
-			for (int i = 0; i < 20; i ++) { // just optimize it over and over; you'll get there eventually
-				opt = optimizer.optimize(
-						GoalType.MAXIMIZE,
-						new ObjectiveFunction((x) -> logPosterior.apply(x)),
-						new InitialGuess(opt),
-						new MultiDirectionalSimplex(dimensionScale),
-						new MaxIter(10000),
-						new MaxEval(100000)).getPoint();
-				System.out.println(logPosterior.apply(opt));
-			}
+		}
+		if (errorBars) {
 			
 			double[][] hessian = new double[4*timeAxis.length][4*timeAxis.length];
 			for (int i = 0; i < 4*timeAxis.length; i ++) {
