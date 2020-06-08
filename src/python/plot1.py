@@ -2,11 +2,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys
 
-import os
-os.chdir('../..')
-print(os.getcwd())
-xlabel, ylabels, title, n = 'sate', 'Ti\nρR\nYn\nVi', 'data', 4
-# xlabel, ylabels, title, n = sys.argv[1:]
+# import os
+# os.chdir('../..')
+# print(os.getcwd())
+# xlabel, ylabels, title, n = 'sate', 'Ti\nρR\nYn\nVi', 'data', 4
+xlabel, ylabels, title, n = sys.argv[1:]
 ylabels = ylabels.split('\n')
 n = int(n)
 
@@ -28,17 +28,18 @@ for i in range(n):
 		for sp in axes[i].spines.values(): sp.set_visible(False)
 		axes[i].spines['right'].set_visible(True)
 
-	min_value = {'Y':0, 'T':0, 'ρ':0, 'V':-np.inf}[ylabels[i][0]]
-	max_uncertainty = {'Y':Ys[i].max()*.1, 'T':4, 'ρ':1, 'V':10}[ylabels[i][0]]
-	Ys[i][(np.isnan(Δs[i])) | (Δs[i] > max_uncertainty)] = np.nan
+	rainge = {'Y':(0,None), 'T':(0,16), 'ρ':(0,2), 'V':(-100,100)}[ylabels[i][0]]
+	Ys[i][np.isnan(Δs[i])] = np.nan
 	plots.append(axes[i].plot(X, Ys[i], label=ylabels[i], color='C'+str(i))[0])
-	axes[i].fill_between(X, np.maximum(min_value, Ys[i] - Δs[i]), Ys[i] + Δs[i], color='C'+str(i), alpha=0.3)
+	axes[i].fill_between(X, Ys[i] - Δs[i], Ys[i] + Δs[i], color='C'+str(i), alpha=0.3)
 	axes[i].set_ylabel(ylabels[i])
+	axes[i].set_ylim(*rainge)
 
 	if ylabels[i].startswith('Y'):
 		Ymax = Ys[i].max(initial=0, where=np.isfinite(Ys[i]))
 		lims = np.min(np.where(Ys[i]/Ymax >= 1e-3, X, np.inf)), np.max(np.where(Ys[i]/Ymax >= 1e-3, X, -np.inf))
-		print(lims)
+		if not all(np.isfinite(lims)):
+			lims = X[0], X[-1]
 
 axes[0].set_xlabel(xlabel)
 axes[0].set_xlim(*lims)
