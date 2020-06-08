@@ -577,7 +577,7 @@ public class NumericalMethods {
 		int n = 0;
 		boolean[] useful = new boolean[arr.length];
 		for (int i = 0; i < arr.length; i ++) {
-			useful[i] = (arr[i][i] != 0);
+			useful[i] = (Double.isFinite(arr[i][i]) && arr[i][i] != 0);
 			if (useful[i])  n ++;
 		}
 		double[][] a = new double[n][n];
@@ -607,14 +607,14 @@ public class NumericalMethods {
 						l ++;
 					}
 					else {
-						c[i][j] = Double.NaN;
+						c[i][j] = Double.isInfinite(arr[j][j]) ? 0 : Double.NaN;
 					}
 				}
 				k ++;
 			}
 			else {
 				for (int j = 0; j < arr[i].length; j ++)
-					c[i][j] = Double.NaN;
+					c[i][j] = Double.isInfinite(arr[i][i]) ? 0 : Double.NaN;
 			}
 		}
 		return c;

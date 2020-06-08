@@ -261,7 +261,7 @@ public class MRSt {
 	 */
 	public double[] respond(double[] energies, double[] times, double[][] spectrum) {
 		this.deuteronSpectrum = this.response(energies, times, spectrum, true);
-		return analyze(deuteronSpectrum);
+		return analyze(deuteronSpectrum, true);
 	}
 	
 	/**
@@ -306,13 +306,12 @@ public class MRSt {
 	/**
 	 * take the time-corrected spectrum and use it to compute and store time-resolved values
 	 * for ion temperature, areal density, and yield.
-	 * @param eBins the edges of the energy bins
-	 * @param tBins the edges of the time bins
 	 * @param spectrum the time-corrected spectrum we want to understand
+	 * @param errorBars should error bars be computed (it's rather intensive)?
 	 * @return {computation time, BT, peak-ρR, peak-ρR-ramp, Ti(BT), ρR(BT), vi(BT),
 	 *   Ti-ramp(BT), ρR-ramp(BT), vi-ramp(BT), max ρR, yield, μ1, μ2, μ3} or null if it can't even
 	 */
-	private double[] analyze(double[][] spectrum) {
+	private double[] analyze(double[][] spectrum, boolean errorBars) {
 		if (spectrum.length != energyBins.length-1 || spectrum[0].length != timeBins.length-1)
 			throw new IllegalArgumentException("These dimensions are wrong.");
 		
@@ -409,54 +408,61 @@ public class MRSt {
 			return - penalty - error;
 		};
 		
+		double meanYield = 0;
+		for (int i = 0; i < timeAxis.length; i ++)
+			meanYield += opt[i]/timeAxis.length;
 		double[] dimensionScale = new double[4*timeAxis.length];
 		for (int j = 0; j < timeAxis.length; j ++) {
-			dimensionScale[4*j+0] = opt[4*j]/3.;
+			dimensionScale[4*j+0] = Math.max(opt[4*j]/3., meanYield);
 			dimensionScale[4*j+1] = 10;
 			dimensionScale[4*j+2] = 100;
 			dimensionScale[4*j+3] = 1;
 		}
 		
-		System.out.println(logPosterior.apply(opt));
-		MultivariateOptimizer optimizer = new PowellOptimizer(1e-14, 1);
-		for (int i = 0; i < 20; i ++) { // just optimize it over and over; you'll get there eventually
-			opt = optimizer.optimize(
-					GoalType.MAXIMIZE,
-					new ObjectiveFunction((x) -> logPosterior.apply(x)),
-					new InitialGuess(opt),
-					new MultiDirectionalSimplex(dimensionScale),
-					new MaxIter(10000),
-					new MaxEval(100000)).getPoint();
+		double[][] covariance;
+		if (errorBars) {
 			System.out.println(logPosterior.apply(opt));
-		}
-		
-		double value = logPosterior.apply(opt); // now estimate some local derivatives
-		double[] gradient = new double[4*timeAxis.length];
-		for (int i = 0; i < 4*timeAxis.length; i ++) {
-			double dxi = dimensionScale[i]*1e-4; // TODO try out different small numbers
-			opt[i] += dxi;
-			gradient[i] = (logPosterior.apply(opt) - value)/dxi;
-			opt[i] -= dxi;
-		}
-		double[][] hessian = new double[4*timeAxis.length][4*timeAxis.length];
-		for (int i = 0; i < 4*timeAxis.length; i ++) {
-			double dxi = dimensionScale[i]*1e-4;
-			opt[i] += dxi;
-			for (int j = i; j < 4*timeAxis.length; j ++) {
-				double dxj = dimensionScale[j]*1e-4;
-				opt[j] += dxj;
-				hessian[i][j] = (logPosterior.apply(opt) - value - gradient[i]*dxi - gradient[j]*dxj)/(dxi*dxj);
-				hessian[j][i] = hessian[i][j];
-				opt[j] -= dxj;
+			MultivariateOptimizer optimizer = new PowellOptimizer(1e-14, 1);
+			for (int i = 0; i < 20; i ++) { // just optimize it over and over; you'll get there eventually
+				opt = optimizer.optimize(
+						GoalType.MAXIMIZE,
+						new ObjectiveFunction((x) -> logPosterior.apply(x)),
+						new InitialGuess(opt),
+						new MultiDirectionalSimplex(dimensionScale),
+						new MaxIter(10000),
+						new MaxEval(100000)).getPoint();
+				System.out.println(logPosterior.apply(opt));
 			}
-			opt[i] -= dxi;
+			
+			double[][] hessian = new double[4*timeAxis.length][4*timeAxis.length];
+			for (int i = 0; i < 4*timeAxis.length; i ++) {
+				double dxi = dimensionScale[i]*1e-5;
+				for (int j = i; j < 4*timeAxis.length; j ++) {
+					double dxj = dimensionScale[j]*1e-5;
+					opt[i] -= dxi;
+					opt[j] -= dxj;
+					double dl = logPosterior.apply(opt);
+					opt[j] += 2*dxj;
+					double dr = logPosterior.apply(opt);
+					opt[i] += 2*dxi;
+					double ur = logPosterior.apply(opt);
+					opt[j] -= 2*dxj;
+					double ul = logPosterior.apply(opt);
+					opt[i] -= dxi;
+					opt[j] += dxj;
+					hessian[i][j] = hessian[j][i] = (ur - ul - dr + dl)/(4*dxi*dxj);
+				}
+			}
+			System.out.println(Arrays.deepToString(hessian));
+			covariance = NumericalMethods.pseudoinv(hessian);
+			for (int i = 0; i < 4*timeAxis.length; i ++)
+				for (int j = 0; j < 4*timeAxis.length; j ++)
+					covariance[i][j] *= -1; // there's a negative sign between the inverse hessian and covariance
+			System.out.println(Arrays.deepToString(covariance));
 		}
-		double[][] covariance = NumericalMethods.pseudoinv(hessian);
-		System.out.println(Arrays.deepToString(hessian));
-		System.out.println(Arrays.deepToString(covariance));
-		for (int i = 0; i < 4*timeAxis.length; i ++)
-			for (int j = 0; j < 4*timeAxis.length; j ++)
-				covariance[i][j] *= -1; // there's a negative sign between the inverse hessian and covariance
+		else {
+			covariance = new double[4*timeAxis.length][4*timeAxis.length];
+		}
 		
 		double[][] params = new double[4][timeAxis.length]; // unpack the optimized vector
 		double[][] errors = new double[4][timeAxis.length]; // and the associated basic errors
