@@ -519,8 +519,7 @@ public class MRSt {
 				NumericalMethods.interp(dρRdt, iBT),
 				NumericalMethods.interp(dvidt, iBT),
 				NumericalMethods.max(arealDensity),
-				moments[0]*1e15*timeStep, moments[1],
-				Math.sqrt(moments[2])*2.355, moments[3], moments[4]
+				moments[0]*timeStep, moments[1], Math.sqrt(moments[2])*2.355, moments[3], moments[4]
 		}; // collect the figures of merit
 		
 		if (logger != null) {
@@ -536,9 +535,9 @@ public class MRSt {
 			logger.info(String.format("dρR/dt at BT:      %8.3f g/cm^2/ns", res[8]));
 			logger.info(String.format("dvi/dt at BT:      %8.3f μm/ns^2", res[9]));
 			logger.info(String.format("Peak ρR:           %8.3f g/cm^2", res[10]));
-			logger.info(String.format("Total yield (μ0):  %8.3g", res[11]));
-			logger.info(String.format("Burn mean (μ1):    %8.3g ns", res[12]));
-			logger.info(String.format("Burn width (μ2):   %8.3g ns", res[13]));
+			logger.info(String.format("Total yield (μ0):  %8.3g", res[11]*1e15));
+			logger.info(String.format("Burn mean (μ1):    %8.5g ns", res[12]));
+			logger.info(String.format("Burn width (μ2):   %8.3g ps", res[13]/1e-3));
 			logger.info(String.format("Burn skewness (μ3):%8.3g", res[14]));
 			logger.info(String.format("Burn kurtosis (μ4):%8.3g", res[15]));
 		}
