@@ -342,7 +342,7 @@ public class MRSt {
 				exp[i] = gelf[i][j]/Δt;
 			
 			double[] fit = Optimization.minimizeNelderMead((x) -> {
-				if (x[0] < 0 || x[1] <= 0 || Math.abs(x[2]) > 200 || x[3] < 0)
+				if (x[0] < 0 || x[1] <= 1 || Math.abs(x[2]) > 200 || x[3] < 0)
 					return Double.POSITIVE_INFINITY;
 				double[] teo = generateSpectrum(x[0], x[1], x[2], x[3], energyBins);
 				double error = 0;
@@ -382,8 +382,10 @@ public class MRSt {
 			double error = 0; // negative Bayes factor (in nepers)
 			for (int i = 0; i < spectrum.length; i ++) {
 				for (int j = 0; j < spectrum[i].length; j ++) { // compute the error between it and the actual spectrum
-					if (fitSpectrum[i][j] + noiseVar[j] > 0) // skipping places where we expect 0 and got 0
-						error += Math.log(fitSpectrum[i][j] + noiseVar[j])/2 +
+					if (fitSpectrum[i][j] < 0)
+						error = Double.POSITIVE_INFINITY;
+					else if (fitSpectrum[i][j] + noiseVar[j] > 0) // skipping places where we expect 0 and got 0
+						error += Math.log(fitSpectrum[i][j] + noiseVar[j] + 1)/2 +
 								Math.pow(fitSpectrum[i][j] - spectrum[i][j], 2)/
 										(2*(fitSpectrum[i][j] + noiseVar[j]));
 					else if (spectrum[i][j] != 0) // but throwing infinity if we expect 0 and got not 0
@@ -424,11 +426,10 @@ public class MRSt {
 			dimensionScale[4*j+3] = 1;
 		}
 		
-		double[][] covariance;
 		double oldPosterior = Double.NEGATIVE_INFINITY, newPosterior = logPosterior.apply(opt);
 		if (newPosterior == Double.NEGATIVE_INFINITY) {
 			for (int j = 0; j < timeAxis.length; j ++)
-				opt[j] += 1e-15;
+				opt[4*j] += 1;
 			newPosterior = logPosterior.apply(opt);
 		}
 		System.out.println(newPosterior);
@@ -445,8 +446,9 @@ public class MRSt {
 			newPosterior = logPosterior.apply(opt);
 			System.out.println(newPosterior);
 		}
+		
+		double[][] covariance;
 		if (errorBars) {
-			
 			double[][] hessian = new double[4*timeAxis.length][4*timeAxis.length];
 			for (int i = 0; i < 4*timeAxis.length; i ++) {
 				double dxi = dimensionScale[i]*1e-5;
@@ -835,6 +837,9 @@ public class MRSt {
 				}
 			}
 		}
+		
+		for (int i = 0; i < eBins.length; i ++) // at some energies, the cross sections can get big enough that the whole spectrum is scattered
+			Iprim[i] = Math.max(0, Iprim[i]); // to deal with that, just truncate at 0
 		
 		double[] Itot = new double[eBins.length];
 		for (int i = 0; i < eBins.length; i ++)
