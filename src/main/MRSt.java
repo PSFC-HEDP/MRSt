@@ -360,8 +360,6 @@ public class MRSt {
 				noiseVar[j] = Math.max(noiseVar[j], Math.pow(spectrum[i][j]/1e3, 2)); // TODO this could maybe be lower now
 		double spectrumScale = NumericalMethods.sum(gelf)/(timeBins.length-1)/(energyBins.length-1); // the characteristic magnitude of the neutron spectrum bins
 		
-		System.out.println(Arrays.toString(opt));
-		
 		Function<double[], Double> logPosterior = (double[] x) -> {
 //			if (Math.random() < 1e-3) System.out.println(Arrays.toString(x)+",");
 			
@@ -409,7 +407,7 @@ public class MRSt {
 			for (int j = 1; j < timeAxis.length-1; j ++) {
 				double Tpp = (params[1][j-1] - 2*params[1][j] + params[1][j+1])/
 						Math.pow(timeStep, 2);
-				penalty += Math.pow(Tpp/1000, 2)/2;
+				penalty += Math.pow(Tpp/2000, 2)/2;
 			}
 			
 			return - penalty - error;
@@ -460,12 +458,13 @@ public class MRSt {
 					hessian[i][j] = hessian[j][i] = (ur - ul - dr + dl)/(4*dxi*dxj);
 				}
 			}
-			System.out.println(Arrays.deepToString(hessian));
 			covariance = NumericalMethods.pseudoinv(hessian);
 			for (int i = 0; i < 4*timeAxis.length; i ++)
 				for (int j = 0; j < 4*timeAxis.length; j ++)
 					covariance[i][j] *= -1; // there's a negative sign between the inverse hessian and covariance
-			System.out.println(Arrays.deepToString(covariance));
+			for (int i = 0; i < 4*timeAxis.length; i ++)
+				if (covariance[i][i] < 0) // these are all approximations, and sometimes they make a NaN
+					covariance[i][i] = -1/hessian[i][i]; // do what you must to make it finite
 		}
 		else {
 			covariance = new double[4*timeAxis.length][4*timeAxis.length];
