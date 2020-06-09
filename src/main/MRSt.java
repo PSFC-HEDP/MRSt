@@ -349,7 +349,7 @@ public class MRSt {
 				for (int i = 3; i < timeAxis.length; i ++) // I'm not sure why the bottom two rows are so unusable
 					error += Math.pow(teo[i] - exp[i], 2);
 				return error;
-			}, new double[] {NumericalMethods.sum(exp)/1e15, 4, 50, 1}, 1e-8);
+			}, new double[] {(NumericalMethods.sum(exp) + 1)/1e15, 4, 50, 1}, 1e-8);
 			
 			System.arraycopy(fit, 0, opt, 4*j, 4);
 		}
@@ -396,7 +396,7 @@ public class MRSt {
 				for (int i = 0; i < spectrum.length; i ++) {
 					if (teoSpectrum[i][j] > 1e-300)
 						penalty += 1.0*teoSpectrum[i][j]/spectrumScale*
-								Math.log(teoSpectrum[i][j]/spectrumScale); // encourage entropy TODO what is this coefficient and how does it depend on yield?
+								Math.log(teoSpectrum[i][j]/spectrumScale); // encourage entropy
 					else
 						penalty -= 0;
 				}
@@ -425,9 +425,15 @@ public class MRSt {
 		}
 		
 		double[][] covariance;
-		System.out.println(logPosterior.apply(opt));
+		double oldPosterior = Double.NEGATIVE_INFINITY, newPosterior = logPosterior.apply(opt);
+		if (newPosterior == Double.NEGATIVE_INFINITY) {
+			for (int j = 0; j < timeAxis.length; j ++)
+				opt[j] += 1e-15;
+			newPosterior = logPosterior.apply(opt);
+		}
+		System.out.println(newPosterior);
 		MultivariateOptimizer optimizer = new PowellOptimizer(1e-14, 1);
-		for (int i = 0; i < 6; i ++) { // just optimize it over and over; you'll get there eventually
+		while (newPosterior - oldPosterior > 1) { // just optimize it over and over; you'll get there eventually
 			opt = optimizer.optimize(
 					GoalType.MAXIMIZE,
 					new ObjectiveFunction((x) -> logPosterior.apply(x)),
@@ -435,7 +441,9 @@ public class MRSt {
 					new MultiDirectionalSimplex(dimensionScale),
 					new MaxIter(10000),
 					new MaxEval(100000)).getPoint();
-			System.out.println(logPosterior.apply(opt));
+			oldPosterior = newPosterior;
+			newPosterior = logPosterior.apply(opt);
+			System.out.println(newPosterior);
 		}
 		if (errorBars) {
 			

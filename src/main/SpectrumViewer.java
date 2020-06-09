@@ -174,13 +174,13 @@ public class SpectrumViewer extends Application {
 					this.spectrum = CSV.read(file, '\t');
 				}));
 		
-		this.yieldFactor = new Spinner<Double>(1e-5, 1e+2, 1, 0.1);
+		this.yieldFactor = new Spinner<Double>(1e-2, 1e+4, 100, 10);
 		yieldFactor.setEditable(true);
 		GridPane container = new GridPane();
 		container.setHgap(SPACING_1);
 		container.add(new Label("Yield factor"), 0, 0);
 		container.add(yieldFactor, 1, 0);
-		container.add(new Label(""), 2, 0);
+		container.add(new Label("%"), 2, 0);
 		rightPane.getChildren().add(container);
 		
 		this.stoppingPowerData = CSV.read(STOPPING_POWER_FILE, ',');
@@ -203,7 +203,7 @@ public class SpectrumViewer extends Application {
 						eBins = energyBins.clone(); // save the current values of these spectra
 						tBins = timeBins.clone();
 						spec = MRSt.interpretSpectrumFile(tBins, eBins, spectrum); // deal with the necessary differentiation etc
-						MRSt.modifySpectrum(tBins, eBins, spec, yieldFactor.getValue(), 1, 1, 0);
+						MRSt.modifySpectrum(tBins, eBins, spec, yieldFactor.getValue()/100., 1, 1, 0);
 					} catch (ArrayIndexOutOfBoundsException e) {
 						logger.severe("Invalid input spectrum file.");
 						return;
@@ -245,8 +245,9 @@ public class SpectrumViewer extends Application {
 						plotLines(mc.getTimeAxis(), "Time (ns)",
 								mc.getIonTemperature(), mc.getIonTemperatureError(), "Ti (keV)",
 								mc.getArealDensity(), mc.getArealDensityError(), "ρR (g/cm^2)",
-								mc.getNeutronYield(), mc.getNeutronYieldError(), "Yn (10^15/ns)",
-								mc.getFlowVelocity(), mc.getFlowVelocityError(), "Vi cosθ (μm/ns)");
+								mc.getNeutronYield(), mc.getNeutronYieldError(), "Yn (10^15/ns)"
+//								mc.getFlowVelocity(), mc.getFlowVelocityError(), "Vi cosθ (μm/ns)");
+								);
 						compareHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getCorrectedSpectrum(), mc.getFittedSpectrum(),
 								"Time", "Energy (MeV)", "Synthetic deuteron spectrum", "Fitted deuteron spectrum");
 						compareHeatmap(mc.getTimeBins(), mc.getEnergyBins(), smallSpec, mc.getInferredSpectrum(),
