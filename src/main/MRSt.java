@@ -416,6 +416,9 @@ public class MRSt {
 				double Tpp = (params[1][j-1] - 2*params[1][j] + params[1][j+1])/
 						Math.pow(timeStep, 2);
 				penalty += Math.pow(Tpp/2000, 2)/2; // encourage a smooth temperature
+				double Rpp = (params[4][j-1] - 2*params[4][j] + params[4][j+1])/
+						Math.pow(timeStep, 2);
+				penalty += Math.pow(Rpp/2000, 2)/2; // and rho R
 			}
 			
 			return - penalty - error;
@@ -822,7 +825,7 @@ public class MRSt {
 		double[] Isrc = new double[eBins.length]; // probability distribution at edges [MeV^-1]
 		for (int i = 0; i < eBins.length; i ++) {
 			if (Ti > 0) {
-				Isrc[i] += (1-USR)*Yn*1e15/Math.sqrt(2*Math.PI*σ2)*
+				Isrc[i] += Yn*1e15/Math.sqrt(2*Math.PI*σ2)*
 					Math.exp(-2*μ/σ2*Math.pow(Math.sqrt(eBins[i]) - Math.sqrt(μ), 2));
 				Isrc[i] += USR*Yn*1e15*ALPHA_KNOCKON_SPECTRUM.evaluate(eBins[i]);
 			}
