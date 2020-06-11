@@ -303,13 +303,28 @@ public class NumericalMethods {
 				argmin = i;
 		return argmin;
 	}
+	
 	/**
 	 * find the interpolative index of the highest value
 	 * @param x the array of values
 	 * @return i such that x[i] >= x[j] for all j
 	 */
 	public static double quadargmax(double[] x) {
-		int i = argmax(x);
+		return quadargmax(0, x.length, x);
+	}
+	
+	/**
+	 * find the interpolative index of the highest value in [left, right)
+	 * @param left the leftmost acceptable index
+	 * @param right the leftmost unacceptable index
+	 * @param x the array of values
+	 * @return i such that x[i] >= x[j] for all j in [left, right)
+	 */
+	public static double quadargmax(int left, int right, double[] x) {
+		int i = -1;
+		for (int j = left; j < right; j ++)
+			if (!Double.isNaN(x[j]) && (i == -1 || x[j] > x[i]))
+				i = j;
 		if (i <= 0 || Double.isNaN(x[i-1]) || i == x.length-1 || Double.isNaN(x[i+1])) return i;
 		double dxdi = (x[i+1] - x[i-1])/2;
 		double d2xdi2 = (x[i+1] - 2*x[i] + x[i-1]);
@@ -327,6 +342,26 @@ public class NumericalMethods {
 		try {
 			return interp(x, quadargmax(y));
 		} catch (IndexOutOfBoundsException e) { // y is empty or all NaN
+			return -1;
+		}
+	}
+	
+	/**
+	 * find the x coordinate of the highest value in the bounds [left, right)
+	 * @param left the leftmost acceptable index
+	 * @param right the leftmost unacceptable index
+	 * @param x the horizontal axis
+	 * @param y the array of values
+	 * @return x such that y(x) >= y(z) for all z in [x[left], x[right])
+	 */
+	public static double quadargmax(int left, int right, double[] x, double[] y) {
+		try {
+			return interp(x, quadargmax(left, right, y));
+		} catch (IndexOutOfBoundsException e) { // y is empty or all NaN
+			System.out.println("y is empty or all NaN");
+			System.out.println(left);
+			System.out.println(right);
+			System.out.println(Arrays.toString(y));
 			return -1;
 		}
 	}

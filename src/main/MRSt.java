@@ -418,7 +418,7 @@ public class MRSt {
 				penalty += Math.pow(Tpp/2000, 2)/2; // encourage a smooth temperature
 				double Rpp = (params[4][j-1] - 2*params[4][j] + params[4][j+1])/
 						Math.pow(timeStep, 2);
-				penalty += Math.pow(Rpp/2000, 2)/2; // and rho R
+				penalty += Math.pow(Rpp/1000, 2)/2; // and rho R
 			}
 			
 			return - penalty - error;
@@ -524,8 +524,15 @@ public class MRSt {
 		
 		double iBT = NumericalMethods.quadargmax(neutronYield); // index of max yield
 		double bangTime = NumericalMethods.interp(timeAxis, iBT); // time of max yield
-		double maxCompress = NumericalMethods.quadargmax(timeAxis, arealDensity); // time of max compression
-		double maxPRRamp = NumericalMethods.quadargmax(timeAxis, dρRdt); // time of max rhoR ramp
+		
+		int left = (int)iBT;
+		while (left-1 >= 0 && neutronYield[left-1] > NumericalMethods.max(neutronYield)/1e3)
+			left --;
+		int rite = (int)iBT;
+		while (rite < timeAxis.length && neutronYield[rite] > NumericalMethods.max(neutronYield)/1e3)
+			rite ++;
+		double maxCompress = NumericalMethods.quadargmax(left, rite, timeAxis, arealDensity); // time of max compression
+		double maxPRRamp = NumericalMethods.quadargmax(left, rite, timeAxis, dρRdt); // time of max rhoR ramp
 		double[] moments = new double[5];
 		for (int k = 0; k < moments.length; k ++)
 			moments[k] = NumericalMethods.moment(k, timeBins, neutronYield);
