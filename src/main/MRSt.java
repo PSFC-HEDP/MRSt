@@ -461,9 +461,9 @@ public class MRSt {
 		if (errorBars) {
 			double[][] hessian = new double[5*timeAxis.length][5*timeAxis.length];
 			for (int i = 0; i < 5*timeAxis.length; i ++) {
-				double dxi = dimensionScale[i]*1e-5;
+				double dxi = dimensionScale[i]*1e-4;
 				for (int j = i; j < 5*timeAxis.length; j ++) {
-					double dxj = dimensionScale[j]*1e-5;
+					double dxj = dimensionScale[j]*1e-4;
 					opt[i] -= dxi;
 					opt[j] -= dxj;
 					double dl = logPosterior.apply(opt);
