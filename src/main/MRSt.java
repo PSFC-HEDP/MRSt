@@ -55,6 +55,11 @@ public class MRSt {
 			{51.6e-31, 52.5e-31, 59.5e-31, -17.4e-31, 20.8e-31, -14.8e-31, 7.73e-31, -4.92e-31, 3.11e-31},
 			{79.2e-31, 116e-31, 118e-31, 14.8e-31, 14.8e-31},
 	}; // m^2/sr
+	private static final DiscreteFunction ALPHA_KNOCKON_SPECTRUM = new DiscreteFunction(
+			new double[] {10.23, 10.5, 11.0, 11.25, 11.5, 12.0, 12.5, 13.0, 13.5, 14.0, 14.5,
+					15.0, 15.5, 16.0, 16.5, 17.0, 17.5, 18.0, 18.5, 19.0, 19.5, 19.85},
+			new double[] {1.62E-06, 4.87E-06, 3.71E-05, 8.85E-05, 0.00024044, 0.0019635, 0.016034, 0.097, 0.17674, 0.21588, 0.21588,
+					0.17674, 0.071859, 0.019584, 0.0056109, 0.00169, 0.00046811, 0.00014583, 4.26E-05, 1.28E-05, 3.68E-06, 1.62E-06});
 	
 	private static final int STOPPING_DISTANCE_RESOLUTION = 64;
 	private static final double MIN_E = 12, MAX_E = 16; // histogram bounds [MeV]
@@ -93,6 +98,8 @@ public class MRSt {
 	private final double[] timeAxis; // 1D vectors for higher level measurements [ns]
 	private double[] ionTemperature; // [keV]
 	private double[] ionTemperatureError; // [keV]
+	private double[] electronTemperature; // [keV]
+	private double[] electronTemperatureError; // [keV]
 	private double[] flowVelocity; // [km/s]
 	private double[] flowVelocityError; // [km/s]
 	private double[] arealDensity; // [g/cm^2]
@@ -258,12 +265,13 @@ public class MRSt {
 	 * @param times the times that describe the columns of counts [ns]
 	 * @param spectrum the time- and energy- resolved neutron spectrum in number of neutrons. each
 	 * row corresponds to one element of energies, and each column one element of times. [#/MeV/ns]
+	 * @param errorBars whether to bother computing error bars
 	 * @return {computation time, BT, peak-ρR, peak-ρR-ramp, Ti(BT), ρR(BT), vi(BT),
 	 *   Ti-ramp(BT), ρR-ramp(BT), vi-ramp(BT), max ρR, yield, μ1, μ2, μ3}
 	 */
-	public double[] respond(double[] energies, double[] times, double[][] spectrum) {
+	public double[] respond(double[] energies, double[] times, double[][] spectrum, boolean errorBars) {
 		this.deuteronSpectrum = this.response(energies, times, spectrum, true);
-		return analyze(deuteronSpectrum, true);
+		return analyze(deuteronSpectrum, errorBars);
 	}
 	
 	/**
@@ -334,7 +342,7 @@ public class MRSt {
 		
 		double gelf[][] = Optimization.optimizeGelfgat(F, D, this.transferMatrix);
 		
-		double[] opt = new double[4*timeAxis.length]; // initial guess for the coming Powell fit
+		double[] opt = new double[5*timeAxis.length]; // initial guess for the coming Powell fit
 		for (int j = 0; j < timeAxis.length; j ++) {
 			double Δt = timeBins[j+1] - timeBins[j];
 			double[] exp = new double[energyBins.length-1];
@@ -342,54 +350,51 @@ public class MRSt {
 				exp[i] = gelf[i][j]/Δt;
 			
 			double[] fit = Optimization.minimizeNelderMead((x) -> {
-				if (x[0] < 0 || x[1] <= 1 || Math.abs(x[2]) > 200 || x[3] < 0)
+				if (x[0] < 0 || x[1] <= 1 || x[2] < 0 || Math.abs(x[3]) > 200 || x[4] < 0)
 					return Double.POSITIVE_INFINITY;
-				double[] teo = generateSpectrum(x[0], x[1], x[2], x[3], energyBins);
+				double[] teo = generateSpectrum(x[0], x[1], x[2], x[3], x[4], energyBins);
 				double error = 0;
 				for (int i = 3; i < timeAxis.length; i ++) // I'm not sure why the bottom two rows are so unusable
 					error += Math.pow(teo[i] - exp[i], 2);
 				return error;
-			}, new double[] {(NumericalMethods.sum(exp) + 1)/1e15, 4, 50, 1}, 1e-8);
+			}, new double[] {NumericalMethods.sum(exp)/1e15, 4, 0, 50, 1}, 1e-8);
 			
-			System.arraycopy(fit, 0, opt, 4*j, 4);
+			System.arraycopy(fit, 0, opt, 5*j, 5);
 		}
 		
-		double[] noiseVar = new double[timeAxis.length]; // the variance of the upscatter spectrum, for which my model does not account
-		for (int i = 4; i < energyBins.length-1; i ++)
-			for (int j = 0; j < timeBins.length-1; j ++)
-				noiseVar[j] = Math.max(noiseVar[j], Math.pow(spectrum[i][j]/1e3, 2)); // TODO this could maybe be lower now
 		double spectrumScale = NumericalMethods.sum(gelf)/(timeBins.length-1)/(energyBins.length-1); // the characteristic magnitude of the neutron spectrum bins
 		
 		Function<double[], Double> logPosterior = (double[] x) -> {
 //			if (Math.random() < 1e-3) System.out.println(Arrays.toString(x)+",");
 			
-			double[][] params = new double[4][timeAxis.length];
-			for (int k = 0; k < 4; k ++) // first unpack the state vector
+			double[][] params = new double[5][timeAxis.length];
+			for (int k = 0; k < 5; k ++) // first unpack the state vector
 				for (int i = 0; i < timeAxis.length; i ++)
-					params[k][i] = x[4*i+k];
+					params[k][i] = x[5*i+k];
 			
 			for (int i = 0; i < timeAxis.length; i ++) { // check for illegal (prior = 0) values
 				if (params[0][i] < 0)  return Double.NEGATIVE_INFINITY;
 				if (params[1][i] < 0)  return Double.NEGATIVE_INFINITY;
-				if (params[3][i] < 0)  return Double.NEGATIVE_INFINITY;
+				if (params[2][i] < 0)  return Double.NEGATIVE_INFINITY;
+				if (params[4][i] < 0)  return Double.NEGATIVE_INFINITY;
 			}
 			
 			double[][] teoSpectrum = generateSpectrum(
-					params[0], params[1], params[2], params[3], energyBins, timeBins); // generate the neutron spectrum based on those
+					params[0], params[1], params[2], params[3], params[4], energyBins, timeBins); // generate the neutron spectrum based on those
 			double[][] fitSpectrum = this.response(
 					energyBins, timeBins, teoSpectrum, false); // blur it according to the transfer matrix
 			
 			double error = 0; // negative Bayes factor (in nepers)
 			for (int i = 0; i < spectrum.length; i ++) {
 				for (int j = 0; j < spectrum[i].length; j ++) { // compute the error between it and the actual spectrum
-					if (fitSpectrum[i][j] < 0)
-						error = Double.POSITIVE_INFINITY;
-					else if (fitSpectrum[i][j] + noiseVar[j] > 0) // skipping places where we expect 0 and got 0
-						error += Math.log(fitSpectrum[i][j] + noiseVar[j] + 1)/2 +
-								Math.pow(fitSpectrum[i][j] - spectrum[i][j], 2)/
-										(2*(fitSpectrum[i][j] + noiseVar[j]));
-					else if (spectrum[i][j] != 0) // but throwing infinity if we expect 0 and got not 0
-						error = Double.POSITIVE_INFINITY;
+					if (fitSpectrum[i][j] > 0)
+						error += fitSpectrum[i][j] - spectrum[i][j]*Math.log(fitSpectrum[i][j]);
+					else if (fitSpectrum[i][j] == 0 && spectrum[i][j] > 0)
+						error += Double.POSITIVE_INFINITY; // throwing infinity if we expect 0 and got not 0
+					else if (fitSpectrum[i][j] == 0 && spectrum[i][j] == 0)
+						error += 0; // skipping places where we expect 0 and got 0
+					else
+						throw new IllegalArgumentException("What to do when expected "+fitSpectrum[i][j]+" and observed "+spectrum[i][j]+"?");
 				}
 			}
 			
@@ -403,33 +408,35 @@ public class MRSt {
 						penalty -= 0;
 				}
 				penalty += Math.pow(params[1][j]/15, 2)/2;
-				penalty += Math.pow(params[2][j]/50, 2)/2;
-				penalty += Math.pow(params[3][j]/1, 2)/2;
+				penalty += Math.pow(params[2][j]/15, 2)/2;
+				penalty += Math.pow(params[3][j]/50, 2)/2;
+				penalty += Math.pow(params[4][j]/1, 2)/2;
 			}
 			for (int j = 1; j < timeAxis.length-1; j ++) {
 				double Tpp = (params[1][j-1] - 2*params[1][j] + params[1][j+1])/
 						Math.pow(timeStep, 2);
-				penalty += Math.pow(Tpp/2000, 2)/2;
+				penalty += Math.pow(Tpp/2000, 2)/2; // encourage a smooth temperature
 			}
 			
 			return - penalty - error;
 		};
 		
 		double meanYield = 0;
-		for (int i = 0; i < timeAxis.length; i ++)
-			meanYield += opt[i]/timeAxis.length;
-		double[] dimensionScale = new double[4*timeAxis.length];
+		for (int j = 0; j < timeAxis.length; j ++)
+			meanYield += opt[5*j]/timeAxis.length;
+		double[] dimensionScale = new double[5*timeAxis.length];
 		for (int j = 0; j < timeAxis.length; j ++) {
-			dimensionScale[4*j+0] = Math.max(opt[4*j]/3., meanYield);
-			dimensionScale[4*j+1] = 10;
-			dimensionScale[4*j+2] = 100;
-			dimensionScale[4*j+3] = 1;
+			dimensionScale[5*j+0] = Math.max(opt[5*j]/3., meanYield);
+			dimensionScale[5*j+1] = 10;
+			dimensionScale[5*j+2] = 10;
+			dimensionScale[5*j+3] = 100;
+			dimensionScale[5*j+4] = 1;
 		}
 		
 		double oldPosterior = Double.NEGATIVE_INFINITY, newPosterior = logPosterior.apply(opt);
 		if (newPosterior == Double.NEGATIVE_INFINITY) {
 			for (int j = 0; j < timeAxis.length; j ++)
-				opt[4*j] += 1;
+				opt[5*j] += 1;
 			newPosterior = logPosterior.apply(opt);
 		}
 		System.out.println(newPosterior);
@@ -449,10 +456,10 @@ public class MRSt {
 		
 		double[][] covariance;
 		if (errorBars) {
-			double[][] hessian = new double[4*timeAxis.length][4*timeAxis.length];
-			for (int i = 0; i < 4*timeAxis.length; i ++) {
+			double[][] hessian = new double[5*timeAxis.length][5*timeAxis.length];
+			for (int i = 0; i < 5*timeAxis.length; i ++) {
 				double dxi = dimensionScale[i]*1e-5;
-				for (int j = i; j < 4*timeAxis.length; j ++) {
+				for (int j = i; j < 5*timeAxis.length; j ++) {
 					double dxj = dimensionScale[j]*1e-5;
 					opt[i] -= dxi;
 					opt[j] -= dxj;
@@ -469,33 +476,35 @@ public class MRSt {
 				}
 			}
 			covariance = NumericalMethods.pseudoinv(hessian);
-			for (int i = 0; i < 4*timeAxis.length; i ++)
-				for (int j = 0; j < 4*timeAxis.length; j ++)
+			for (int i = 0; i < 5*timeAxis.length; i ++)
+				for (int j = 0; j < 5*timeAxis.length; j ++)
 					covariance[i][j] *= -1; // there's a negative sign between the inverse hessian and covariance
-			for (int i = 0; i < 4*timeAxis.length; i ++)
+			for (int i = 0; i < 5*timeAxis.length; i ++)
 				if (covariance[i][i] < 0) // these are all approximations, and sometimes they make a NaN
 					covariance[i][i] = -1/hessian[i][i]; // do what you must to make it finite
 		}
 		else {
-			covariance = new double[4*timeAxis.length][4*timeAxis.length];
+			covariance = new double[5*timeAxis.length][5*timeAxis.length];
 		}
 		
-		double[][] params = new double[4][timeAxis.length]; // unpack the optimized vector
-		double[][] errors = new double[4][timeAxis.length]; // and the associated basic errors
-		for (int k = 0; k < 4; k ++) {
+		double[][] params = new double[5][timeAxis.length]; // unpack the optimized vector
+		double[][] errors = new double[5][timeAxis.length]; // and the associated basic errors
+		for (int k = 0; k < 5; k ++) {
 			for (int j = 0; j < timeAxis.length; j ++) {
-				params[k][j] = opt[4*j+k];
-				errors[k][j] = Math.sqrt(covariance[4*j+k][4*j+k]);
+				params[k][j] = opt[5*j+k];
+				errors[k][j] = Math.sqrt(covariance[5*j+k][5*j+k]);
 			}
 		}
 		this.neutronYield = params[0];
 		this.neutronYieldError = errors[0];
 		this.ionTemperature = params[1];
 		this.ionTemperatureError = errors[1];
-		this.flowVelocity = params[2];
-		this.flowVelocityError = errors[2];
-		this.arealDensity = params[3];
-		this.arealDensityError = errors[3];
+		this.electronTemperature = params[2];
+		this.electronTemperatureError = errors[2];
+		this.flowVelocity = params[3];
+		this.flowVelocityError = errors[3];
+		this.arealDensity = params[4];
+		this.arealDensityError = errors[4];
 		
 		long endTime = System.currentTimeMillis();
 		if (logger != null)
@@ -503,7 +512,7 @@ public class MRSt {
 					(endTime - startTime)/60000.));
 		
 		this.fitNeutronSpectrum = generateSpectrum( // and then interpret it
-				neutronYield, ionTemperature, flowVelocity, arealDensity, energyBins, timeBins);
+				neutronYield, ionTemperature, electronTemperature, flowVelocity, arealDensity, energyBins, timeBins);
 		this.fitDeuteronSpectrum = this.response(energyBins, timeBins, fitNeutronSpectrum, false);
 		
 		double[] dTidt = NumericalMethods.derivative(timeAxis, ionTemperature); // now we can freely analyze the resulting profiles
@@ -736,6 +745,14 @@ public class MRSt {
 		return this.ionTemperatureError;
 	}
 	
+	public double[] getElectronTemperature() {
+		return this.electronTemperature;
+	}
+	
+	public double[] getElectronTemperatureError() {
+		return this.electronTemperatureError;
+	}
+	
 	public double[] getFlowVelocity() {
 		return this.flowVelocity;
 	}
@@ -763,18 +780,19 @@ public class MRSt {
 	 * generate a time-resolved spectrum based on some parameters that vary with time.
 	 * @param Yn the neutron yield rate [10^15/ns]
 	 * @param Ti the ion temperature [keV]
+	 * @param Te the electron temperature [keV]
 	 * @param vi the bulk flow rate parallel to the line of sight [μm/ns]
 	 * @param ρR the areal density of fuel and shell surrounding the hot spot [g/cm^2]
 	 * @param t the edges of the time bins [ns]
 	 * @param eBins the edges of the energy bins [MeV]
 	 * @return the theoretical number of particles in each energy bin, ignoring stochastity.
 	 */
-	public static double[][] generateSpectrum(double[] Yn, double Ti[], double vi[], double ρR[],
+	public static double[][] generateSpectrum(double[] Yn, double Ti[], double[] Te, double vi[], double ρR[],
 			double[] eBins, double[] tBins) {
 		double[][] spectrum = new double[eBins.length-1][tBins.length-1];
 		for (int j = 0; j < spectrum[0].length; j ++) {
 			double dt = (tBins[j+1] - tBins[j]); // bin width [ns]
-			double[] timeSlice = generateSpectrum(Yn[j]*dt, Ti[j], vi[j], ρR[j], eBins);
+			double[] timeSlice = generateSpectrum(Yn[j]*dt, Ti[j], Te[j], vi[j], ρR[j], eBins);
 			for (int i = 0; i < spectrum.length; i ++)
 				spectrum[i][j] = timeSlice[i];
 		}
@@ -785,12 +803,13 @@ public class MRSt {
 	 * generate a time-averaged spectrum based on some parameters that are taken to be constant.
 	 * @param Yn the total neutron yield [10^15]
 	 * @param Ti the ion temperature [keV]
+	 * @param Te the electron temperature [keV]
 	 * @param vi the bulk flow rate parallel to the line of sight [μm/ns]
 	 * @param ρR the areal density of fuel and shell surrounding the hot spot [g/cm^2]
 	 * @param eBins the edges of the energy bins [MeV]
 	 * @return the theoretical number of particles in each energy bin, ignoring stochastity.
 	 */
-	public static double[] generateSpectrum(double Yn, double Ti, double vi, double ρR,
+	public static double[] generateSpectrum(double Yn, double Ti, double Te, double vi, double ρR,
 			double[] eBins) {
 		double nR = ρR/8.35276208e-28; // areal DT number density [m^-2]
 		double ΔEth = 5.30509e-3/(1 + 2.4736e-3*Math.pow(Ti, 1.84))*Math.pow(Ti, 2/3.) + 1.3818e-3*Ti;
@@ -799,10 +818,14 @@ public class MRSt {
 		double σth = 177.259e-3/2.35482005*(1 + δω)*Math.sqrt(Ti); // primary width (see paper) [MeV]
 		double μ = avgE*Math.sqrt(1 - 3/2.*Math.pow(σth/avgE, 2));
 		double σ2 = 4/3.*μ*(avgE - μ);
+		double USR = 8.6670e-5*Math.pow(Te, 2.5149); // probability of a neutron being scattered up by an alpha
 		double[] Isrc = new double[eBins.length]; // probability distribution at edges [MeV^-1]
 		for (int i = 0; i < eBins.length; i ++) {
-			if (Ti > 0)
-				Isrc[i] = Yn*1e15/Math.sqrt(2*Math.PI*σ2)*Math.exp(-2*μ/σ2*Math.pow(Math.sqrt(eBins[i]) - Math.sqrt(μ), 2));
+			if (Ti > 0) {
+				Isrc[i] += (1-USR)*Yn*1e15/Math.sqrt(2*Math.PI*σ2)*
+					Math.exp(-2*μ/σ2*Math.pow(Math.sqrt(eBins[i]) - Math.sqrt(μ), 2));
+				Isrc[i] += USR*Yn*1e15*ALPHA_KNOCKON_SPECTRUM.evaluate(eBins[i]);
+			}
 			else
 				Isrc[i] = 0;
 		}

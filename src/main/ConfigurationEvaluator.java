@@ -230,22 +230,10 @@ public class ConfigurationEvaluator extends Application {
 						MRSt.modifySpectrum(tBins, eBins, spec, yield, temp, downS, flow);
 						
 						logger.info(String.format("Yn = %f (%d/%d)", yield, k, NUM_YIELDS));
-//						
-//						try {
-//							CSV.writeColumn(tBins, new File(String.format("working/%s_x.csv", "test")));
-//							CSV.writeColumn(eBins, new File(String.format("working/%s_y.csv", "test")));
-//							CSV.write(spec, new File(String.format("working/%s_z.csv", "test")), ',');
-//							ProcessBuilder plotPB = new ProcessBuilder("python", "src/python/plot2.py",
-//									"Time (ns)", "Energy (MeV)", "Modified neutron spectrum");
-//							plotPB.start();
-//						} catch (IOException e) {
-//							// TODO Auto-generated catch block
-//							e.printStackTrace();
-//						}
 						
 						double[] result;
 						try {
-							result = mc.respond(eBins, tBins, spec); // and run it many times!
+							result = mc.respond(eBins, tBins, spec, false); // and run it many times!
 						} catch (Exception e) {
 							logger.log(Level.SEVERE, e.getMessage(), e);
 							result = null;
