@@ -362,11 +362,10 @@ public class MRSt {
 			System.arraycopy(fit, 0, opt, 5*j, 5);
 		}
 		
-		double spectrumScale = NumericalMethods.sum(gelf)/(timeBins.length-1)/(energyBins.length-1); // the characteristic magnitude of the neutron spectrum bins
+		double deuteronYield = NumericalMethods.sum(spectrum)/(timeBins.length-1)/(energyBins.length-1);
+		double spectrumScale = NumericalMethods.sum(gelf); // the characteristic magnitude of the neutron spectrum bins
 		
 		Function<double[], Double> logPosterior = (double[] x) -> {
-//			if (Math.random() < 1e-3) System.out.println(Arrays.toString(x)+",");
-			
 			double[][] params = new double[5][timeAxis.length];
 			for (int k = 0; k < 5; k ++) // first unpack the state vector
 				for (int i = 0; i < timeAxis.length; i ++)
@@ -376,6 +375,7 @@ public class MRSt {
 				if (params[0][i] < 0)  return Double.NEGATIVE_INFINITY;
 				if (params[1][i] < 0)  return Double.NEGATIVE_INFINITY;
 				if (params[2][i] < 0)  return Double.NEGATIVE_INFINITY;
+				if (Math.abs(params[3][i]) > 200)  return Double.NEGATIVE_INFINITY;
 				if (params[4][i] < 0)  return Double.NEGATIVE_INFINITY;
 			}
 			
@@ -402,23 +402,23 @@ public class MRSt {
 			for (int j = 0; j < spectrum[0].length; j ++) {
 				for (int i = 0; i < spectrum.length; i ++) {
 					if (teoSpectrum[i][j] > 1e-300)
-						penalty += 1.0*teoSpectrum[i][j]/spectrumScale*
-								Math.log(teoSpectrum[i][j]/spectrumScale); // encourage entropy
+						penalty += .1*teoSpectrum[i][j]/spectrumScale*
+								Math.log(teoSpectrum[i][j]/spectrumScale)*deuteronYield; // encourage entropy
 					else
 						penalty -= 0;
 				}
 				penalty += Math.pow(params[1][j]/15, 2)/2;
-				penalty += Math.pow(params[2][j]/15, 2)/2;
+				penalty += Math.pow(params[2][j]/10, 2)/2;
 				penalty += Math.pow(params[3][j]/50, 2)/2;
 				penalty += Math.pow(params[4][j]/1, 2)/2;
 			}
 			for (int j = 1; j < timeAxis.length-1; j ++) {
 				double Tpp = (params[1][j-1] - 2*params[1][j] + params[1][j+1])/
 						Math.pow(timeStep, 2);
-				penalty += Math.pow(Tpp/2000, 2)/2; // encourage a smooth temperature
+				penalty += Math.pow(Tpp/5000, 2)/2; // encourage a smooth temperature
 				double Rpp = (params[4][j-1] - 2*params[4][j] + params[4][j+1])/
 						Math.pow(timeStep, 2);
-				penalty += Math.pow(Rpp/1000, 2)/2; // and rho R
+				penalty += Math.pow(Rpp/2000, 2)/2; // and rho R
 			}
 			
 			return - penalty - error;
