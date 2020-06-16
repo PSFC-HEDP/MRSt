@@ -824,14 +824,14 @@ public class MRSt {
 		double nR = ρR/8.35276208e-28; // areal DT number density [m^-2]
 		double ΔEth = 5.30509e-3/(1 + 2.4736e-3*Math.pow(Ti, 1.84))*Math.pow(Ti, 2/3.) + 1.3818e-3*Ti;
 		double δω =  5.1068e-4/(1 + 7.6223e-3*Math.pow(Ti, 1.78))*Math.pow(Ti, 2/3.) + 8.7691e-5*Ti;
-		double avgE = 14.029 + ΔEth + .54e-3*vi; // primary peak (see paper) [MeV]
+		double avgE = Math.max(0, 14.029 + ΔEth + .54e-3*vi); // primary peak (see paper) [MeV]
 		double σth = 177.259e-3/2.35482005*(1 + δω)*Math.sqrt(Ti); // primary width (see paper) [MeV]
-		double μ = avgE*Math.sqrt(1 - 3/2.*Math.pow(σth/avgE, 2));
+		double μ = avgE*Math.sqrt(Math.max(0, 1 - 3/2.*Math.pow(σth/avgE, 2)));
 		double σ2 = 4/3.*μ*(avgE - μ);
 		double USR = 8.6670e-5*Math.pow(Te, 2.5149); // probability of a neutron being scattered up by an alpha
 		double[] Isrc = new double[eBins.length]; // probability distribution at edges [MeV^-1]
 		for (int i = 0; i < eBins.length; i ++) {
-			if (Ti > 0) {
+			if (Ti > 0 && σ2 > 0) {
 				Isrc[i] += Yn*1e15/Math.sqrt(2*Math.PI*σ2)*
 					Math.exp(-2*μ/σ2*Math.pow(Math.sqrt(eBins[i]) - Math.sqrt(μ), 2));
 				Isrc[i] += USR*Yn*1e15*ALPHA_KNOCKON_SPECTRUM.evaluate(eBins[i]);
