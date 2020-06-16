@@ -402,7 +402,7 @@ public class MRSt {
 			for (int j = 0; j < spectrum[0].length; j ++) {
 				for (int i = 0; i < spectrum.length; i ++) {
 					if (teoSpectrum[i][j] > 1e-300)
-						penalty += .1*teoSpectrum[i][j]/spectrumScale*
+						penalty += 1.0*teoSpectrum[i][j]/spectrumScale*
 								Math.log(teoSpectrum[i][j]/spectrumScale)*deuteronYield; // encourage entropy
 					else
 						penalty -= 0;
@@ -459,9 +459,15 @@ public class MRSt {
 		
 		double[][] covariance;
 		if (errorBars) {
+			double value = logPosterior.apply(opt);
+			double[] gradient = new double[5*timeAxis.length];
 			double[][] hessian = new double[5*timeAxis.length][5*timeAxis.length];
 			for (int i = 0; i < 5*timeAxis.length; i ++) {
 				double dxi = dimensionScale[i]*1e-4;
+				opt[i] += dxi;
+				double r = logPosterior.apply(opt);
+				opt[i] -= dxi;
+				gradient[i] = (r - value)/dxi;
 				for (int j = i; j < 5*timeAxis.length; j ++) {
 					double dxj = dimensionScale[j]*1e-4;
 					opt[i] -= dxi;
@@ -485,6 +491,9 @@ public class MRSt {
 			for (int i = 0; i < 5*timeAxis.length; i ++)
 				if (covariance[i][i] < 0) // these are all approximations, and sometimes they make a NaN
 					covariance[i][i] = -1/hessian[i][i]; // do what you must to make it finite
+			for (int i = 0; i < 5*timeAxis.length; i ++)
+				if (Double.isInfinite(hessian[i][i])) // in the event that it is at a bound,
+					covariance[i][i] = Math.pow(gradient[i], -2); // use exponential variance vice normal
 		}
 		else {
 			covariance = new double[5*timeAxis.length][5*timeAxis.length];
