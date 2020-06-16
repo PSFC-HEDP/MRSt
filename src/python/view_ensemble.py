@@ -5,7 +5,7 @@ import pandas as pd
 X_LABEL = "Yield factor"
 
 simulations = pd.read_csv('../../working/ensemble.csv')
-simulations["Total yield"] = simulations["Total yield (10^15)"]#*1e15
+simulations["Total yield"] = simulations["Total yield (10^15)"]*1e15
 
 for axis, true in [
 		("Bang time (ns)", 16.364), ("Max ρR (ns)", 16.310), ("Max dρR/dt (ns)", 16.243),

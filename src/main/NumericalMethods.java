@@ -325,7 +325,7 @@ public class NumericalMethods {
 		for (int j = left; j < right; j ++)
 			if (!Double.isNaN(x[j]) && (i == -1 || x[j] > x[i]))
 				i = j;
-		if (i <= 0 || Double.isNaN(x[i-1]) || i == x.length-1 || Double.isNaN(x[i+1])) return i;
+		if (i == left || Double.isNaN(x[i-1]) || i == right-1 || Double.isNaN(x[i+1])) return i;
 		double dxdi = (x[i+1] - x[i-1])/2;
 		double d2xdi2 = (x[i+1] - 2*x[i] + x[i-1]);
 		assert d2xdi2 < 0;
