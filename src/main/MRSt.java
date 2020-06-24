@@ -362,8 +362,8 @@ public class MRSt {
 			System.arraycopy(fit, 0, opt, 5*j, 5);
 		}
 		
-		double deuteronYield = NumericalMethods.sum(spectrum)/(timeBins.length-1)/(energyBins.length-1);
-		double spectrumScale = NumericalMethods.sum(gelf); // the characteristic magnitude of the neutron spectrum bins
+		double deuteronYield = NumericalMethods.sum(spectrum);
+		double spectrumScale = NumericalMethods.sum(gelf)/(timeBins.length-1)/(energyBins.length-1); // the characteristic magnitude of the neutron spectrum bins
 		
 		Function<double[], Double> logPosterior = (double[] x) -> {
 			double[][] params = new double[5][timeAxis.length];
@@ -401,25 +401,35 @@ public class MRSt {
 			double penalty = 0; // negative log of prior (ignoring global normalization)
 			for (int j = 0; j < spectrum[0].length; j ++) {
 				for (int i = 0; i < spectrum.length; i ++) {
-					if (teoSpectrum[i][j] > 1e-300)
-						penalty += 1.0*teoSpectrum[i][j]/spectrumScale*
-								Math.log(teoSpectrum[i][j]/spectrumScale)*deuteronYield; // encourage entropy
+					if (teoSpectrum[i][j] > 1e-20)
+						penalty += 1e-5*teoSpectrum[i][j]/spectrumScale*
+								(Math.log(teoSpectrum[i][j]/spectrumScale) - 1)*deuteronYield; // encourage entropy
 					else
-						penalty -= 0;
+						penalty += 0;
 				}
-				penalty += Math.pow(params[1][j]/15, 2)/2;
-				penalty += Math.pow(params[2][j]/10, 2)/2;
+				
+				penalty += params[1][j]/5 - Math.log(params[1][j]); // keep params to reasonable values
+				penalty += params[2][j]/5 - Math.log(params[2][j]);
 				penalty += Math.pow(params[3][j]/50, 2)/2;
 				penalty += Math.pow(params[4][j]/1, 2)/2;
 			}
+			
 			for (int j = 1; j < timeAxis.length-1; j ++) {
 				double Tpp = (params[1][j-1] - 2*params[1][j] + params[1][j+1])/
 						Math.pow(timeStep, 2);
 				penalty += Math.pow(Tpp/5000, 2)/2; // encourage a smooth temperature
 				double Rpp = (params[4][j-1] - 2*params[4][j] + params[4][j+1])/
 						Math.pow(timeStep, 2);
-				penalty += Math.pow(Rpp/2000, 2)/2; // and rho R
+				penalty += Math.pow(Rpp/1000, 2)/2 + Rpp/1000; // and a concave down rho-R
 			}
+			double burn0 = 0, burn1 = 0, burn2 = 0;
+			for (int j = 0; j < timeAxis.length; j ++) {
+				burn0 += params[0][j];
+				burn1 += params[0][j]*timeAxis[j];
+			}
+			for (int j = 0; j < timeAxis.length; j ++)
+				burn2 += params[0][j]*Math.pow(timeAxis[j] - burn1/burn0, 4);
+			penalty += Math.pow(burn2/burn0, 1/4.)/1e-4; // and a narrow burn
 			
 			return - penalty - error;
 		};
