@@ -90,6 +90,7 @@ public class MRSt {
 	private final double[] energyBins; // endpoints of E bins for inferred spectrum [MeV]
 	private final double[] timeBins; // endpoints of time bins for inferred spectrum [ns]
 	private final double[][] transferMatrix; // the full nmx2nm transfer matrix plus smoothing rows
+	private final double[][] efficiency; // the fraction of neutrons in this bin that will be detected
 	private double[][] deuteronSpectrum; // time-corrected deuteron counts
 	private double[][] fitNeutronSpectrum; // backward-fit neutron counts
 	private double[][] fitDeuteronSpectrum; // backward-fit deuteron counts (this should be similar to deuteronSpectrum)
@@ -186,6 +187,12 @@ public class MRSt {
 		this.logger = logger;
 		
 		this.transferMatrix = evaluateTransferMatrix();
+		this.efficiency = new double[energyBins.length-1][timeBins.length-1];
+		for (int i = 0; i < energyBins.length-1; i ++)
+			for (int j = 0; j < timeBins.length-1; j ++)
+				for (int k = 0; k < energyBins.length-1; k ++)
+					for (int l = 0; l < timeBins.length-1; l ++)
+						efficiency[i][j] += this.transferMatrix[(timeBins.length-1)*k+l][(timeBins.length-1)*i+j];
 	}
 	
 	/**
@@ -362,7 +369,6 @@ public class MRSt {
 			System.arraycopy(fit, 0, opt, 5*j, 5);
 		}
 		
-		double deuteronYield = NumericalMethods.sum(spectrum);
 		double spectrumScale = NumericalMethods.sum(gelf)/(timeBins.length-1)/(energyBins.length-1); // the characteristic magnitude of the neutron spectrum bins
 		
 		Function<double[], Double> logPosterior = (double[] x) -> {
@@ -402,8 +408,8 @@ public class MRSt {
 			for (int j = 0; j < spectrum[0].length; j ++) {
 				for (int i = 0; i < spectrum.length; i ++) {
 					if (teoSpectrum[i][j] > 1e-20)
-						penalty += 1e-5*teoSpectrum[i][j]/spectrumScale*
-								(Math.log(teoSpectrum[i][j]/spectrumScale) - 1)*deuteronYield; // encourage entropy
+						penalty += 1e-2*teoSpectrum[i][j]*
+								Math.log(teoSpectrum[i][j]/spectrumScale)*efficiency[i][j]; // encourage entropy
 					else
 						penalty += 0;
 				}
