@@ -408,26 +408,30 @@ public class MRSt {
 			for (int j = 0; j < spectrum[0].length; j ++) {
 				for (int i = 0; i < spectrum.length; i ++) {
 					if (teoSpectrum[i][j] > 1e-20)
-						penalty += 1e-2*teoSpectrum[i][j]*
-								Math.log(teoSpectrum[i][j]/spectrumScale)*efficiency[i][j]; // encourage entropy
-					else
-						penalty += 0;
+						penalty += 1e-2*efficiency[i][j]*teoSpectrum[i][j]*
+								Math.log(teoSpectrum[i][j]/spectrumScale); // encourage entropy
 				}
 				
 				penalty += params[1][j]/5 - Math.log(params[1][j]); // keep params to reasonable values
 				penalty += params[2][j]/5 - Math.log(params[2][j]);
 				penalty += Math.pow(params[3][j]/50, 2)/2;
-				penalty += Math.pow(params[4][j]/1, 2)/2;
+				penalty += params[4][j]/1;
 			}
 			
 			for (int j = 1; j < timeAxis.length-1; j ++) {
 				double Tpp = (params[1][j-1] - 2*params[1][j] + params[1][j+1])/
 						Math.pow(timeStep, 2);
-				penalty += Math.pow(Tpp/5000, 2)/2; // encourage a smooth temperature
-				double Rpp = (params[4][j-1] - 2*params[4][j] + params[4][j+1])/
-						Math.pow(timeStep, 2);
-				penalty += Math.pow(Rpp/1000, 2)/2 + Rpp/1000; // and a concave down rho-R
+				penalty += Math.pow(Tpp/5000, 2)/2; // encourage a smooth ion temperature
 			}
+			
+			double burnDensity = 0;
+			for (int j = 0; j < timeAxis.length; j ++)
+				burnDensity += params[0][j]*params[4][j]; // burn-averaged areal density
+			burnDensity /= NumericalMethods.sum(params[0]);
+			for (int j = 0; j < timeAxis.length; j ++)
+				if (params[4][j] > 1e-20)
+					penalty += 1e-0*params[0][j]*params[4][j]/burnDensity*Math.log(params[4][j]/burnDensity); // and an entropic rho-R
+			
 			double burn0 = 0, burn1 = 0, burn2 = 0;
 			for (int j = 0; j < timeAxis.length; j ++) {
 				burn0 += params[0][j];
