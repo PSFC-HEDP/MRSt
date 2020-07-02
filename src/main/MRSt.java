@@ -430,16 +430,19 @@ public class MRSt {
 			burnDensity /= NumericalMethods.sum(params[0]);
 			for (int j = 0; j < timeAxis.length; j ++)
 				if (params[4][j] > 1e-20)
-					penalty += 1e-0*params[0][j]*params[4][j]/burnDensity*Math.log(params[4][j]/burnDensity); // and an entropic rho-R
+					penalty += 1.0*params[0][j]*params[4][j]/burnDensity*Math.log(params[4][j]/burnDensity); // and an entropic rho-R
 			
-			double burn0 = 0, burn1 = 0, burn2 = 0;
+			double burn0 = 0, burn1 = 0, burn2 = 0, burn4 = 0;
 			for (int j = 0; j < timeAxis.length; j ++) {
 				burn0 += params[0][j];
 				burn1 += params[0][j]*timeAxis[j];
 			}
-			for (int j = 0; j < timeAxis.length; j ++)
-				burn2 += params[0][j]*Math.pow(timeAxis[j] - burn1/burn0, 4);
-			penalty += Math.pow(burn2/burn0, 1/4.)/1e-4; // and a narrow burn
+			for (int j = 0; j < timeAxis.length; j ++) {
+				burn2 += params[0][j]*Math.pow(timeAxis[j] - burn1/burn0, 2);
+				burn4 += params[0][j]*Math.pow(timeAxis[j] - burn1/burn0, 4);
+			}
+			penalty += Math.pow(burn2/burn0, 1/2.)/1e-4; // and a narrow burn
+			penalty += Math.pow(burn4*burn0/(burn2*burn2), 1/2.)/1e-2; // and a fat burn
 			
 			return - penalty - error;
 		};
@@ -576,7 +579,7 @@ public class MRSt {
 				NumericalMethods.interp(dρRdt, iBT),
 				NumericalMethods.interp(dvidt, iBT),
 				NumericalMethods.max(arealDensity),
-				moments[0]*timeStep, moments[1], Math.sqrt(moments[2])*2.355, moments[3], moments[4]
+				moments[0]*timeStep, moments[1], Math.sqrt(moments[2])*2.355, moments[3], moments[4],
 		}; // collect the figures of merit
 		
 		if (logger != null) {

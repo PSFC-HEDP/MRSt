@@ -69,7 +69,7 @@ public class ConfigurationEvaluator extends Application {
 	private static final int SPACING_1 = 10;
 	private static final int SPACING_2 = 4;
 	
-	private static final int NUM_YIELDS = 100;
+	private static final int NUM_YIELDS = 36;
 	
 	private Spinner<Double> foilDistance;
 	private Spinner<Double> foilRadius;
