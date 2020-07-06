@@ -441,8 +441,8 @@ public class MRSt {
 				burn2 += params[0][j]*Math.pow(timeAxis[j] - burn1/burn0, 2);
 				burn4 += params[0][j]*Math.pow(timeAxis[j] - burn1/burn0, 4);
 			}
-			penalty += Math.pow(burn2/burn0, 1/2.)/1e-4; // and a narrow burn
-			penalty += Math.pow(burn4*burn0/(burn2*burn2), 1/2.)/1e-2; // and a fat burn
+			penalty += Math.pow(burn2/burn0, 2)/1e-8; // and a narrow burn
+			penalty += Math.pow(burn4*burn0/(burn2*burn2) - 3, 2)/1e-0; // and a flat burn
 			
 			return - penalty - error;
 		};
