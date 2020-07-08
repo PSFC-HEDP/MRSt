@@ -364,7 +364,7 @@ public class MRSt {
 				for (int i = 3; i < energyBins.length-1; i ++)
 					error += Math.pow(teo[i] - exp[i], 2);
 				return error;
-			}, new double[] {NumericalMethods.sum(exp)/1e15, 4, 0, 50, 1}, 1e-8);
+			}, new double[] {Math.max(1/efficiency[2][j], NumericalMethods.sum(exp)/1e15), 4, 0, 50, 1}, 1e-8);
 			
 			System.arraycopy(fit, 0, opt, 5*j, 5);
 		}
@@ -378,6 +378,8 @@ public class MRSt {
 				s2 += gelf[i][j]*timeAxis[j]*timeAxis[j];
 			}
 		}
+		double expectedMean = s1/s0;
+		double expectedStd = Math.sqrt(s2/s0 - s1*s1/s0/s0); // the expected standard deviation of the burn in time
 		
 		Function<double[], Double> logPosterior = (double[] x) -> {
 			double[][] params = new double[5][timeAxis.length];
@@ -440,17 +442,17 @@ public class MRSt {
 				if (params[4][j] > 1e-20)
 					penalty += 1.0*params[0][j]*params[4][j]/burnDensity*Math.log(params[4][j]/burnDensity); // and an entropic rho-R
 			
-			double burn0 = 0, burn1 = 0, burn2 = 0, burn4 = 0;
+			double burn0 = 0, burn1 = 0;
 			for (int j = 0; j < timeAxis.length; j ++) {
 				burn0 += params[0][j];
 				burn1 += params[0][j]*timeAxis[j];
 			}
+			double burn2 = 0, burn4 = 0;
 			for (int j = 0; j < timeAxis.length; j ++) {
-				burn2 += params[0][j]*Math.pow(timeAxis[j] - burn1/burn0, 2);
-				burn4 += params[0][j]*Math.pow(timeAxis[j] - burn1/burn0, 4);
+				burn2 += params[0][j]*Math.pow(timeAxis[j] - expectedMean, 2);
+				burn4 += params[0][j]*Math.pow(timeAxis[j] - expectedMean, 4);
 			}
-			penalty += Math.pow(burn2/burn0, 2)/1e-8; // and a narrow burn
-			penalty += Math.pow(burn4*burn0/(burn2*burn2) - 3, 2)/1e-0; // and a flat burn
+			penalty += 1e2*(burn4/burn0/Math.pow(expectedStd, 4) - burn2/burn0/Math.pow(expectedStd, 2));
 			
 			return - penalty - error;
 		};

@@ -36,7 +36,7 @@ for i, (axis, true) in enumerate(Y_LABELS):
 
 	ax = axs[i//COLUMNS,i%COLUMNS]
 	ax.scatter(simulations[X_LABEL], simulations[axis], s=10, zorder=1, label="Based on fit to synthetic data")
-	if simulations[axis].min() > 0 and simulations[axis].max()/simulations[axis].min() >= 1000:
+	if simulations[axis].min() > 0 and simulations[axis].max()/simulations[axis].min() >= 100:
 		ax.set_yscale('log')
 	ax.plot(simulations[X_LABEL][order], yFactor[order]*true, 'C1--', zorder=0, label="Based on original data")
 	if 'ield' in X_LABEL:
