@@ -353,7 +353,7 @@ public class MRSt {
 		for (int j = 0; j < timeAxis.length; j ++) {
 			double Δt = timeBins[j+1] - timeBins[j];
 			double[] exp = new double[energyBins.length-1];
-			for (int i = 0; i < energyBins.length-1; i ++)
+			for (int i = 3; i < energyBins.length-1; i ++) // I'm not sure why the bottom few rows are so unusable
 				exp[i] = gelf[i][j]/Δt;
 			
 			double[] fit = Optimization.minimizeNelderMead((x) -> {
@@ -361,7 +361,7 @@ public class MRSt {
 					return Double.POSITIVE_INFINITY;
 				double[] teo = generateSpectrum(x[0], x[1], x[2], x[3], x[4], energyBins);
 				double error = 0;
-				for (int i = 3; i < timeAxis.length; i ++) // I'm not sure why the bottom two rows are so unusable
+				for (int i = 3; i < energyBins.length-1; i ++)
 					error += Math.pow(teo[i] - exp[i], 2);
 				return error;
 			}, new double[] {NumericalMethods.sum(exp)/1e15, 4, 0, 50, 1}, 1e-8);
@@ -370,6 +370,14 @@ public class MRSt {
 		}
 		
 		double spectrumScale = NumericalMethods.sum(gelf)/(timeBins.length-1)/(energyBins.length-1); // the characteristic magnitude of the neutron spectrum bins
+		double s0 = 0, s1 = 0, s2 = 0;
+		for (int i = 3; i < energyBins.length-1; i ++) {
+			for (int j = 0; j < timeBins.length-1; j ++) {
+				s0 += gelf[i][j];
+				s1 += gelf[i][j]*timeAxis[j];
+				s2 += gelf[i][j]*timeAxis[j]*timeAxis[j];
+			}
+		}
 		
 		Function<double[], Double> logPosterior = (double[] x) -> {
 			double[][] params = new double[5][timeAxis.length];
@@ -519,8 +527,37 @@ public class MRSt {
 					covariance[i][i] = Math.pow(gradient[i], -2); // use exponential variance vice normal
 		}
 		else {
+//				double dxi = dimensionScale[i]*1e-4;
+//				opt[i] -= dxi;
+//				gradient[i] = (r - value)/dxi;
+//				for (int j = i; j < 5*timeAxis.length; j ++) {
+//					double dxj = dimensionScale[j]*1e-4;
+//					opt[i] -= dxi;
+//					opt[j] -= dxj;
+//					double dl = logPosterior.apply(opt);
+//					opt[i] += 2*dxi;
+//					double ur = logPosterior.apply(opt);
+//					opt[j] -= 2*dxj;
+//					double ul = logPosterior.apply(opt);
+//					opt[i] -= dxi;
+//					opt[j] += dxj;
+//					hessian[i][j] = hessian[j][i] = (ur - ul - dr + dl)/(4*dxi*dxj);
+//				}
+//			}
+//			covariance = NumericalMethods.pseudoinv(hessian);
+//			for (int i = 0; i < 5*timeAxis.length; i ++)
+//				for (int j = 0; j < 5*timeAxis.length; j ++)
+//					covariance[i][j] *= -1; // there's a negative sign between the inverse hessian and covariance
+//			for (int i = 0; i < 5*timeAxis.length; i ++)
+//				if (covariance[i][i] < 0) // these are all approximations, and sometimes they make a NaN
+//					covariance[i][i] = -1/hessian[i][i]; // do what you must to make it finite
+//			for (int i = 0; i < 5*timeAxis.length; i ++)
+//				if (Double.isInfinite(hessian[i][i])) // in the event that it is at a bound,
+//					covariance[i][i] = Math.pow(gradient[i], -2); // use exponential variance vice normal
+//		}
+//		else {
 			covariance = new double[5*timeAxis.length][5*timeAxis.length];
-		}
+//		}
 		
 		double[][] params = new double[5][timeAxis.length]; // unpack the optimized vector
 		double[][] errors = new double[5][timeAxis.length]; // and the associated basic errors
@@ -568,6 +605,8 @@ public class MRSt {
 		double[] moments = new double[5];
 		for (int k = 0; k < moments.length; k ++)
 			moments[k] = NumericalMethods.moment(k, timeBins, neutronYield);
+		
+		logger.info(Arrays.toString(neutronYield));
 		
 		double[] res = {
 				(endTime - startTime)/1000.,
