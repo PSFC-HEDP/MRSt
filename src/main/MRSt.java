@@ -448,9 +448,9 @@ public class MRSt {
 			}
 			double burn2 = 0, burn4 = 0;
 			for (int j = 0; j < timeAxis.length; j ++) {
-				burn2 = params[0][j]*Math.pow((timeAxis[j] - burn1/burn0)/expectedStd, 2);
-				burn4 = params[0][j]*Math.pow((timeAxis[j] - burn1/burn0)/expectedStd, 4);
-				penalty += 3e2*Math.min(burn4/burn0 - burn2/burn0, burn4/burn0 - 1);
+				burn2 = params[0][j]*Math.pow((timeAxis[j] - burn1/burn0)/(2*expectedStd), 2);
+				burn4 = params[0][j]*Math.pow((timeAxis[j] - burn1/burn0)/(2*expectedStd), 4);
+				penalty += 1e3*Math.max(burn4/burn0 - burn2/burn0, 0);
 			}
 //			penalty += 1e2*(burn4/burn0 - burn2/burn0);
 			
