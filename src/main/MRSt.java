@@ -378,7 +378,6 @@ public class MRSt {
 				s2 += gelf[i][j]*timeAxis[j]*timeAxis[j];
 			}
 		}
-		double expectedMean = s1/s0;
 		double expectedStd = Math.sqrt(s2/s0 - s1*s1/s0/s0); // the expected standard deviation of the burn in time
 		
 		Function<double[], Double> logPosterior = (double[] x) -> {
@@ -389,10 +388,10 @@ public class MRSt {
 			
 			for (int i = 0; i < timeAxis.length; i ++) { // check for illegal (prior = 0) values
 				if (params[0][i] < 0)  return Double.NEGATIVE_INFINITY;
-				if (params[1][i] < 0)  return Double.NEGATIVE_INFINITY;
-				if (params[2][i] < 0)  return Double.NEGATIVE_INFINITY;
+				if (params[1][i] <= 0 || params[1][i] > 20)  return Double.NEGATIVE_INFINITY;
+				if (params[2][i] <= 0 || params[2][i] > 20)  return Double.NEGATIVE_INFINITY;
 				if (Math.abs(params[3][i]) > 200)  return Double.NEGATIVE_INFINITY;
-				if (params[4][i] < 0)  return Double.NEGATIVE_INFINITY;
+				if (params[4][i] < 0 || params[4][i] > 4)  return Double.NEGATIVE_INFINITY;
 			}
 			
 			double[][] teoSpectrum = generateSpectrum(
@@ -449,10 +448,11 @@ public class MRSt {
 			}
 			double burn2 = 0, burn4 = 0;
 			for (int j = 0; j < timeAxis.length; j ++) {
-				burn2 += params[0][j]*Math.pow(timeAxis[j] - expectedMean, 2);
-				burn4 += params[0][j]*Math.pow(timeAxis[j] - expectedMean, 4);
+				burn2 = params[0][j]*Math.pow((timeAxis[j] - burn1/burn0)/expectedStd, 2);
+				burn4 = params[0][j]*Math.pow((timeAxis[j] - burn1/burn0)/expectedStd, 4);
+				penalty += 3e2*Math.min(burn4/burn0 - burn2/burn0, burn4/burn0 - 1);
 			}
-			penalty += 1e2*(burn4/burn0/Math.pow(expectedStd, 4) - burn2/burn0/Math.pow(expectedStd, 2));
+//			penalty += 1e2*(burn4/burn0 - burn2/burn0);
 			
 			return - penalty - error;
 		};
