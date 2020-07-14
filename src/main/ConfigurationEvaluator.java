@@ -79,7 +79,7 @@ public class ConfigurationEvaluator extends Application {
 		"dρR/dt at BT (g/cm^2/ns)", "dvi/dt at BT (μm/ns^2)",
 		"Max ρR (g/cm^2)", "Total yield (10^15)", "Burn mean (ns)",
 		"Burn width (ns)", "Burn skew", "Burn kurtosis"};
-	private static final String[] HEADERS_WITH_ERRORS = new String[2*HEADERS.length];
+	private static final String[] HEADERS_WITH_ERRORS = new String[(HEADERS.length-4)*2+4];
 	
 	private Spinner<Double> foilDistance;
 	private Spinner<Double> foilRadius;
@@ -113,10 +113,7 @@ public class ConfigurationEvaluator extends Application {
 				int locationOfTheWordQuoteErrorUnquote = HEADERS[i].indexOf('(') - 1;
 				if (locationOfTheWordQuoteErrorUnquote == -2)
 					locationOfTheWordQuoteErrorUnquote = HEADERS[i].length();
-				HEADERS_WITH_ERRORS[2*(i-4)+5] =
-						HEADERS[i].substring(0, locationOfTheWordQuoteErrorUnquote) +
-						" error" +
-						HEADERS[i].substring(locationOfTheWordQuoteErrorUnquote);
+				HEADERS_WITH_ERRORS[2*(i-4)+5] = HEADERS[i] + " error";
 			}
 		}
 		
