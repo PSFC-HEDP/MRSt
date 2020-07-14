@@ -71,6 +71,16 @@ public class ConfigurationEvaluator extends Application {
 	
 	private static final int NUM_YIELDS = 100;
 	
+	private static final String[] HEADERS = {
+		"Yield factor", "Temperature factor", "Down-scatter factor", "Velocity shift (μm/ns)",
+		"Computation time (s)", "Bang time (ns)", "Max ρR (ns)",
+		"Max dρR/dt (ns)", "Ti at BT (keV)", "ρR at BT (g/cm^2)",
+		"vi at BT (μm/ns)", "dTi/dt at BT (keV/ns)",
+		"dρR/dt at BT (g/cm^2/ns)", "dvi/dt at BT (μm/ns^2)",
+		"Max ρR (g/cm^2)", "Total yield (10^15)", "Burn mean (ns)",
+		"Burn width (ns)", "Burn skew", "Burn kurtosis"};
+	private static final String[] HEADERS_WITH_ERRORS = new String[2*HEADERS.length];
+	
 	private Spinner<Double> foilDistance;
 	private Spinner<Double> foilRadius;
 	private Spinner<Double> foilThickness;
@@ -80,7 +90,9 @@ public class ConfigurationEvaluator extends Application {
 	private Spinner<Double> focalPlaneTilt;
 	private ChoiceBox<Integer> order;
 	private CheckBox[] variations;
+	private CheckBox errorBars;
 	private TextField saveFile;
+	
 	private double[][] stoppingPowerData;
 	private double[][] cosyCoefficients;
 	private int[][] cosyExponents;
@@ -93,6 +105,21 @@ public class ConfigurationEvaluator extends Application {
 	 * @throws NumberFormatException 
 	 */
 	public void start(Stage stage) throws NumberFormatException, IOException {
+		for (int i = 0; i < HEADERS.length; i ++) {
+			if (i < 4)
+				HEADERS_WITH_ERRORS[i] = HEADERS[i];
+			else {
+				HEADERS_WITH_ERRORS[2*(i-4)+4] = HEADERS[i];
+				int locationOfTheWordQuoteErrorUnquote = HEADERS[i].indexOf('(') - 1;
+				if (locationOfTheWordQuoteErrorUnquote == -2)
+					locationOfTheWordQuoteErrorUnquote = HEADERS[i].length();
+				HEADERS_WITH_ERRORS[2*(i-4)+5] =
+						HEADERS[i].substring(0, locationOfTheWordQuoteErrorUnquote) +
+						" error" +
+						HEADERS[i].substring(locationOfTheWordQuoteErrorUnquote);
+			}
+		}
+		
 		GridPane leftPane = new GridPane();
 		leftPane.setHgap(SPACING_1);
 		leftPane.setVgap(SPACING_1);
@@ -175,6 +202,10 @@ public class ConfigurationEvaluator extends Application {
 		}
 		this.variations[0].setSelected(true);
 		
+		this.errorBars = new CheckBox("Error bars");
+		this.errorBars.setSelected(true);
+		rightPane.getChildren().add(errorBars);
+		
 		this.saveFile = new TextField("ensemble.csv");
 		rightPane.getChildren().add(new VBox(SPACING_2,
 				new Label("Output file:"),
@@ -208,7 +239,7 @@ public class ConfigurationEvaluator extends Application {
 						logger.log(Level.SEVERE, e.getMessage(), e);
 					}
 					
-					double[][] results = new double[NUM_YIELDS][20];
+					double[][] results = new double[NUM_YIELDS][HEADERS_WITH_ERRORS.length];
 					for (int k = 0; k < NUM_YIELDS; k ++) {
 						double[] eBins = null, tBins = null;
 						double[][] spec = null;
@@ -229,11 +260,15 @@ public class ConfigurationEvaluator extends Application {
 						double flow =  (variations[3].isSelected()) ? 200*Math.random()*(2*Math.random() - 1) : 0;
 						MRSt.modifySpectrum(tBins, eBins, spec, yield, temp, downS, flow);
 						
+						boolean errorBars = this.errorBars.isSelected();
+						
 						logger.info(String.format("Yn = %f (%d/%d)", yield, k, NUM_YIELDS));
 						
 						double[] result;
 						try {
-							result = mc.respond(eBins, tBins, spec, false); // and run it many times!
+							
+							result = mc.respond(eBins, tBins, spec, errorBars); // and run it many times!
+							
 						} catch (Exception e) {
 							logger.log(Level.SEVERE, e.getMessage(), e);
 							result = null;
@@ -250,14 +285,8 @@ public class ConfigurationEvaluator extends Application {
 					}
 					
 					try {
-						CSV.write(results, new File("working/"+saveFile.getText()), ',', new String[] {
-								"Yield factor", "Temperature factor", "Down-scatter factor", "Velocity shift (μm/ns)",
-								"Computation time (s)", "Bang time (ns)", "Max ρR (ns)",
-								"Max dρR/dt (ns)", "Ti at BT (keV)", "ρR at BT (g/cm^2)",
-								"vi at BT (μm/ns)", "dTi/dt at BT (keV/ns)",
-								"dρR/dt at BT (g/cm^2/ns)", "dvi/dt at BT (μm/ns^2)",
-								"Max ρR (g/cm^2)", "Total yield (10^15)", "Burn mean (ns)",
-								"Burn width (ns)", "Burn skew", "Burn kurtosis"});
+						CSV.write(results, new File("working/"+saveFile.getText()), ',',
+								HEADERS_WITH_ERRORS);
 					} catch (IOException e) {
 						logger.log(Level.SEVERE, e.getMessage(), e);
 					}

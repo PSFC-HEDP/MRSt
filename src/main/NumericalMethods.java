@@ -23,7 +23,6 @@
  */
 package main;
 
-import java.util.Arrays;
 import java.util.Locale;
 
 /**
@@ -136,6 +135,41 @@ public class NumericalMethods {
 			sum += w*y[i]*Math.pow(((xL + xR)/2 - μ)/σ, n); // sum up the average x value to whatever power
 		}
 		return sum/N;
+	}
+	
+	/**
+	 * compute the nth moment of the histogram over the whole domain. normalize and center it,
+	 * if applicable.
+	 * @param x the bin edges
+	 * @param y the number in each bin
+	 * @return the nth [normalized] [centered] [normalized] moment
+	 */
+	public static Quantity moment(int n, double[] x, Quantity[] y) {
+		return moment(n, x, y, x[0], x[x.length-1]);
+	}
+	
+	/**
+	 * compute the nth moment of the histogram. normalize and center it, if applicable.
+	 * @param x the bin edges
+	 * @param y the number in each bin
+	 * @param a the lower integration bound
+	 * @param b the upper integration bound
+	 * @return the nth [normalized] [centered] [normalized] moment
+	 */
+	public static Quantity moment(int n, double[] x, Quantity[] y, double a, double b) {
+		if (x.length != y.length+1)
+			throw new IllegalArgumentException("Array lengths do not correspond.");
+		Quantity N = (n > 0) ? moment(0, x, y, a, b) : new Quantity(1, y[0].getN());
+		Quantity μ = (n > 1) ? moment(1, x, y, a, b) : new Quantity(0, y[0].getN());
+		Quantity σ = (n > 2) ? moment(2, x, y, a, b).sqrt() : new Quantity(1, y[0].getN());
+		Quantity sum = new Quantity(0, y[0].getN());
+		for (int i = 0; i < y.length; i ++) {
+			double xL = Math.max(a, x[i]); // define the bounds of this integrand bin, which might not be the bounds of the datum bin
+			double xR = Math.min(b, x[i+1]);
+			double w = (xR - xL)/(x[i+1] - x[i]); // determine what fraction of the data in this bin fall into the integrand bin
+			sum = sum.plus(y[i].times(w).times(μ.minus((xL + xR)/2).times(-1).over(σ).pow(n))); // sum up the average x value to whatever power
+		}
+		return sum.over(N);
 	}
 	
 	/**
@@ -358,11 +392,50 @@ public class NumericalMethods {
 		try {
 			return interp(x, quadargmax(left, right, y));
 		} catch (IndexOutOfBoundsException e) { // y is empty or all NaN
-			System.out.println("y is empty or all NaN");
-			System.out.println(left);
-			System.out.println(right);
-			System.out.println(Arrays.toString(y));
 			return -1;
+		}
+	}
+	
+	/**
+	 * find the interpolative index of the highest value
+	 * @param x the array of values
+	 * @return i such that x[i] >= x[j] for all j
+	 */
+	public static Quantity quadargmax(Quantity[] x) {
+		return quadargmax(0, x.length, x);
+	}
+	
+	/**
+	 * find the interpolative index of the highest value
+	 * @param x the array of values
+	 * @return i such that x[i] >= x[j] for all j
+	 */
+	public static Quantity quadargmax(int left, int right, Quantity[] x) {
+		int i = -1;
+		for (int j = left; j < right; j ++)
+			if (i == -1 || x[j].value > x[i].value)
+				i = j;
+		if (i == left || i == right-1)
+			return new Quantity(i, x[i].getN());
+		Quantity dxdi = (x[i+1].minus(x[i-1])).over(2);
+		Quantity d2xdi2 = (x[i+1]).plus(x[i].times(-2)).plus(x[i-1]);
+		assert d2xdi2.value < 0;
+		return dxdi.over(d2xdi2).times(-1).plus(i);
+	}
+	
+	/**
+	 * find the x coordinate of the highest value in the bounds [left, right)
+	 * @param left the leftmost acceptable index
+	 * @param right the leftmost unacceptable index
+	 * @param x the horizontal axis
+	 * @param y the array of values
+	 * @return x such that y(x) >= y(z) for all z in [x[left], x[right])
+	 */
+	public static Quantity quadargmax(int left, int right, double[] x, Quantity[] y) {
+		try {
+			return interp(x, quadargmax(left, right, y));
+		} catch (IndexOutOfBoundsException e) { // y is empty or all NaN
+			return new Quantity(-1, y[0].getN());
 		}
 	}
 	
@@ -378,6 +451,30 @@ public class NumericalMethods {
 		if (i == x.length-1)
 			return x[(int)i];
 		return (1 - i%1)*x[(int)i] + (i%1)*x[(int)i+1];
+	}
+	
+	/**
+	 * take the floating-point index of an array using linear interpolation.
+	 * @param x the array of values
+	 * @param i the partial index
+	 * @return x[i], more or less
+	 */
+	public static Quantity interp(double[] x, Quantity i) {
+		if (i.value < 0 || i.value > x.length-1)
+			throw new IndexOutOfBoundsException("Even partial indices have limits: "+i);
+		return i.mod(1).times(x[(int)i.value+1]).minus(i.mod(1).minus(1).times(x[(int)i.value]));
+	}
+	
+	/**
+	 * take the floating-point index of an array using linear interpolation.
+	 * @param x the array of values
+	 * @param i the partial index
+	 * @return x[i], more or less
+	 */
+	public static Quantity interp(Quantity[] x, Quantity i) {
+		if (i.value < 0 || i.value > x.length-1)
+			throw new IndexOutOfBoundsException("Even partial indices have limits: "+i);
+		return i.mod(1).times(x[(int)i.value+1]).minus(i.mod(1).minus(1).times(x[(int)i.value]));
 	}
 	
 	/**
@@ -398,6 +495,27 @@ public class NumericalMethods {
 		}
 		dydx[x.length-1] = (-1.5*y[x.length-1] + 2.0*y[x.length-2] - 0.5*y[x.length-3]) /
 				(x[x.length-3] - x[x.length-2]);
+		return dydx;
+	}
+	
+	/**
+	 * find the second order finite difference derivative. for best results, x
+	 * should be evenly spaced.
+	 * @param x the x values
+	 * @param y the corresponding y values
+	 * @return the slope dy/dx at each point
+	 */
+	public static Quantity[] derivative(double[] x, Quantity[] y) {
+		if (x.length != y.length)
+			throw new IllegalArgumentException("Array lengths do not correspond.");
+		Quantity[] dydx = new Quantity[x.length];
+		dydx[0] = (y[0].times(-1.5)).plus(y[1].times(2.0)).plus(y[2].times(-0.5)).over(
+				(x[2] - x[1]));
+		for (int i = 1; i < x.length-1; i ++) {
+			dydx[i] = y[i+1].minus(y[i-1]).over(x[i+1] - x[i-1]);
+		}
+		dydx[x.length-1] = (y[x.length-1].times(-1.5)).plus(y[x.length-2].times(2.0)).plus(y[x.length-3].times(-0.5)).over(
+				(x[x.length-3] - x[x.length-2]));
 		return dydx;
 	}
 	
@@ -485,6 +603,28 @@ public class NumericalMethods {
 		if (i >= 0 && i < arr.length)
 			if (j >= 0 && j < arr[i].length)
 				arr[i][j] += val;
+	}
+	
+	/**
+	 * extract the values from an array of Quantities
+	 * @return the value of each Quantity in the same order as before
+	 */
+	public static double[] modes(Quantity[] x) {
+		double[] y = new double[x.length];
+		for (int i = 0; i < x.length; i ++)
+			y[i] = x[i].value;
+		return y;
+	}
+	
+	/**
+	 * extract the errors from an array of Quantities
+	 * @return the standard deviation of each Quantity in the same order as before
+	 */
+	public static double[] stds(Quantity[] x, double[][] covariance) {
+		double[] y = new double[x.length];
+		for (int i = 0; i < x.length; i ++)
+			y[i] = Math.sqrt(x[i].variance(covariance));
+		return y;
 	}
 	
 	/**
@@ -630,10 +770,9 @@ public class NumericalMethods {
 			}
 		}
 		double[][] b = matinv(a);
-		double[][] c = new double[arr.length][];
+		double[][] c = new double[arr.length][arr.length];
 		k = 0;
 		for (int i = 0; i < arr.length; i ++) {
-			c[i] = new double[arr[i].length];
 			if (useful[i]) {
 				int l = 0;
 				for (int j = 0; j < arr[i].length; j ++) {
@@ -649,7 +788,7 @@ public class NumericalMethods {
 			}
 			else {
 				for (int j = 0; j < arr[i].length; j ++)
-					c[i][j] = Double.isInfinite(arr[i][i]) ? 0 : Double.NaN;
+					c[i][j] = Double.isInfinite(arr[i][i]) || Double.isInfinite(arr[j][j]) ? 0 : Double.NaN;
 			}
 		}
 		return c;
@@ -855,24 +994,175 @@ public class NumericalMethods {
 			s += "])";
 			return s;
 		}
+	}
+	
+	
+	/**
+	 * A value that tracks its gradient in parameter space for the purpose of error bar
+	 * determination.
+	 * @author Justin Kunimune
+	 */
+	public static class Quantity {
+		public final double value;
+		public final Vector gradient;
 		
+		public Quantity(double value, int n) {
+			this(value, new double[n]);
+		}
+		
+		public Quantity(double value, double[] gradient) {
+			this(value, new Vector(gradient));
+		}
+
+		public Quantity(double value, Vector gradient) {
+			if (Double.isNaN(value))
+				throw new IllegalArgumentException("I did not account for this!");
+			this.value = value;
+			this.gradient = gradient;
+		}
+		
+		public double variance(double[][] covariance) {
+			return this.gradient.dot(new Matrix(covariance).times(this.gradient));
+		}
+		
+		public Quantity plus(double constant) {
+			return new Quantity(this.value + constant, this.gradient);
+		}
+		
+		public Quantity plus(Quantity that) {
+			return new Quantity(this.value + that.value, this.gradient.plus(that.gradient));
+		}
+		
+		public Quantity minus(double constant) {
+			return new Quantity(this.value - constant, this.gradient);
+		}
+		
+		public Quantity minus(Quantity that) {
+			return this.plus(that.times(-1));
+		}
+		
+		public Quantity times(double constant) {
+			return new Quantity(this.value*constant, this.gradient.times(constant));
+		}
+		
+		public Quantity times(Quantity that) {
+			return new Quantity(this.value*that.value,
+					this.gradient.times(that.value).plus(that.gradient.times(this.value)));
+		}
+		
+		public Quantity over(double constant) {
+			return this.times(1/constant);
+		}
+		
+		public Quantity over(Quantity that) {
+			return new Quantity(this.value/that.value,
+					this.gradient.times(that.value).minus(that.gradient.times(this.value)).times(
+							Math.pow(that.value, -2)));
+		}
+		
+		public Quantity pow(double exponent) {
+			return new Quantity(Math.pow(this.value, exponent),
+					this.gradient.times(exponent*Math.pow(this.value, exponent - 1)));
+		}
+		
+		public Quantity sqrt() {
+			return this.pow(1/2.);
+		}
+		
+		public Quantity mod(double divisor) {
+			return new Quantity(this.value%divisor, this.gradient);
+		}
+		
+		/**
+		 * @return the number of variable dimensions in which this exists
+		 */
+		public int getN() {
+			return this.gradient.getN();
+		}
+		
+		public String toString(double[][] covariance) {
+			return String.format("%8.5g \u00B1 %8.3g", this.value, Math.sqrt(this.variance(covariance)));
+		}
+	}
+	
+	
+	private static class Matrix {
+		private final double[][] values;
+		
+		public Matrix(double[][] values) {
+			this.values = values;
+		}
+		
+		public Vector times(Vector v) {
+			if (v.getN() != this.getM())
+				throw new IllegalArgumentException("the dimensions don't match.");
+			double[] product = new double[this.getN()];
+			for (int i = 0; i < this.getN(); i ++)
+				for (int j = 0; j < this.getM(); j ++)
+					product[i] += this.values[i][j]*v.values[j];
+			return new Vector(product);
+		}
+		
+		public int getN() {
+			return this.values.length;
+		}
+		
+		public int getM() {
+			return this.values[0].length;
+		}
+	}
+	
+	private static class Vector {
+		private final double[] values;
+		
+		public Vector(double[] values) {
+			this.values = values;
+		}
+		
+		public Vector plus(Vector that) {
+			double[] sum = new double[this.getN()];
+			for (int i = 0; i < this.getN(); i ++)
+				sum[i] = this.values[i] + that.values[i];
+			return new Vector(sum);
+		}
+		
+		public Vector minus(Vector that) {
+			return this.plus(that.times(-1));
+		}
+		
+		public Vector times(double scalar) {
+			double[] product = new double[this.getN()];
+			for (int i = 0; i < this.getN(); i ++)
+				product[i] = this.values[i]*scalar;
+			return new Vector(product);
+		}
+		
+		public double dot(Vector that) {
+			if (this.getN() != that.getN())
+				throw new IllegalArgumentException("the dimensions don't match.");
+			double product = 0;
+			for (int i = 0; i < this.getN(); i ++)
+				product += this.values[i]*that.values[i];
+			return product;
+		}
+
+		public int getN() {
+			return values.length;
+		}
 	}
 	
 	
 	public static final void main(String[] args) {
-		double[][] A = {
-				{ 1,  2,  3},
-				{ 0, -3,  1},
-				{-2, -1,  2},
-		};
-		System.out.println(Arrays.deepToString(matinv(A)));
-		double[][] B = {
-				{ 1,  2,  0,  3},
-				{ 0, -3,  0,  1},
-				{ 0,  0,  0,  0},
-				{-2, -1,  0,  2},
-		};
-		System.out.println(Arrays.deepToString(pseudoinv(B)));
+		double[][] cov = {{1, 0}, {0, 1}};
+		Quantity x = new Quantity(5, new double[] {1, 0});
+		Quantity y = new Quantity(12, new double[] {0, 1});
+		System.out.println(x.toString(cov));
+		System.out.println(y.toString(cov));
+		System.out.println(x.plus(y).toString(cov));
+		System.out.println(x.minus(y).toString(cov));
+		System.out.println(x.times(y).toString(cov));
+		System.out.println(x.over(y).toString(cov));
+		System.out.println(x.mod(4).toString(cov));
 	}
 	
 }

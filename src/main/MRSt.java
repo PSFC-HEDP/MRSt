@@ -39,6 +39,7 @@ import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.MultiDirectionalS
 import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.PowellOptimizer;
 
 import main.NumericalMethods.DiscreteFunction;
+import main.NumericalMethods.Quantity;
 
 /**
  * the class where all the math is.
@@ -97,16 +98,12 @@ public class MRSt {
 	
 	private final double timeStep;
 	private final double[] timeAxis; // 1D vectors for higher level measurements [ns]
-	private double[] ionTemperature; // [keV]
-	private double[] ionTemperatureError; // [keV]
-	private double[] electronTemperature; // [keV]
-	private double[] electronTemperatureError; // [keV]
-	private double[] flowVelocity; // [km/s]
-	private double[] flowVelocityError; // [km/s]
-	private double[] arealDensity; // [g/cm^2]
-	private double[] arealDensityError; // [g/cm^2]
-	private double[] neutronYield; // [10^15/ns]
-	private double[] neutronYieldError; // [10^15/ns]
+	private Quantity[] ionTemperature; // [keV]
+	private Quantity[] electronTemperature; // [keV]
+	private Quantity[] flowVelocity; // [km/s]
+	private Quantity[] arealDensity; // [g/cm^2]
+	private Quantity[] neutronYield; // [10^15/ns]
+	private double[][] covarianceMatrix; // and covariances that go with all of these
 	
 	private final Logger logger; // for logging
 	
@@ -278,7 +275,13 @@ public class MRSt {
 	 */
 	public double[] respond(double[] energies, double[] times, double[][] spectrum, boolean errorBars) {
 		this.deuteronSpectrum = this.response(energies, times, spectrum, true);
-		return analyze(deuteronSpectrum, errorBars);
+		Quantity[] values = analyze(deuteronSpectrum, errorBars);
+		double[] output = new double[2*values.length];
+		for (int i = 0; i < values.length; i ++) {
+			output[2*i+0] = values[i].value;
+			output[2*i+1] = values[i].variance(covarianceMatrix);
+		}
+		return output;
 	}
 	
 	/**
@@ -328,7 +331,7 @@ public class MRSt {
 	 * @return {computation time, BT, peak-ρR, peak-ρR-ramp, Ti(BT), ρR(BT), vi(BT),
 	 *   Ti-ramp(BT), ρR-ramp(BT), vi-ramp(BT), max ρR, yield, μ1, μ2, μ3} or null if it can't even
 	 */
-	private double[] analyze(double[][] spectrum, boolean errorBars) {
+	private Quantity[] analyze(double[][] spectrum, boolean errorBars) {
 		if (spectrum.length != energyBins.length-1 || spectrum[0].length != timeBins.length-1)
 			throw new IllegalArgumentException("These dimensions are wrong.");
 		
@@ -489,66 +492,84 @@ public class MRSt {
 			System.out.println(newPosterior);
 		}
 		
-		double[][] covariance;
 		if (errorBars) {
-			double value = logPosterior.apply(opt);
-			double[] gradient = new double[5*timeAxis.length];
+			double c = logPosterior.apply(opt);
 			double[][] hessian = new double[5*timeAxis.length][5*timeAxis.length];
-			for (int i = 0; i < 5*timeAxis.length; i ++) {
+			for (int i = 0; i < hessian.length; i ++) {
 				double dxi = dimensionScale[i]*1e-4;
 				opt[i] += dxi;
 				double r = logPosterior.apply(opt);
-				opt[i] -= dxi;
-				gradient[i] = (r - value)/dxi;
-				for (int j = i; j < 5*timeAxis.length; j ++) {
-					double dxj = dimensionScale[j]*1e-4;
-					opt[i] -= dxi;
-					opt[j] -= dxj;
-					double dl = logPosterior.apply(opt);
-					opt[j] += 2*dxj;
-					double dr = logPosterior.apply(opt);
-					opt[i] += 2*dxi;
-					double ur = logPosterior.apply(opt);
-					opt[j] -= 2*dxj;
-					double ul = logPosterior.apply(opt);
-					opt[i] -= dxi;
-					opt[j] += dxj;
-					hessian[i][j] = hessian[j][i] = (ur - ul - dr + dl)/(4*dxi*dxj);
+				opt[i] -= 2*dxi;
+				double l = logPosterior.apply(opt);
+				opt[i] += dxi;
+				if (Double.isInfinite(l)) { // if we are at a bound
+					hessian[i][i] = -Math.pow((r - c)/dxi, 2); // approximate this exponential-ish distribution as gaussian
+					System.out.println("Doing the gardient thing at index "+i);
+					for (int j = 0; j < i; j ++) {
+						hessian[i][j] = hessian[j][i] = 0; // and reset any diagonal terms that previously involved this
+					}
+				}
+				else {
+					hessian[i][i] = (r - 2*c + l)/(dxi*dxi); // otherwise approximate it as gaussian
+					for (int j = i+1; j < hessian[i].length; j ++) { // and get some diagonal terms
+						double dxj = dimensionScale[j]*1e-4;
+						opt[j] += dxj;
+						double u = logPosterior.apply(opt);
+						opt[i] += dxi;
+						double ur = logPosterior.apply(opt);
+						opt[i] -= dxi;
+						opt[j] -= dxj;
+						hessian[i][j] = hessian[j][i] = (ur - u - r + c)/(dxi*dxj);
+					}
 				}
 			}
-			covariance = NumericalMethods.pseudoinv(hessian);
-			for (int i = 0; i < 5*timeAxis.length; i ++)
-				for (int j = 0; j < 5*timeAxis.length; j ++)
-					covariance[i][j] *= -1; // there's a negative sign between the inverse hessian and covariance
-			for (int i = 0; i < 5*timeAxis.length; i ++)
-				if (covariance[i][i] < 0) // these are all approximations, and sometimes they make a NaN
-					covariance[i][i] = -1/hessian[i][i]; // do what you must to make it finite
-			for (int i = 0; i < 5*timeAxis.length; i ++)
-				if (Double.isInfinite(hessian[i][i])) // in the event that it is at a bound,
-					covariance[i][i] = Math.pow(gradient[i], -2); // use exponential variance vice normal
-		}
-		else {
-			covariance = new double[5*timeAxis.length][5*timeAxis.length];
-		}
-		
-		double[][] params = new double[5][timeAxis.length]; // unpack the optimized vector
-		double[][] errors = new double[5][timeAxis.length]; // and the associated basic errors
-		for (int k = 0; k < 5; k ++) {
-			for (int j = 0; j < timeAxis.length; j ++) {
-				params[k][j] = opt[5*j+k];
-				errors[k][j] = Math.sqrt(covariance[5*j+k][5*j+k]);
+			for (int i = 0; i < hessian.length; i ++) {
+				if (hessian[i][i] > 0) {
+					hessian[i][i] = Double.POSITIVE_INFINITY;
+				}
+			}
+			for (int i = 0; i < hessian.length; i ++) {
+				for (int j = 0; j < hessian.length; j ++) {
+					hessian[i][j] = hessian[j][i] = Math.signum(hessian[i][j])*
+							Math.max(Math.abs(hessian[i][j]), 
+									Math.sqrt(hessian[i][i]*hessian[j][j])); // enforce positive semidefiniteness
+				}
+			}
+			
+			covarianceMatrix = NumericalMethods.pseudoinv(hessian);
+			for (int i = 0; i < hessian.length; i ++)
+				for (int j = 0; j < hessian[i].length; j ++)
+					covarianceMatrix[i][j] *= -1; // there's a negative sign between the inverse hessian and covariance
+			for (int i = 0; i < hessian.length; i ++) {
+				if (covarianceMatrix[i][i] < -1/hessian[i][i]) { // these are all approximations, and sometimes they violate the properties of positive semidefiniteness
+					covarianceMatrix[i][i] = -1/hessian[i][i]; // do what you must to make it work
+				}
 			}
 		}
-		this.neutronYield = params[0];
-		this.neutronYieldError = errors[0];
-		this.ionTemperature = params[1];
-		this.ionTemperatureError = errors[1];
-		this.electronTemperature = params[2];
-		this.electronTemperatureError = errors[2];
-		this.flowVelocity = params[3];
-		this.flowVelocityError = errors[3];
-		this.arealDensity = params[4];
-		this.arealDensityError = errors[4];
+		else {
+			covarianceMatrix = new double[5*timeAxis.length][5*timeAxis.length];
+		}
+		
+		double[][] values = new double[5][timeAxis.length]; // unpack the optimized vector
+		double[][][] gradients = new double[5][timeAxis.length][5*timeAxis.length]; // and the associated basic errors
+		for (int k = 0; k < 5; k ++) {
+			for (int j = 0; j < timeAxis.length; j ++) {
+				values[k][j] = opt[5*j+k];
+				gradients[k][j][5*j+k] = 1;
+			}
+		}
+		this.neutronYield = new Quantity[timeAxis.length];
+		this.ionTemperature = new Quantity[timeAxis.length];
+		this.electronTemperature = new Quantity[timeAxis.length];
+		this.flowVelocity = new Quantity[timeAxis.length];
+		this.arealDensity = new Quantity[timeAxis.length];
+		for (int j = 0; j < timeAxis.length; j ++) {
+			this.neutronYield[j] = new Quantity(values[0][j], gradients[0][j]);
+			this.ionTemperature[j] = new Quantity(values[1][j], gradients[1][j]);
+			this.electronTemperature[j] = new Quantity(values[2][j], gradients[2][j]);
+			this.flowVelocity[j] = new Quantity(values[3][j], gradients[3][j]);
+			this.arealDensity[j] = new Quantity(values[4][j], gradients[4][j]);
+		}
 		
 		long endTime = System.currentTimeMillis();
 		if (logger != null)
@@ -556,30 +577,32 @@ public class MRSt {
 					(endTime - startTime)/60000.));
 		
 		this.fitNeutronSpectrum = generateSpectrum( // and then interpret it
-				neutronYield, ionTemperature, electronTemperature, flowVelocity, arealDensity, energyBins, timeBins);
+				getNeutronYield(), getIonTemperature(), getElectronTemperature(),
+				getFlowVelocity(), getArealDensity(), energyBins, timeBins);
 		this.fitDeuteronSpectrum = this.response(energyBins, timeBins, fitNeutronSpectrum, false);
 		
-		double[] dTidt = NumericalMethods.derivative(timeAxis, ionTemperature); // now we can freely analyze the resulting profiles
-		double[] dρRdt = NumericalMethods.derivative(timeAxis, arealDensity);
-		double[] dvidt = NumericalMethods.derivative(timeAxis, flowVelocity);
+		Quantity[] dTidt = NumericalMethods.derivative(timeAxis, ionTemperature); // now we can freely analyze the resulting profiles
+		Quantity[] dρRdt = NumericalMethods.derivative(timeAxis, arealDensity);
+		Quantity[] dvidt = NumericalMethods.derivative(timeAxis, flowVelocity);
 		
-		double iBT = NumericalMethods.quadargmax(neutronYield); // index of max yield
-		double bangTime = NumericalMethods.interp(timeAxis, iBT); // time of max yield
+		Quantity iBT = NumericalMethods.quadargmax(neutronYield); // index of max yield
+		Quantity bangTime = NumericalMethods.interp(timeAxis, iBT); // time of max yield
+		Quantity peakYield = NumericalMethods.interp(neutronYield, iBT);
 		
-		int left = (int)iBT;
-		while (left-1 >= 0 && neutronYield[left-1] > NumericalMethods.max(neutronYield)/1e3)
+		int left = (int)iBT.value;
+		while (left-1 >= 0 && neutronYield[left-1].value > peakYield.value/1e3)
 			left --;
-		int rite = (int)iBT;
-		while (rite < timeAxis.length && neutronYield[rite] > NumericalMethods.max(neutronYield)/1e3)
+		int rite = (int)iBT.value;
+		while (rite < timeAxis.length && neutronYield[rite].value > peakYield.value/1e3)
 			rite ++;
-		double maxCompress = NumericalMethods.quadargmax(left, rite, timeAxis, arealDensity); // time of max compression
-		double maxPRRamp = NumericalMethods.quadargmax(left, rite, timeAxis, dρRdt); // time of max rhoR ramp
-		double[] moments = new double[5];
+		Quantity maxCompress = NumericalMethods.quadargmax(left, rite, timeAxis, arealDensity); // time of max compression
+		Quantity maxPRRamp = NumericalMethods.quadargmax(left, rite, timeAxis, dρRdt); // time of max rhoR ramp
+		Quantity[] moments = new Quantity[5];
 		for (int k = 0; k < moments.length; k ++)
 			moments[k] = NumericalMethods.moment(k, timeBins, neutronYield);
 		
-		double[] res = {
-				(endTime - startTime)/1000.,
+		Quantity[] res = {
+				new Quantity((endTime - startTime)/1000., 5*timeAxis.length),
 				bangTime, maxCompress, maxPRRamp,
 				NumericalMethods.interp(ionTemperature, iBT),
 				NumericalMethods.interp(arealDensity, iBT),
@@ -587,28 +610,29 @@ public class MRSt {
 				NumericalMethods.interp(dTidt, iBT),
 				NumericalMethods.interp(dρRdt, iBT),
 				NumericalMethods.interp(dvidt, iBT),
-				NumericalMethods.max(arealDensity),
-				moments[0]*timeStep, moments[1], Math.sqrt(moments[2])*2.355, moments[3], moments[4],
+				NumericalMethods.interp(arealDensity, maxCompress),
+				moments[0].times(timeStep), moments[1],
+				moments[2].sqrt().times(2.355), moments[3], moments[4],
 		}; // collect the figures of merit
 		
 		if (logger != null) {
-			logger.info(String.format("Bang time:         %8.3f ns", res[1]));
-			logger.info(String.format("Peak compression:  %8.3f ns", res[2]));
-			logger.info(String.format("            = BT + %8.3f ps", (res[2] - res[1])/1e-3));
-			logger.info(String.format("Max ρR ramp:       %8.3f ps", res[3]));
-			logger.info(String.format("            = BT + %8.3f ps", (res[3] - res[1])/1e-3));
-			logger.info(String.format("Ti at BT:          %8.3f keV", res[4]));
-			logger.info(String.format("\u03C1R at BT:          %8.3f μm/ns", res[5]));
-			logger.info(String.format("vi at BT:          %8.3f μm/ns", res[6]));
-			logger.info(String.format("dTi/dt at BT:      %8.3f keV/ns", res[7]));
-			logger.info(String.format("dρR/dt at BT:      %8.3f g/cm^2/ns", res[8]));
-			logger.info(String.format("dvi/dt at BT:      %8.3f μm/ns^2", res[9]));
-			logger.info(String.format("Peak ρR:           %8.3f g/cm^2", res[10]));
-			logger.info(String.format("Total yield (μ0):  %8.3g", res[11]*1e15));
-			logger.info(String.format("Burn mean (μ1):    %8.5g ns", res[12]));
-			logger.info(String.format("Burn width (μ2):   %8.3g ps", res[13]/1e-3));
-			logger.info(String.format("Burn skewness (μ3):%8.3g", res[14]));
-			logger.info(String.format("Burn kurtosis (μ4):%8.3g", res[15]));
+			logger.info(String.format("Bang time:         %s ns", res[1].toString(covarianceMatrix)));
+			logger.info(String.format("Peak compression:  %s ns", res[2].toString(covarianceMatrix)));
+			logger.info(String.format("            = BT + %s ps", res[2].minus(res[1]).over(1e-3).toString(covarianceMatrix)));
+			logger.info(String.format("Max ρR ramp:       %s ps", res[3].toString(covarianceMatrix)));
+			logger.info(String.format("            = BT + %s ps", res[3].minus(res[1]).over(1e-3).toString(covarianceMatrix)));
+			logger.info(String.format("Ti at BT:          %s keV", res[4].toString(covarianceMatrix)));
+			logger.info(String.format("\u03C1R at BT:          %s μm/ns", res[5].toString(covarianceMatrix)));
+			logger.info(String.format("vi at BT:          %s μm/ns", res[6].toString(covarianceMatrix)));
+			logger.info(String.format("dTi/dt at BT:      %s keV/ns", res[7].toString(covarianceMatrix)));
+			logger.info(String.format("dρR/dt at BT:      %s g/cm^2/ns", res[8].toString(covarianceMatrix)));
+			logger.info(String.format("dvi/dt at BT:      %s μm/ns^2", res[9].toString(covarianceMatrix)));
+			logger.info(String.format("Peak ρR:           %s g/cm^2", res[10].toString(covarianceMatrix)));
+			logger.info(String.format("Total yield (μ0):  %s", res[11].times(1e15).toString(covarianceMatrix)));
+			logger.info(String.format("Burn mean (μ1):    %s ns", res[12].toString(covarianceMatrix)));
+			logger.info(String.format("Burn width (μ2):   %s ps", res[13].over(1e-3).toString(covarianceMatrix)));
+			logger.info(String.format("Burn skewness (μ3):%s", res[14].toString(covarianceMatrix)));
+			logger.info(String.format("Burn kurtosis (μ4):%s", res[15].toString(covarianceMatrix)));
 		}
 		return res;
 	}
@@ -789,43 +813,45 @@ public class MRSt {
 	}
 	
 	public double[] getIonTemperature() {
-		return this.ionTemperature;
+		return NumericalMethods.modes(this.ionTemperature);
 	}
 	
 	public double[] getIonTemperatureError() {
-		return this.ionTemperatureError;
+		return NumericalMethods.stds(this.ionTemperature, this.covarianceMatrix);
 	}
 	
 	public double[] getElectronTemperature() {
-		return this.electronTemperature;
+		return NumericalMethods.modes(this.electronTemperature);
 	}
 	
 	public double[] getElectronTemperatureError() {
-		return this.electronTemperatureError;
+		return NumericalMethods.stds(this.electronTemperature, this.covarianceMatrix);
 	}
 	
 	public double[] getFlowVelocity() {
-		return this.flowVelocity;
+		return NumericalMethods.modes(this.flowVelocity);
 	}
 	
 	public double[] getFlowVelocityError() {
-		return flowVelocityError;
+		return NumericalMethods.stds(this.flowVelocity, this.covarianceMatrix);
 	}
 	
 	public double[] getArealDensity() {
-		return this.arealDensity;
+		return NumericalMethods.modes(this.arealDensity);
 	}
 	
 	public double[] getArealDensityError() {
-		return arealDensityError;
+		return NumericalMethods.stds(this.arealDensity, this.covarianceMatrix);
 	}
 	
 	public double[] getNeutronYield() {
-		return this.neutronYield;
+		return NumericalMethods.modes(this.neutronYield);
 	}
+	
 	public double[] getNeutronYieldError() {
-		return neutronYieldError;
+		return NumericalMethods.stds(this.neutronYield, this.covarianceMatrix);
 	}
+	
 	
 	/**
 	 * generate a time-resolved spectrum based on some parameters that vary with time.

@@ -37,6 +37,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
@@ -75,6 +76,8 @@ public class SpectrumViewer extends Application {
 	private Spinner<Double> focalPlaneTilt;
 	private ChoiceBox<Integer> order;
 	private Spinner<Double> yieldFactor;
+	private CheckBox errorBars;
+	
 	private double[][] stoppingPowerData;
 	private double[][] cosyCoefficients;
 	private int[][] cosyExponents;
@@ -174,6 +177,8 @@ public class SpectrumViewer extends Application {
 					this.spectrum = CSV.read(file, '\t');
 				}));
 		
+		this.stoppingPowerData = CSV.read(STOPPING_POWER_FILE, ',');
+		
 		this.yieldFactor = new Spinner<Double>(1e-2, 1e+4, 100, 10);
 		yieldFactor.setEditable(true);
 		GridPane container = new GridPane();
@@ -183,7 +188,9 @@ public class SpectrumViewer extends Application {
 		container.add(new Label("%"), 2, 0);
 		rightPane.getChildren().add(container);
 		
-		this.stoppingPowerData = CSV.read(STOPPING_POWER_FILE, ',');
+		this.errorBars = new CheckBox("Compute errors");
+		this.errorBars.setSelected(false);
+		rightPane.getChildren().add(errorBars);
 		
 		Button execute = new Button("Compute!");
 		execute.setOnAction((event) -> {
@@ -227,7 +234,9 @@ public class SpectrumViewer extends Application {
 								cosyExponents,
 								focalPlaneTilt.getValue(),
 								logger); // make the simulation
-						mc.respond(eBins, tBins, spec, true); // and run it!
+						
+						mc.respond(eBins, tBins, spec, errorBars.isSelected()); // and run it!
+						
 					} catch (Exception e) {
 						logger.log(Level.SEVERE, e.getMessage(), e);
 					}
