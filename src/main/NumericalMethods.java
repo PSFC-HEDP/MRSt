@@ -1099,7 +1099,8 @@ public class NumericalMethods {
 			double[] product = new double[this.getN()];
 			for (int i = 0; i < this.getN(); i ++)
 				for (int j = 0; j < this.getM(); j ++)
-					product[i] += this.values[i][j]*v.values[j];
+					if (this.values[i][j] != 0 && v.values[j] != 0) // 0s override Infs and NaNs in this product
+						product[i] += this.values[i][j]*v.values[j];
 			return new Vector(product);
 		}
 		
@@ -1142,7 +1143,8 @@ public class NumericalMethods {
 				throw new IllegalArgumentException("the dimensions don't match.");
 			double product = 0;
 			for (int i = 0; i < this.getN(); i ++)
-				product += this.values[i]*that.values[i];
+				if (this.values[i] != 0 && that.values[i] != 0)
+					product += this.values[i]*that.values[i];
 			return product;
 		}
 

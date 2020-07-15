@@ -41,6 +41,7 @@ for i, (axis, true) in enumerate(Y_LABELS):
 
 	ax = axs[i//COLUMNS,i%COLUMNS]
 	ax.scatter(simulations[X_LABEL], simulations[axis], s=10, zorder=1, label="Based on fit to synthetic data")
+	ax.set_ylim(auto=False)
 	ax.errorbar(simulations[X_LABEL], simulations[axis], yerr=simulations[axis+" error"], linestyle='none')
 	if simulations[axis].min() > 0 and simulations[axis].max()/simulations[axis].min() >= 100:
 		ax.set_yscale('log')

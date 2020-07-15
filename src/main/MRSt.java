@@ -270,7 +270,8 @@ public class MRSt {
 	 * row corresponds to one element of energies, and each column one element of times. [#/MeV/ns]
 	 * @param errorBars whether to bother computing error bars
 	 * @return {computation time, BT, peak-ρR, peak-ρR-ramp, Ti(BT), ρR(BT), vi(BT),
-	 *   Ti-ramp(BT), ρR-ramp(BT), vi-ramp(BT), max ρR, yield, μ1, μ2, μ3}
+	 *   Ti-ramp(BT), ρR-ramp(BT), vi-ramp(BT), max ρR, yield, μ1, μ2, μ3}, where each item is
+	 *   a value followed by its estimated error
 	 */
 	public double[] respond(double[] energies, double[] times, double[][] spectrum, boolean errorBars) {
 		this.deuteronSpectrum = this.response(energies, times, spectrum, true);
@@ -278,7 +279,7 @@ public class MRSt {
 		double[] output = new double[2*values.length];
 		for (int i = 0; i < values.length; i ++) {
 			output[2*i+0] = values[i].value;
-			output[2*i+1] = values[i].variance(covarianceMatrix);
+			output[2*i+1] = Math.sqrt(values[i].variance(covarianceMatrix));
 		}
 		return output;
 	}
@@ -503,7 +504,6 @@ public class MRSt {
 				opt[i] += dxi;
 				if (Double.isInfinite(l)) { // if we are at a bound
 					hessian[i][i] = -Math.pow((r - c)/dxi, 2); // approximate this exponential-ish distribution as gaussian
-					System.out.println("Doing the gardient thing at index "+i);
 					for (int j = 0; j < i; j ++) {
 						hessian[i][j] = hessian[j][i] = 0; // and reset any diagonal terms that previously involved this
 					}
