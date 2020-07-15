@@ -594,7 +594,8 @@ public class MRSt {
 		int rite = (int)iBT.value;
 		while (rite < timeAxis.length && neutronYield[rite].value > peakYield.value/1e3)
 			rite ++;
-		Quantity maxCompress = NumericalMethods.quadargmax(left, rite, timeAxis, arealDensity); // time of max compression
+		Quantity iMC = NumericalMethods.quadargmax(left, rite, arealDensity); // index of max compression
+		Quantity maxCompress = NumericalMethods.interp(timeAxis, iMC); // time of max compression
 		Quantity maxPRRamp = NumericalMethods.quadargmax(left, rite, timeAxis, dρRdt); // time of max rhoR ramp
 		Quantity[] moments = new Quantity[5];
 		for (int k = 0; k < moments.length; k ++)
@@ -609,7 +610,7 @@ public class MRSt {
 				NumericalMethods.interp(dTidt, iBT),
 				NumericalMethods.interp(dρRdt, iBT),
 				NumericalMethods.interp(dvidt, iBT),
-				NumericalMethods.interp(arealDensity, maxCompress),
+				NumericalMethods.interp(arealDensity, iMC),
 				moments[0].times(timeStep), moments[1],
 				moments[2].sqrt().times(2.355), moments[3], moments[4],
 		}; // collect the figures of merit
