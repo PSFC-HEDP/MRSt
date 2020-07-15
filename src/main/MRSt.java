@@ -23,7 +23,6 @@
  */
 package main;
 
-import java.util.Arrays;
 import java.util.Locale;
 import java.util.function.Function;
 import java.util.logging.Level;
@@ -924,7 +923,7 @@ public class MRSt {
 //					double piLab = Math.sqrt(EiLab*(EiLab + 2*mn));
 //					double EtLab = EiLab + mn + mS;
 //					cosθ[j] = ((EfLab + mn)*EtCM - EfCM*EtLab)/(piLab*pfCM);
-					cosθ[j] = 1 - (1 - eBins[i]/eBins[j])/(α/2); // XXX these equations from Hatarik et al. are just wrong
+					cosθ[j] = 1 - (1 - eBins[i]/eBins[j])/(α/2); // XXX these equations from Hatarik et al. are just wrong 
 				}
 				for (int j = i; j < eBins.length-1; j ++) {
 					double dσdΩ = 0;

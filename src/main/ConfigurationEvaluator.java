@@ -50,6 +50,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import main.CSV.COSYMapping;
 
 
 /**
@@ -177,10 +178,11 @@ public class ConfigurationEvaluator extends Application {
 		leftPane.add(order, 1, row);
 		row ++;
 		
-		leftPane.add(chooseFileWidget("COSY map file:", stage, "MRSt_IRF_FP tilted.txt",
+		leftPane.add(chooseFileWidget("COSY map file:", stage, "MRSt_IRF_FP tilted_final.txt",
 				(file) -> {
-					this.cosyCoefficients = CSV.readCosyCoefficients(file, order.getValue());
-					this.cosyExponents = CSV.readCosyExponents(file, order.getValue());
+					COSYMapping map = CSV.readCosyCoefficients(file, order.getValue());
+					this.cosyCoefficients = map.coefficients;
+					this.cosyExponents = map.exponents;
 				}), 0, row, 3, 1);
 		row ++;
 		

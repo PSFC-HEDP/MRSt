@@ -49,6 +49,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import main.CSV.COSYMapping;
 
 
 /**
@@ -148,15 +149,16 @@ public class SpectrumViewer extends Application {
 		row ++;
 		
 		this.order = new ChoiceBox<Integer>(FXCollections.observableArrayList(1, 2, 3));
-		order.setValue(3);
+		order.setValue(3); // XXX when this changes it should reload the cosy map
 		leftPane.add(new Label("Order"), 0, row);
 		leftPane.add(order, 1, row);
 		row ++;
 		
-		leftPane.add(chooseFileWidget("COSY map file:", stage, "MRSt_IRF_FP tilted.txt",
+		leftPane.add(chooseFileWidget("COSY map file:", stage, "MRSt_IRF_FP tilted_final.txt",
 				(file) -> {
-					this.cosyCoefficients = CSV.readCosyCoefficients(file, order.getValue());
-					this.cosyExponents = CSV.readCosyExponents(file, order.getValue());
+					COSYMapping map = CSV.readCosyCoefficients(file, order.getValue());
+					this.cosyCoefficients = map.coefficients;
+					this.cosyExponents = map.exponents;
 				}), 0, row, 3, 1);
 		row ++;
 		
@@ -403,6 +405,7 @@ public class SpectrumViewer extends Application {
 			label.setText("No file chosen");
 		} catch (Exception e) {
 			System.err.println("There was a problem opening "+initialFilename);
+			e.printStackTrace();
 		}
 		return new VBox(SPACING_2, new Label(title), output);
 	}

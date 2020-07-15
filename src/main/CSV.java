@@ -30,7 +30,6 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -109,48 +108,45 @@ public class CSV {
 	}
 	
 	/**
-	 * read a COSY-generated file and return the coefficients as a double matrix.
+	 * read a COSY-generated file and return the coefficients as a double matrix along with the
+	 * exponents as an int matrix.
 	 * @param file the COSY file to open
 	 * @param maxOrder the desired order of the polynomial
 	 * @return yep
 	 * @throws IOException if file cannot be found or permission is denied
 	 * @throws NumberFormatException if elements are not parsable as doubles
 	 */
-	public static final double[][] readCosyCoefficients(File file, int maxOrder)
+	public static final COSYMapping readCosyCoefficients(File file, int maxOrder)
 			throws NumberFormatException, IOException {
-		double[][] fullFile = read(file, ' '); // read it normally
-		double[][] coefs = new double[fullFile.length][fullFile[0].length - 1];
-		for (int i = 0; i < fullFile.length; i ++) {
-			int exps = (int) fullFile[i][fullFile[i].length-1]; // check the last column
-			if (Integer.toString(exps).contains(Integer.toString(maxOrder+1))) // check to see if it has exceeded the max order
-				return Arrays.copyOfRange(coefs, 0, i); // and return what we have if so
-			System.arraycopy(fullFile[i], 0, coefs[i], 0, coefs[i].length); // but then remove the last column
+		BufferedReader in = null;
+		List<double[]> coefList;
+		List<int[]> expList;
+		try {
+			in = new BufferedReader(new FileReader(file)); // start by reading it like a CSV
+			coefList = new ArrayList<double[]>();
+			expList = new ArrayList<int[]>();
+			String line;
+			while ((line = in.readLine()) != null) {
+				line = line.substring(1); // remove this single stupid space in front of the numbers
+				if (line.isEmpty())
+					break;
+				if (line.substring(line.length()/14*14).contains(Integer.toString(maxOrder + 1))) // check for when we see an exponent over the highest order
+					break;
+				double[] row = new double[line.length()/14];
+				for (int i = 0; i < line.length()/14; i ++)
+					row[i] = Double.parseDouble(line.substring(14*i, 14*(i+1)));
+				coefList.add(row);
+				int[] bloc = new int[line.length() - row.length*14-1];
+				for (int i = 0; i < bloc.length; i ++)
+					bloc[i] = Integer.parseInt(String.valueOf(line.charAt(row.length*14+1 + i)));
+				expList.add(bloc);
+			}
+		} finally {
+			try {
+				in.close();
+			} catch (NullPointerException e) {}
 		}
-		return coefs;
-	}
-	
-	/**
-	 * read a COSY-generated file and return the exponents as an int matrix.
-	 * @param file the COSY file to open
-	 * @param maxOrder the desired order of the polynomial
-	 * @return yep
-	 * @throws IOException if file cannot be found or permission is denied
-	 * @throws NumberFormatException if elements are not parsable as doubles
-	 */
-	public static final int[][] readCosyExponents(File file, int maxOrder)
-			throws NumberFormatException, IOException {
-		double[][] fullFile = read(file, ' '); // read it normally
-		int[][] exps = new int[fullFile.length][9];
-		for (int i = 0; i < fullFile.length; i ++) {
-			int code = (int) fullFile[i][fullFile[i].length-1]; // but then we only care about the last column
-			if (Integer.toString(code).contains(Integer.toString(maxOrder+1))) // check to see if it has exceeded the max order
-				return Arrays.copyOfRange(exps, 0, i); // and return what we have if so
-			for (int j = exps[i].length-1; j >= 0; j --) { // otherwise fill out this row
-				exps[i][j] = code%10; // take its digits one at a time
-				code /= 10; // each digit is a column
-			} // I know this is inefficient since it parsed the column as a double just to then cast it to an int and extract its digits, but this was what I came up with to minimize duplicated code.
-		}
-		return exps;
+		return new COSYMapping(coefList.toArray(new double[0][]), expList.toArray(new int[0][]));
 	}
 	
 	/**
@@ -214,6 +210,16 @@ public class CSV {
 		for (int i = 0; i < data.length; i ++)
 			columnVector[i][0] = data[i];
 		write(columnVector, file, '\n');
+	}
+	
+	
+	public static class COSYMapping {
+		public final double[][] coefficients;
+		public final int[][] exponents;
+		public COSYMapping(double[][] coefficients, int[][] exponents) {
+			this.coefficients = coefficients;
+			this.exponents = exponents;
+		}
 	}
 	
 }
