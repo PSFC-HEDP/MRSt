@@ -51,12 +51,30 @@ public class CSV {
 	 */
 	public static final double[][] read(File file, char delimiter)
 			throws NumberFormatException, IOException {
+		return read(file, delimiter, 0);
+	}
+	
+	/**
+	 * read a simple CSV file, with any standard line break character, and return its contents
+	 * as a double matrix. file must end with a line break, and elements must be parsable as
+	 * doubles. whitespace adjacent to delimiters will be stripped.
+	 * @param file the CSV file to open
+	 * @param delimiter the delimiting character, usually ',', sometimes '\t', occasionally '|'
+	 * @param headerRows the number of initial rows to skip
+	 * @return I think the return value is pretty self-explanatory.
+	 * @throws IOException if file cannot be found or permission is denied
+	 * @throws NumberFormatException if elements are not parsable as doubles
+	 */
+	public static final double[][] read(File file, char delimiter, int headerRows)
+			throws NumberFormatException, IOException {
 		BufferedReader in = null;
 		List<double[]> list;
 		try {
 			in = new BufferedReader(new FileReader(file));
 			list = new ArrayList<double[]>();
 			String line;
+			for (int i = 0; i < headerRows; i ++)
+				in.readLine();
 			while ((line = in.readLine()) != null) {
 				line = line.trim();
 				if (line.isEmpty())
