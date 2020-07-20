@@ -5,8 +5,9 @@ import sys
 # import os
 # os.chdir('../..')
 # print(os.getcwd())
-# xlabel, ylabels, title, n = 'sate', 'Ti\nρR\nYn\nVi', 'data', 4
+# xlabel, ylabels, title, n = 'sate', 'Ti\nρR\nYn\na2', 'data', 4
 xlabel, ylabels, title, n = sys.argv[1:]
+
 ylabels = ylabels.split('\n')
 n = int(n)
 
@@ -28,7 +29,7 @@ for i in range(n):
 		for sp in axes[i].spines.values(): sp.set_visible(False)
 		axes[i].spines['right'].set_visible(True)
 
-	rainge = {'Y':(0,None), 'T':(0,16), 'ρ':(0,2), 'V':(-100,100)}[ylabels[i][0]]
+	rainge = {'Y':(0,None), 'T':(0,16), 'ρ':(0,2), 'V':(-100,100), 'a':(-.5, .5)}[ylabels[i][0]]
 	Ys[i][np.isnan(Δs[i])] = np.nan
 	plots.append(axes[i].plot(X, Ys[i], label=ylabels[i], color='C'+str(i))[0])
 	axes[i].fill_between(X, Ys[i] - Δs[i], Ys[i] + Δs[i], color='C'+str(i), alpha=0.3)

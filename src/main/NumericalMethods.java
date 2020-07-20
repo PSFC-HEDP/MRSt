@@ -844,7 +844,7 @@ public class NumericalMethods {
 	 * @param z the cosine of the angle at which this is evaluated
 	 * @return P_l(z)
 	 */
-	public static double legengre(int n, double z) {
+	public static double legendre(int n, double z) {
 		if (n == 0)
 			return 1;
 		else if (n == 1)
