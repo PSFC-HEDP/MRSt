@@ -85,7 +85,6 @@ public class MRSt {
 	private final DiscreteFunction distanceVsEnergy; // stopping distance info
 	private final DiscreteFunction energyVsDistance; // inverse stopping distance info
 	private final DiscreteFunction energyVsPosition; // map between location on detector and energy going into lens
-	private final DiscreteFunction timeCorrection; // table of time corrections by energy
 	
 	private final double[] energyBins; // endpoints of E bins for inferred spectrum [MeV]
 	private final double[] timeBins; // endpoints of time bins for inferred spectrum [ns]
@@ -117,7 +116,7 @@ public class MRSt {
 			double[][] stoppingPowerData,
 			double apertureDistance, double apertureWidth, double apertureHeight,
 			double minimumEnergy, double maximumEnergy, double referenceEnergy,
-			double[][] cosyCoefficients, int[][] cosyExponents, double[][] timeCorrection,
+			double[][] cosyCoefficients, int[][] cosyExponents,
 			double focalTilt, Logger logger) {
 		this.foilDistance = foilDistance;
 		this.foilThickness = foilThickness;
@@ -152,14 +151,6 @@ public class MRSt {
 		DiscreteFunction distanceVsEnergyRaw = new DiscreteFunction(E, dxdE).antiderivative();
 		this.distanceVsEnergy = distanceVsEnergyRaw.indexed(STOPPING_DISTANCE_RESOLUTION); // m(J)
 		this.energyVsDistance = distanceVsEnergyRaw.inv().indexed(STOPPING_DISTANCE_RESOLUTION); // J(m)
-		
-		E = new double[timeCorrection.length];
-		double[] t = new double[timeCorrection.length];
-		for (int i = 0; i < timeCorrection.length; i ++) {
-			E[i] = timeCorrection[i][0]*1e6*(-Particle.E.charge); // convert from [MeV] to [J]
-			t[i] = timeCorrection[i][2]*1e-12; // and from [ps] to [s]
-		}
-		this.timeCorrection = new DiscreteFunction(E, t); // s(J)
 		
 		this.energyBins = new double[(int) ((MAX_E - MIN_E)/E_RESOLUTION + 1)];
 		for (int i = 0; i < energyBins.length; i ++)
@@ -663,15 +654,10 @@ public class MRSt {
 		double focusingDistance = position*Math.sin(focalPlaneAngle);
 		double E = energyVsPosition.evaluate(position); // [J]
 		double t;
-		if (timeCorrection == null) {
-			double v = Math.sqrt(2*E/ion.mass);
-			double d0 = (E - cosyK0)/cosyK0;
-			double lf = cosyPolynomial(4, new double[] {0, 0, 0, 0, 0, d0}); // re-use the COSY mapping to estimate the time of flight from energy
-			t = time - (cosyT0 + lf*cosyT1 + focusingDistance/v);
-		}
-		else {
-			t = time - (cosyT0 + timeCorrection.evaluate(E));
-		}
+		double v = Math.sqrt(2*E/ion.mass);
+		double d0 = (E - cosyK0)/cosyK0;
+		double lf = cosyPolynomial(4, new double[] {0, 0, 0, 0, 0, d0}); // re-use the COSY mapping to estimate the time of flight from energy
+		t = time - (cosyT0 + lf*cosyT1 + focusingDistance/v);
 		return new double[] { E/energyFactor, t };
 	}
 	

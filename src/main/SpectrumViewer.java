@@ -82,7 +82,6 @@ public class SpectrumViewer extends Application {
 	private double[][] stoppingPowerData;
 	private double[][] cosyCoefficients;
 	private int[][] cosyExponents;
-	private double[][] timeCorrection;
 	private double[] timeBins;
 	private double[] energyBins;
 	private double[][] spectrum;
@@ -163,12 +162,6 @@ public class SpectrumViewer extends Application {
 				}), 0, row, 3, 1);
 		row ++;
 		
-		leftPane.add(chooseFileWidget("Time correction file:", stage, "time correction.csv",
-				(file) -> {
-					this.timeCorrection = CSV.read(file, ',', 1);
-				}), 0, row, 3, 1);
-		row ++;
-		
 		VBox rightPane = new VBox(SPACING_1);
 		
 		rightPane.getChildren().add(chooseFileWidget("Energy bin file:", stage, "Energy bins.txt",
@@ -241,7 +234,6 @@ public class SpectrumViewer extends Application {
 								COSY_REFERENCE_ENERGY,
 								cosyCoefficients,
 								cosyExponents,
-								timeCorrection,
 								focalPlaneTilt.getValue(),
 								logger); // make the simulation
 						

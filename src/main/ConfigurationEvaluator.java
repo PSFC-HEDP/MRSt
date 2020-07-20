@@ -97,7 +97,6 @@ public class ConfigurationEvaluator extends Application {
 	private double[][] stoppingPowerData;
 	private double[][] cosyCoefficients;
 	private int[][] cosyExponents;
-	private double[][] timeCorrection;
 	private Logger logger;
 	
 	
@@ -187,12 +186,6 @@ public class ConfigurationEvaluator extends Application {
 				}), 0, row, 3, 1);
 		row ++;
 		
-		leftPane.add(chooseFileWidget("Time correction file:", stage, "time correction.csv",
-				(file) -> {
-					this.timeCorrection = CSV.read(file, ',', 1);
-				}), 0, row, 3, 1);
-		row ++;
-		
 		VBox rightPane = new VBox(SPACING_1);
 		
 		this.stoppingPowerData = CSV.read(STOPPING_POWER_FILE, ',');
@@ -239,7 +232,6 @@ public class ConfigurationEvaluator extends Application {
 								COSY_REFERENCE_ENERGY,
 								cosyCoefficients,
 								cosyExponents,
-								timeCorrection,
 								focalPlaneTilt.getValue(),
 								logger); // make the simulation
 					} catch (Exception e) {
