@@ -506,14 +506,30 @@ public class MRSt {
 			}
 		}
 		
+		Quantity iBT = NumericalMethods.quadargmax(measurements[0]); // index of max yield
+		Quantity bangTime = NumericalMethods.interp(timeAxis, iBT); // time of max yield
+		Quantity peakYield = NumericalMethods.interp(measurements[0], iBT);
+		int left = (int)iBT.value; // bounds of data about which we actually care
+		while (left-1 >= 0 && measurements[0][left-1].value > peakYield.value/1e3)
+			left --;
+		int rite = (int)iBT.value;
+		while (rite < timeAxis.length && measurements[0][rite].value > peakYield.value/1e3)
+			rite ++;
+		
 		if (errorBars) {
-			double c = logPosterior.apply(opt);
-			double[][] hessian = new double[6*timeAxis.length][6*timeAxis.length];
-			for (int i = 0; i < hessian.length; i ++) {
+			double c = logPosterior.apply(opt); // start by getting the actual value
+			double[] step = new double[6*timeAxis.length]; // and the values in all basis directions
+			for (int i = 0; i < step.length; i ++) {
 				double dxi = dimensionScale[i]*1e-4;
 				opt[i] += dxi;
-				double r = logPosterior.apply(opt);
-				opt[i] -= 2*dxi;
+				step[i] = logPosterior.apply(opt);
+				opt[i] -= dxi;
+			}
+			double[][] hessian = new double[6*timeAxis.length][6*timeAxis.length]; // then go for the second derivatives
+			for (int i = 0; i < hessian.length; i ++) {
+				double dxi = dimensionScale[i]*1e-4;
+				double r = step[i];
+				opt[i] -= dxi;
 				double l = logPosterior.apply(opt);
 				opt[i] += dxi;
 				if (Double.isInfinite(l)) { // if we are at a bound
@@ -524,15 +540,17 @@ public class MRSt {
 				}
 				else {
 					hessian[i][i] = (r - 2*c + l)/(dxi*dxi); // otherwise approximate it as gaussian
-					for (int j = i+1; j < hessian[i].length; j ++) { // and get some diagonal terms
-						double dxj = dimensionScale[j]*1e-4;
-						opt[j] += dxj;
-						double u = logPosterior.apply(opt);
-						opt[i] += dxi;
-						double ur = logPosterior.apply(opt);
-						opt[i] -= dxi;
-						opt[j] -= dxj;
-						hessian[i][j] = hessian[j][i] = (ur - u - r + c)/(dxi*dxj);
+					if (i >= 6*left && i < 6*rite) {
+						for (int j = i+1; j < 6*rite; j ++) { // and get some diagonal terms (only checking relevant ones)
+							double dxj = dimensionScale[j]*1e-4;
+							double u = step[j];
+							opt[j] += dxj;
+							opt[i] += dxi;
+							double ur = logPosterior.apply(opt);
+							opt[i] -= dxi;
+							opt[j] -= dxj;
+							hessian[i][j] = hessian[j][i] = (ur - u - r + c)/(dxi*dxj);
+						}
 					}
 				}
 			}
@@ -542,9 +560,9 @@ public class MRSt {
 				}
 			}
 			for (int i = 0; i < hessian.length; i ++) {
-				for (int j = 0; j < hessian.length; j ++) {
+				for (int j = i+1; j < hessian.length; j ++) {
 					hessian[i][j] = hessian[j][i] = Math.signum(hessian[i][j])*
-							Math.max(Math.abs(hessian[i][j]), 
+							Math.min(Math.abs(hessian[i][j]), 
 									Math.sqrt(hessian[i][i]*hessian[j][j])); // enforce positive semidefiniteness
 				}
 			}
@@ -577,16 +595,6 @@ public class MRSt {
 		Quantity[] dρRdt = NumericalMethods.derivative(timeAxis, measurements[4]);
 		Quantity[] dvidt = NumericalMethods.derivative(timeAxis, measurements[3]);
 		
-		Quantity iBT = NumericalMethods.quadargmax(measurements[0]); // index of max yield
-		Quantity bangTime = NumericalMethods.interp(timeAxis, iBT); // time of max yield
-		Quantity peakYield = NumericalMethods.interp(measurements[0], iBT);
-		
-		int left = (int)iBT.value;
-		while (left-1 >= 0 && measurements[0][left-1].value > peakYield.value/1e3)
-			left --;
-		int rite = (int)iBT.value;
-		while (rite < timeAxis.length && measurements[0][rite].value > peakYield.value/1e3)
-			rite ++;
 		Quantity iMC = NumericalMethods.quadargmax(left, rite, measurements[4]); // index of max compression
 		Quantity maxCompress = NumericalMethods.interp(timeAxis, iMC); // time of max compression
 		Quantity maxPRRamp = NumericalMethods.quadargmax(left, rite, timeAxis, dρRdt); // time of max rhoR ramp
