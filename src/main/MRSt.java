@@ -428,20 +428,6 @@ public class MRSt {
 				penalty += Math.pow(params[5][j]/.5, 2)/2; // and gaussian prior on asymmetry
 			}
 			
-			for (int j = 1; j < timeAxis.length-1; j ++) {
-				double Tpp = (params[1][j-1] - 2*params[1][j] + params[1][j+1])/
-						Math.pow(timeStep, 2);
-				penalty += Math.pow(Tpp/10000, 2)/2; // encourage a smooth ion temperature
-			}
-			
-			double burnDensity = 0;
-			for (int j = 0; j < timeAxis.length; j ++)
-				burnDensity += params[0][j]*params[4][j];
-			burnDensity /= NumericalMethods.sum(params[0]);
-			for (int j = 0; j < timeAxis.length; j ++)
-				if (params[4][j] > 1e-20)
-					penalty += 1.0*params[0][j]*params[4][j]/burnDensity*Math.log(params[4][j]/burnDensity); // and an entropic rho-R
-			
 			double burn0 = 0, burn1 = 0;
 			for (int j = 0; j < timeAxis.length; j ++) {
 				burn0 += params[0][j];
@@ -452,6 +438,26 @@ public class MRSt {
 				burn2 = params[0][j]*Math.pow((timeAxis[j] - burn1/burn0)/(2*expectedStd), 2);
 				burn4 = params[0][j]*Math.pow((timeAxis[j] - burn1/burn0)/(2*expectedStd), 4);
 				penalty += 1e4/burn0*Math.max(burn4/burn0 - burn2/burn0, 0);
+			}
+			
+			for (int j = 1; j < timeAxis.length-1; j ++) {
+				double Tpp = (params[1][j-1] - 2*params[1][j] + params[1][j+1])/
+						Math.pow(timeStep, 2);
+				penalty += Math.pow(Tpp/5000, 2)/2; // encourage a smooth ion temperature
+			}
+			
+			double burnDensity = 0;
+			for (int j = 0; j < timeAxis.length; j ++)
+				burnDensity += params[0][j]*params[4][j];
+			burnDensity /= NumericalMethods.sum(params[0]);
+			for (int j = 0; j < timeAxis.length; j ++)
+				if (params[4][j] > 1e-20)
+					penalty += 1e4*params[0][j]/burn0*params[4][j]/burnDensity*Math.log(params[4][j]/burnDensity); // and an entropic rho-R
+			
+			for (int j = 1; j < timeAxis.length-1; j ++) {
+				double App = (params[5][j-1] - 2*params[5][j] + params[5][j+1])/
+						Math.pow(timeStep, 2);
+				penalty += Math.pow(App/1000, 2)/2; // encourage a smooth asymmetry history
 			}
 			
 			return - penalty - error;
@@ -467,7 +473,7 @@ public class MRSt {
 			dimensionScale[6*j+2] = 10;
 			dimensionScale[6*j+3] = 100;
 			dimensionScale[6*j+4] = 1;
-			dimensionScale[6*j+5] = -.5;
+			dimensionScale[6*j+5] = 1;
 		}
 		
 		double oldPosterior = Double.NEGATIVE_INFINITY, newPosterior = logPosterior.apply(opt);
@@ -478,7 +484,7 @@ public class MRSt {
 		}
 		System.out.println(newPosterior);
 		MultivariateOptimizer optimizer = new PowellOptimizer(1e-14, 1);
-		while (newPosterior - oldPosterior > 1) { // just optimize it over and over; you'll get there eventually
+		while (newPosterior - oldPosterior > .1) { // just optimize it over and over; you'll get there eventually
 			opt = optimizer.optimize(
 					GoalType.MAXIMIZE,
 					new ObjectiveFunction((x) -> logPosterior.apply(x)),
