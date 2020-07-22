@@ -452,7 +452,7 @@ public class MRSt {
 			burnDensity /= NumericalMethods.sum(params[0]);
 			for (int j = 0; j < timeAxis.length; j ++)
 				if (params[4][j] > 1e-20)
-					penalty += 1e4*params[0][j]/burn0*params[4][j]/burnDensity*Math.log(params[4][j]/burnDensity); // and an entropic rho-R
+					penalty += 0.01*params[0][j]*params[4][j]/burnDensity*Math.log(params[4][j]/burnDensity); // and an entropic rho-R
 			
 			for (int j = 1; j < timeAxis.length-1; j ++) {
 				double App = (params[5][j-1] - 2*params[5][j] + params[5][j+1])/
@@ -473,29 +473,13 @@ public class MRSt {
 			dimensionScale[6*j+2] = 10;
 			dimensionScale[6*j+3] = 100;
 			dimensionScale[6*j+4] = 1;
-			dimensionScale[6*j+5] = 1;
+			dimensionScale[6*j+5] = .5;
 		}
 		
-		double oldPosterior = Double.NEGATIVE_INFINITY, newPosterior = logPosterior.apply(opt);
-		if (newPosterior == Double.NEGATIVE_INFINITY) {
-			for (int j = 0; j < timeAxis.length; j ++)
-				opt[6*j] += 1;
-			newPosterior = logPosterior.apply(opt);
-		}
-		System.out.println(newPosterior);
-		MultivariateOptimizer optimizer = new PowellOptimizer(1e-14, 1);
-		while (newPosterior - oldPosterior > .1) { // just optimize it over and over; you'll get there eventually
-			opt = optimizer.optimize(
-					GoalType.MAXIMIZE,
-					new ObjectiveFunction((x) -> logPosterior.apply(x)),
-					new InitialGuess(opt),
-					new MultiDirectionalSimplex(dimensionScale),
-					new MaxIter(10000),
-					new MaxEval(100000)).getPoint();
-			oldPosterior = newPosterior;
-			newPosterior = logPosterior.apply(opt);
-			System.out.println(newPosterior);
-		}
+		opt = optimize(logPosterior, opt, dimensionScale, 1, true, true, false, true, false, false);
+		opt = optimize(logPosterior, opt, dimensionScale, 1, false, false, true, false, false, false);
+		opt = optimize(logPosterior, opt, dimensionScale, 1, false, false, false, false, true, true);
+		opt = optimize(logPosterior, opt, dimensionScale, .1);
 		
 		this.measurements = new Quantity[6][timeAxis.length]; // unpack the optimized vector
 		for (int k = 0; k < measurements.length; k ++) {
@@ -788,6 +772,82 @@ public class MRSt {
 			output += term;
 		}
 		return output;
+	}
+	
+	/**
+	 * optimize certain elements of the input vector to maximize this function output
+	 * @param func the objective function to optimize
+	 * @param guess the initial guess
+	 * @param scale the scale lengths of the variables
+	 * @param threshold the termination condition threshold
+	 * @param activeDimensions
+	 * @return
+	 */
+	private double[] optimize(Function<double[], Double> func, double[] totalGuess, double[] totalScale, double threshold,
+			boolean... activeDimensions) {
+		if (totalGuess.length != totalScale.length)
+			throw new IllegalArgumentException("Scale and guess must have the same length");
+		
+		final boolean[] active;
+		if (activeDimensions.length == 0)
+			active = new boolean[] {true};
+		else
+			active = activeDimensions;
+		System.out.println(Arrays.toString(active));
+		
+		int numTotal = active.length;
+		int numActive = 0;
+		for (boolean activeDimension: active)
+			if (activeDimension)
+				numActive ++;
+		
+		double[] activeGuess = new double[totalGuess.length/numTotal*numActive];
+		double[] activeScale = new double[totalScale.length/numTotal*numActive];
+		{ // this extra scope is here so I can redeclare j later
+			int j = 0;
+			for (int i = 0; i < totalGuess.length; i ++) {
+				if (active[i%active.length]) {
+					activeGuess[j] = totalGuess[i];
+					activeScale[j] = totalScale[i];
+					j ++;
+				}
+			}
+		}
+		
+		double[] totalParams = totalGuess.clone();
+		double oldPosterior = Double.NEGATIVE_INFINITY, newPosterior = func.apply(totalGuess);
+		System.out.println(newPosterior);
+		MultivariateOptimizer optimizer = new PowellOptimizer(1e-14, 1);
+		while (newPosterior - oldPosterior > threshold) { // optimize it over and over; you'll get there eventually
+			activeGuess = optimizer.optimize(
+					GoalType.MAXIMIZE,
+					new ObjectiveFunction((activeParams) -> { // when you optimize
+						int j = 0;
+						for (int i = 0; i < totalParams.length; i ++) {
+							if (active[i%active.length]) {
+								totalParams[i] = activeParams[j]; // you're only changing a subset of the parameters
+								j ++;
+							}
+						}
+						return func.apply(totalParams);
+					}),
+					new InitialGuess(activeGuess),
+					new MultiDirectionalSimplex(activeScale),
+					new MaxIter(10000),
+					new MaxEval(100000)).getPoint();
+			
+			oldPosterior = newPosterior;
+			int j = 0;
+			for (int i = 0; i < totalParams.length; i ++) {
+				if (active[i%active.length]) {
+					totalParams[i] = activeGuess[j]; // you're only changing a subset of the parameters
+					j ++;
+				}
+			}
+			newPosterior = func.apply(totalParams);
+			System.out.println(newPosterior);
+		}
+		return totalParams;
 	}
 	
 	public double[] getTimeBins() {
