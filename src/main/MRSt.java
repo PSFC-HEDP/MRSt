@@ -446,13 +446,11 @@ public class MRSt {
 				penalty += Math.pow(Tpp/5000, 2)/2; // encourage a smooth ion temperature
 			}
 			
-			double burnDensity = 0;
-			for (int j = 0; j < timeAxis.length; j ++)
-				burnDensity += params[0][j]*params[4][j];
-			burnDensity /= NumericalMethods.sum(params[0]);
-			for (int j = 0; j < timeAxis.length; j ++)
-				if (params[4][j] > 1e-20)
-					penalty += 0.01*params[0][j]*params[4][j]/burnDensity*Math.log(params[4][j]/burnDensity); // and an entropic rho-R
+			for (int j = 3; j < timeAxis.length; j ++) {
+				double Rppp = (params[4][j-3] - 3*params[4][j-2] + 3*params[4][j-1] - params[4][j])/
+						Math.pow(timeStep, 3);
+				penalty += Math.pow(Rppp/30000, 2)/2; // encourage a smooth rho-R
+			}
 			
 			for (int j = 1; j < timeAxis.length-1; j ++) {
 				double App = (params[5][j-1] - 2*params[5][j] + params[5][j+1])/
