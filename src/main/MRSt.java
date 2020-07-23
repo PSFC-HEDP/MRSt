@@ -449,7 +449,7 @@ public class MRSt {
 			for (int j = 3; j < timeAxis.length; j ++) {
 				double Rppp = (params[4][j-3] - 3*params[4][j-2] + 3*params[4][j-1] - params[4][j])/
 						Math.pow(timeStep, 3);
-				penalty += Math.pow(Rppp/30000, 2)/2; // encourage a smooth rho-R
+				penalty += burn0/10000*Math.pow(Rppp/30000, 2)/2; // encourage a smooth rho-R
 			}
 			
 			for (int j = 1; j < timeAxis.length-1; j ++) {
