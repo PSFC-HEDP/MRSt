@@ -441,17 +441,17 @@ public class MRSt {
 				penalty += Math.pow(params[5][j]/.3, 2)/2; // and gaussian prior on asymmetry
 			}
 			
-//			double burn0 = 0, burn1 = 0;
-//			for (int j = 0; j < timeAxis.length; j ++) {
-//				burn0 += params[0][j];
-//				burn1 += params[0][j]*timeAxis[j];
-//			}
-//			double burn2 = 0, burn4 = 0;
-//			for (int j = 0; j < timeAxis.length; j ++) {
-//				burn2 = params[0][j]*Math.pow((timeAxis[j] - burn1/burn0)/(2*expectedStd), 2);
-//				burn4 = params[0][j]*Math.pow((timeAxis[j] - burn1/burn0)/(2*expectedStd), 4);
-//				penalty += 1e4/burn0*Math.max(burn4/burn0 - burn2/burn0, 0);
-//			}
+			double burn0 = 0, burn1 = 0;
+			for (int j = 0; j < timeAxis.length; j ++) {
+				burn0 += params[0][j];
+				burn1 += params[0][j]*timeAxis[j];
+			}
+			double burn2 = 0, burn4 = 0;
+			for (int j = 0; j < timeAxis.length; j ++) {
+				burn2 = params[0][j]*Math.pow((timeAxis[j] - burn1/burn0)/(2*expectedStd), 2);
+				burn4 = params[0][j]*Math.pow((timeAxis[j] - burn1/burn0)/(2*expectedStd), 4);
+				penalty += 1e4/burn0*Math.max(burn4/burn0 - burn2/burn0, 0);
+			}
 			
 			for (int j = 1; j < timeAxis.length-1; j ++) {
 				double Tpp = (params[1][j-1] - 2*params[1][j] + params[1][j+1])/
@@ -468,7 +468,7 @@ public class MRSt {
 			for (int j = 1; j < timeAxis.length-1; j ++) {
 				double App = (params[5][j-1] - 2*params[5][j] + params[5][j+1])/
 						Math.pow(timeStep, 2);
-				penalty += Math.pow(App/100, 2)/2; // encourage a smooth asymmetry history
+				penalty += Math.pow(App/10, 2)/2; // encourage a smooth asymmetry history
 			}
 			
 			return - penalty - error; // TODO this really ought to be a minimization problem
@@ -804,7 +804,6 @@ public class MRSt {
 			active = new boolean[] {true};
 		else
 			active = activeDimensions;
-		System.out.println(Arrays.toString(active));
 		
 		int numTotal = active.length;
 		int numActive = 0;
