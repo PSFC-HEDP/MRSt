@@ -181,7 +181,7 @@ public class SpectrumViewer extends Application {
 		
 		this.stoppingPowerData = CSV.read(STOPPING_POWER_FILE, ',');
 		
-		this.yieldFactor = new Spinner<Double>(1e-2, 1e+4, 100, 10);
+		this.yieldFactor = new Spinner<Double>(1e-2, 1e+6, 100, 10);
 		yieldFactor.setEditable(true);
 		GridPane container = new GridPane();
 		container.setHgap(SPACING_1);

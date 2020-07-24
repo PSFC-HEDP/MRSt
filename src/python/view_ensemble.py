@@ -6,14 +6,14 @@ plt.rcParams.update({'font.family': 'serif', 'font.size': 10})
 X_LABEL = "Yield factor"
 
 Y_LABELS = [
-	("Bang time (ns)", 16.364), ("Max ρR - BT (ps)", -60), ("Max dρR/dt - BT (ps)", -121),
-	("Ti at BT (keV)", 10.40),
-	# ("ρR at BT (g/cm^2)", 1.133),
-	("vi at BT (μm/ns)", 13.86),
-	("dTi/dt at BT (keV/ns)", 92.57), ("dρR/dt at BT (g/cm^2/ns)", -2.364),
-	("dvi/dt at BT (μm/ns^2)", -998.3), ("Max ρR (g/cm^2)", 1.256),
-	("Total yield", 5.15e17), ("Burn mean (ns)", 16.357),
-	("Burn width (ns)", .0671), ("Burn skew", -1.13), ("Burn kurtosis", 6.41)
+	("Bang time (ns)", 16.364), ("Max ρR - BT (ps)", 12.3), ("Max dρR/dt - BT (ps)", -142.5),
+	("Ti at BT (keV)", 10.522),
+	# ("ρR at BT (g/cm^2)", 1.350),
+	("vi at BT (μm/ns)", 9.645),
+	("dTi/dt at BT (keV/ns)", 97.74), ("dρR/dt at BT (g/cm^2/ns)", 2.458),
+	("dvi/dt at BT (μm/ns^2)", -1158.3), ("Max ρR (g/cm^2)", 1.381),
+	("Total yield", 5.131e17), ("Burn mean (ns)", 16.357),
+	("Burn width (ns)", .06715), ("Burn skew", -1.127), ("Burn kurtosis", 6.384)
 ]
 
 COLUMNS = 2
@@ -60,5 +60,5 @@ for i, (axis, true) in enumerate(Y_LABELS):
 		ax.xaxis.set_visible(False)
 	ax.set_ylabel(axis)
 
-# plt.savefig('../../working/big-plot.eps')
+plt.savefig('../../working/big-plot.eps')
 plt.show()
