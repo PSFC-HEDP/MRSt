@@ -1109,4 +1109,17 @@ public class MRSt {
 			s += Math.pow(x, 2);
 		return s;
 	}
+	
+	
+//	public static final void main(String[] args) {
+//		int n = 72;
+//		double[] E = new double[n+1];
+//		for (int i = 0; i <= n; i ++)
+//			E[i] = 11.5 + i*5./n;
+//		double[] Y = generateSpectrum(100, 4, 4, 0, 1, -2, E);
+//		
+//		System.out.println(Arrays.toString(E));
+//		System.out.println(Arrays.toString(Y));
+//		System.out.println(NumericalMethods.sum(Y));
+//	}
 }
