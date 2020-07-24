@@ -346,7 +346,7 @@ public class MRSt {
 		long startTime = System.currentTimeMillis();
 		
 		double gelf[][] = Optimization.optimizeGelfgat(F, D, this.transferMatrix,
-				1e3/NumericalMethods.sum(spectrum));
+				Math.max(1e-5, 1e3/NumericalMethods.sum(spectrum)));
 		
 		double[] opt = new double[6*timeAxis.length]; // initial guess for the coming Powell fit
 		for (int j = 0; j < timeAxis.length; j ++) {
@@ -368,7 +368,7 @@ public class MRSt {
 					if (x[2] <= 0 || x[2] > 20)  return Double.POSITIVE_INFINITY;
 					if (Math.abs(x[3]) > 200)  return Double.POSITIVE_INFINITY;
 					if (x[4] < 0 || x[4] > 4)  return Double.POSITIVE_INFINITY;
-					if (Math.abs(x[5]) >= 1)  return Double.POSITIVE_INFINITY;
+					if (Math.abs(x[5]) >= .7)  return Double.POSITIVE_INFINITY;
 					double[] teo = generateSpectrum(x[0], x[1], x[2], x[3], x[4], x[5], energyBins);
 					double error = 0;
 					for (int i = 3; i < energyBins.length-1; i ++)
@@ -397,13 +397,13 @@ public class MRSt {
 				for (int i = 0; i < params[k].length; i ++)
 					params[k][i] = x[6*i+k];
 			
-			for (int i = 0; i < timeAxis.length; i ++) { // check for illegal (prior = 0) values
-				if (params[0][i] < 0)  return Double.NEGATIVE_INFINITY;
-				if (params[1][i] <= .5 || params[1][i] > 20)  return Double.NEGATIVE_INFINITY;
-				if (params[2][i] <= 0 || params[2][i] > 20)  return Double.NEGATIVE_INFINITY;
-				if (Math.abs(params[3][i]) > 200)  return Double.NEGATIVE_INFINITY;
-				if (params[4][i] < 0 || params[4][i] > 4)  return Double.NEGATIVE_INFINITY;
-				if (Math.abs(params[5][i]) >= 1)  return Double.NEGATIVE_INFINITY;
+			for (int j = 0; j < timeAxis.length; j ++) { // check for illegal (prior = 0) values
+				if (params[0][j] < 0)  return Double.POSITIVE_INFINITY;
+				if (params[1][j] <= .5 || params[1][j] > 20)  return Double.POSITIVE_INFINITY;
+				if (params[2][j] <= 0 || params[2][j] > 20)  return Double.POSITIVE_INFINITY;
+				if (Math.abs(params[3][j]) > 200)  return Double.POSITIVE_INFINITY;
+				if (params[4][j] < 0 || params[4][j] > 4)  return Double.POSITIVE_INFINITY;
+				if (Math.abs(params[5][j]) >= .7)  return Double.POSITIVE_INFINITY;
 			}
 			
 			double[][] teoSpectrum = generateSpectrum(
@@ -437,8 +437,8 @@ public class MRSt {
 				penalty += params[1][j]/5 - Math.log(params[1][j]); // use gamma prior on temperatures
 				penalty += params[2][j]/5 - Math.log(params[2][j]);
 				penalty += Math.pow(params[3][j]/50, 2)/2; // gaussian prior on velocity
-				penalty += params[4][j]/1; // exponential prior on areal density
-				penalty += Math.pow(params[5][j]/.3, 2)/2; // and gaussian prior on asymmetry
+				penalty += params[4][j]/.5; // exponential prior on areal density
+				penalty += Math.pow(params[5][j]/.1, 2)/2; // and gaussian prior on asymmetry
 			}
 			
 			double burn0 = 0, burn1 = 0;
@@ -468,10 +468,10 @@ public class MRSt {
 			for (int j = 1; j < timeAxis.length-1; j ++) {
 				double App = (params[5][j-1] - 2*params[5][j] + params[5][j+1])/
 						Math.pow(timeStep, 2);
-				penalty += Math.pow(App/10, 2)/2; // encourage a smooth asymmetry history
+				penalty += Math.pow(App/100, 2)/2; // encourage a smooth asymmetry history
 			}
 			
-			return - penalty - error; // TODO this really ought to be a minimization problem
+			return penalty + error; // TODO this really ought to be a minimization problem
 		};
 		
 		double meanYield = 0;
@@ -550,8 +550,8 @@ public class MRSt {
 				}
 			}
 			for (int i = 0; i < hessian.length; i ++) {
-				if (hessian[i][i] > 0) {
-					hessian[i][i] = Double.POSITIVE_INFINITY;
+				if (hessian[i][i] < 0) {
+					hessian[i][i] = Double.NEGATIVE_INFINITY;
 				}
 			}
 			for (int i = 0; i < hessian.length; i ++) {
@@ -563,12 +563,9 @@ public class MRSt {
 			}
 			
 			covarianceMatrix = NumericalMethods.pseudoinv(hessian);
-			for (int i = 0; i < hessian.length; i ++)
-				for (int j = 0; j < hessian[i].length; j ++)
-					covarianceMatrix[i][j] *= -1; // there's a negative sign between the inverse hessian and covariance
 			for (int i = 0; i < hessian.length; i ++) {
-				if (covarianceMatrix[i][i] < -1/hessian[i][i]) { // these are all approximations, and sometimes they violate the properties of positive semidefiniteness
-					covarianceMatrix[i][i] = -1/hessian[i][i]; // do what you must to make it work
+				if (covarianceMatrix[i][i] < 1/hessian[i][i]) { // these are all approximations, and sometimes they violate the properties of positive semidefiniteness
+					covarianceMatrix[i][i] = 1/hessian[i][i]; // do what you must to make it work
 				}
 			}
 		}
@@ -825,12 +822,12 @@ public class MRSt {
 		}
 		
 		double[] totalParams = totalGuess.clone();
-		double oldPosterior = Double.NEGATIVE_INFINITY, newPosterior = func.apply(totalGuess);
+		double oldPosterior = Double.POSITIVE_INFINITY, newPosterior = func.apply(totalGuess);
 		System.out.println(newPosterior);
 		MultivariateOptimizer optimizer = new PowellOptimizer(1e-14, 1);
-		while (newPosterior - oldPosterior > threshold) { // optimize it over and over; you'll get there eventually
+		while (oldPosterior - newPosterior > threshold) { // optimize it over and over; you'll get there eventually
 			activeGuess = optimizer.optimize(
-					GoalType.MAXIMIZE,
+					GoalType.MINIMIZE,
 					new ObjectiveFunction((activeParams) -> { // when you optimize
 						int j = 0;
 						for (int i = 0; i < totalParams.length; i ++) {
