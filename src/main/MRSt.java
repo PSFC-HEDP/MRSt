@@ -350,12 +350,17 @@ public class MRSt {
 		
 		double[] opt = new double[6*timeAxis.length]; // initial guess for the coming Powell fit
 		for (int j = 0; j < timeAxis.length; j ++) {
+			boolean anyData = false;
+			for (int i = 0; i < energyBins.length-1; i ++)
+				if (spectrum[i][j] > 0)
+					anyData = true;
+			
 			double Δt = timeBins[j+1] - timeBins[j];
 			double[] exp = new double[energyBins.length-1];
 			for (int i = 3; i < energyBins.length-1; i ++) // I'm not sure why the bottom few rows are so unusable
-				exp[i] = Math.max(0, gelf[i][j]/Δt);
+				exp[i] = gelf[i][j]/Δt;
 			
-			double[] fit = {NumericalMethods.sum(exp)/1e15, 4, 4, 50, 1, 0};
+			double[] fit = {(anyData) ? Math.max(0, NumericalMethods.sum(exp)/1e15) : 0, 4, 4, 50, 1, 0};
 			if (fit[0] > 0) {
 				fit = Optimization.minimizeNelderMead((x) -> {
 					if (x[0] < 0)  return Double.POSITIVE_INFINITY;
