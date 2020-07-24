@@ -399,7 +399,7 @@ public class MRSt {
 			
 			for (int i = 0; i < timeAxis.length; i ++) { // check for illegal (prior = 0) values
 				if (params[0][i] < 0)  return Double.NEGATIVE_INFINITY;
-				if (params[1][i] <= 0 || params[1][i] > 20)  return Double.NEGATIVE_INFINITY;
+				if (params[1][i] <= .5 || params[1][i] > 20)  return Double.NEGATIVE_INFINITY;
 				if (params[2][i] <= 0 || params[2][i] > 20)  return Double.NEGATIVE_INFINITY;
 				if (Math.abs(params[3][i]) > 200)  return Double.NEGATIVE_INFINITY;
 				if (params[4][i] < 0 || params[4][i] > 4)  return Double.NEGATIVE_INFINITY;
@@ -438,20 +438,20 @@ public class MRSt {
 				penalty += params[2][j]/5 - Math.log(params[2][j]);
 				penalty += Math.pow(params[3][j]/50, 2)/2; // gaussian prior on velocity
 				penalty += params[4][j]/1; // exponential prior on areal density
-				penalty += Math.pow(params[5][j]/.5, 2)/2; // and gaussian prior on asymmetry
+				penalty += Math.pow(params[5][j]/.3, 2)/2; // and gaussian prior on asymmetry
 			}
 			
-			double burn0 = 0, burn1 = 0;
-			for (int j = 0; j < timeAxis.length; j ++) {
-				burn0 += params[0][j];
-				burn1 += params[0][j]*timeAxis[j];
-			}
-			double burn2 = 0, burn4 = 0;
-			for (int j = 0; j < timeAxis.length; j ++) {
-				burn2 = params[0][j]*Math.pow((timeAxis[j] - burn1/burn0)/(2*expectedStd), 2);
-				burn4 = params[0][j]*Math.pow((timeAxis[j] - burn1/burn0)/(2*expectedStd), 4);
-				penalty += 1e4/burn0*Math.max(burn4/burn0 - burn2/burn0, 0);
-			}
+//			double burn0 = 0, burn1 = 0;
+//			for (int j = 0; j < timeAxis.length; j ++) {
+//				burn0 += params[0][j];
+//				burn1 += params[0][j]*timeAxis[j];
+//			}
+//			double burn2 = 0, burn4 = 0;
+//			for (int j = 0; j < timeAxis.length; j ++) {
+//				burn2 = params[0][j]*Math.pow((timeAxis[j] - burn1/burn0)/(2*expectedStd), 2);
+//				burn4 = params[0][j]*Math.pow((timeAxis[j] - burn1/burn0)/(2*expectedStd), 4);
+//				penalty += 1e4/burn0*Math.max(burn4/burn0 - burn2/burn0, 0);
+//			}
 			
 			for (int j = 1; j < timeAxis.length-1; j ++) {
 				double Tpp = (params[1][j-1] - 2*params[1][j] + params[1][j+1])/
@@ -459,19 +459,19 @@ public class MRSt {
 				penalty += Math.pow(Tpp/5000, 2)/2; // encourage a smooth ion temperature
 			}
 			
-			for (int j = 3; j < timeAxis.length; j ++) {
-				double Rppp = (params[4][j-3] - 3*params[4][j-2] + 3*params[4][j-1] - params[4][j])/
-						Math.pow(timeStep, 3);
-				penalty += burn0/10000*Math.pow(Rppp/30000, 2)/2; // encourage a smooth rho-R
+			for (int j = 1; j < timeAxis.length-1; j ++) {
+				double Rpp = (params[4][j-1] - 2*params[4][j] + params[4][j+1])/
+						Math.pow(timeStep, 2);
+				penalty += Math.pow(Rpp/3000, 2)/2; // encourage a smooth rho-R
 			}
 			
 			for (int j = 1; j < timeAxis.length-1; j ++) {
 				double App = (params[5][j-1] - 2*params[5][j] + params[5][j+1])/
 						Math.pow(timeStep, 2);
-				penalty += Math.pow(App/1000, 2)/2; // encourage a smooth asymmetry history
+				penalty += Math.pow(App/100, 2)/2; // encourage a smooth asymmetry history
 			}
 			
-			return - penalty - error;
+			return - penalty - error; // TODO this really ought to be a minimization problem
 		};
 		
 		double meanYield = 0;
@@ -490,7 +490,7 @@ public class MRSt {
 		opt = optimize(logPosterior, opt, dimensionScale, 1, true, true, false, true, false, false);
 		opt = optimize(logPosterior, opt, dimensionScale, 1, false, false, true, false, false, false);
 		opt = optimize(logPosterior, opt, dimensionScale, 1, false, false, false, false, true, true);
-		opt = optimize(logPosterior, opt, dimensionScale, .1);
+		opt = optimize(logPosterior, opt, dimensionScale, .1); // TODO see if I can get away with only optimizing high-yield time slices
 		
 		this.measurements = new Quantity[6][timeAxis.length]; // unpack the optimized vector
 		for (int k = 0; k < measurements.length; k ++) {
