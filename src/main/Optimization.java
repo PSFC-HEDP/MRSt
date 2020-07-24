@@ -728,9 +728,10 @@ public class Optimization {
 	 * @param F n×m desired image
 	 * @param D n×m measurement variance matrix
 	 * @param P nm×nm transfer matrix
+	 * @param tol the termination condition
 	 * @return
 	 */
-	public static double[][] optimizeGelfgat(double[][] F, double[][] D, double[][] P) {
+	public static double[][] optimizeGelfgat(double[][] F, double[][] D, double[][] P, double tol) {
 		final int n = F.length, m = F[0].length;
 		
 		double[][] g = new double[n][m];
@@ -802,7 +803,7 @@ public class Optimization {
 					L += -1/2.*Math.pow(F[k][l] - G*s[k][l], 2)/D[k][l];
 			
 			iter ++;
-		} while (iter < 6 || (L - Lprev)/Math.abs(L) > 1e-3);
+		} while (iter < 6 || (L - Lprev)/Math.abs(L) > tol);
 		
 		double[][] s = new double[n][m];
 		for (int i = 0; i < n; i ++)

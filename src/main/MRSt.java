@@ -345,26 +345,34 @@ public class MRSt {
 		if (logger != null)  logger.info("beginning fit process.");
 		long startTime = System.currentTimeMillis();
 		
-		double gelf[][] = Optimization.optimizeGelfgat(F, D, this.transferMatrix);
+		double gelf[][] = Optimization.optimizeGelfgat(F, D, this.transferMatrix,
+				1e3/NumericalMethods.sum(spectrum));
 		
 		double[] opt = new double[6*timeAxis.length]; // initial guess for the coming Powell fit
 		for (int j = 0; j < timeAxis.length; j ++) {
 			double Δt = timeBins[j+1] - timeBins[j];
 			double[] exp = new double[energyBins.length-1];
 			for (int i = 3; i < energyBins.length-1; i ++) // I'm not sure why the bottom few rows are so unusable
-				exp[i] = gelf[i][j]/Δt;
+				exp[i] = Math.max(0, gelf[i][j]/Δt);
 			
-			double[] fit = Optimization.minimizeNelderMead((x) -> {
-				if (x[0] < 0 || x[1] <= 1 || x[2] < 0 || Math.abs(x[3]) > 200 || x[4] < 0)
-					return Double.POSITIVE_INFINITY;
-				double[] teo = generateSpectrum(x[0], x[1], x[2], x[3], x[4], 0, energyBins);
-				double error = 0;
-				for (int i = 3; i < energyBins.length-1; i ++)
-					error += Math.pow(teo[i] - exp[i], 2);
-				return error;
-			}, new double[] {Math.max(1/efficiency[2][j], NumericalMethods.sum(exp)/1e15), 4, 0, 50, 1}, 1e-8);
+			double[] fit = {NumericalMethods.sum(exp)/1e15, 4, 4, 50, 1, 0};
+			if (fit[0] > 0) {
+				fit = Optimization.minimizeNelderMead((x) -> {
+					if (x[0] < 0)  return Double.POSITIVE_INFINITY;
+					if (x[1] <= .5 || x[1] > 20)  return Double.POSITIVE_INFINITY;
+					if (x[2] <= 0 || x[2] > 20)  return Double.POSITIVE_INFINITY;
+					if (Math.abs(x[3]) > 200)  return Double.POSITIVE_INFINITY;
+					if (x[4] < 0 || x[4] > 4)  return Double.POSITIVE_INFINITY;
+					if (Math.abs(x[5]) >= 1)  return Double.POSITIVE_INFINITY;
+					double[] teo = generateSpectrum(x[0], x[1], x[2], x[3], x[4], x[5], energyBins);
+					double error = 0;
+					for (int i = 3; i < energyBins.length-1; i ++)
+						error += Math.pow(teo[i] - exp[i], 2)/teo[i] + Math.log(teo[i]);
+					return error;
+				}, fit, 1e-6);
+			}
 			
-			System.arraycopy(fit, 0, opt, 6*j, 5);
+			System.arraycopy(fit, 0, opt, 6*j, 6);
 		}
 		
 		double spectrumScale = NumericalMethods.sum(gelf)/(timeBins.length-1)/(energyBins.length-1); // the characteristic magnitude of the neutron spectrum bins
