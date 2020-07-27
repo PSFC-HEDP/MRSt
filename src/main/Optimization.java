@@ -553,7 +553,7 @@ public class Optimization {
 						if (xC.get(i, 0) + dU.get(i, 0) > upper[i]) // the paper has an error here; you need to multiply dU by Zk before comparing to u and l
 							αStar = Math.min(αStar, (upper[i] - xC.get(i, 0))/dU.get(i, 0));
 						else if (xC.get(i, 0) + dU.get(i, 0) < lower[i])
-							αStar = Math.min(αStar, (lower[i] - xC.get(i, 0)/dU.get(i, 0)));
+							αStar = Math.min(αStar, (lower[i] - xC.get(i, 0))/dU.get(i, 0));
 					}
 					assert αStar > 0 && αStar <= 1 : αStar;
 					Matrix xBar = xC.plus(dU.times(αStar));
