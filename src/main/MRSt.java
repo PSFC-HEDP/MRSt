@@ -173,8 +173,7 @@ public class MRSt {
 		}
 		double ref = f[f.length/2];
 		for (int i = 0; i < a.length; i ++)
-			f[i] = 1;
-//			f[i] /= ref;
+			f[i] /= ref;//1;
 		this.rhoCorrection = new DiscreteFunction(a, f);
 		
 		double[] calibEnergies = new double[2*energyBins.length];
@@ -377,11 +376,11 @@ public class MRSt {
 			if (fit[0] > 0) {
 				fit = Optimization.minimizeNelderMead((x) -> {
 					if (x[0] < 0)  return Double.POSITIVE_INFINITY;
-					if (x[1] <= .5 || x[1] > 20) return Double.POSITIVE_INFINITY;
-					if (x[2] <= 0 || x[2] > 20)  return Double.POSITIVE_INFINITY;
+					if (x[1] <= .5 || x[1] > 18) return Double.POSITIVE_INFINITY;
+					if (x[2] <= .5 || x[2] > 18)  return Double.POSITIVE_INFINITY;
 					if (Math.abs(x[3]) > 200)    return Double.POSITIVE_INFINITY;
-					if (x[4] < 0 || x[4] > 4)    return Double.POSITIVE_INFINITY;
-					if (Math.abs(x[5]) >= .7)    return Double.POSITIVE_INFINITY;
+					if (x[4] < 0 || x[4] > 3)    return Double.POSITIVE_INFINITY;
+					if (Math.abs(x[5]) > .67)    return Double.POSITIVE_INFINITY;
 					double[] teo = generateSpectrum(x[0], x[1], x[2], x[3], x[4]/rhoCorrection.evaluate(x[5]), x[5], energyBins);
 					double error = 0;
 					for (int i = 3; i < energyBins.length-1; i ++)
@@ -487,7 +486,7 @@ public class MRSt {
 				penalty += Math.pow(App/100, 2)/2; // encourage a smooth asymmetry history
 			}
 			
-			System.out.println(penalty+" + "+error);
+//			System.out.println(penalty+" + "+error);
 			return penalty + error;
 		};
 		
@@ -548,10 +547,9 @@ public class MRSt {
 				double l = logPosterior.apply(opt);
 				opt[i] += dxi;
 				if (Double.isInfinite(l)) { // if we are at a bound
-					hessian[i][i] = -Math.pow((r - c)/dxi, 2); // approximate this exponential-ish distribution as gaussian
-					for (int j = 0; j < i; j ++) {
+					hessian[i][i] = Math.pow((r - c)/dxi, 2); // approximate this exponential-ish distribution as gaussian
+					for (int j = 0; j < i; j ++)
 						hessian[i][j] = hessian[j][i] = 0; // and reset any diagonal terms that previously involved this
-					}
 				}
 				else {
 					hessian[i][i] = (r - 2*c + l)/(dxi*dxi); // otherwise approximate it as gaussian
