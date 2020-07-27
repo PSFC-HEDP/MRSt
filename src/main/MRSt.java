@@ -173,15 +173,15 @@ public class MRSt {
 		double[] f = new double[37];
 		for (int i = 0; i < a.length; i ++) {
 			a[i] = i/18. - 1;
-			double[] dsr = generateSpectrum(1, 4, 4, 0, 1, a[i], energyBins, true);
-			double[] var = generateSpectrum(1, 4, 4, 0, 1, a[i], energyBins, false);
-			f[i] = 0;
-			for (int j = 0; j < dsr.length; j ++)
-				f[i] += dsr[j]/Math.sqrt(var[j]);
+//			double[] dsr = generateSpectrum(1, 4, 4, 0, 1, a[i], energyBins, true);
+//			double[] var = generateSpectrum(1, 4, 4, 0, 1, a[i], energyBins, false);
+//			for (int j = 0; j < dsr.length; j ++)
+//				f[i] += dsr[j]/Math.sqrt(var[j]);
+			f[i] = 1;
 		}
-		double ref = f[f.length/2];
-		for (int i = 0; i < a.length; i ++)
-			f[i] /= ref;//= 1;
+//		double ref = f[f.length/2];
+//		for (int i = 0; i < a.length; i ++)
+//			f[i] /= ref;
 		this.rhoCorrection = new DiscreteFunction(a, f);
 		
 		double[] calibEnergies = new double[2*energyBins.length];
@@ -384,8 +384,8 @@ public class MRSt {
 			if (fit[0] > 0) {
 				fit = Optimization.minimizeNelderMead((x) -> {
 					if (x[0] < 0)  return Double.POSITIVE_INFINITY;
-					if (x[1] <= .5 || x[1] > 18) return Double.POSITIVE_INFINITY;
-					if (x[2] <= .5 || x[2] > 18)  return Double.POSITIVE_INFINITY;
+					if (x[1] < .5 || x[1] > 18) return Double.POSITIVE_INFINITY;
+					if (x[2] < .5 || x[2] > 18)  return Double.POSITIVE_INFINITY;
 					if (Math.abs(x[3]) > 200)    return Double.POSITIVE_INFINITY;
 					if (x[4] < 0 || x[4] > 3)    return Double.POSITIVE_INFINITY;
 					if (Math.abs(x[5]) > .67)    return Double.POSITIVE_INFINITY;
@@ -843,6 +843,10 @@ public class MRSt {
 		{ // this extra scope is here so I can redeclare j later
 			int j = 0;
 			for (int i = 0; i < totalGuess.length; i ++) {
+				if (totalGuess[i] < totalLower[i])
+					throw new IllegalArgumentException("initial guess below bound at index "+i);
+				if (totalGuess[i] > totalUpper[i])
+					throw new IllegalArgumentException("initial guess above bound at index "+i);
 				if (active[i%active.length]) {
 					activeGuess[j] = totalGuess[i];
 					activeScale[j] = totalScale[i];
@@ -856,12 +860,30 @@ public class MRSt {
 		double[] totalParams = totalGuess.clone();
 		double oldPosterior = Double.POSITIVE_INFINITY, newPosterior = func.apply(totalGuess);
 		System.out.println(newPosterior);
-		MultivariateOptimizer optimizer = new PowellOptimizer(1e-14, 1);
+//		MultivariateOptimizer optimizer = new PowellOptimizer(1e-14, 1);
 //		MultivariateOptimizer optimizer = new BOBYQAOptimizer(2*totalGuess.length/numTotal*numActive);
+//		MultivariateOptimizer optimizer = new CMAESOptimizer(
+//				10000, Double.NEGATIVE_INFINITY, false, 1, 1, new Well1024a(0), false, new SimpleValueChecker(-1, 1e-14));
 		while (oldPosterior - newPosterior > threshold) { // optimize it over and over; you'll get there eventually
-			activeGuess = optimizer.optimize(
-					GoalType.MINIMIZE,
-					new ObjectiveFunction((activeParams) -> { // when you optimize
+//			activeGuess = optimizer.optimize(
+//					GoalType.MINIMIZE,
+//					new ObjectiveFunction((activeParams) -> { // when you optimize
+//						int j = 0;
+//						for (int i = 0; i < totalParams.length; i ++) {
+//							if (active[i%active.length]) {
+//								totalParams[i] = activeParams[j]; // you're only changing a subset of the parameters
+//								j ++;
+//							}
+//						}
+//						return func.apply(totalParams);
+//					}),
+//					new InitialGuess(activeGuess),
+////					new MultiDirectionalSimplex(activeScale),
+//					new SimpleBounds(activeLower, activeUpper),
+//					new MaxIter(10000),
+//					new MaxEval(100000)).getPoint();
+			activeGuess = Optimization.minimizeLBFGSB(
+					(activeParams) -> {
 						int j = 0;
 						for (int i = 0; i < totalParams.length; i ++) {
 							if (active[i%active.length]) {
@@ -870,12 +892,11 @@ public class MRSt {
 							}
 						}
 						return func.apply(totalParams);
-					}),
-					new InitialGuess(activeGuess),
-					new MultiDirectionalSimplex(activeScale),
-//					new SimpleBounds(activeLower, activeUpper),
-					new MaxIter(10000),
-					new MaxEval(100000)).getPoint();
+					},
+					activeGuess,
+					activeLower,
+					activeUpper,
+					1e-14);
 			
 			oldPosterior = newPosterior;
 			int j = 0;
