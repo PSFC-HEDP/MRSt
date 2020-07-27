@@ -85,6 +85,7 @@ public class MRSt {
 	private final DiscreteFunction distanceVsEnergy; // stopping distance info
 	private final DiscreteFunction energyVsDistance; // inverse stopping distance info
 	private final DiscreteFunction energyVsPosition; // map between location on detector and energy going into lens
+	private final DiscreteFunction rhoCorrection; // map between P2 asymmetry and factor by which that changes DSR
 	
 	private final double[] energyBins; // endpoints of E bins for inferred spectrum [MeV]
 	private final double[] timeBins; // endpoints of time bins for inferred spectrum [ns]
@@ -163,6 +164,18 @@ public class MRSt {
 		this.timeAxis = new double[timeBins.length-1];
 		for (int i = 0; i < timeBins.length-1; i ++)
 			this.timeAxis[i] = (this.timeBins[i] + this.timeBins[i+1])/2;
+		
+		double[] a = new double[37];
+		double[] f = new double[37];
+		for (int i = 0; i < a.length; i ++) {
+			a[i] = i/18. - 1;
+			f[i] = NumericalMethods.sum(generateSpectrum(1, 4, 4, 0, 1, a[i], energyBins, true));
+		}
+		double ref = f[f.length/2];
+		for (int i = 0; i < a.length; i ++)
+			f[i] = 1;
+//			f[i] /= ref;
+		this.rhoCorrection = new DiscreteFunction(a, f);
 		
 		double[] calibEnergies = new double[2*energyBins.length];
 		double[] detectorPosition = new double[calibEnergies.length];
@@ -364,12 +377,12 @@ public class MRSt {
 			if (fit[0] > 0) {
 				fit = Optimization.minimizeNelderMead((x) -> {
 					if (x[0] < 0)  return Double.POSITIVE_INFINITY;
-					if (x[1] <= .5 || x[1] > 20)  return Double.POSITIVE_INFINITY;
+					if (x[1] <= .5 || x[1] > 20) return Double.POSITIVE_INFINITY;
 					if (x[2] <= 0 || x[2] > 20)  return Double.POSITIVE_INFINITY;
-					if (Math.abs(x[3]) > 200)  return Double.POSITIVE_INFINITY;
-					if (x[4] < 0 || x[4] > 4)  return Double.POSITIVE_INFINITY;
-					if (Math.abs(x[5]) >= .7)  return Double.POSITIVE_INFINITY;
-					double[] teo = generateSpectrum(x[0], x[1], x[2], x[3], x[4], x[5], energyBins);
+					if (Math.abs(x[3]) > 200)    return Double.POSITIVE_INFINITY;
+					if (x[4] < 0 || x[4] > 4)    return Double.POSITIVE_INFINITY;
+					if (Math.abs(x[5]) >= .7)    return Double.POSITIVE_INFINITY;
+					double[] teo = generateSpectrum(x[0], x[1], x[2], x[3], x[4]/rhoCorrection.evaluate(x[5]), x[5], energyBins);
 					double error = 0;
 					for (int i = 3; i < energyBins.length-1; i ++)
 						error += Math.pow(teo[i] - exp[i], 2)/teo[i] + Math.log(teo[i]);
@@ -406,8 +419,11 @@ public class MRSt {
 				if (Math.abs(params[5][j]) >= .7)  return Double.POSITIVE_INFINITY;
 			}
 			
+			double[] truRhoR = new double[timeAxis.length];
+			for (int j = 0; j < timeAxis.length; j ++)
+				truRhoR[j] = params[4][j]/rhoCorrection.evaluate(params[5][j]); // DS magnitude over correction factor
 			double[][] teoSpectrum = generateSpectrum(
-					params[0], params[1], params[2], params[3], params[4], params[5],
+					params[0], params[1], params[2], params[3], truRhoR, params[5],
 					energyBins, timeBins); // generate the neutron spectrum based on those
 			double[][] fitSpectrum = this.response(
 					energyBins, timeBins, teoSpectrum, false); // blur it according to the transfer matrix
@@ -438,7 +454,7 @@ public class MRSt {
 				penalty += params[2][j]/5 - Math.log(params[2][j]);
 				penalty += Math.pow(params[3][j]/50, 2)/2; // gaussian prior on velocity
 				penalty += params[4][j]/.5; // exponential prior on areal density
-				penalty += Math.pow(params[5][j]/.1, 2)/2; // and gaussian prior on asymmetry
+				penalty += -1e2*(Math.log(1 - params[5][j]) + Math.log(1 + params[5][j])); // and beta prior on asymmetry
 			}
 			
 			double burn0 = 0, burn1 = 0;
@@ -471,7 +487,8 @@ public class MRSt {
 				penalty += Math.pow(App/100, 2)/2; // encourage a smooth asymmetry history
 			}
 			
-			return penalty + error; // TODO this really ought to be a minimization problem
+			System.out.println(penalty+" + "+error);
+			return penalty + error;
 		};
 		
 		double meanYield = 0;
@@ -490,7 +507,7 @@ public class MRSt {
 		opt = optimize(logPosterior, opt, dimensionScale, 1, true, true, false, true, false, false);
 		opt = optimize(logPosterior, opt, dimensionScale, 1, false, false, true, false, false, false);
 		opt = optimize(logPosterior, opt, dimensionScale, 1, false, false, false, false, true, true);
-		opt = optimize(logPosterior, opt, dimensionScale, .1); // TODO see if I can get away with only optimizing high-yield time slices
+		opt = optimize(logPosterior, opt, dimensionScale, .1);
 		
 		this.measurements = new Quantity[6][timeAxis.length]; // unpack the optimized vector
 		for (int k = 0; k < measurements.length; k ++) {
@@ -500,6 +517,9 @@ public class MRSt {
 				measurements[k][j] = new Quantity(opt[6*j+k], grad);
 			}
 		}
+		
+		for (int j = 0; j < timeAxis.length; j ++)
+			measurements[4][j] = measurements[4][j].over(rhoCorrection.evaluate(measurements[5][j])); // convert DS back to true rhoR
 		
 		Quantity iBT = NumericalMethods.quadargmax(measurements[0]); // index of max yield
 		Quantity bangTime = NumericalMethods.interp(timeAxis, iBT); // time of max yield
@@ -969,6 +989,24 @@ public class MRSt {
 	public static double[] generateSpectrum(
 			double Yn, double Ti, double Te, double vi, double ρR, double a2,
 			double[] eBins) {
+		return generateSpectrum(Yn, Ti, Te, vi, ρR, a2, eBins, false);
+	}
+	
+	/**
+	 * generate a time-averaged spectrum based on some parameters that are taken to be constant.
+	 * @param Yn the total neutron yield [10^15]
+	 * @param Ti the ion temperature [keV]
+	 * @param Te the electron temperature [keV]
+	 * @param vi the bulk flow rate parallel to the line of sight [μm/ns]
+	 * @param ρR the areal density of fuel and shell surrounding the hot spot [g/cm^2]
+	 * @param a2 the relative magnitude of the P2 mode
+	 * @param eBins the edges of the energy bins [MeV]
+	 * @param onlyDS only return the DS spectrum; remove all primaries
+	 * @return the theoretical number of particles in each energy bin, ignoring stochastity.
+	 */
+	public static double[] generateSpectrum(
+			double Yn, double Ti, double Te, double vi, double ρR, double a2,
+			double[] eBins, boolean onlyDS) {
 		double nR = ρR/8.35276208e-28; // areal DT number density [m^-2]
 		double ΔEth = 5.30509e-3/(1 + 2.4736e-3*Math.pow(Ti, 1.84))*Math.pow(Ti, 2/3.) + 1.3818e-3*Ti;
 		double δω =  5.1068e-4/(1 + 7.6223e-3*Math.pow(Ti, 1.78))*Math.pow(Ti, 2/3.) + 8.7691e-5*Ti;
@@ -1025,7 +1063,7 @@ public class MRSt {
 		
 		double[] Itot = new double[eBins.length];
 		for (int i = 0; i < eBins.length; i ++)
-			Itot[i] = Iprim[i] + Iscat[i];
+			Itot[i] = (onlyDS) ? Iscat[i] : Iprim[i] + Iscat[i];
 		
 		double[] counts = new double[eBins.length-1];
 		for (int i = 0; i < counts.length; i ++)

@@ -945,6 +945,34 @@ public class NumericalMethods {
 		}
 		
 		/**
+		 * it's a function. evaluate it. if this function's x values are equally spaced, this
+		 * can be run in O(1) time. otherwise, it will take O(log(n)).
+		 * @param x
+		 * @return f(x)
+		 */
+		public Quantity evaluate(Quantity x) {
+			int i; // we will linearly interpolate x from (X[i], X[i+1]) onto (Y[i], Y[i+1]).
+			if (x.value < X[0]) // if it's out of bounds, we will extrapolate from the lowest values
+				i = 0;
+			else if (x.value > X[X.length-1]) // or highest values, depending on which is appropriate
+				i = X.length-2;
+			else if (this.resolution > 0) // nonzero resolution means we can find i itself with linear interpolation
+				i = (int)((x.value - X[0])/(X[resolution] - X[0])*resolution); // linearly interpolate x from X to i
+			else { // otherwise, we'll need a binary search
+				int min = 0, max = X.length; // you know about binary searches, right?
+				i = (min + max)/2;
+				while (max - min > 1) { // I probably don't need to explain this.
+					if (X[i] < x.value)
+						min = i;
+					else
+						max = i;
+					i = (min + max)/2;
+				}
+			}
+			return x.minus(X[i]).times((Y[i+1] - Y[i])/(X[i+1] - X[i])).plus(Y[i]); // linearly interpolate x from X[i] to Y[i]
+		}
+		
+		/**
 		 * return the inverse of this, assuming it has an increasing inverse.
 		 * @return the inverse.
 		 */
