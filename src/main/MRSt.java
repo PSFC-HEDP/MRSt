@@ -24,6 +24,7 @@
 package main;
 
 import java.util.Locale;
+import java.util.Random;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -31,9 +32,11 @@ import java.util.logging.Logger;
 import org.apache.commons.math3.optim.InitialGuess;
 import org.apache.commons.math3.optim.MaxEval;
 import org.apache.commons.math3.optim.MaxIter;
+import org.apache.commons.math3.optim.SimpleBounds;
 import org.apache.commons.math3.optim.nonlinear.scalar.GoalType;
 import org.apache.commons.math3.optim.nonlinear.scalar.MultivariateOptimizer;
 import org.apache.commons.math3.optim.nonlinear.scalar.ObjectiveFunction;
+import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.BOBYQAOptimizer;
 import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.MultiDirectionalSimplex;
 import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.PowellOptimizer;
 import main.NumericalMethods.DiscreteFunction;
@@ -66,6 +69,7 @@ public class MRSt {
 	private static final double E_RESOLUTION = .09, T_RESOLUTION = 20e-3; // resolutions [MeV], [ns]
 //	private static final double E_RESOLUTION = .3, T_RESOLUTION = 40e-3;
 	private static final int TRANSFER_MATRIX_TRIES = 10000; // the number of points to sample in each column of the transfer matrix
+	private static final Random RANDOM = new Random(0);
 	
 	private final double foilDistance; // z coordinate of midplane of foil [m]
 	private final double foilThickness; // thickness of foil [m]
@@ -231,8 +235,8 @@ public class MRSt {
 			double time0 = timeBins[j0]*1e-9, time1 = timeBins[j0+1]*1e-9; // [s]
 			double weight = efficiency((energy0 + energy1)/2)/TRANSFER_MATRIX_TRIES;
 			for (int k = 0; k < TRANSFER_MATRIX_TRIES; k ++) {
-				double energy = energy0 + Math.random()*(energy1 - energy0); // randomly choose values from the bin
-				double time = time0 + Math.random()*(time1 - time0); // [s]
+				double energy = energy0 + RANDOM.nextDouble()*(energy1 - energy0); // randomly choose values from the bin
+				double time = time0 + RANDOM.nextDouble()*(time1 - time0); // [s]
 				
 				double[] xt = this.simulate(energy, time); // do the simulation!
 				simulationCount ++;
@@ -324,7 +328,7 @@ public class MRSt {
 		if (stochastic) { // to simulate stochasticity
 			for (int i = 0; i < energyBins.length-1; i ++)
 				for (int j = 0; j < timeBins.length-1; j ++)
-					outSpectrum[i][j] = NumericalMethods.poisson(outSpectrum[i][j]); // just jitter every cell
+					outSpectrum[i][j] = NumericalMethods.poisson(outSpectrum[i][j], RANDOM); // just jitter every cell
 		}
 		
 		return outSpectrum;
@@ -392,6 +396,23 @@ public class MRSt {
 			System.arraycopy(fit, 0, opt, 6*j, 6);
 		}
 		
+		double meanYield = 0;
+		for (int j = 0; j < timeAxis.length; j ++)
+			meanYield += opt[6*j]/timeAxis.length;
+		double[] dimensionScale = new double[6*timeAxis.length];
+		double[] lowerBound = new double[6*timeAxis.length];
+		double[] upperBound = new double[6*timeAxis.length];
+		for (int j = 0; j < timeAxis.length; j ++) {
+			double[] scales = { Math.max(opt[6*j]/2., meanYield), 10, 10,  100, 1, .5 }; // rough ranges of these variables
+			double[] lowers = {                                0,  0,  0, -250, 0, -1 }; // lower bounds
+			double[] uppers = {                      scales[0]*6, 20, 20,  250, 4,  1 }; // upper bounds
+			for (int k = 0; k < scales.length; k ++) {
+				dimensionScale[6*j+k] = scales[k];
+				lowerBound[6*j+k] = lowers[k];
+				upperBound[6*j+k] = uppers[k];
+			}
+		}
+		
 		double spectrumScale = NumericalMethods.sum(gelf)/(timeBins.length-1)/(energyBins.length-1); // the characteristic magnitude of the neutron spectrum bins
 		double s0 = 0, s1 = 0, s2 = 0;
 		for (int i = 3; i < energyBins.length-1; i ++) {
@@ -409,14 +430,10 @@ public class MRSt {
 				for (int i = 0; i < params[k].length; i ++)
 					params[k][i] = x[6*i+k];
 			
-			for (int j = 0; j < timeAxis.length; j ++) { // check for illegal (prior = 0) values
-				if (params[0][j] < 0)  return Double.POSITIVE_INFINITY;
-				if (params[1][j] <= .5 || params[1][j] > 20)  return Double.POSITIVE_INFINITY;
-				if (params[2][j] <= 0 || params[2][j] > 20)  return Double.POSITIVE_INFINITY;
-				if (Math.abs(params[3][j]) > 200)  return Double.POSITIVE_INFINITY;
-				if (params[4][j] < 0 || params[4][j] > 4)  return Double.POSITIVE_INFINITY;
-				if (Math.abs(params[5][j]) >= .7)  return Double.POSITIVE_INFINITY;
-			}
+			for (int j = 0; j < timeAxis.length; j ++) // check for illegal (prior = 0) values
+				for (int k = 0; k < 6; k ++)
+					if (params[k][j] < lowerBound[6*j+k] || params[k][j] > upperBound[6*j+k])
+						return Double.POSITIVE_INFINITY;
 			
 			double[] truRhoR = new double[timeAxis.length];
 			for (int j = 0; j < timeAxis.length; j ++)
@@ -490,23 +507,11 @@ public class MRSt {
 			return penalty + error;
 		};
 		
-		double meanYield = 0;
-		for (int j = 0; j < timeAxis.length; j ++)
-			meanYield += opt[6*j]/timeAxis.length;
-		double[] dimensionScale = new double[6*timeAxis.length];
-		for (int j = 0; j < timeAxis.length; j ++) {
-			dimensionScale[6*j+0] = Math.max(opt[6*j]/3., meanYield);
-			dimensionScale[6*j+1] = 10;
-			dimensionScale[6*j+2] = 10;
-			dimensionScale[6*j+3] = 100;
-			dimensionScale[6*j+4] = 1;
-			dimensionScale[6*j+5] = .5;
-		}
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 1.0, true, true, false, true, false, false);
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 1.0, false, false, true, false, false, false);
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 1.0, false, false, false, false, false, true);
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 0.1);
 		
-		opt = optimize(logPosterior, opt, dimensionScale, 1, true, true, false, true, false, false);
-		opt = optimize(logPosterior, opt, dimensionScale, 1, false, false, true, false, false, false);
-		opt = optimize(logPosterior, opt, dimensionScale, 1, false, false, false, false, true, true);
-		opt = optimize(logPosterior, opt, dimensionScale, .1);
 		
 		this.measurements = new Quantity[6][timeAxis.length]; // unpack the optimized vector
 		for (int k = 0; k < measurements.length; k ++) {
@@ -690,10 +695,10 @@ public class MRSt {
 	 * @return { x, y, z } [m]
 	 */
 	private double[] chooseCollisionPosition() {
-		double θF = Math.acos(1 - 2*Math.random()*probHitsFoil);
+		double θF = Math.acos(1 - 2*RANDOM.nextDouble()*probHitsFoil);
 		double rF = foilDistance*Math.tan(θF); // NOTE: original code assumes uniform distribution within foil; I account for nonzero solid angle subtended at TCC.
-		double φF = Math.random()*2*Math.PI;
-		double zF = foilDistance + (2*Math.random()-1)*foilThickness/2; // assume foil is thin, so every z coordinate is equally likely
+		double φF = RANDOM.nextDouble()*2*Math.PI;
+		double zF = foilDistance + (2*RANDOM.nextDouble()-1)*foilThickness/2; // assume foil is thin, so every z coordinate is equally likely
 		return new double[] { rF*Math.cos(φF), rF*Math.sin(φF), zF };
 	}
 	
@@ -702,8 +707,8 @@ public class MRSt {
 	 * @return { x, y, z } [m]
 	 */
 	private double[] chooseAperturePosition() {
-		double xA = (2*Math.random()-1)*apertureWidth/2; // assume aperture is far away, so every point in it is equally likely to be hit
-		double yA = (2*Math.random()-1)*apertureHeight/2;
+		double xA = (2*RANDOM.nextDouble()-1)*apertureWidth/2; // assume aperture is far away, so every point in it is equally likely to be hit
+		double yA = (2*RANDOM.nextDouble()-1)*apertureHeight/2;
 		double zA = apertureDistance;
 		return new double[] { xA, yA, zA };
 	}
@@ -809,7 +814,8 @@ public class MRSt {
 	 * @param activeDimensions
 	 * @return
 	 */
-	private double[] optimize(Function<double[], Double> func, double[] totalGuess, double[] totalScale, double threshold,
+	private double[] optimize(Function<double[], Double> func, double[] totalGuess,
+			double[] totalScale, double[] totalLower, double[] totalUpper, double threshold,
 			boolean... activeDimensions) {
 		if (totalGuess.length != totalScale.length)
 			throw new IllegalArgumentException("Scale and guess must have the same length");
@@ -828,12 +834,16 @@ public class MRSt {
 		
 		double[] activeGuess = new double[totalGuess.length/numTotal*numActive];
 		double[] activeScale = new double[totalScale.length/numTotal*numActive];
+		double[] activeLower = new double[totalScale.length/numTotal*numActive];
+		double[] activeUpper = new double[totalScale.length/numTotal*numActive];
 		{ // this extra scope is here so I can redeclare j later
 			int j = 0;
 			for (int i = 0; i < totalGuess.length; i ++) {
 				if (active[i%active.length]) {
 					activeGuess[j] = totalGuess[i];
 					activeScale[j] = totalScale[i];
+					activeLower[j] = totalLower[i];
+					activeUpper[j] = totalUpper[i];
 					j ++;
 				}
 			}
@@ -843,6 +853,7 @@ public class MRSt {
 		double oldPosterior = Double.POSITIVE_INFINITY, newPosterior = func.apply(totalGuess);
 		System.out.println(newPosterior);
 		MultivariateOptimizer optimizer = new PowellOptimizer(1e-14, 1);
+//		MultivariateOptimizer optimizer = new BOBYQAOptimizer(2*totalGuess.length/numTotal*numActive);
 		while (oldPosterior - newPosterior > threshold) { // optimize it over and over; you'll get there eventually
 			activeGuess = optimizer.optimize(
 					GoalType.MINIMIZE,
@@ -858,6 +869,7 @@ public class MRSt {
 					}),
 					new InitialGuess(activeGuess),
 					new MultiDirectionalSimplex(activeScale),
+//					new SimpleBounds(activeLower, activeUpper),
 					new MaxIter(10000),
 					new MaxEval(100000)).getPoint();
 			

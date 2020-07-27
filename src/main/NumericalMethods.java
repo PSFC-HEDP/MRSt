@@ -24,6 +24,7 @@
 package main;
 
 import java.util.Locale;
+import java.util.Random;
 
 /**
  * a file with some useful numerical analysis stuff.
@@ -39,10 +40,29 @@ public class NumericalMethods {
 	 * @return the number
 	 */
 	public static double normal(double μ, double σ) {
+		return normal(μ, σ, Math.random(), Math.random());
+	}
+	
+	/**
+	 * draw a number from a Gaussian distribution.
+	 * @param μ mean
+	 * @param σ standard deviation
+	 * @param random the rng to use
+	 * @return the number
+	 */
+	public static double normal(double μ, double σ, Random random) {
+		return normal(μ, σ, random.nextDouble(), random.nextDouble());
+	}
+	
+	/**
+	 * draw a number from a Gaussian distribution.
+	 * @param μ mean
+	 * @param σ standard deviation
+	 * @return the number
+	 */
+	private static double normal(double μ, double σ, double u1, double u2) {
 		if (σ < 0)
 			throw new IllegalArgumentException("standard deviation must not be negative");
-		double u1 = Math.random();
-		double u2 = Math.random();
 		double z = Math.sqrt(-2*Math.log(u1))*Math.cos(2*Math.PI*u2);
 		return σ*z + μ;
 	}
@@ -53,8 +73,33 @@ public class NumericalMethods {
 	 * @return the number
 	 */
 	public static int poisson(double λ) {
+		if (λ < 20)
+			return poisson(λ, Math.random());
+		else
+			return (int) Math.round(Math.max(0, normal(λ, Math.sqrt(λ))));
+	}
+	
+	/**
+	 * draw a number from a Poisson distribution.
+	 * @param λ expectation value
+	 * @param random the rng to use
+	 * @return the number
+	 */
+	public static int poisson(double λ, Random random) {
+		if (λ < 20)
+			return poisson(λ, random.nextDouble());
+		else
+			return (int) Math.round(Math.max(0, normal(λ, Math.sqrt(λ), random)));
+	}
+	
+	/**
+	 * draw a number from a Poisson distribution.
+	 * @param λ expectation value
+	 * @return the number
+	 */
+	private static int poisson(double λ, double u) {
 		if (λ < 20) {
-			double u = Math.random()*Math.exp(λ);
+			u *= Math.exp(λ);
 			long kFact = 1;
 			for (int k = 0; k < 40; k ++) {
 				if (k != 0) kFact *= k;
@@ -65,7 +110,7 @@ public class NumericalMethods {
 			return 40;
 		}
 		else { // use Gaussian approximation for high expectations
-			return (int) Math.round(Math.max(0, normal(λ, Math.sqrt(λ))));
+			throw new IllegalArgumentException("You should use a Gaussian approximation for high expectations, but I can't do that with this poisson(double, double) call");
 		}
 	}
 	
