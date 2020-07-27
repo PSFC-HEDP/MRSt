@@ -173,11 +173,15 @@ public class MRSt {
 		double[] f = new double[37];
 		for (int i = 0; i < a.length; i ++) {
 			a[i] = i/18. - 1;
-			f[i] = NumericalMethods.sum(generateSpectrum(1, 4, 4, 0, 1, a[i], energyBins, true));
+			double[] dsr = generateSpectrum(1, 4, 4, 0, 1, a[i], energyBins, true);
+			double[] var = generateSpectrum(1, 4, 4, 0, 1, a[i], energyBins, false);
+			f[i] = 0;
+			for (int j = 0; j < dsr.length; j ++)
+				f[i] += dsr[j]/Math.sqrt(var[j]);
 		}
 		double ref = f[f.length/2];
 		for (int i = 0; i < a.length; i ++)
-			f[i] /= ref;//1;
+			f[i] /= ref;//= 1;
 		this.rhoCorrection = new DiscreteFunction(a, f);
 		
 		double[] calibEnergies = new double[2*energyBins.length];
