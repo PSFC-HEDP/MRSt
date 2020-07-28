@@ -369,6 +369,7 @@ public class MRSt {
 				Math.max(1e-5, 1e3/NumericalMethods.sum(spectrum)));
 		
 		double[] opt = new double[6*timeAxis.length]; // initial guess for the coming Powell fit
+		int bangIndex = 0;
 		for (int j = 0; j < timeAxis.length; j ++) {
 			boolean anyData = false;
 			for (int i = 0; i < energyBins.length-1; i ++)
@@ -398,6 +399,8 @@ public class MRSt {
 			}
 			
 			System.arraycopy(fit, 0, opt, 6*j, 6);
+			if (fit[0] > opt[6*bangIndex])
+				bangIndex = j;
 		}
 		
 		double meanYield = 0;
@@ -409,13 +412,20 @@ public class MRSt {
 		for (int j = 0; j < timeAxis.length; j ++) {
 			double[] scales = { Math.max(opt[6*j]/2., meanYield), 10, 10,  100, 1, .5 }; // rough ranges of these variables
 			double[] lowers = {                                0,  0,  0, -250, 0, -1 }; // lower bounds
-			double[] uppers = {                      scales[0]*6, 20, 20,  250, 4,  1 }; // upper bounds
+			double[] uppers = {         Double.POSITIVE_INFINITY, 20, 20,  250, 4,  1 }; // upper bounds
 			for (int k = 0; k < scales.length; k ++) {
 				dimensionScale[6*j+k] = scales[k];
 				lowerBound[6*j+k] = lowers[k];
 				upperBound[6*j+k] = uppers[k];
 			}
 		}
+
+		int left = bangIndex; // bounds of data about which we actually care
+		while (left-1 >= 0 && opt[6*(left-1)] > opt[6*bangIndex]/1e3)
+			left --;
+		int rite = bangIndex;
+		while (rite < timeAxis.length && opt[6*(rite)] > opt[6*(rite)]/1e3)
+			rite ++;
 		
 		double spectrumScale = NumericalMethods.sum(gelf)/(timeBins.length-1)/(energyBins.length-1); // the characteristic magnitude of the neutron spectrum bins
 		double s0 = 0, s1 = 0, s2 = 0;
@@ -511,11 +521,10 @@ public class MRSt {
 			return penalty + error;
 		};
 		
-		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 1.0, true, true, false, true, false, false);
-		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 1.0, false, false, true, false, false, false);
-		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 1.0, false, false, false, false, false, true);
-		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 0.1);
-		
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 1.0, left-1, rite+1, true, true, false, true, false, false);
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 1.0, left-1, rite+1, false, false, true, false, false, false);
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 1.0, left-1, rite+1, false, false, false, false, false, true);
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 0.1, left-1, rite+1);
 		
 		this.measurements = new Quantity[6][timeAxis.length]; // unpack the optimized vector
 		for (int k = 0; k < measurements.length; k ++) {
@@ -531,13 +540,6 @@ public class MRSt {
 		
 		Quantity iBT = NumericalMethods.quadargmax(measurements[0]); // index of max yield
 		Quantity bangTime = NumericalMethods.interp(timeAxis, iBT); // time of max yield
-		Quantity peakYield = NumericalMethods.interp(measurements[0], iBT);
-		int left = (int)iBT.value; // bounds of data about which we actually care
-		while (left-1 >= 0 && measurements[0][left-1].value > peakYield.value/1e3)
-			left --;
-		int rite = (int)iBT.value;
-		while (rite < timeAxis.length && measurements[0][rite].value > peakYield.value/1e3)
-			rite ++;
 		
 		if (errorBars) {
 			double c = logPosterior.apply(opt); // start by getting the actual value
@@ -815,20 +817,26 @@ public class MRSt {
 	 * @param guess the initial guess
 	 * @param scale the scale lengths of the variables
 	 * @param threshold the termination condition threshold
+	 * @param left the leftmost time index to optimize (inclusive)
+	 * @param rite the rightmost time index to optimize (exclusive)
 	 * @param activeDimensions
 	 * @return
 	 */
 	private double[] optimize(Function<double[], Double> func, double[] totalGuess,
-			double[] totalScale, double[] totalLower, double[] totalUpper, double threshold,
+			double[] totalScale, double[] totalLower, double[] totalUpper, double threshold, int left, int rite,
 			boolean... activeDimensions) {
 		if (totalGuess.length != totalScale.length)
 			throw new IllegalArgumentException("Scale and guess must have the same length");
 		
-		final boolean[] active;
-		if (activeDimensions.length == 0)
-			active = new boolean[] {true};
-		else
-			active = activeDimensions;
+		final boolean[] active = new boolean[totalScale.length];
+		for (int i = 0; i < active.length; i ++) {
+			if (i < 6*left || i >= 6*rite)
+				active[i] = false;
+			else if (activeDimensions.length == 0)
+				active[i] = true;
+			else
+				active[i] = activeDimensions[i%activeDimensions.length];
+		}
 		
 		int numTotal = active.length;
 		int numActive = 0;
