@@ -472,15 +472,38 @@ public class Optimization {
 			final int m = yHist.size();
 			Matrix dk;
 			if (m > 0) {
-				Matrix B0 = new Matrix(n, n); // STEP 1: Construct the reduced Hessian and its inverse
-				for (int i = 0; i < n; i ++)
-					B0.set(i, i, θ);
-				Matrix Bk = B0;
-				for (int j = 0; j < m; j ++) {
-					Matrix s = sHist.get(j);
-					Matrix y = yHist.get(j);
-					Bk = Bk.minus(Bk.times(s.times(s.T().times(Bk))).over(s.dot(Bk.times(s)))).plus(y.times(y.T()).over(y.dot(s)));
+				assert θ > 0;
+				for (int i = 0; i < m; i ++)
+					assert sHist.get(i).dot(yHist.get(i)) > 0;
+				Matrix Dk = new Matrix(m, m); // STEP 1: approximate the inverse Hessian
+				for (int i = 0; i < m; i ++)
+					Dk.set(i, i, yHist.get(i).dot(sHist.get(i)));
+				Matrix Wk = new Matrix(n, 2*m);
+				for (int i = 0; i < n; i ++) {
+					for (int j = 0; j < m; j ++) {
+						Wk.set(i, j,   yHist.get(j).get(i, 0));
+						Wk.set(i, j+m, θ*sHist.get(j).get(i, 0));
+					}
 				}
+				Matrix Lk = new Matrix(m, m);
+				for (int i = 0; i < m; i ++)
+					for (int j = 0; j < m; j ++)
+						if (i > j)
+							Lk.set(i, j, sHist.get(i).dot(yHist.get(j)));
+				Matrix Mkinv = new Matrix(2*m, 2*m);
+				for (int i = 0; i < m; i ++) {
+					Mkinv.set(i, i, -Dk.get(i, i));
+					for (int j = 0; j < m; j ++) {
+						Mkinv.set(i+m, j, Lk.get(i, j));
+						Mkinv.set(i, j+m, Lk.get(j, i));
+						Mkinv.set(i+m, j+m, θ*sHist.get(i).dot(sHist.get(j)));
+					}
+				}
+				Matrix Mk = Mkinv.inv();
+				Matrix B0 = new Matrix(n, n);
+				for (int i = 0; i < n; i ++)
+					B0.set(i, i, θ);;
+				Matrix Bk = B0.minus(Wk.times(Mk.times(Wk.T())));
 				
 				double[] breakpoints = new double[n]; // STEP 2: find the Cauchy point -- the quadratic minimum in the downhill direction
 				Matrix d = new Matrix(n, 1);
@@ -500,31 +523,35 @@ public class Optimization {
 						breakpointOrder.add(i);
 				breakpointOrder.sort((iA, iB) -> (int)Math.signum(breakpoints[iA] - breakpoints[iB]));
 				
+				Matrix p = Wk.T().times(d); // first look for minimum in first segment
+				Matrix c = new Matrix(2*m, 1);
 				double told = 0;
 				int b = breakpointOrder.pop(); // the index that hits bound at the end of this interval
 				double t = breakpoints[b];
 				double Δt = t;
 				double dfdt = d.dot(gk);
-				double d2fdt2 = d.dot(Bk.times(d));
+				double d2fdt2 = -θ*dfdt - p.dot(Mk.times(p));
 				double Δtmin = -dfdt/d2fdt2;
 				while (Δtmin >= Δt) { // then check all subsequent segments
+					double xCb = (d.get(b, 0) > 0) ? upper[b] : lower[b];
+					double zb = xCb - xk.get(b, 0);
+					double gb = gk.get(b, 0);
+					Matrix wb = Wk.getRow(b);
+					c = c.plus(p.times(Δt));
 					d.set(b, 0, 0);
 					told = t;
 					b = breakpointOrder.pop();
 					t = breakpoints[b];
-					Δt = t - told;
-					Matrix xB = xk.minus(gk.times(told));
-					for (int i = 0; i < n; i ++) {
-						if (breakpoints[i] <= told)
-							xB.set(i, 0, (gk.get(i, 0) < 0) ? upper[i] : lower[i]);
-					}
-					dfdt = d.dot(gk.plus(Bk.times(xB.minus(xk))));
-					d2fdt2 = d.dot(Bk.times(d));
+					dfdt = dfdt + Δt*d2fdt2 + gb*gb + θ*gb*zb - gb*wb.dot(Mk.times(c));
+					d2fdt2 = d2fdt2 - θ*gb*gb - 2*gb*wb.dot(Mk.times(p)) - gb*gb*wb.dot(Mk.times(wb));
 					assert d2fdt2 > 0 : d2fdt2;
+					p = p.plus(wb.times(gb));
+					Δt = t - told;
 					Δtmin = -dfdt/d2fdt2;
 				}
 				Δtmin = Math.max(Δtmin, 0);
 				double tC = told + Δtmin;
+				c = c.plus(p.times(Δtmin));
 				List<Integer> F = new ArrayList<Integer>(breakpointOrder.size()+1);
 				Matrix xC = new Matrix(n, 1);
 				for (int i = 0; i < n; i ++) { // I'm setting xC here not how it's done in the paper, because the paper version is _totally_ wrong for this part
@@ -541,11 +568,17 @@ public class Optimization {
 					Matrix Zk = new Matrix(n, F.size()); // STEP 3: find an approximate bound minimum (direct primal method)
 					for (int f = 0; f < F.size(); f ++)
 						Zk.set(F.get(f), f, 1);
-					Matrix rHatC = Zk.T().times(gk.plus(Bk.times(xC.minus(xk))));
-					Matrix BHatk = Zk.T().times(Bk.times(Zk));
-					Matrix dHatU = BHatk.inv().times(rHatC).times(-1); // XXX this inverse is a n^4 operation
-					if (dHatU.dot(BHatk.times(dHatU)) < 0) // B should always be positive definite, but occasionally roundoff turns this into a maximization problem
-						dHatU = dHatU.times(-1); // just turn around and go the other way if it does
+//					Matrix BHatk = Zk.T().times(Bk.times(Zk));
+					Matrix rHatC = Zk.T().times(gk.plus(xC.minus(xk).times(θ)).minus(Wk.times(Mk.times(c))));
+					Matrix v = Wk.T().times(Zk.times(rHatC));
+					v = Mk.times(v);
+					Matrix N = Mk.times(Wk.T().times(Zk.times(Zk.T().times(Wk)))).over(-θ);
+					for (int i = 0; i < 2*m; i ++)
+						N.set(i, i, 1 + N.get(i, i));
+					v = N.inv().times(v);
+					Matrix dHatU = rHatC.over(θ).plus(Zk.T().times(Wk.times(v)).over(θ*θ)).times(-1); // the paper has a sign error
+//					if (dHatU.dot(BHatk.times(dHatU)) < 0) // B should always be positive definite, but occasionally roundoff turns this into a maximization problem
+//						dHatU = dHatU.times(-1); // just turn around and go the other way if it does
 					assert dHatU.dot(rHatC) < 0; // this part is tricky; make sure you're stepping downhill from the Cauchy point
 					Matrix dU = Zk.times(dHatU);
 					double αStar = 1;
@@ -579,7 +612,7 @@ public class Optimization {
 				if (λBi < λMax)
 					λMax = λBi;
 			}
-			assert λMax >= 1: λMax;
+			assert λMax >= 1 : "Why is lambda max imposing "+λMax;
 			final Matrix Xk = xk;
 			double λk = minimizeWolfe(
 					(λ) -> {
@@ -996,6 +1029,19 @@ public class Optimization {
 		 */
 		public double get(int i, int j) {
 			return this.values[i][j];
+		}
+		
+		/**
+		 * Extract a single row as a column vector.
+		 * @param i
+		 * @param j
+		 * @return the value this_{i,j}
+		 */
+		public Matrix getRow(int i) {
+			Matrix row = new Matrix(this.getM(), 1);
+			for (int j = 0; j < this.getM(); j ++)
+				row.set(j, 0, this.get(i, j));
+			return row;
 		}
 		
 		/**
