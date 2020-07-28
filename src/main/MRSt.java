@@ -521,9 +521,9 @@ public class MRSt {
 			return penalty + error;
 		};
 		
-		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 1.0, left-1, rite+1, true, true, false, true, false, false);
-		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 1.0, left-1, rite+1, false, false, true, false, false, false);
-		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 1.0, left-1, rite+1, false, false, false, false, false, true);
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 1.0, 0, timeAxis.length, true, true, false, true, false, false);
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 1.0, 0, timeAxis.length, false, false, true, false, false, false);
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 1.0, 0, timeAxis.length, false, false, false, false, true, true);
 		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 0.1, left-1, rite+1);
 		
 		this.measurements = new Quantity[6][timeAxis.length]; // unpack the optimized vector
