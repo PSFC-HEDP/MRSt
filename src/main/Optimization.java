@@ -361,15 +361,21 @@ public class Optimization {
 	/**
 	 * perform L-BFGS-B constrained optimization without a provided gradient. practically, the
 	 * gradient will be estimated with finite differences.
+	 * <p>
+	 * Richard H. Byrd, Peihuang Lu, Jorge Nocedal, & Ciyou Zhu (1994). "A limited memory
+	 *   algorithm for bound constrained optimization." <i>Northwestern University Department
+	 *   of Electrical Engineering and Computer Science.</i> Technical Report NAM-08.
 	 * @param func the function to minimize
 	 * @param x0 the initial guess of the minimizing parameter vector
 	 * @param lower the lowest allowable values of each of the elements of x
 	 * @param upper the greatest allowable values of each of the elements of x
-	 * @param tol the relative tolerance for error
+	 * @param relTol the relative tolerance for error (set to 0 to use only absolute)
+	 * @param absTol the absolute tolerance for error (set to 0 to use only relative)
 	 * @return the vector x that minimizes f(x)
 	 */
 	public static double[] minimizeLBFGSB(
-			Function<double[], Double> func, double[] x0, double[] lower, double[] upper, double tol) {
+			Function<double[], Double> func, double[] x0, double[] lower, double[] upper,
+			double relTol, double absTol) {
 		final double ds = 1e-8;
 		Function<double[], double[]> gradient = (x) -> { // finite difference gradient:
 			double y0 = func.apply(x);
@@ -399,7 +405,7 @@ public class Optimization {
 				x[i] -= v[i]/vMag*dx; // then put them all back
 			return dydx*vMag; // remember to scale by vMag since this is a dot product
 		};
-		return minimizeLBFGSB(func, gradient, linGradient, x0, lower, upper, tol);
+		return minimizeLBFGSB(func, gradient, linGradient, x0, lower, upper, relTol, absTol);
 	}
 	
 	
@@ -414,12 +420,13 @@ public class Optimization {
 	 * @param x0 the initial guess of the minimizing parameter vector
 	 * @param lower the lowest allowable values of each of the elements of x
 	 * @param upper the greatest allowable values of each of the elements of x
-	 * @param tol the relative tolerance for error
+	 * @param relTol the relative tolerance for error (set to 0 to use only absolute)
+	 * @param absTol the absolute tolerance for error (set to 0 to use only relative)
 	 * @return the vector x that minimizes f(x)
 	 */
 	public static double[] minimizeLBFGSB(
 			Function<double[], Double> func, Function<double[], double[]> grad, double[] x0,
-			double[] lower, double[] upper, double tol) {
+			double[] lower, double[] upper, double relTol, double absTol) {
 		return minimizeLBFGSB(
 				func, grad, (x, v) -> {
 					double[] g = grad.apply(x);
@@ -427,25 +434,30 @@ public class Optimization {
 					for (int i = 0; i < v.length; i ++)
 						gv += g[i]*v[i];
 					return gv;
-				}, x0, lower, upper, tol);
+				}, x0, lower, upper, relTol, absTol);
 	}
 	
 	/**
 	 * Perform L-BFGS-B constrained optimization with a provided multidimensional gradient. In
 	 * addition, since it may be much faster to compute the gradient in a single direction,
 	 * this function also accepts a separate linear gradient function.
+	 * <p>
+	 * Richard H. Byrd, Peihuang Lu, Jorge Nocedal, & Ciyou Zhu (1994). "A limited memory
+	 *   algorithm for bound constrained optimization." <i>Northwestern University Department
+	 *   of Electrical Engineering and Computer Science.</i> Technical Report NAM-08.
 	 * @param func the function to minimize
 	 * @param grad the gradient of that function
 	 * @param linGrad the gradient of that function dotted with the second input
 	 * @param x0 the initial guess of the minimizing parameter vector
 	 * @param lower the lowest allowable values of each of the elements of x
 	 * @param upper the greatest allowable values of each of the elements of x
-	 * @param tol the relative tolerance for error
+	 * @param relTol the relative tolerance for error (set to 0 to use only absolute)
+	 * @param absTol the absolute tolerance for error (set to 0 to use only relative)
 	 * @return the vector x that minimizes f(x)
 	 */
 	public static double[] minimizeLBFGSB(
 			Function<double[], Double> func, Function<double[], double[]> grad, BiFunction<double[], double[], Double> linGrad,
-			double[] x0, double[] lower, double[] upper, double tol) {
+			double[] x0, double[] lower, double[] upper, double relTol, double absTol) {
 		if (lower.length != x0.length || upper.length != x0.length)
 			throw new IllegalArgumentException("Bound lengths don't match");
 		for (int i = 0; i < x0.length; i ++)
@@ -500,10 +512,6 @@ public class Optimization {
 					}
 				}
 				Matrix Mk = Mkinv.inv();
-				Matrix B0 = new Matrix(n, n);
-				for (int i = 0; i < n; i ++)
-					B0.set(i, i, θ);;
-				Matrix Bk = B0.minus(Wk.times(Mk.times(Wk.T())));
 				
 				double[] breakpoints = new double[n]; // STEP 2: find the Cauchy point -- the quadratic minimum in the downhill direction
 				Matrix d = new Matrix(n, 1);
@@ -568,7 +576,6 @@ public class Optimization {
 					Matrix Zk = new Matrix(n, F.size()); // STEP 3: find an approximate bound minimum (direct primal method)
 					for (int f = 0; f < F.size(); f ++)
 						Zk.set(F.get(f), f, 1);
-//					Matrix BHatk = Zk.T().times(Bk.times(Zk));
 					Matrix rHatC = Zk.T().times(gk.plus(xC.minus(xk).times(θ)).minus(Wk.times(Mk.times(c))));
 					Matrix v = Wk.T().times(Zk.times(rHatC));
 					v = Mk.times(v);
@@ -577,8 +584,6 @@ public class Optimization {
 						N.set(i, i, 1 + N.get(i, i));
 					v = N.inv().times(v);
 					Matrix dHatU = rHatC.over(θ).plus(Zk.T().times(Wk.times(v)).over(θ*θ)).times(-1); // the paper has a sign error
-//					if (dHatU.dot(BHatk.times(dHatU)) < 0) // B should always be positive definite, but occasionally roundoff turns this into a maximization problem
-//						dHatU = dHatU.times(-1); // just turn around and go the other way if it does
 					assert dHatU.dot(rHatC) < 0; // this part is tricky; make sure you're stepping downhill from the Cauchy point
 					Matrix dU = Zk.times(dHatU);
 					double αStar = 1;
@@ -625,7 +630,7 @@ public class Optimization {
 			Matrix gkp1 = gradMat.apply(xk);
 			double fxkp1 = funcMat.apply(xk);
 			assert fxkp1 <= fxk;
-			if (sHist.size() > 1 && (fxk - fxkp1)/Math.abs(fxk) < tol) { // STEP 5: stop condition
+			if (sHist.size() > 1 && ((fxk - fxkp1)/Math.abs(fxk) < relTol || fxk - fxkp1 < absTol)) { // STEP 5: stop condition
 				return xk.T().values[0]; // if we're into it and the energy isn't really changing, then we're done
 			}
 			

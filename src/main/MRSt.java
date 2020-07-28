@@ -29,16 +29,6 @@ import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.apache.commons.math3.optim.InitialGuess;
-import org.apache.commons.math3.optim.MaxEval;
-import org.apache.commons.math3.optim.MaxIter;
-import org.apache.commons.math3.optim.SimpleBounds;
-import org.apache.commons.math3.optim.nonlinear.scalar.GoalType;
-import org.apache.commons.math3.optim.nonlinear.scalar.MultivariateOptimizer;
-import org.apache.commons.math3.optim.nonlinear.scalar.ObjectiveFunction;
-import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.BOBYQAOptimizer;
-import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.MultiDirectionalSimplex;
-import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.PowellOptimizer;
 import main.NumericalMethods.DiscreteFunction;
 import main.NumericalMethods.Quantity;
 
@@ -395,7 +385,7 @@ public class MRSt {
 					for (int i = 3; i < energyBins.length-1; i ++)
 						error += Math.pow(teo[i] - exp[i], 2)/teo[i] + Math.log(teo[i]);
 					return error;
-				}, fit, 1e-6);
+				}, fit, 1e-7);
 			}
 			
 			System.arraycopy(fit, 0, opt, 6*j, 6);
@@ -904,7 +894,7 @@ public class MRSt {
 					activeGuess,
 					activeLower,
 					activeUpper,
-					1e-9);
+					0, 1e-6);
 			
 			oldPosterior = newPosterior;
 			int j = 0;
