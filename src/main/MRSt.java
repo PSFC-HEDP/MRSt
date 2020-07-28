@@ -473,8 +473,8 @@ public class MRSt {
 				penalty += params[1][j]/5 - Math.log(params[1][j]); // use gamma prior on temperatures
 				penalty += params[2][j]/5 - Math.log(params[2][j]);
 				penalty += Math.pow(params[3][j]/50, 2)/2; // gaussian prior on velocity
-				penalty += params[4][j]/.5; // exponential prior on areal density
-				penalty += -1e2*(Math.log(1 - params[5][j]) + Math.log(1 + params[5][j])); // and beta prior on asymmetry
+				penalty += params[4][j]/1.; // exponential prior on areal density
+				penalty += -16*(Math.log(1 - params[5][j]) + Math.log(1 + params[5][j])); // and beta prior on asymmetry
 			}
 			
 			double burn0 = 0, burn1 = 0;
@@ -498,14 +498,14 @@ public class MRSt {
 			for (int j = 1; j < timeAxis.length-1; j ++) {
 				double Rpp = (params[4][j-1] - 2*params[4][j] + params[4][j+1])/
 						Math.pow(timeStep, 2);
-				penalty += Math.pow(Rpp/3000, 2)/2; // encourage a smooth rho-R
+				penalty += Math.pow(Rpp/500, 2)/2; // encourage a smooth rho-R
 			}
 			
-			for (int j = 1; j < timeAxis.length-1; j ++) {
-				double App = (params[5][j-1] - 2*params[5][j] + params[5][j+1])/
-						Math.pow(timeStep, 2);
-				penalty += Math.pow(App/100, 2)/2; // encourage a smooth asymmetry history
-			}
+//			for (int j = 1; j < timeAxis.length-1; j ++) {
+//				double App = (params[5][j-1] - 2*params[5][j] + params[5][j+1])/
+//						Math.pow(timeStep, 2);
+//				penalty += Math.pow(App/500, 2)/2; // encourage a smooth asymmetry history
+//			}
 			
 //			System.out.println(penalty+" + "+error);
 			return penalty + error;
@@ -896,7 +896,7 @@ public class MRSt {
 					activeGuess,
 					activeLower,
 					activeUpper,
-					1e-14);
+					1e-9);
 			
 			oldPosterior = newPosterior;
 			int j = 0;

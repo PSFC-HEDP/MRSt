@@ -70,7 +70,7 @@ public class ConfigurationEvaluator extends Application {
 	private static final int SPACING_1 = 10;
 	private static final int SPACING_2 = 4;
 	
-	private static final int NUM_YIELDS = 100;
+	private static final int NUM_YIELDS = 75;
 	
 	private static final String[] HEADERS = {
 		"Yield factor", "Temperature factor", "Down-scatter factor", "Velocity shift (μm/ns)",
