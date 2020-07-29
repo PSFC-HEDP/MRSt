@@ -473,7 +473,7 @@ public class MRSt {
 				penalty += params[1][j]/5 - Math.log(params[1][j]); // use gamma prior on temperatures
 				penalty += params[2][j]/5 - Math.log(params[2][j]);
 				penalty += Math.pow(params[3][j]/50, 2)/2; // gaussian prior on velocity
-				penalty += params[4][j]/1.; // exponential prior on areal density
+				penalty += params[4][j]/3.; // exponential prior on areal density
 				penalty += -16*(Math.log(1 - params[5][j]) + Math.log(1 + params[5][j])); // and beta prior on asymmetry
 			}
 			
@@ -492,13 +492,13 @@ public class MRSt {
 			for (int j = 1; j < timeAxis.length-1; j ++) {
 				double Tpp = (params[1][j-1] - 2*params[1][j] + params[1][j+1])/
 						Math.pow(timeStep, 2);
-				penalty += Math.pow(Tpp/5000, 2)/2; // encourage a smooth ion temperature
+				penalty += Math.pow(Tpp/20000, 2)/2; // encourage a smooth ion temperature
 			}
 			
 			for (int j = 1; j < timeAxis.length-1; j ++) {
 				double Rpp = (params[4][j-1] - 2*params[4][j] + params[4][j+1])/
 						Math.pow(timeStep, 2);
-				penalty += Math.pow(Rpp/500, 2)/2; // encourage a smooth rho-R
+				penalty += Math.pow(Rpp/1000, 2)/2; // encourage a smooth rho-R
 			}
 			
 //			for (int j = 1; j < timeAxis.length-1; j ++) {
@@ -510,11 +510,16 @@ public class MRSt {
 //			System.out.println(penalty+" + "+error);
 			return penalty + error;
 		};
-		
-		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 1.0, 0, timeAxis.length, true, true, false, true, false, false);
-		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 1.0, 0, timeAxis.length, false, false, true, false, false, false);
-		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 1.0, 0, timeAxis.length, false, false, false, false, true, true);
-		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 0.1, left-1, rite+1);
+
+		logger.log(Level.INFO, "...");
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 1e-4, 0, timeAxis.length, true, true, false, false, false, false);
+		logger.log(Level.INFO, "...");
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 1e-4, 0, timeAxis.length, false, false, true, false, false, false);
+		logger.log(Level.INFO, "...");
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 1e-4, 0, timeAxis.length, false, false, false, false, true, true);
+		logger.log(Level.INFO, "...");
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 1e-6, left-1, rite+1);
+		logger.log(Level.INFO, "...");
 		
 		this.measurements = new Quantity[6][timeAxis.length]; // unpack the optimized vector
 		for (int k = 0; k < measurements.length; k ++) {
@@ -856,57 +861,30 @@ public class MRSt {
 		}
 		
 		double[] totalParams = totalGuess.clone();
-		double oldPosterior = Double.POSITIVE_INFINITY, newPosterior = func.apply(totalGuess);
-		System.out.println(newPosterior);
-//		MultivariateOptimizer optimizer = new PowellOptimizer(1e-14, 1);
-//		MultivariateOptimizer optimizer = new BOBYQAOptimizer(2*totalGuess.length/numTotal*numActive);
-//		MultivariateOptimizer optimizer = new CMAESOptimizer(
-//				10000, Double.NEGATIVE_INFINITY, false, 1, 1, new Well1024a(0), false, new SimpleValueChecker(-1, 1e-14));
-		while (oldPosterior - newPosterior > threshold) { // optimize it over and over; you'll get there eventually
-//			activeGuess = optimizer.optimize(
-//					GoalType.MINIMIZE,
-//					new ObjectiveFunction((activeParams) -> { // when you optimize
-//						int j = 0;
-//						for (int i = 0; i < totalParams.length; i ++) {
-//							if (active[i%active.length]) {
-//								totalParams[i] = activeParams[j]; // you're only changing a subset of the parameters
-//								j ++;
-//							}
-//						}
-//						return func.apply(totalParams);
-//					}),
-//					new InitialGuess(activeGuess),
-////					new MultiDirectionalSimplex(activeScale),
-//					new SimpleBounds(activeLower, activeUpper),
-//					new MaxIter(10000),
-//					new MaxEval(100000)).getPoint();
-			activeGuess = Optimization.minimizeLBFGSB(
-					(activeParams) -> {
-						int j = 0;
-						for (int i = 0; i < totalParams.length; i ++) {
-							if (active[i%active.length]) {
-								totalParams[i] = activeParams[j]; // you're only changing a subset of the parameters
-								j ++;
-							}
+		activeGuess = Optimization.minimizeLBFGSB(
+				(activeParams) -> {
+					int j = 0;
+					for (int i = 0; i < totalParams.length; i ++) {
+						if (active[i%active.length]) {
+							totalParams[i] = activeParams[j]; // you're only changing a subset of the parameters
+							j ++;
 						}
-						return func.apply(totalParams);
-					},
-					activeGuess,
-					activeLower,
-					activeUpper,
-					0, 1e-6);
-			
-			oldPosterior = newPosterior;
-			int j = 0;
-			for (int i = 0; i < totalParams.length; i ++) {
-				if (active[i%active.length]) {
-					totalParams[i] = activeGuess[j]; // you're only changing a subset of the parameters
-					j ++;
-				}
+					}
+					return func.apply(totalParams);
+				},
+				activeGuess,
+				activeLower,
+				activeUpper,
+				0, threshold);
+		
+		int j = 0;
+		for (int i = 0; i < totalParams.length; i ++) {
+			if (active[i%active.length]) {
+				totalParams[i] = activeGuess[j]; // you're only changing a subset of the parameters
+				j ++;
 			}
-			newPosterior = func.apply(totalParams);
-			System.out.println(newPosterior);
 		}
+		System.out.println(func.apply(totalParams));
 		return totalParams;
 	}
 	
