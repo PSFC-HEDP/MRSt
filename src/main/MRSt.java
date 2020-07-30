@@ -165,15 +165,14 @@ public class MRSt {
 		for (int i = 0; i < a.length; i ++) {
 			a[i] = i/18. - 1;
 			double[] dsr = generateSpectrum(1, 4, 4, 0, 1, a[i], energyBins, true);
-			double[] var = generateSpectrum(1, 4, 4, 0, 1, a[i], energyBins, false);
 			for (int j = 0; j < dsr.length; j ++)
-				f[i] += dsr[j]/Math.sqrt(var[j]);
+				if (energyBins[j] < 13)
+					f[i] += dsr[j];
 		}
 		double ref = f[f.length/2];
 		for (int i = 0; i < a.length; i ++)
 			f[i] /= ref;
 		this.downScatterCalibration = new DiscreteFunction(a, f);
-		System.out.println(this.downScatterCalibration);
 		
 		double[] calibEnergies = new double[2*energyBins.length];
 		double[] detectorPosition = new double[calibEnergies.length];
@@ -603,6 +602,15 @@ public class MRSt {
 				getFlowVelocity(), getArealDensity(), getMode2Asymmetry(),
 				energyBins, timeBins, downScatterCalibration);
 		this.fitDeuteronSpectrum = this.response(energyBins, timeBins, fitNeutronSpectrum, false);
+		
+		for (int j = 0; j < fitNeutronSpectrum[0].length; j ++) {
+			double ds = 0, prim = 0;
+			for (int i = 0; i < fitNeutronSpectrum.length; i ++) {
+				if (energyBins[i] < 13)  ds += fitNeutronSpectrum[i][j];
+				else                     prim += fitNeutronSpectrum[i][j];
+			}
+			System.out.println(ds/prim);
+		}
 		
 		Quantity[] dTidt = NumericalMethods.derivative(timeAxis, measurements[1]); // now we can freely analyze the resulting profiles
 		Quantity[] dρRdt = NumericalMethods.derivative(timeAxis, measurements[4]);
@@ -1054,8 +1062,6 @@ public class MRSt {
 	public static double[] generateSpectrum(
 			double Yn, double Ti, double Te, double vi, double ρR, double a2,
 			double[] eBins, boolean onlyDS, DiscreteFunction downScatterCalibration) {
-		if (downScatterCalibration == null)
-			System.out.println("generating an uncalibrated spectrum!");
 		double ΔEth = 5.30509e-3/(1 + 2.4736e-3*Math.pow(Ti, 1.84))*Math.pow(Ti, 2/3.) + 1.3818e-3*Ti;
 		double δω =  5.1068e-4/(1 + 7.6223e-3*Math.pow(Ti, 1.78))*Math.pow(Ti, 2/3.) + 8.7691e-5*Ti;
 		double avgE = Math.max(0, 14.029 + ΔEth + .54e-3*vi); // primary peak (see paper) [MeV]
@@ -1170,11 +1176,17 @@ public class MRSt {
 //		int n = 72;
 //		double[] E = new double[n+1];
 //		for (int i = 0; i <= n; i ++)
-//			E[i] = 11.5 + i*5./n;
-//		double[] Y = generateSpectrum(100, 4, 4, 0, 1, -2, E);
+//			E[i] = 12 + i*4./n;
+//		double[] Y = generateSpectrum(100, 8, 8, 0, 1, -.7, E, false);
+//		
+//		double ds = 0;
+//		for (int i = 0; i < n; i ++)
+//			if (E[i] < 13)
+//				ds += Y[i];
 //		
 //		System.out.println(Arrays.toString(E));
 //		System.out.println(Arrays.toString(Y));
 //		System.out.println(NumericalMethods.sum(Y));
+//		System.out.println(ds/NumericalMethods.sum(Y));
 //	}
 }
