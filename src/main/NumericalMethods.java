@@ -943,6 +943,28 @@ public class NumericalMethods {
 		}
 		
 		/**
+		 * instantiate a new function given x and y data in columns, and assuming x values are
+		 * all equally spaced
+		 * @param data array of {x, y}
+		 * @param resolution the number of x intervals
+		 */
+		public DiscreteFunction(double[][] data, int resolution) {
+			if (resolution != data.length-1)
+				throw new IllegalArgumentException("this resolution is a lie");
+			for (int i = 1; i < data.length; i ++)
+				if (data[i][0] < data[i-1][0])
+					throw new IllegalArgumentException("x must be monotonically increasing.");
+			
+			this.X = new double[data.length];
+			this.Y = new double[data.length];
+			for (int i = 0; i < data.length; i ++) {
+				X[i] = data[i][0];
+				Y[i] = data[i][1];
+			}
+			this.resolution = resolution;
+		}
+		
+		/**
 		 * instantiate a new function give x data and y data, and assuming x values are all
 		 * equally spaced.
 		 * @param x the x values had better be properly spaced, because I don't have a good way
@@ -953,6 +975,8 @@ public class NumericalMethods {
 		public DiscreteFunction(double[] x, double[] y, int resolution) {
 			if (x.length != y.length)
 				throw new IllegalArgumentException("datums lengths must match");
+			if (resolution != x.length-1)
+				throw new IllegalArgumentException("this resolution is a lie");
 			for (int i = 1; i < x.length; i ++)
 				if (x[i] < x[i-1])
 					throw new IllegalArgumentException("x must be monotonically increasing.");
@@ -960,7 +984,7 @@ public class NumericalMethods {
 			this.Y = y;
 			this.resolution = resolution;
 		}
-		
+
 		/**
 		 * it's a function. evaluate it. if this function's x values are equally spaced, this
 		 * can be run in O(1) time. otherwise, it will take O(log(n)).
@@ -971,7 +995,7 @@ public class NumericalMethods {
 			int i; // we will linearly interpolate x from (X[i], X[i+1]) onto (Y[i], Y[i+1]).
 			if (x < X[0]) // if it's out of bounds, we will extrapolate from the lowest values
 				i = 0;
-			else if (x > X[X.length-1]) // or highest values, depending on which is appropriate
+			else if (x >= X[X.length-1]) // or highest values, depending on which is appropriate
 				i = X.length-2;
 			else if (this.resolution > 0) // nonzero resolution means we can find i itself with linear interpolation
 				i = (int)((x - X[0])/(X[resolution] - X[0])*resolution); // linearly interpolate x from X to i
