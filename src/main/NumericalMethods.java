@@ -324,6 +324,10 @@ public class NumericalMethods {
 		return s;
 	}
 	
+	public static double mean(double[] arr) {
+		return sum(arr)/arr.length;
+	}
+	
 	public static double max(double[] arr) {
 		double max = Double.NEGATIVE_INFINITY;
 		for (double x: arr)

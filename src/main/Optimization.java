@@ -85,7 +85,7 @@ public class Optimization {
 				lowestPlace = med;
 				lowestValue = f;
 			}
-			if (f > f0 + α*(med - x0)*δf0) { // if the decrease condition is not met
+			if (f > f0 + α*(med - x0)*δf0 || Double.isNaN(f)) { // if the decrease condition is not met
 				max = med; // we need to go closer
 				med = (max + min)/2;
 				continue;
@@ -584,7 +584,9 @@ public class Optimization {
 						N.set(i, i, 1 + N.get(i, i));
 					v = N.inv().times(v);
 					Matrix dHatU = rHatC.over(θ).plus(Zk.T().times(Wk.times(v)).over(θ*θ)).times(-1); // the paper has a sign error
-					assert dHatU.dot(rHatC) < 0; // this part is tricky; make sure you're stepping downhill from the Cauchy point
+//					assert dHatU.dot(rHatC) < 0;
+					if (dHatU.dot(rHatC) > 0) // this part is tricky; make sure you're stepping downhill from the Cauchy point
+						dHatU = dHatU.times(-1);
 					Matrix dU = Zk.times(dHatU);
 					double αStar = 1;
 					for (int i = 0; i < n; i ++) {

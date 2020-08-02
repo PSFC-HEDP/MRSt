@@ -359,7 +359,7 @@ public class MRSt {
 				Math.max(1e-5, 1e3/NumericalMethods.sum(spectrum)));
 		
 		double[] opt = new double[6*timeAxis.length]; // initial guess for the coming Powell fit
-		int bangIndex = 0;
+		double[] yieldGuess = new double[timeAxis.length];
 		for (int j = 0; j < timeAxis.length; j ++) {
 			boolean anyData = false;
 			for (int i = 0; i < energyBins.length-1; i ++)
@@ -390,20 +390,18 @@ public class MRSt {
 			}
 			
 			System.arraycopy(fit, 0, opt, 6*j, 6);
-			if (fit[0] > opt[6*bangIndex])
-				bangIndex = j;
+			yieldGuess[j] = fit[0];
 		}
 		
-		double meanYield = 0;
-		for (int j = 0; j < timeAxis.length; j ++)
-			meanYield += opt[6*j]/timeAxis.length;
+		int bangIndex = NumericalMethods.argmax(yieldGuess);
+		double meanYield = NumericalMethods.mean(yieldGuess);
 		double[] dimensionScale = new double[6*timeAxis.length];
 		double[] lowerBound = new double[6*timeAxis.length];
 		double[] upperBound = new double[6*timeAxis.length];
 		for (int j = 0; j < timeAxis.length; j ++) {
-			double[] scales = { Math.max(opt[6*j]/2., meanYield), 10, 10,  100, 1, .5 }; // rough ranges of these variables
-			double[] lowers = {                                0,  0,  0, -250, 0, -1 }; // lower bounds
-			double[] uppers = {         Double.POSITIVE_INFINITY, 20, 20,  250, 4,  1 }; // upper bounds
+			double[] scales = { Math.max(yieldGuess[j]/2., meanYield), 10, 10,  100, 1, .5 }; // rough ranges of these variables
+			double[] lowers = {                                     0,  0,  0, -250, 0, -1 }; // lower bounds
+			double[] uppers = {              Double.POSITIVE_INFINITY, 20, 20,  250, 4,  1 }; // upper bounds
 			for (int k = 0; k < scales.length; k ++) {
 				dimensionScale[6*j+k] = scales[k];
 				lowerBound[6*j+k] = lowers[k];
@@ -419,15 +417,15 @@ public class MRSt {
 			rite ++;
 		
 		double spectrumScale = NumericalMethods.sum(gelf)/(timeBins.length-1)/(energyBins.length-1); // the characteristic magnitude of the neutron spectrum bins
-		double s0 = 0, s1 = 0, s2 = 0;
-		for (int i = 3; i < energyBins.length-1; i ++) {
-			for (int j = 0; j < timeBins.length-1; j ++) {
-				s0 += gelf[i][j];
-				s1 += gelf[i][j]*timeAxis[j];
-				s2 += gelf[i][j]*timeAxis[j]*timeAxis[j];
-			}
-		}
-		double expectedStd = Math.sqrt(s2/s0 - s1*s1/s0/s0); // the expected standard deviation of the burn in time
+//		double s0 = 0, s1 = 0, s2 = 0;
+//		for (int i = 3; i < energyBins.length-1; i ++) {
+//			for (int j = 0; j < timeBins.length-1; j ++) {
+//				s0 += gelf[i][j];
+//				s1 += gelf[i][j]*timeAxis[j];
+//				s2 += gelf[i][j]*timeAxis[j]*timeAxis[j];
+//			}
+//		}
+//		double expectedStd = Math.sqrt(s2/s0 - s1*s1/s0/s0); // the expected standard deviation of the burn in time
 		
 		Function<double[], Double> logPosterior = (double[] x) -> {
 			double[][] params = new double[6][timeAxis.length];
@@ -475,16 +473,26 @@ public class MRSt {
 				penalty += -16*(Math.log(1 - params[5][j]) + Math.log(1 + params[5][j])); // and beta prior on asymmetry
 			}
 			
-			double burn0 = 0, burn1 = 0;
-			for (int j = 0; j < timeAxis.length; j ++) {
-				burn0 += params[0][j];
-				burn1 += params[0][j]*timeAxis[j];
-			}
-			double burn2 = 0, burn4 = 0;
-			for (int j = 0; j < timeAxis.length; j ++) {
-				burn2 = params[0][j]*Math.pow((timeAxis[j] - burn1/burn0)/(2*expectedStd), 2);
-				burn4 = params[0][j]*Math.pow((timeAxis[j] - burn1/burn0)/(2*expectedStd), 4);
-				penalty += 10*Math.max(burn4/burn0 - burn2/burn0, 0);
+//			double burn0 = 0, burn1 = 0;
+//			for (int j = 0; j < timeAxis.length; j ++) {
+//				burn0 += params[0][j];
+//				burn1 += params[0][j]*timeAxis[j];
+//			}
+//			double burn2 = 0, burn4 = 0;
+//			for (int j = 0; j < timeAxis.length; j ++) {
+//				burn2 = params[0][j]*Math.pow((timeAxis[j] - burn1/burn0)/(2*expectedStd), 2);
+//				burn4 = params[0][j]*Math.pow((timeAxis[j] - burn1/burn0)/(2*expectedStd), 4);
+//				penalty += 10*Math.max(burn4/burn0 - burn2/burn0, 0);
+//			}
+			
+			for (int j = 1; j < timeAxis.length; j ++) {
+				double Y = (params[0][j] + params[0][j-1])/2;
+				double Yp = (params[0][j] - params[0][j-1])/timeStep;
+				if (j <= bangIndex) Yp *= -1;
+				if (Y > 0) {
+					double z = Yp/Y*.5;
+					penalty += 1/(1/(1 + z*z) + Math.exp(-z)); // encourage a monotonically increasing yield before BT
+				}
 			}
 			
 			for (int j = 1; j < timeAxis.length-1; j ++) {
@@ -603,14 +611,14 @@ public class MRSt {
 				energyBins, timeBins, downScatterCalibration);
 		this.fitDeuteronSpectrum = this.response(energyBins, timeBins, fitNeutronSpectrum, false);
 		
-		for (int j = 0; j < fitNeutronSpectrum[0].length; j ++) {
-			double ds = 0, prim = 0;
-			for (int i = 0; i < fitNeutronSpectrum.length; i ++) {
-				if (energyBins[i] < 13)  ds += fitNeutronSpectrum[i][j];
-				else                     prim += fitNeutronSpectrum[i][j];
-			}
-			System.out.println(ds/prim);
-		}
+//		for (int j = 0; j < fitNeutronSpectrum[0].length; j ++) {
+//			double ds = 0, prim = 0;
+//			for (int i = 0; i < fitNeutronSpectrum.length; i ++) {
+//				if (energyBins[i] < 13)  ds += fitNeutronSpectrum[i][j];
+//				else                     prim += fitNeutronSpectrum[i][j];
+//			}
+//			System.out.println(ds/prim);
+//		}
 		
 		Quantity[] dTidt = NumericalMethods.derivative(timeAxis, measurements[1]); // now we can freely analyze the resulting profiles
 		Quantity[] dρRdt = NumericalMethods.derivative(timeAxis, measurements[4]);
