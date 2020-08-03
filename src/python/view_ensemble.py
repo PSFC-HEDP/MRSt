@@ -6,17 +6,34 @@ plt.rcParams.update({'font.family': 'serif', 'font.size': 10})
 X_LABEL = "Yield factor"
 
 Y_LABELS = [
-	("Bang time (ns)", 16.364), ("Max ρR - BT (ps)", 12.3), ("Max dρR/dt - BT (ps)", -142.5),
+	("Bang time (ns)", 16.365), ("Max ρR - BT (ps)", -60.8), ("Max dρR/dt - BT (ps)", -125.2),
 	("Ti at BT (keV)", 10.522),
 	# ("ρR at BT (g/cm^2)", 1.350),
-	("vi at BT (μm/ns)", 9.645),
-	("dTi/dt at BT (keV/ns)", 97.74), ("dρR/dt at BT (g/cm^2/ns)", 2.458),
-	("dvi/dt at BT (μm/ns^2)", -1158.3), ("Max ρR (g/cm^2)", 1.381),
-	("Total yield", 5.131e17), ("Burn mean (ns)", 16.357),
-	("Burn width (ns)", .06715), ("Burn skew", -1.127), ("Burn kurtosis", 6.384)
+	("vi at BT (μm/ns)", 3.68),
+	("dTi/dt at BT (keV/ns)", 97.74), ("dρR/dt at BT (g/cm^2/ns)", -2.37),
+	("dvi/dt at BT (μm/ns^2)", -1276), ("Max ρR (g/cm^2)", .9862),
+	("Total yield", 4.801e17), ("Burn mean (ns)", 16.358),
+	("Burn width (ns)", .06671), ("Burn skew", -1.145), ("Burn kurtosis", 6.503)
 ]
 
 COLUMNS = 2
+SIZE = (8.0, 10.5)
+MARGIN = dict(bottom=.06, top=.94, left=.12, right=.99, wspace=.35, hspace=.05)
+# COLUMNS = 3
+# SIZE = (16, 9)
+# MARGIN = dict(bottom=.06, top=.94, left=.06, right=.99, wspace=.26, hspace=.05)
+
+
+def text_wrap(s):
+	if len(s) > 14:
+		i = len(s)//2
+		for j in range(i):
+			if s[i+j] == ' ':
+				return s[:i+j] + '\n' + s[i+j+1:]
+			elif s[i-j] == ' ':
+				return s[:i-j] + '\n' + s[i-j+1:]
+	return s
+
 
 simulations = pd.read_csv('../../working/ensemble.csv')
 simulations["Total yield"] = simulations["Total yield (10^15)"]*1e15
@@ -28,8 +45,8 @@ for key in simulations:
 		else:
 			simulations[key[:-4]+"- BT (ps)"] = (simulations[key] - simulations["Bang time (ns)"])*1e3
 
-fig, axs = plt.subplots((len(Y_LABELS) + COLUMNS-1)//COLUMNS, COLUMNS, figsize=(8, 10.5))
-fig.subplots_adjust(bottom=.05, top=.95, left=.10, right=.99, wspace=.30, hspace=.05)
+fig, axs = plt.subplots((len(Y_LABELS) + COLUMNS-1)//COLUMNS, COLUMNS, figsize=SIZE)
+fig.subplots_adjust(**MARGIN)
 
 for i, (axis, true) in enumerate(Y_LABELS):
 	if 'keV' in axis:      yFactor = simulations["Temperature factor"]
@@ -58,7 +75,8 @@ for i, (axis, true) in enumerate(Y_LABELS):
 		ax.xaxis.tick_top()
 	else:
 		ax.xaxis.set_visible(False)
-	ax.set_ylabel(axis)
+	ax.set_ylabel(text_wrap(axis))
 
 plt.savefig('../../working/big-plot.eps')
+plt.savefig('../../working/big-plot.png')
 plt.show()

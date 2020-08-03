@@ -554,7 +554,10 @@ public class Optimization {
 					t = breakpoints[b];
 					dfdt = dfdt + Δt*d2fdt2 + gb*gb + θ*gb*zb - gb*wb.dot(Mk.times(c));
 					d2fdt2 = d2fdt2 - θ*gb*gb - 2*gb*wb.dot(Mk.times(p)) - gb*gb*wb.dot(Mk.times(wb));
-					assert d2fdt2 > 0 : d2fdt2;
+					if (d2fdt2 < 0) {
+						System.err.println("WARN: encountered a concave-down line search");
+						d2fdt2 *= -1;
+					}
 					p = p.plus(wb.times(gb));
 					Δt = t - told;
 					Δtmin = -dfdt/d2fdt2;
@@ -609,7 +612,10 @@ public class Optimization {
 			else {
 				dk = P(xk.minus(gk), lower, upper).minus(xk);
 			}
-			assert gk.dot(dk) <= 0;
+			if (gk.dot(dk) > 0) {
+				System.err.println("WARN: it tried to step uphill.");
+				dk = P(xk.minus(dk), lower, upper).minus(xk);
+			}
 			
 			double λMax = Double.POSITIVE_INFINITY; // STEP 4: perform a line search
 			for (int i = 0; i < n; i ++) { // enforcing λMax to ensure the enhanced steps stay in bounds
@@ -622,12 +628,12 @@ public class Optimization {
 					λMax = λBi;
 			}
 			assert λMax >= 1 : "Why is lambda max imposing "+λMax;
-			final Matrix Xk = xk;
+			final Matrix Xk = xk, Dk = dk;
 			double λk = minimizeWolfe(
 					(λ) -> {
-						return funcMat.apply(P(Xk.plus(dk.times(λ)), lower, upper)); // strictly speaking I shouldn't need to call P here, but there's roundoff stuff
+						return funcMat.apply(P(Xk.plus(Dk.times(λ)), lower, upper)); // strictly speaking I shouldn't need to call P here, but there's roundoff stuff
 					}, (λ) -> {
-						return linGradMat.apply(P(Xk.plus(dk.times(λ)), lower, upper), dk);
+						return linGradMat.apply(P(Xk.plus(Dk.times(λ)), lower, upper), Dk);
 					}, 0, fxk, gk.dot(dk), 1, λMax);
 			xk = P(xk.plus(dk.times(λk)), lower, upper);
 			
