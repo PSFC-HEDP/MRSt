@@ -490,7 +490,7 @@ public class MRSt {
 				double Yp = (params[0][j] - params[0][j-1])/timeStep;
 				if (j <= bangIndex) Yp *= -1;
 				if (Y > 0) {
-					double z = Yp/Y*.5;
+					double z = Yp/Y*.2;
 					penalty += 1/(1/(1 + z*z) + Math.exp(-z)); // encourage a monotonically increasing yield before BT
 				}
 			}
@@ -498,13 +498,13 @@ public class MRSt {
 			for (int j = 1; j < timeAxis.length-1; j ++) {
 				double Tpp = (params[1][j-1] - 2*params[1][j] + params[1][j+1])/
 						Math.pow(timeStep, 2);
-				penalty += Math.pow(Tpp/20000, 2)/2; // encourage a smooth ion temperature
+				penalty += Math.pow(Tpp/10000, 2)/2; // encourage a smooth ion temperature
 			}
 			
 			for (int j = 1; j < timeAxis.length-1; j ++) {
 				double Rpp = (params[4][j-1] - 2*params[4][j] + params[4][j+1])/
 						Math.pow(timeStep, 2);
-				penalty += Math.pow(Rpp/1000, 2)/2; // encourage a smooth rho-R
+				penalty += Math.pow(Rpp/500, 2)/2; // encourage a smooth rho-R
 			}
 			
 //			for (int j = 1; j < timeAxis.length-1; j ++) {
@@ -1057,7 +1057,7 @@ public class MRSt {
 	
 	/**
 	 * generate a time-averaged spectrum based on some parameters that are taken to be constant.
-	 * @param Yn the total neutron yield [10^15]
+	 * @param Yn the primary neutron yield [10^15]
 	 * @param Ti the ion temperature [keV]
 	 * @param Te the electron temperature [keV]
 	 * @param vi the bulk flow rate parallel to the line of sight [μm/ns]
@@ -1077,7 +1077,7 @@ public class MRSt {
 		double μ = avgE*Math.sqrt(Math.max(0, 1 - 3/2.*Math.pow(σth/avgE, 2)));
 		double σ2 = 4/3.*μ*(avgE - μ);
 		double upscat = 1 - Math.exp(-8.6670e-5*Math.pow(Te, 2.5149)); // probability of a neutron being scattered up by an alpha
-		double primary = (1 - upscat)*Math.exp(-.255184*ρR);
+		double primary = 1;//(1 - upscat);//*Math.exp(-.255184*ρR);
 		if (downScatterCalibration != null)
 			ρR /= downScatterCalibration.evaluate(a2);
 		
