@@ -52,10 +52,10 @@ public class Optimization {
 	 * @param func the function to minimize
 	 * @param grad the directed gradient function
 	 * @param x0 the origin point to which we are backstepping
-	 * @param func0 the function at that point (I'm sure you already have it computed)
-	 * @param grad0 the slope at that point (I'm not computing it myself)
+	 * @param f0 the function at that point (I'm sure you already have it computed)
+	 * @param δf0 the slope at that point (I'm not computing it myself)
 	 * @param step0 the initial step length guess
-	 * @param step1 the maximum allowed step length
+	 * @param stepMax the maximum allowed step length
 	 * @return x that approximately minimizes f
 	 * @throws RuntimeException if the function is not smooth or otherwise ABNO
 	 */
@@ -66,8 +66,10 @@ public class Optimization {
 			throw new IllegalArgumentException("Initial step must be positive.");
 		if (step0 > stepMax)
 			throw new IllegalArgumentException("Initial step must be bounded by stepMax.");
-		if (δf0 >= 0)
-			throw new IllegalArgumentException("Initial step must be downhill.");// if the gradient here is naught, there's absolutely noting we can do
+		if (δf0 > 0)
+			throw new IllegalArgumentException("Initial step must be downhill.");
+		if (δf0 == 0)
+			return x0; // if the gradient here is naught, there's absolutely noting we can do
 		
 		final double α = 1e-4, β = 0.9;
 		

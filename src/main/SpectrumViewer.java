@@ -141,7 +141,7 @@ public class SpectrumViewer extends Application {
 		leftPane.add(new Label("mm"), 2, row);
 		row ++;
 		
-		this.focalPlaneTilt = new Spinner<Double>(0.0, 89.9, 70.3, 5.0);
+		this.focalPlaneTilt = new Spinner<Double>(0.0, 89.9, 66.586, 5.0);
 		focalPlaneTilt.setEditable(true);
 		leftPane.add(new Label("F. plane angle"), 0, row);
 		leftPane.add(focalPlaneTilt, 1, row);
