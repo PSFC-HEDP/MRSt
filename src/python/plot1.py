@@ -5,7 +5,7 @@ import sys
 # import os
 # os.chdir('../..')
 # print(os.getcwd())
-# xlabel, ylabels, title, n = 'sate', 'Ti\nρR\nYn', 'data', 3
+# xlabel, ylabels, title, n = 'Time (ns)', 'Ti (keV)\nρR (g/cm^2)\nYn (10^15/ns)', 'data', 3
 xlabel, ylabels, title, n = sys.argv[1:]
 
 ylabels = ylabels.split('\n')

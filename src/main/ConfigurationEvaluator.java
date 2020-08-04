@@ -253,7 +253,7 @@ public class ConfigurationEvaluator extends Application {
 							logger.log(Level.SEVERE, e.getMessage(), e);
 						}
 						
-						double yield = (variations[0].isSelected()) ? Math.pow(10, -3 + k*3./NUM_YIELDS) : 1;
+						double yield = (variations[0].isSelected()) ? Math.pow(10, -k*3./NUM_YIELDS) : 1;
 						double temp =  (variations[1].isSelected()) ? Math.exp(2*Math.random() - 1) : 1; // roll the dies on the spectrum modifications
 						double downS = (variations[2].isSelected()) ? Math.exp(2*Math.random() - 1) : 1;
 						double flow =  (variations[3].isSelected()) ? 200*Math.random()*(2*Math.random() - 1) : 0;
