@@ -418,15 +418,6 @@ public class MRSt {
 			rite ++;
 		
 		double spectrumScale = NumericalMethods.sum(gelf)/(timeBins.length-1)/(energyBins.length-1); // the characteristic magnitude of the neutron spectrum bins
-//		double s0 = 0, s1 = 0, s2 = 0;
-//		for (int i = 3; i < energyBins.length-1; i ++) {
-//			for (int j = 0; j < timeBins.length-1; j ++) {
-//				s0 += gelf[i][j];
-//				s1 += gelf[i][j]*timeAxis[j];
-//				s2 += gelf[i][j]*timeAxis[j]*timeAxis[j];
-//			}
-//		}
-//		double expectedStd = Math.sqrt(s2/s0 - s1*s1/s0/s0); // the expected standard deviation of the burn in time
 		
 		Function<double[], Double> logPosterior = (double[] x) -> {
 			double[][] params = new double[6][timeAxis.length];
@@ -467,24 +458,12 @@ public class MRSt {
 								Math.log(teoSpectrum[i][j]/spectrumScale); // encourage entropy
 				}
 				
-				penalty += params[1][j]/4 - Math.log(params[1][j]); // use gamma prior on temperatures
-				penalty += params[2][j]/4 - Math.log(params[2][j]);
-				penalty += Math.pow(params[3][j]/50, 2)/2; // gaussian prior on velocity
+//				penalty += params[1][j]/4 - Math.log(params[1][j]); // use gamma prior on temperatures
+//				penalty += params[2][j]/4 - Math.log(params[2][j]);
+				penalty += Math.pow(params[3][j]/20, 2)/2; // gaussian prior on velocity
 				penalty += params[4][j]/2.; // exponential prior on areal density
 				penalty += -16*(Math.log(1 - params[5][j]) + Math.log(1 + params[5][j])); // and beta prior on asymmetry
 			}
-			
-//			double burn0 = 0, burn1 = 0;
-//			for (int j = 0; j < timeAxis.length; j ++) {
-//				burn0 += params[0][j];
-//				burn1 += params[0][j]*timeAxis[j];
-//			}
-//			double burn2 = 0, burn4 = 0;
-//			for (int j = 0; j < timeAxis.length; j ++) {
-//				burn2 = params[0][j]*Math.pow((timeAxis[j] - burn1/burn0)/(2*expectedStd), 2);
-//				burn4 = params[0][j]*Math.pow((timeAxis[j] - burn1/burn0)/(2*expectedStd), 4);
-//				penalty += 10*Math.max(burn4/burn0 - burn2/burn0, 0);
-//			}
 			
 			for (int j = 1; j < timeAxis.length; j ++) {
 				double Y = (params[0][j] + params[0][j-1])/2;
@@ -496,23 +475,17 @@ public class MRSt {
 				}
 			}
 			
-			for (int j = 1; j < timeAxis.length-1; j ++) {
-				double Tpp = (params[1][j-1] - 2*params[1][j] + params[1][j+1])/
-						Math.pow(timeStep, 2);
-				penalty += Math.pow(Tpp/10000, 2)/2; // encourage a smooth ion temperature
-			}
+//			for (int j = 1; j < timeAxis.length-1; j ++) {
+//				double Tpp = (params[1][j-1] - 2*params[1][j] + params[1][j+1])/
+//						Math.pow(timeStep, 2);
+//				penalty += Math.pow(Tpp/100000, 2)/2; // encourage a smooth ion temperature
+//			}
 			
 			for (int j = 1; j < timeAxis.length-1; j ++) {
 				double Rpp = (params[4][j-1] - 2*params[4][j] + params[4][j+1])/
 						Math.pow(timeStep, 2);
 				penalty += Math.pow(Rpp/200, 2)/2; // encourage a smooth rho-R
 			}
-			
-//			for (int j = 1; j < timeAxis.length-1; j ++) {
-//				double App = (params[5][j-1] - 2*params[5][j] + params[5][j+1])/
-//						Math.pow(timeStep, 2);
-//				penalty += Math.pow(App/500, 2)/2; // encourage a smooth asymmetry history
-//			}
 			
 //			System.out.println(penalty+" + "+error);
 			return penalty + error;
@@ -578,15 +551,11 @@ public class MRSt {
 				}
 			}
 			for (int i = 0; i < hessian.length; i ++) {
-				if (hessian[i][i] < 0) {
-					hessian[i][i] = Double.NEGATIVE_INFINITY;
-				}
-			}
-			for (int i = 0; i < hessian.length; i ++) {
+				if (hessian[i][i] < 0)
+					hessian[i][i] = 0;
 				for (int j = i+1; j < hessian.length; j ++) {
-					hessian[i][j] = hessian[j][i] = Math.signum(hessian[i][j])*
-							Math.min(Math.abs(hessian[i][j]), 
-									Math.sqrt(hessian[i][i]*hessian[j][j])); // enforce positive semidefiniteness
+					if (Math.abs(hessian[i][j]) > Math.sqrt(hessian[i][i]*hessian[j][j]))
+						hessian[i][j] = hessian[j][i] = Math.signum(hessian[i][j])*Math.sqrt(hessian[i][i]*hessian[j][j]); // enforce positive semidefiniteness
 				}
 			}
 			
