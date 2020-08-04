@@ -165,9 +165,10 @@ public class MRSt {
 		for (int i = 0; i < a.length; i ++) {
 			a[i] = i/18. - 1;
 			double[] dsr = generateSpectrum(1, 4, 4, 0, 1, a[i], energyBins, true);
+			double[] tot = generateSpectrum(1, 4, 4, 0, 1, a[i], energyBins, false);
 			for (int j = 0; j < dsr.length; j ++)
 				if (energyBins[j] < 13)
-					f[i] += dsr[j];
+					f[i] += dsr[j];///Math.sqrt(tot[j]);
 		}
 		double ref = f[f.length/2];
 		for (int i = 0; i < a.length; i ++)
@@ -466,10 +467,10 @@ public class MRSt {
 								Math.log(teoSpectrum[i][j]/spectrumScale); // encourage entropy
 				}
 				
-				penalty += params[1][j]/5 - Math.log(params[1][j]); // use gamma prior on temperatures
-				penalty += params[2][j]/5 - Math.log(params[2][j]);
+				penalty += params[1][j]/4 - Math.log(params[1][j]); // use gamma prior on temperatures
+				penalty += params[2][j]/4 - Math.log(params[2][j]);
 				penalty += Math.pow(params[3][j]/50, 2)/2; // gaussian prior on velocity
-				penalty += params[4][j]/3.; // exponential prior on areal density
+				penalty += params[4][j]/2.; // exponential prior on areal density
 				penalty += -16*(Math.log(1 - params[5][j]) + Math.log(1 + params[5][j])); // and beta prior on asymmetry
 			}
 			
@@ -498,13 +499,13 @@ public class MRSt {
 			for (int j = 1; j < timeAxis.length-1; j ++) {
 				double Tpp = (params[1][j-1] - 2*params[1][j] + params[1][j+1])/
 						Math.pow(timeStep, 2);
-				penalty += Math.pow(Tpp/10000, 2)/2; // encourage a smooth ion temperature
+				penalty += Math.pow(Tpp/5000, 2)/2; // encourage a smooth ion temperature
 			}
 			
 			for (int j = 1; j < timeAxis.length-1; j ++) {
 				double Rpp = (params[4][j-1] - 2*params[4][j] + params[4][j+1])/
 						Math.pow(timeStep, 2);
-				penalty += Math.pow(Rpp/500, 2)/2; // encourage a smooth rho-R
+				penalty += Math.pow(Rpp/100, 2)/2; // encourage a smooth rho-R
 			}
 			
 //			for (int j = 1; j < timeAxis.length-1; j ++) {
@@ -524,8 +525,7 @@ public class MRSt {
 		logger.log(Level.INFO, "...");
 		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 1e-4, 0, timeAxis.length, false, false, false, false, true, true);
 		logger.log(Level.INFO, "...");
-		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 1e-6, left-1, rite+1);
-		logger.log(Level.INFO, "...");
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 1e-4, left-1, rite+1);
 		
 		this.measurements = new Quantity[6][timeAxis.length]; // unpack the optimized vector
 		for (int k = 0; k < measurements.length; k ++) {
@@ -540,6 +540,7 @@ public class MRSt {
 		Quantity bangTime = NumericalMethods.interp(timeAxis, iBT); // time of max yield
 		
 		if (errorBars) {
+			logger.log(Level.INFO, "calculating error bars.");
 			double c = logPosterior.apply(opt); // start by getting the actual value
 			double[] step = new double[6*timeAxis.length]; // and the values in all basis directions
 			for (int i = 0; i < step.length; i ++) {

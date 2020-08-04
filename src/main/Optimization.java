@@ -78,7 +78,7 @@ public class Optimization {
 		double truMax = x0 + stepMax;
 		double lowestPlace = x0, lowestValue = f0;
 		while (true) {
-			if (max - min < 1e-10) { // if this has become quite tight
+			if ((max - min)/Math.max(med, step0) < 1e-10) { // if this has become quite tight
 				return lowestPlace;
 			}
 			med = Math.min(med, truMax); // enforce that it not go past its true maximum
@@ -473,6 +473,7 @@ public class Optimization {
 		Function<Matrix, Matrix> gradMat = (mat) -> new Matrix(new double[][] {grad.apply(mat.T().values[0])}).T();
 		BiFunction<Matrix, Matrix, Double> linGradMat = (mat, v) -> linGrad.apply(mat.T().values[0], v.T().values[0]);
 		
+		int iter = 0;
 		LinkedList<Matrix> yHist = new LinkedList<Matrix>();
 		LinkedList<Matrix> sHist = new LinkedList<Matrix>();
 		double θ = 1;
@@ -483,6 +484,9 @@ public class Optimization {
 			throw new IllegalArgumentException("Initial guess yielded bunk value");
 		
 		while (true) {
+			if (Math.random() < 1e-2)
+				System.out.println("INFO: "+fxk);
+			
 			final int m = yHist.size();
 			Matrix dk;
 			if (m > 0) {
@@ -527,6 +531,9 @@ public class Optimization {
 					assert breakpoints[i] >= 0;
 					d.set(i, 0, (breakpoints[i] == 0) ? 0 : -gk.get(i, 0));
 				}
+				if (d.norm() == 0) // if there is no step here
+					return xk.T().values[0]; // there's nothing to do; just return what you have
+				
 				LinkedList<Integer> breakpointOrder = new LinkedList<Integer>();
 				for (int i = 0; i < n; i ++) // in terms of the original paper, this list contains the order in which indices are removed from F
 					if (breakpoints[i] > 0)
@@ -541,7 +548,8 @@ public class Optimization {
 				double Δt = t;
 				double dfdt = d.dot(gk);
 				double d2fdt2 = -θ*dfdt - p.dot(Mk.times(p));
-				double Δtmin = -dfdt/d2fdt2;
+				assert dfdt < 0 : d;
+				double Δtmin = (d2fdt2 != 0) ? -dfdt/d2fdt2 : (Double.isFinite(Δt)) ? Δt : 1;
 				while (Δtmin >= Δt) { // then check all subsequent segments
 					double xCb = (d.get(b, 0) > 0) ? upper[b] : lower[b];
 					double zb = xCb - xk.get(b, 0);
@@ -575,7 +583,7 @@ public class Optimization {
 					if (xC.get(i, 0) != lower[i] && xC.get(i, 0) != upper[i])
 						F.add(i);
 				}
-				assert xC.equals(P(xC, lower, upper));
+				assert xC.equals(P(xC, lower, upper)) : tC+",\n"+xk+",\n"+gk+"\n"+xC+",\n"+P(xC, lower, upper);
 				
 				if (F.size() >= 1) {
 					Matrix Zk = new Matrix(n, F.size()); // STEP 3: find an approximate bound minimum (direct primal method)
@@ -643,6 +651,10 @@ public class Optimization {
 			if (sHist.size() > 1 && ((fxk - fxkp1)/Math.abs(fxk) < relTol || fxk - fxkp1 < absTol)) { // STEP 5: stop condition
 				return xk.T().values[0]; // if we're into it and the energy isn't really changing, then we're done
 			}
+			else if (iter > 1000) {
+				System.err.println("WARN: Maximum iterations reached.");
+				return xk.T().values[0];
+			}
 			
 			Matrix sk = dk.times(λk); // STEP 6: save historical vector information
 			Matrix yk = gkp1.minus(gk);
@@ -657,6 +669,7 @@ public class Optimization {
 			}
 			gk = gkp1;
 			fxk = fxkp1;
+			iter ++;
 		}
 	}
 	
@@ -896,7 +909,7 @@ public class Optimization {
 		public Matrix(int n, int m) {
 			this.values = new double[n][m];
 		}
-		
+
 		/**
 		 * Instantiate a matrix based on an existing 2D array
 		 * @param values - The 2D array to load.
@@ -1057,6 +1070,18 @@ public class Optimization {
 			for (int j = 0; j < this.getM(); j ++)
 				row.set(j, 0, this.get(i, j));
 			return row;
+		}
+		
+		/**
+		 * are any of the values nan
+		 * @return
+		 */
+		public boolean isNan() {
+			for (int i = 0; i < this.getN(); i ++)
+				for (int j = 0; j < this.getM(); j ++)
+					if (Double.isNaN(this.get(i, j)))
+						return true;
+			return false;
 		}
 		
 		/**

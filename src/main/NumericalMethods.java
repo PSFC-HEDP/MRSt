@@ -497,9 +497,8 @@ public class NumericalMethods {
 	public static double interp(double[] x, double i) {
 		if (i < 0 || i > x.length-1)
 			throw new IndexOutOfBoundsException("Even partial indices have limits: "+i);
-		if (i == x.length-1)
-			return x[(int)i];
-		return (1 - i%1)*x[(int)i] + (i%1)*x[(int)i+1];
+		int i0 = Math.max(0, Math.min(x.length-2, (int) i));
+		return (i0+1-i)*x[i0] + (i-i0)*x[i0+1];
 	}
 	
 	/**
@@ -511,7 +510,8 @@ public class NumericalMethods {
 	public static Quantity interp(double[] x, Quantity i) {
 		if (i.value < 0 || i.value > x.length-1)
 			throw new IndexOutOfBoundsException("Even partial indices have limits: "+i);
-		return i.mod(1).times(x[(int)i.value+1]).minus(i.mod(1).minus(1).times(x[(int)i.value]));
+		int i0 = Math.max(0, Math.min(x.length-2, (int) i.value));
+		return i.minus(i0).times(x[i0+1]).minus(i.minus(i0+1).times(x[i0]));
 	}
 	
 	/**
@@ -523,7 +523,8 @@ public class NumericalMethods {
 	public static Quantity interp(Quantity[] x, Quantity i) {
 		if (i.value < 0 || i.value > x.length-1)
 			throw new IndexOutOfBoundsException("Even partial indices have limits: "+i);
-		return i.mod(1).times(x[(int)i.value+1]).minus(i.mod(1).minus(1).times(x[(int)i.value]));
+		int i0 = Math.max(0, Math.min(x.length-2, (int) i.value));
+		return i.minus(i0).times(x[i0+1]).minus(i.minus(i0+1).times(x[i0]));
 	}
 	
 	/**
