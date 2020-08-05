@@ -537,14 +537,9 @@ public class NumericalMethods {
 	public static double[] derivative(double[] x, double[] y) {
 		if (x.length != y.length)
 			throw new IllegalArgumentException("Array lengths do not correspond.");
-		double[] dydx = new double[x.length];
-		dydx[0] = (-1.5*y[0] + 2.0*y[1] - 0.5*y[2]) /
-				(x[2] - x[1]);
-		for (int i = 1; i < x.length-1; i ++) {
-			dydx[i] = (y[i+1] - y[i-1]) / (x[i+1] - x[i-1]);
-		}
-		dydx[x.length-1] = (-1.5*y[x.length-1] + 2.0*y[x.length-2] - 0.5*y[x.length-3]) /
-				(x[x.length-3] - x[x.length-2]);
+		double[] dydx = new double[x.length-1];
+		for (int i = 0; i < dydx.length; i ++)
+			dydx[i] = (y[i+1] - y[i])/(x[i+1] - x[i]);
 		return dydx;
 	}
 	
@@ -558,14 +553,9 @@ public class NumericalMethods {
 	public static Quantity[] derivative(double[] x, Quantity[] y) {
 		if (x.length != y.length)
 			throw new IllegalArgumentException("Array lengths do not correspond.");
-		Quantity[] dydx = new Quantity[x.length];
-		dydx[0] = (y[0].times(-1.5)).plus(y[1].times(2.0)).plus(y[2].times(-0.5)).over(
-				(x[2] - x[1]));
-		for (int i = 1; i < x.length-1; i ++) {
-			dydx[i] = y[i+1].minus(y[i-1]).over(x[i+1] - x[i-1]);
-		}
-		dydx[x.length-1] = (y[x.length-1].times(-1.5)).plus(y[x.length-2].times(2.0)).plus(y[x.length-3].times(-0.5)).over(
-				(x[x.length-3] - x[x.length-2]));
+		Quantity[] dydx = new Quantity[x.length-1];
+		for (int i = 0; i < dydx.length; i ++)
+			dydx[i] = y[i+1].minus(y[i]).over(x[i+1] - x[i]);
 		return dydx;
 	}
 	

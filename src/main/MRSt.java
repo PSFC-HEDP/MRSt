@@ -515,18 +515,12 @@ public class MRSt {
 		if (errorBars) {
 			logger.log(Level.INFO, "calculating error bars.");
 			double c = logPosterior.apply(opt); // start by getting the actual value
-			double[] step = new double[6*timeAxis.length]; // and the values in all basis directions
-			for (int i = 0; i < step.length; i ++) {
-				double dxi = dimensionScale[i]*1e-4;
-				opt[i] += dxi;
-				step[i] = logPosterior.apply(opt);
-				opt[i] -= dxi;
-			}
 			double[][] hessian = new double[6*timeAxis.length][6*timeAxis.length]; // then go for the second derivatives
 			for (int i = 0; i < hessian.length; i ++) {
 				double dxi = dimensionScale[i]*1e-4;
-				double r = step[i];
-				opt[i] -= dxi;
+				opt[i] += dxi;
+				double r = logPosterior.apply(opt);
+				opt[i] -= 2*dxi;
 				double l = logPosterior.apply(opt);
 				opt[i] += dxi;
 				if (Double.isInfinite(l)) { // if we are at a bound
@@ -539,13 +533,18 @@ public class MRSt {
 					if (i >= 6*left && i < 6*rite) {
 						for (int j = i+1; j < 6*rite; j ++) { // and get some diagonal terms (only checking relevant ones)
 							double dxj = dimensionScale[j]*1e-4;
-							double u = step[j];
-							opt[j] += dxj;
 							opt[i] += dxi;
+							opt[j] += dxj;
 							double ur = logPosterior.apply(opt);
-							opt[i] -= dxi;
+							opt[j] -= 2*dxj;
+							double br = logPosterior.apply(opt);
+							opt[i] -= 2*dxi;
+							double bl = logPosterior.apply(opt);
+							opt[j] += 2*dxj;
+							double ul = logPosterior.apply(opt);
+							opt[i] += dxi;
 							opt[j] -= dxj;
-							hessian[i][j] = hessian[j][i] = (ur - u - r + c)/(dxi*dxj);
+							hessian[i][j] = hessian[j][i] = (ur - br + bl - ul)/(4*dxi*dxj);
 						}
 					}
 				}
@@ -563,6 +562,15 @@ public class MRSt {
 			for (int i = 0; i < hessian.length; i ++) {
 				if (covarianceMatrix[i][i] < 1/hessian[i][i]) { // these are all approximations, and sometimes they violate the properties of positive semidefiniteness
 					covarianceMatrix[i][i] = 1/hessian[i][i]; // do what you must to make it work
+				}
+			}
+			for (int i = 0; i < hessian.length; i ++) {
+				for (int j = 0; j < hessian.length; j ++) {
+					if (Math.abs(covarianceMatrix[i][j]) > Math.sqrt(covarianceMatrix[i][i]*covarianceMatrix[j][j])) {
+						double erroneousFactor = Math.pow(covarianceMatrix[i][j], 2)/(covarianceMatrix[i][i]*covarianceMatrix[j][j]);
+						covarianceMatrix[i][i] *= Math.sqrt(erroneousFactor);
+						covarianceMatrix[j][j] *= Math.sqrt(erroneousFactor);
+					}
 				}
 			}
 		}
@@ -590,13 +598,16 @@ public class MRSt {
 //			System.out.println(ds/prim);
 //		}
 		
+		double[] timeCenters = new double[timeAxis.length-1];
+		for (int i = 0; i < timeCenters.length; i ++)
+			timeCenters[i] = (timeAxis[i] + timeAxis[i+1])/2;
 		Quantity[] dTidt = NumericalMethods.derivative(timeAxis, measurements[1]); // now we can freely analyze the resulting profiles
 		Quantity[] dρRdt = NumericalMethods.derivative(timeAxis, measurements[4]);
 		Quantity[] dvidt = NumericalMethods.derivative(timeAxis, measurements[3]);
 		
 		Quantity iMC = NumericalMethods.quadargmax(left, rite, measurements[4]); // index of max compression
 		Quantity maxCompress = NumericalMethods.interp(timeAxis, iMC); // time of max compression
-		Quantity maxPRRamp = NumericalMethods.quadargmax(left, rite, timeAxis, dρRdt); // time of max rhoR ramp
+		Quantity maxPRRamp = NumericalMethods.quadargmax(left-1, rite, timeAxis, dρRdt); // time of max rhoR ramp
 		Quantity[] moments = new Quantity[5];
 		for (int k = 0; k < moments.length; k ++)
 			moments[k] = NumericalMethods.moment(k, timeBins, measurements[0]);
@@ -607,9 +618,9 @@ public class MRSt {
 				NumericalMethods.interp(measurements[1], iBT),
 				NumericalMethods.interp(measurements[4], iBT),
 				NumericalMethods.interp(measurements[3], iBT),
-				NumericalMethods.interp(dTidt, iBT),
-				NumericalMethods.interp(dρRdt, iBT),
-				NumericalMethods.interp(dvidt, iBT),
+				NumericalMethods.interp(dTidt, iBT.minus(0.5)),
+				NumericalMethods.interp(dρRdt, iBT.minus(0.5)),
+				NumericalMethods.interp(dvidt, iBT.minus(0.5)),
 				NumericalMethods.interp(measurements[4], iMC),
 				moments[0].times(timeStep), moments[1],
 				moments[2].sqrt().times(2.355), moments[3], moments[4],
