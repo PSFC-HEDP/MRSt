@@ -515,12 +515,18 @@ public class MRSt {
 		if (errorBars) {
 			logger.log(Level.INFO, "calculating error bars.");
 			double c = logPosterior.apply(opt); // start by getting the actual value
+			double[] step = new double[6*timeAxis.length]; // and the values in all basis directions
+			for (int i = 0; i < step.length; i ++) {
+				double dxi = dimensionScale[i]*1e-4;
+				opt[i] += dxi;
+				step[i] = logPosterior.apply(opt);
+				opt[i] -= dxi;
+			}
 			double[][] hessian = new double[6*timeAxis.length][6*timeAxis.length]; // then go for the second derivatives
 			for (int i = 0; i < hessian.length; i ++) {
 				double dxi = dimensionScale[i]*1e-4;
-				opt[i] += dxi;
-				double r = logPosterior.apply(opt);
-				opt[i] -= 2*dxi;
+				double r = step[i];
+				opt[i] -= dxi;
 				double l = logPosterior.apply(opt);
 				opt[i] += dxi;
 				if (Double.isInfinite(l)) { // if we are at a bound
@@ -533,18 +539,13 @@ public class MRSt {
 					if (i >= 6*left && i < 6*rite) {
 						for (int j = i+1; j < 6*rite; j ++) { // and get some diagonal terms (only checking relevant ones)
 							double dxj = dimensionScale[j]*1e-4;
-							opt[i] += dxi;
+							double u = step[j];
 							opt[j] += dxj;
-							double ur = logPosterior.apply(opt);
-							opt[j] -= 2*dxj;
-							double br = logPosterior.apply(opt);
-							opt[i] -= 2*dxi;
-							double bl = logPosterior.apply(opt);
-							opt[j] += 2*dxj;
-							double ul = logPosterior.apply(opt);
 							opt[i] += dxi;
+							double ur = logPosterior.apply(opt);
+							opt[i] -= dxi;
 							opt[j] -= dxj;
-							hessian[i][j] = hessian[j][i] = (ur - br + bl - ul)/(4*dxi*dxj);
+							hessian[i][j] = hessian[j][i] = (ur - u - r + c)/(dxi*dxj);
 						}
 					}
 				}
@@ -552,6 +553,8 @@ public class MRSt {
 			for (int i = 0; i < hessian.length; i ++) {
 				if (hessian[i][i] < 0)
 					hessian[i][i] = 0;
+			}
+			for (int i = 0; i < hessian.length; i ++) {
 				for (int j = i+1; j < hessian.length; j ++) {
 					if (Math.abs(hessian[i][j]) > Math.sqrt(hessian[i][i]*hessian[j][j]))
 						hessian[i][j] = hessian[j][i] = Math.signum(hessian[i][j])*Math.sqrt(hessian[i][i]*hessian[j][j]); // enforce positive semidefiniteness
@@ -565,7 +568,7 @@ public class MRSt {
 				}
 			}
 			for (int i = 0; i < hessian.length; i ++) {
-				for (int j = 0; j < hessian.length; j ++) {
+				for (int j = i+1; j < hessian.length; j ++) {
 					if (Math.abs(covarianceMatrix[i][j]) > Math.sqrt(covarianceMatrix[i][i]*covarianceMatrix[j][j])) {
 						double erroneousFactor = Math.pow(covarianceMatrix[i][j], 2)/(covarianceMatrix[i][i]*covarianceMatrix[j][j]);
 						covarianceMatrix[i][i] *= Math.sqrt(erroneousFactor);
