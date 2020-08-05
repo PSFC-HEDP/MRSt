@@ -1041,11 +1041,8 @@ public class MRSt {
 			double Yn, double Ti, double Te, double vi, double ρR, double a2,
 			double[] eBins, boolean onlyDS, DiscreteFunction downScatterCalibration) {
 		double ΔEth = 5.30509e-3/(1 + 2.4736e-3*Math.pow(Ti, 1.84))*Math.pow(Ti, 2/3.) + 1.3818e-3*Ti;
-		double δω =  5.1068e-4/(1 + 7.6223e-3*Math.pow(Ti, 1.78))*Math.pow(Ti, 2/3.) + 8.7691e-5*Ti;
-		double avgE = Math.max(0, 14.029 + ΔEth + .54e-3*vi); // primary peak (see paper) [MeV]
-		double σth = 177.259e-3/2.35482005*(1 + δω)*Math.sqrt(Ti); // primary width (see paper) [MeV]
-		double μ = avgE*Math.sqrt(Math.max(0, 1 - 3/2.*Math.pow(σth/avgE, 2)));
-		double σ2 = 4/3.*μ*(avgE - μ);
+		double μ = Math.max(0, 14.029 + ΔEth + .54e-3*vi); // primary peak (see paper) [MeV]
+		double σ2 = .403*μ*Ti/1e3; // primary width [MeV^2]
 		double upscat = 1 - Math.exp(-8.6670e-5*Math.pow(Te, 2.5149)); // probability of a neutron being scattered up by an alpha
 		double primary = 1;//(1 - upscat);//*Math.exp(-.255184*ρR);
 		if (downScatterCalibration != null)
@@ -1056,7 +1053,7 @@ public class MRSt {
 			if (Ti > 0 && σ2 > 0) {
 				if (!onlyDS) {
 					I[i] += primary*Yn*1e15/Math.sqrt(2*Math.PI*σ2)*
-						Math.exp(-2*μ/σ2*Math.pow(Math.sqrt(eBins[i]) - Math.sqrt(μ), 2));
+						Math.exp(-Math.pow((eBins[i] - μ), 2)/(2*σ2));
 					I[i] += upscat*Yn*1e15*ALPHA_KNOCKON_SPECTRUM.evaluate(eBins[i]);
 				}
 				I[i] += ρR*Yn*1e15*DOWN_SCATTER_SPECTRUM.evaluate(eBins[i])

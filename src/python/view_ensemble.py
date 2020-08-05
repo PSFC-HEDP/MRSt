@@ -7,11 +7,11 @@ X_LABEL = "Yield factor"
 
 Y_LABELS = [
 	("Bang time (ns)", 16.365), ("Max ρR - BT (ps)", -60.8), ("Max dρR/dt - BT (ps)", -125.2),
-	("Ti at BT (keV)", 10.522),
+	("Ti at BT (keV)", 10.857),
 	# ("ρR at BT (g/cm^2)", 1.350),
 	("vi at BT (μm/ns)", 3.68),
-	("dTi/dt at BT (keV/ns)", 97.74), ("dρR/dt at BT (g/cm^2/ns)", -2.37),
-	("dvi/dt at BT (μm/ns^2)", -1276), ("Max ρR (g/cm^2)", 1.102),
+	("dTi/dt at BT (keV/ns)", 100.9), ("dρR/dt at BT (g/cm^2/ns)", -2.37),
+	("dvi/dt at BT (μm/ns^2)", -1290), ("Max ρR (g/cm^2)", 1.102),
 	("Total yield", 4.801e17), ("Burn mean (ns)", 16.358),
 	("Burn width (ns)", .06671), ("Burn skew", -1.145), ("Burn kurtosis", 6.503)
 ]
