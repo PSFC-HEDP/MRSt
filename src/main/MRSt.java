@@ -23,7 +23,6 @@
  */
 package main;
 
-import java.util.Arrays;
 import java.util.Locale;
 import java.util.Random;
 import java.util.function.Function;
@@ -165,10 +164,9 @@ public class MRSt {
 		for (int i = 0; i < a.length; i ++) {
 			a[i] = i/18. - 1;
 			double[] dsr = generateSpectrum(1, 4, 4, 0, 1, a[i], energyBins, true);
-			double[] tot = generateSpectrum(1, 4, 4, 0, 1, a[i], energyBins, false);
 			for (int j = 0; j < dsr.length; j ++)
 				if (energyBins[j] < 13)
-					f[i] += dsr[j];///Math.sqrt(tot[j]);
+					f[i] += dsr[j];
 		}
 		double ref = f[f.length/2];
 		for (int i = 0; i < a.length; i ++)
@@ -458,9 +456,7 @@ public class MRSt {
 								Math.log(teoSpectrum[i][j]/spectrumScale); // encourage entropy
 				}
 				
-//				penalty += params[1][j]/4 - Math.log(params[1][j]); // use gamma prior on temperatures
-//				penalty += params[2][j]/4 - Math.log(params[2][j]);
-				penalty += Math.pow(params[3][j]/20, 2)/2; // gaussian prior on velocity
+				penalty += Math.pow(params[3][j]/100, 2)/2; // gaussian prior on velocity
 				penalty += params[4][j]/2.; // exponential prior on areal density
 				penalty += -16*(Math.log(1 - params[5][j]) + Math.log(1 + params[5][j])); // and beta prior on asymmetry
 			}
@@ -474,12 +470,6 @@ public class MRSt {
 					penalty += 1/(1/(1 + z*z) + Math.exp(-z)); // encourage a monotonically increasing yield before BT
 				}
 			}
-			
-//			for (int j = 1; j < timeAxis.length-1; j ++) {
-//				double Tpp = (params[1][j-1] - 2*params[1][j] + params[1][j+1])/
-//						Math.pow(timeStep, 2);
-//				penalty += Math.pow(Tpp/100000, 2)/2; // encourage a smooth ion temperature
-//			}
 			
 			for (int j = 1; j < timeAxis.length-1; j ++) {
 				double Rpp = (params[4][j-1] - 2*params[4][j] + params[4][j+1])/

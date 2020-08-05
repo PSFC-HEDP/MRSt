@@ -1073,18 +1073,6 @@ public class Optimization {
 		}
 		
 		/**
-		 * are any of the values nan
-		 * @return
-		 */
-		public boolean isNan() {
-			for (int i = 0; i < this.getN(); i ++)
-				for (int j = 0; j < this.getM(); j ++)
-					if (Double.isNaN(this.get(i, j)))
-						return true;
-			return false;
-		}
-		
-		/**
 		 * Set a single scalar value.
 		 * @param i
 		 * @param j

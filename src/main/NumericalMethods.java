@@ -464,7 +464,7 @@ public class NumericalMethods {
 		for (int j = left; j < right; j ++)
 			if (i == -1 || x[j].value > x[i].value)
 				i = j;
-		if (i == left || i == right-1)
+		if (i <= left || i >= right-1)
 			return new Quantity(i, x[i].getN());
 		Quantity dxdi = (x[i+1].minus(x[i-1])).over(2);
 		Quantity d2xdi2 = (x[i+1]).plus(x[i].times(-2)).plus(x[i-1]);
@@ -482,7 +482,7 @@ public class NumericalMethods {
 	 */
 	public static Quantity quadargmax(int left, int right, double[] x, Quantity[] y) {
 		try {
-			return interp(x, quadargmax(left, right, y));
+			return interp(x, quadargmax(Math.max(0, left), Math.min(x.length, right), y));
 		} catch (IndexOutOfBoundsException e) { // y is empty or all NaN
 			return new Quantity(-1, y[0].getN());
 		}
