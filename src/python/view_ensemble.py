@@ -57,9 +57,10 @@ for i, (axis, true) in enumerate(Y_LABELS):
 	order = order[np.isfinite(simulations["Total yield"].values[order])].values
 
 	ax = axs[i//COLUMNS,i%COLUMNS]
-	ax.scatter(simulations[X_LABEL], simulations[axis], s=10, zorder=1, label="Based on fit to synthetic data")
+	valid = np.logical_not(np.isnan(simulations[axis+" error"]))
+	ax.scatter(simulations[X_LABEL][valid], simulations[axis][valid], s=10, zorder=1, label="Based on fit to synthetic data")
 	ax.set_ylim(auto=False)
-	ax.errorbar(simulations[X_LABEL], simulations[axis], yerr=simulations[axis+" error"], elinewidth=1, linestyle='none')
+	ax.errorbar(simulations[X_LABEL][valid], simulations[axis][valid], yerr=simulations[axis+" error"][valid], elinewidth=1, linestyle='none')
 	if simulations[axis].min() > 0 and simulations[axis].max()/simulations[axis].min() >= 100:
 		ax.set_yscale('log')
 		ax.set_ylim(simulations[axis].min()/1.5, simulations[axis].max()*1.5)

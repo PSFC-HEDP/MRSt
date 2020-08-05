@@ -568,10 +568,16 @@ public class Optimization {
 					}
 					p = p.plus(wb.times(gb));
 					Δt = t - told;
-					Δtmin = -dfdt/d2fdt2;
+					Δtmin = (d2fdt2 != 0) ? -dfdt/d2fdt2 : (dfdt > 0) ? 0 : (Double.isFinite(Δt)) ? Δt : 1;
 				}
 				Δtmin = Math.max(Δtmin, 0);
 				double tC = told + Δtmin;
+				if (Double.isNaN(tC)) {
+					System.err.println("I can't fucking deal with this right now.");
+					System.err.println(told);
+					System.err.println(Δtmin);
+					System.err.println(Arrays.toString(breakpoints));
+				}
 				c = c.plus(p.times(Δtmin));
 				List<Integer> F = new ArrayList<Integer>(breakpointOrder.size()+1);
 				Matrix xC = new Matrix(n, 1);

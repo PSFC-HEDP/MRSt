@@ -430,22 +430,6 @@ public class NumericalMethods {
 	}
 	
 	/**
-	 * find the x coordinate of the highest value in the bounds [left, right)
-	 * @param left the leftmost acceptable index
-	 * @param right the leftmost unacceptable index
-	 * @param x the horizontal axis
-	 * @param y the array of values
-	 * @return x such that y(x) >= y(z) for all z in [x[left], x[right])
-	 */
-	public static double quadargmax(int left, int right, double[] x, double[] y) {
-		try {
-			return interp(x, quadargmax(left, right, y));
-		} catch (IndexOutOfBoundsException e) { // y is empty or all NaN
-			return -1;
-		}
-	}
-	
-	/**
 	 * find the interpolative index of the highest value
 	 * @param x the array of values
 	 * @return i such that x[i] >= x[j] for all j
@@ -480,7 +464,27 @@ public class NumericalMethods {
 	 * @param y the array of values
 	 * @return x such that y(x) >= y(z) for all z in [x[left], x[right])
 	 */
+	public static double quadargmax(int left, int right, double[] x, double[] y) {
+		if (x.length != y.length)
+			throw new IllegalArgumentException("These array lengths don't match.");
+		try {
+			return interp(x, quadargmax(Math.max(0, left), Math.min(x.length, right), y));
+		} catch (IndexOutOfBoundsException e) { // y is empty or all NaN
+			return -1;
+		}
+	}
+	
+	/**
+	 * find the x coordinate of the highest value in the bounds [left, right)
+	 * @param left the leftmost acceptable index
+	 * @param right the leftmost unacceptable index
+	 * @param x the horizontal axis
+	 * @param y the array of values
+	 * @return x such that y(x) >= y(z) for all z in [x[left], x[right])
+	 */
 	public static Quantity quadargmax(int left, int right, double[] x, Quantity[] y) {
+		if (x.length != y.length)
+			throw new IllegalArgumentException("These array lengths don't match.");
 		try {
 			return interp(x, quadargmax(Math.max(0, left), Math.min(x.length, right), y));
 		} catch (IndexOutOfBoundsException e) { // y is empty or all NaN

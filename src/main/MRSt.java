@@ -467,7 +467,8 @@ public class MRSt {
 				if (j <= bangIndex) Yp *= -1;
 				if (Y > 0) {
 					double z = Yp/Y*.2;
-					penalty += 1/(1/(1 + z*z) + Math.exp(-z)); // encourage a monotonically increasing yield before BT
+					if (z < 0) penalty += .1*Math.exp(z);
+					else       penalty += .1 + .1*z + .05*z*z; // encourage a monotonically increasing yield before BT
 				}
 			}
 			
@@ -558,6 +559,8 @@ public class MRSt {
 				}
 			}
 			for (int i = 0; i < hessian.length; i ++) {
+				if ((i < left || i >= rite) && !Double.isFinite(covarianceMatrix[i][i]))
+					covarianceMatrix[i][i] = 0; // get rid of any NaNs if they're off screen anyway
 				for (int j = i+1; j < hessian.length; j ++) {
 					if (Math.abs(covarianceMatrix[i][j]) > Math.sqrt(covarianceMatrix[i][i]*covarianceMatrix[j][j])) {
 						double erroneousFactor = Math.pow(covarianceMatrix[i][j], 2)/(covarianceMatrix[i][i]*covarianceMatrix[j][j]);
@@ -600,7 +603,7 @@ public class MRSt {
 		
 		Quantity iMC = NumericalMethods.quadargmax(left, rite, measurements[4]); // index of max compression
 		Quantity maxCompress = NumericalMethods.interp(timeAxis, iMC); // time of max compression
-		Quantity maxPRRamp = NumericalMethods.quadargmax(left-1, rite, timeAxis, dρRdt); // time of max rhoR ramp
+		Quantity maxPRRamp = NumericalMethods.quadargmax(left-1, rite, timeCenters, dρRdt); // time of max rhoR ramp
 		Quantity[] moments = new Quantity[5];
 		for (int k = 0; k < moments.length; k ++)
 			moments[k] = NumericalMethods.moment(k, timeBins, measurements[0]);
