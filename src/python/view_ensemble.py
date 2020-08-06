@@ -35,7 +35,7 @@ def text_wrap(s):
 	return s
 
 
-simulations = pd.read_csv('../../working/ensemble.csv')
+simulations = pd.read_csv('../../working/ensemble.csv', na_values=["Infinity"])
 simulations["Total yield"] = simulations["Total yield (10^15)"]*1e15
 simulations["Total yield error"] = simulations["Total yield (10^15) error"]*1e15
 for key in simulations:

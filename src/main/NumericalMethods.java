@@ -825,14 +825,14 @@ public class NumericalMethods {
 						l ++;
 					}
 					else {
-						c[i][j] = Double.isInfinite(arr[j][j]) ? 0 : Double.NaN;
+						c[i][j] = 0;
 					}
 				}
 				k ++;
 			}
 			else {
 				for (int j = 0; j < arr[i].length; j ++)
-					c[i][j] = Double.isInfinite(arr[i][i]) || Double.isInfinite(arr[j][j]) ? 0 : Double.NaN;
+					c[i][j] = 0;
 			}
 		}
 		return c;

@@ -244,7 +244,7 @@ public class ConfigurationEvaluator extends Application {
 						double[][] spec = null;
 						try {
 							eBins = CSV.readColumn(new File("data/Energy bins.txt"));
-							tBins = CSV.readColumn(new File("data/nsp_150327_16p26_time.txt"));
+							tBins = CSV.readColumn(new File("data/nsp_150327_16p26_time - copia.txt"));
 							spec = CSV.read(new File("data/nsp_150327_16p26.txt"), '\t');
 							spec = MRSt.interpretSpectrumFile(tBins, eBins, spec);
 						} catch (ArrayIndexOutOfBoundsException | NumberFormatException e) {
