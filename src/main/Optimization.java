@@ -156,7 +156,7 @@ public class Optimization {
 			fx[i] = f.apply(x[i]); // and get the initial values
 		}
 		if (!Double.isFinite(fx[x0.length]))
-			throw new IllegalArgumentException("Initial guess yielded bunk value");
+			throw new IllegalArgumentException("Initial guess yielded bunk value: "+fx[x0.length]);
 		
 		while (true) { // now for the iterative part
 			int iWorst = NumericalMethods.argmax(fx);
@@ -549,7 +549,7 @@ public class Optimization {
 				double dfdt = d.dot(gk);
 				double d2fdt2 = -θ*dfdt - p.dot(Mk.times(p));
 				assert dfdt < 0 : d;
-				double Δtmin = (d2fdt2 != 0) ? -dfdt/d2fdt2 : (Double.isFinite(Δt)) ? Δt : 1;
+				double Δtmin = (d2fdt2 != 0) ? -dfdt/d2fdt2 : Δt;
 				while (Δtmin >= Δt) { // then check all subsequent segments
 					double xCb = (d.get(b, 0) > 0) ? upper[b] : lower[b];
 					double zb = xCb - xk.get(b, 0);
@@ -568,16 +568,13 @@ public class Optimization {
 					}
 					p = p.plus(wb.times(gb));
 					Δt = t - told;
-					Δtmin = (d2fdt2 != 0) ? -dfdt/d2fdt2 : (dfdt > 0) ? 0 : (Double.isFinite(Δt)) ? Δt : 1;
+					Δtmin = (d2fdt2 != 0) ? -dfdt/d2fdt2 : (dfdt > 0) ? 0 : Δt;
 				}
-				Δtmin = Math.max(Δtmin, 0);
+				if (Δtmin < 0)
+					Δtmin = 0;
+				else if (Double.isInfinite(Δtmin))
+					Δtmin = 1;
 				double tC = told + Δtmin;
-				if (Double.isNaN(tC)) {
-					System.err.println("I can't fucking deal with this right now.");
-					System.err.println(told);
-					System.err.println(Δtmin);
-					System.err.println(Arrays.toString(breakpoints));
-				}
 				c = c.plus(p.times(Δtmin));
 				List<Integer> F = new ArrayList<Integer>(breakpointOrder.size()+1);
 				Matrix xC = new Matrix(n, 1);
@@ -657,7 +654,7 @@ public class Optimization {
 			if (sHist.size() > 1 && ((fxk - fxkp1)/Math.abs(fxk) < relTol || fxk - fxkp1 < absTol)) { // STEP 5: stop condition
 				return xk.T().values[0]; // if we're into it and the energy isn't really changing, then we're done
 			}
-			else if (iter > 1000) {
+			else if (iter > 2000) {
 				System.err.println("WARN: Maximum iterations reached.");
 				return xk.T().values[0];
 			}
