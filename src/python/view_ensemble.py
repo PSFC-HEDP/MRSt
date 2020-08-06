@@ -12,8 +12,8 @@ Y_LABELS = [
 	("vi at BT (μm/ns)", 3.68),
 	("dTi/dt at BT (keV/ns)", 97.74), ("dρR/dt at BT (g/cm^2/ns)", -2.37),
 	("dvi/dt at BT (μm/ns^2)", -1276), ("Max ρR (g/cm^2)", 1.102),
-	("Total yield", 4.801e17), ("Burn mean (ns)", 16.358),
-	("Burn width (ns)", .06671), ("Burn skew", -1.145), ("Burn kurtosis", 6.503)
+	("Total yield", 5.847e17), ("Burn mean (ns)", 16.357),
+	("Burn width (ns)", .06641), ("Burn skew", -1.096), ("Burn kurtosis", 6.229)
 ]
 
 COLUMNS = 2

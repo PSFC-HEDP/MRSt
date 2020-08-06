@@ -370,8 +370,8 @@ public class MRSt {
 			for (int i = 3; i < energyBins.length-1; i ++) // I'm not sure why the bottom few rows are so unusable
 				exp[i] = gelf[i][j]/Δt;
 			
-			double[] fit = {(anyData) ? Math.max(0, NumericalMethods.sum(exp)/1e15) : 0, 4, 4, 50, 1, 0};
-			if (fit[0] > 0) {
+			double[] fit = {Math.max(1e-15, NumericalMethods.sum(exp)/1e15), 4, 4, 50, 1, 0};
+//			if (fit[0] > 0) {
 				fit = Optimization.minimizeNelderMead((x) -> {
 					if (x[0] < 0)  return Double.POSITIVE_INFINITY;
 					if (x[1] < .5 || x[1] > 18) return Double.POSITIVE_INFINITY;
@@ -384,9 +384,10 @@ public class MRSt {
 					double error = 0;
 					for (int i = 3; i < energyBins.length-1; i ++)
 						error += Math.pow(teo[i] - exp[i], 2)/teo[i] + Math.log(teo[i]);
+					if (!Double.isFinite(error)) System.out.println(error);
 					return error;
 				}, fit, 1e-7);
-			}
+//			}
 			
 			System.arraycopy(fit, 0, opt, 6*j, 6);
 			yieldGuess[j] = fit[0];
@@ -416,6 +417,16 @@ public class MRSt {
 			rite ++;
 		
 		double spectrumScale = NumericalMethods.sum(gelf)/(timeBins.length-1)/(energyBins.length-1); // the characteristic magnitude of the neutron spectrum bins
+		
+		double s0 = 0, s1 = 0, s2 = 0;
+		for (int i = 3; i < energyBins.length-1; i ++) {
+			for (int j = 0; j < timeBins.length-1; j ++) {
+				s0 += gelf[i][j];
+				s1 += gelf[i][j]*timeAxis[j];
+				s2 += gelf[i][j]*timeAxis[j]*timeAxis[j];
+			}
+		}
+		double expectedStd = Math.sqrt(s2/s0 - s1*s1/s0/s0); // the expected standard deviation of the burn in time
 		
 		Function<double[], Double> logPosterior = (double[] x) -> {
 			double[][] params = new double[6][timeAxis.length];
@@ -456,20 +467,32 @@ public class MRSt {
 								Math.log(teoSpectrum[i][j]/spectrumScale); // encourage entropy
 				}
 				
-				penalty += Math.pow(params[3][j]/100, 2)/2; // gaussian prior on velocity
+				penalty += Math.pow(params[3][j]/50, 2)/2; // gaussian prior on velocity
 				penalty += params[4][j]/2.; // exponential prior on areal density
 				penalty += -16*(Math.log(1 - params[5][j]) + Math.log(1 + params[5][j])); // and beta prior on asymmetry
 			}
 			
-			for (int j = 1; j < timeAxis.length; j ++) {
-				double Y = (params[0][j] + params[0][j-1])/2;
-				double Yp = (params[0][j] - params[0][j-1])/timeStep;
-				if (j <= bangIndex) Yp *= -1;
-				if (Y > 0) {
-					double z = Yp/Y*.2;
-					if (z < 0) penalty += .1*Math.exp(z);
-					else       penalty += .1 + .1*z + .05*z*z; // encourage a monotonically increasing yield before BT
-				}
+//			for (int j = 1; j < timeAxis.length; j ++) {
+//				double Y = (params[0][j] + params[0][j-1])/2;
+//				double Yp = (params[0][j] - params[0][j-1])/timeStep;
+//				if (j <= bangIndex) Yp *= -1;
+//				if (Y > 0) {
+//					double z = Yp/Y*.1;
+//					if (z < 0) penalty += Math.exp(z);
+//					else       penalty += 1 + z + z*z/2.; // encourage a monotonically increasing yield before BT
+//				}
+//			}
+			
+			double burn0 = 0, burn1 = 0;
+			for (int j = 0; j < timeAxis.length; j ++) {
+				burn0 += params[0][j];
+				burn1 += params[0][j]*timeAxis[j];
+			}
+			double burn2 = 0, burn4 = 0;
+			for (int j = 0; j < timeAxis.length; j ++) {
+				burn2 = params[0][j]*Math.pow((timeAxis[j] - burn1/burn0)/(2*expectedStd), 2);
+				burn4 = params[0][j]*Math.pow((timeAxis[j] - burn1/burn0)/(2*expectedStd), 4);
+				penalty += 1e4/burn0*Math.max(burn4/burn0 - burn2/burn0, 0);
 			}
 			
 			for (int j = 1; j < timeAxis.length-1; j ++) {
@@ -489,7 +512,7 @@ public class MRSt {
 		logger.log(Level.INFO, "...");
 		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 1e-4, 0, timeAxis.length, false, false, false, false, true, true);
 		logger.log(Level.INFO, "...");
-		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 1e-4, left-1, rite+1, true, true, false, true, true, true);
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 1e-4, 0, timeAxis.length, true, true, false, true, true, true);
 		
 		this.measurements = new Quantity[6][timeAxis.length]; // unpack the optimized vector
 		for (int k = 0; k < measurements.length; k ++) {
@@ -1051,7 +1074,7 @@ public class MRSt {
 		double μ = Math.max(0, 14.029 + ΔEth + .54e-3*vi); // primary peak (see paper) [MeV]
 		double σ2 = .403*μ*Ti/1e3; // primary width [MeV^2]
 		double upscat = 1 - Math.exp(-8.6670e-5*Math.pow(Te, 2.5149)); // probability of a neutron being scattered up by an alpha
-		double primary = 1;//(1 - upscat);//*Math.exp(-.255184*ρR);
+		double primary = 1*(1 - upscat)*Math.exp(-.255184*ρR);
 		if (downScatterCalibration != null)
 			ρR /= downScatterCalibration.evaluate(a2);
 		
