@@ -588,13 +588,13 @@ public class MRSt {
 			for (int i = 0; i < hessian.length; i ++) {
 				if ((i < left || i >= rite) && !Double.isFinite(covarianceMatrix[i][i]))
 					covarianceMatrix[i][i] = 0; // get rid of any NaNs if they're off screen anyway
-				for (int j = i+1; j < hessian.length; j ++) {
-					if (Math.abs(covarianceMatrix[i][j]) > Math.sqrt(covarianceMatrix[i][i]*covarianceMatrix[j][j])) {
-						double erroneousFactor = Math.pow(covarianceMatrix[i][j], 2)/(covarianceMatrix[i][i]*covarianceMatrix[j][j]);
-						covarianceMatrix[i][i] *= Math.sqrt(erroneousFactor);
-						covarianceMatrix[j][j] *= Math.sqrt(erroneousFactor);
-					}
-				}
+//				for (int j = i+1; j < hessian.length; j ++) {
+//					if (Math.abs(covarianceMatrix[i][j]) > Math.sqrt(covarianceMatrix[i][i]*covarianceMatrix[j][j])) {
+//						double erroneousFactor = Math.pow(covarianceMatrix[i][j], 2)/(covarianceMatrix[i][i]*covarianceMatrix[j][j]);
+//						covarianceMatrix[i][i] *= Math.sqrt(erroneousFactor);
+//						covarianceMatrix[j][j] *= Math.sqrt(erroneousFactor);
+//					}
+//				}
 			}
 		}
 		else {
@@ -1102,8 +1102,7 @@ public class MRSt {
 		double[] counts = new double[eBins.length-1];
 		for (int i = 0; i < counts.length; i ++)
 			counts[i] = (I[i] + I[i+1])/2.*(eBins[i+1] - eBins[i]);
-		return counts;
-	}
+		return counts;	}
 	
 	/**
 	 * convert a time-cumulative spectrum, as read from an input file, into an array of counts.
@@ -1167,7 +1166,6 @@ public class MRSt {
 		}
 		for (int i = 0; i < energies.length; i ++)
 			energies[i] = energies[i] - .54e-3*flow;
-
 	}
 	
 	/**
