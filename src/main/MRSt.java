@@ -380,7 +380,7 @@ public class MRSt {
 					error += Math.pow(teo[i] - exp[i], 2)/teo[i] + Math.log(teo[i]);
 				if (!Double.isFinite(error)) System.out.println(error);
 				return error;
-			}, fit, 1e-7);
+			}, fit, 1e-8);
 			
 			System.arraycopy(fit, 0, opt, 6*j, 6);
 			yieldGuess[j] = fit[0];
@@ -460,7 +460,7 @@ public class MRSt {
 				}
 				
 				penalty += Math.pow(params[3][j]/50, 2)/2; // gaussian prior on velocity
-				penalty += params[4][j]/2.; // exponential prior on areal density
+				penalty += params[4][j]/1.; // exponential prior on areal density
 				penalty += -16*(Math.log(1 - params[5][j]) + Math.log(1 + params[5][j])); // and beta prior on asymmetry
 			}
 			
@@ -485,6 +485,12 @@ public class MRSt {
 				burn2 = params[0][j]*Math.pow((timeAxis[j] - burn1/burn0)/(2*expectedStd), 2);
 				burn4 = params[0][j]*Math.pow((timeAxis[j] - burn1/burn0)/(2*expectedStd), 4);
 				penalty += 1e4/burn0*Math.max(burn4/burn0 - burn2/burn0, 0);
+			}
+			
+			for (int j = 1; j < timeAxis.length-1; j ++) {
+				double Tpp = (params[1][j-1] - 2*params[1][j] + params[1][j+1])/
+						Math.pow(timeStep, 2);
+				penalty += Math.pow(Tpp/5000, 2)/2; // encourage a smooth ion temperature
 			}
 			
 			for (int j = 1; j < timeAxis.length-1; j ++) {
@@ -872,30 +878,37 @@ public class MRSt {
 		}
 		
 		double[] totalParams = totalGuess.clone();
-		activeGuess = Optimization.minimizeLBFGSB(
-				(activeParams) -> {
-					int j = 0;
-					for (int i = 0; i < totalParams.length; i ++) {
-						if (active[i%active.length]) {
-							totalParams[i] = activeParams[j]; // you're only changing a subset of the parameters
-							j ++;
+		double oldPosterior = Double.NEGATIVE_INFINITY, newPosterior = func.apply(totalGuess);
+		System.out.println(newPosterior);
+		while (newPosterior - oldPosterior > .1) { // optimize it over and over; you'll get there eventually
+			activeGuess = Optimization.minimizeLBFGSB(
+					(activeParams) -> {
+						int j = 0;
+						for (int i = 0; i < totalParams.length; i ++) {
+							if (active[i%active.length]) {
+								totalParams[i] = activeParams[j]; // you're only changing a subset of the parameters
+								j ++;
+							}
 						}
-					}
-					return func.apply(totalParams);
-				},
-				activeGuess,
-				activeLower,
-				activeUpper,
-				0, threshold);
-		
-		int j = 0;
-		for (int i = 0; i < totalParams.length; i ++) {
-			if (active[i%active.length]) {
-				totalParams[i] = activeGuess[j]; // you're only changing a subset of the parameters
-				j ++;
+						return func.apply(totalParams);
+					},
+					activeGuess,
+					activeLower,
+					activeUpper,
+					0, threshold);
+			
+			oldPosterior = newPosterior;
+			
+			int j = 0;
+			for (int i = 0; i < totalParams.length; i ++) {
+				if (active[i%active.length]) {
+					totalParams[i] = activeGuess[j]; // you're only changing a subset of the parameters
+					j ++;
+				}
 			}
+			newPosterior = func.apply(totalParams);
+			System.out.println(newPosterior);
 		}
-		System.out.println(func.apply(totalParams));
 		return totalParams;
 	}
 	
