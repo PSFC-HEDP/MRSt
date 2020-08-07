@@ -878,9 +878,9 @@ public class MRSt {
 		}
 		
 		double[] totalParams = totalGuess.clone();
-		double oldPosterior = Double.NEGATIVE_INFINITY, newPosterior = func.apply(totalGuess);
+		double oldPosterior = Double.POSITIVE_INFINITY, newPosterior = func.apply(totalGuess);
 		System.out.println(newPosterior);
-		while (newPosterior - oldPosterior > .1) { // optimize it over and over; you'll get there eventually
+		while (oldPosterior - newPosterior > .1) { // optimize it over and over; you'll get there eventually
 			activeGuess = Optimization.minimizeLBFGSB(
 					(activeParams) -> {
 						int j = 0;
