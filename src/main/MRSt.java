@@ -449,7 +449,7 @@ public class MRSt {
 				
 				penalty += Math.pow(params[3][j]/50, 2)/2; // gaussian prior on velocity
 				penalty += params[4][j]/1.; // exponential prior on areal density
-				penalty += -16*(Math.log(1 - params[5][j]) + Math.log(1 + params[5][j])); // and beta prior on asymmetry
+				penalty += Math.pow(params[5][j]/.5, 2)/2; // and gaussian prior on asymmetry
 			}
 			
 //			for (int j = 1; j < timeAxis.length; j ++) {
@@ -481,10 +481,10 @@ public class MRSt {
 				penalty += Math.pow(Tpp/5000, 2)/2; // encourage a smooth ion temperature
 			}
 			
-			for (int j = 1; j < timeAxis.length-1; j ++) {
-				double Rpp = (params[4][j-1] - 2*params[4][j] + params[4][j+1])/
-						Math.pow(timeStep, 2);
-				penalty += Math.pow(Rpp/200, 2)/2; // encourage a smooth rho-R
+			for (int j = 3; j < timeAxis.length; j ++) {
+				double Rppp = (params[4][j-3] - 3*params[4][j-2] + 3*params[4][j-1] - params[4][j])/
+						Math.pow(timeStep, 3);
+				penalty += Math.pow(Rppp/30000, 2)/2; // encourage a smooth rho-R
 			}
 			
 			for (int j = 1; j < timeAxis.length-1; j ++) {
