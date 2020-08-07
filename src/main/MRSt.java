@@ -410,7 +410,6 @@ public class MRSt {
 			rite ++;
 		
 		double spectrumScale = NumericalMethods.sum(gelf)/(timeBins.length-1)/(energyBins.length-1); // the characteristic magnitude of the neutron spectrum bins
-		
 		double s0 = 0, s1 = 0, s2 = 0;
 		for (int i = 3; i < energyBins.length-1; i ++) {
 			for (int j = 0; j < timeBins.length-1; j ++) {
