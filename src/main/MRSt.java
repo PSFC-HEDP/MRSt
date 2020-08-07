@@ -850,12 +850,12 @@ public class MRSt {
 		}
 		
 		double[] totalParams = totalGuess.clone();
-		double oldPosterior = Double.NEGATIVE_INFINITY, newPosterior = func.apply(totalGuess);
+		double oldPosterior = Double.POSITIVE_INFINITY, newPosterior = func.apply(totalGuess);
 		System.out.println(newPosterior);
 		MultivariateOptimizer optimizer = new PowellOptimizer(1e-14, 1);
-		while (newPosterior - oldPosterior > threshold) { // optimize it over and over; you'll get there eventually
+		while (oldPosterior - newPosterior > threshold) { // optimize it over and over; you'll get there eventually
 			activeGuess = optimizer.optimize(
-					GoalType.MAXIMIZE,
+					GoalType.MINIMIZE,
 					new ObjectiveFunction((activeParams) -> { // when you optimize
 						int j = 0;
 						for (int i = 0; i < totalParams.length; i ++) {
