@@ -360,34 +360,27 @@ public class MRSt {
 		double[] opt = new double[6*timeAxis.length]; // initial guess for the coming Powell fit
 		double[] yieldGuess = new double[timeAxis.length];
 		for (int j = 0; j < timeAxis.length; j ++) {
-			boolean anyData = false;
-			for (int i = 0; i < energyBins.length-1; i ++)
-				if (spectrum[i][j] > 0)
-					anyData = true;
-			
 			double Δt = timeBins[j+1] - timeBins[j];
 			double[] exp = new double[energyBins.length-1];
 			for (int i = 3; i < energyBins.length-1; i ++) // I'm not sure why the bottom few rows are so unusable
 				exp[i] = gelf[i][j]/Δt;
 			
 			double[] fit = {Math.max(1e-15, NumericalMethods.sum(exp)/1e15), 4, 4, 50, 1, 0};
-//			if (fit[0] > 0) {
-				fit = Optimization.minimizeNelderMead((x) -> {
-					if (x[0] < 0)  return Double.POSITIVE_INFINITY;
-					if (x[1] < .5 || x[1] > 18) return Double.POSITIVE_INFINITY;
-					if (x[2] < .5 || x[2] > 18)  return Double.POSITIVE_INFINITY;
-					if (Math.abs(x[3]) > 200)    return Double.POSITIVE_INFINITY;
-					if (x[4] < 0 || x[4] > 3)    return Double.POSITIVE_INFINITY;
-					if (Math.abs(x[5]) > .67)    return Double.POSITIVE_INFINITY;
-					double[] teo = generateSpectrum(x[0], x[1], x[2], x[3], x[4], x[5],
-							energyBins, downScatterCalibration);
-					double error = 0;
-					for (int i = 3; i < energyBins.length-1; i ++)
-						error += Math.pow(teo[i] - exp[i], 2)/teo[i] + Math.log(teo[i]);
-					if (!Double.isFinite(error)) System.out.println(error);
-					return error;
-				}, fit, 1e-7);
-//			}
+			fit = Optimization.minimizeNelderMead((x) -> {
+				if (x[0] < 0)  return Double.POSITIVE_INFINITY;
+				if (x[1] < .5 || x[1] > 18) return Double.POSITIVE_INFINITY;
+				if (x[2] < .5 || x[2] > 18)  return Double.POSITIVE_INFINITY;
+				if (Math.abs(x[3]) > 200)    return Double.POSITIVE_INFINITY;
+				if (x[4] < 0 || x[4] > 3)    return Double.POSITIVE_INFINITY;
+				if (Math.abs(x[5]) > .67)    return Double.POSITIVE_INFINITY;
+				double[] teo = generateSpectrum(x[0], x[1], x[2], x[3], x[4], x[5],
+						energyBins, downScatterCalibration);
+				double error = 0;
+				for (int i = 3; i < energyBins.length-1; i ++)
+					error += Math.pow(teo[i] - exp[i], 2)/teo[i] + Math.log(teo[i]);
+				if (!Double.isFinite(error)) System.out.println(error);
+				return error;
+			}, fit, 1e-7);
 			
 			System.arraycopy(fit, 0, opt, 6*j, 6);
 			yieldGuess[j] = fit[0];
@@ -477,9 +470,9 @@ public class MRSt {
 //				double Yp = (params[0][j] - params[0][j-1])/timeStep;
 //				if (j <= bangIndex) Yp *= -1;
 //				if (Y > 0) {
-//					double z = Yp/Y*.1;
+//					double z = Yp/Y*.2;
 //					if (z < 0) penalty += Math.exp(z);
-//					else       penalty += 1 + z + z*z/2.; // encourage a monotonically increasing yield before BT
+//					else       penalty += .1 + .1*z + .05*z*z; // encourage a monotonically increasing yield before BT
 //				}
 //			}
 			
@@ -501,6 +494,12 @@ public class MRSt {
 				penalty += Math.pow(Rpp/200, 2)/2; // encourage a smooth rho-R
 			}
 			
+			for (int j = 1; j < timeAxis.length-1; j ++) {
+				double App = (params[5][j-1] - 2*params[5][j] + params[5][j+1])/
+						Math.pow(timeStep, 2);
+				penalty += Math.pow(App/1000, 2)/2; // encourage a smooth asymmetry history
+			}
+			
 //			System.out.println(penalty+" + "+error);
 			return penalty + error;
 		};
@@ -512,7 +511,7 @@ public class MRSt {
 		logger.log(Level.INFO, "...");
 		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 1e-4, 0, timeAxis.length, false, false, false, false, true, true);
 		logger.log(Level.INFO, "...");
-		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 1e-4, 0, timeAxis.length, true, true, false, true, true, true);
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 1e-4, 0, timeAxis.length, true, true, true, true, true, true);
 		
 		this.measurements = new Quantity[6][timeAxis.length]; // unpack the optimized vector
 		for (int k = 0; k < measurements.length; k ++) {
@@ -626,7 +625,7 @@ public class MRSt {
 		
 		Quantity iMC = NumericalMethods.quadargmax(left, rite, measurements[4]); // index of max compression
 		Quantity maxCompress = NumericalMethods.interp(timeAxis, iMC); // time of max compression
-		Quantity maxPRRamp = NumericalMethods.quadargmax(left-1, rite, timeCenters, dρRdt); // time of max rhoR ramp
+		Quantity maxPRRamp = NumericalMethods.quadargmax(left, rite-1, timeCenters, dρRdt); // time of max rhoR ramp
 		Quantity[] moments = new Quantity[5];
 		for (int k = 0; k < moments.length; k ++)
 			moments[k] = NumericalMethods.moment(k, timeBins, measurements[0]);
