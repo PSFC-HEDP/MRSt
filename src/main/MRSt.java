@@ -816,20 +816,17 @@ public class MRSt {
 	 * @return
 	 */
 	private double[] optimize(Function<double[], Double> func, double[] totalGuess,
-			double[] totalScale, double[] totalLower, double[] totalUpper, double threshold, int left, int rite,
+			double[] totalScale, double threshold, int left, int rite,
 			boolean... activeDimensions) {
 		if (totalGuess.length != totalScale.length)
 			throw new IllegalArgumentException("Scale and guess must have the same length");
 		
-		final boolean[] active = new boolean[totalScale.length];
-		for (int i = 0; i < active.length; i ++) {
-			if (i < 6*left || i >= 6*rite)
-				active[i] = false;
-			else if (activeDimensions.length == 0)
-				active[i] = true;
-			else
-				active[i] = activeDimensions[i%activeDimensions.length];
-		}
+		final boolean[] active;
+		if (activeDimensions.length == 0)
+			active = new boolean[] {true};
+		else
+			active = activeDimensions;
+		System.out.println(Arrays.toString(active));
 		
 		int numTotal = active.length;
 		int numActive = 0;
@@ -839,20 +836,12 @@ public class MRSt {
 		
 		double[] activeGuess = new double[totalGuess.length/numTotal*numActive];
 		double[] activeScale = new double[totalScale.length/numTotal*numActive];
-		double[] activeLower = new double[totalScale.length/numTotal*numActive];
-		double[] activeUpper = new double[totalScale.length/numTotal*numActive];
 		{ // this extra scope is here so I can redeclare j later
 			int j = 0;
 			for (int i = 0; i < totalGuess.length; i ++) {
-				if (totalGuess[i] < totalLower[i])
-					throw new IllegalArgumentException("initial guess "+totalGuess[i]+" is below bound "+totalLower[i]+" at index "+i);
-				if (totalGuess[i] > totalUpper[i])
-					throw new IllegalArgumentException("initial guess "+totalGuess[i]+" is above bound "+totalUpper[i]+" at index "+i);
 				if (active[i%active.length]) {
 					activeGuess[j] = totalGuess[i];
 					activeScale[j] = totalScale[i];
-					activeLower[j] = totalLower[i];
-					activeUpper[j] = totalUpper[i];
 					j ++;
 				}
 			}
