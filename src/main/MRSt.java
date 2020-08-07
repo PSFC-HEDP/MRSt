@@ -23,11 +23,21 @@
  */
 package main;
 
+import java.util.Arrays;
 import java.util.Locale;
 import java.util.Random;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import org.apache.commons.math3.optim.InitialGuess;
+import org.apache.commons.math3.optim.MaxEval;
+import org.apache.commons.math3.optim.MaxIter;
+import org.apache.commons.math3.optim.nonlinear.scalar.GoalType;
+import org.apache.commons.math3.optim.nonlinear.scalar.MultivariateOptimizer;
+import org.apache.commons.math3.optim.nonlinear.scalar.ObjectiveFunction;
+import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.MultiDirectionalSimplex;
+import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.PowellOptimizer;
 
 import main.NumericalMethods.DiscreteFunction;
 import main.NumericalMethods.Quantity;
@@ -339,8 +349,7 @@ public class MRSt {
 		if (logger != null)  logger.info("beginning fit process.");
 		long startTime = System.currentTimeMillis();
 		
-		double gelf[][] = Optimization.optimizeGelfgat(F, D, this.transferMatrix,
-				Math.max(1e-5, 1e3/NumericalMethods.sum(spectrum)));
+		double gelf[][] = Optimization.optimizeGelfgat(F, D, this.transferMatrix, 1e-3);
 		
 		double[] opt = new double[6*timeAxis.length]; // initial guess for the coming Powell fit
 		double[] yieldGuess = new double[timeAxis.length];
@@ -350,23 +359,18 @@ public class MRSt {
 			for (int i = 3; i < energyBins.length-1; i ++) // I'm not sure why the bottom few rows are so unusable
 				exp[i] = gelf[i][j]/Δt;
 			
-			double[] fit = {Math.max(1e-15, NumericalMethods.sum(exp)/1e15), 4, 4, 50, 1, 0};
-			fit = Optimization.minimizeNelderMead((x) -> {
-				if (x[0] < 0)  return Double.POSITIVE_INFINITY;
-				if (x[1] < .5 || x[1] > 18) return Double.POSITIVE_INFINITY;
-				if (x[2] < .5 || x[2] > 18)  return Double.POSITIVE_INFINITY;
-				if (Math.abs(x[3]) > 200)    return Double.POSITIVE_INFINITY;
-				if (x[4] < 0 || x[4] > 3)    return Double.POSITIVE_INFINITY;
-				if (Math.abs(x[5]) > .67)    return Double.POSITIVE_INFINITY;
-				double[] teo = generateSpectrum(x[0], x[1], x[2], x[3], x[4], x[5], energyBins);
+			double[] fit = Optimization.minimizeNelderMead((x) -> {
+				if (x[0] < 0 || x[1] <= 1 || x[2] < 0 || Math.abs(x[3]) > 200 || x[4] < 0)
+					return Double.POSITIVE_INFINITY;
+				double[] teo = generateSpectrum(x[0], x[1], x[2], x[3], x[4], 0, energyBins);
 				double error = 0;
 				for (int i = 3; i < energyBins.length-1; i ++)
-					error += Math.pow(teo[i] - exp[i], 2)/teo[i] + Math.log(teo[i]);
+					error += Math.pow(teo[i] - exp[i], 2);
 				if (!Double.isFinite(error)) System.out.println(error);
 				return error;
-			}, fit, 1e-8);
+			}, new double[] {Math.max(1/efficiency[2][j], NumericalMethods.sum(exp)/1e15), 4, 0, 50, 1}, 1e-8);
 			
-			System.arraycopy(fit, 0, opt, 6*j, 6);
+			System.arraycopy(fit, 0, opt, 6*j, 5);
 			yieldGuess[j] = fit[0];
 		}
 		
@@ -841,9 +845,9 @@ public class MRSt {
 			int j = 0;
 			for (int i = 0; i < totalGuess.length; i ++) {
 				if (totalGuess[i] < totalLower[i])
-					throw new IllegalArgumentException("initial guess below bound at index "+i);
+					throw new IllegalArgumentException("initial guess "+totalGuess[i]+" is below bound "+totalLower[i]+" at index "+i);
 				if (totalGuess[i] > totalUpper[i])
-					throw new IllegalArgumentException("initial guess above bound at index "+i);
+					throw new IllegalArgumentException("initial guess "+totalGuess[i]+" is above bound "+totalUpper[i]+" at index "+i);
 				if (active[i%active.length]) {
 					activeGuess[j] = totalGuess[i];
 					activeScale[j] = totalScale[i];
@@ -855,11 +859,13 @@ public class MRSt {
 		}
 		
 		double[] totalParams = totalGuess.clone();
-		double oldPosterior = Double.POSITIVE_INFINITY, newPosterior = func.apply(totalGuess);
+		double oldPosterior = Double.NEGATIVE_INFINITY, newPosterior = func.apply(totalGuess);
 		System.out.println(newPosterior);
-		while (oldPosterior - newPosterior > .1) { // optimize it over and over; you'll get there eventually
-			activeGuess = Optimization.minimizeLBFGSB(
-					(activeParams) -> {
+		MultivariateOptimizer optimizer = new PowellOptimizer(1e-14, 1);
+		while (newPosterior - oldPosterior > threshold) { // optimize it over and over; you'll get there eventually
+			activeGuess = optimizer.optimize(
+					GoalType.MAXIMIZE,
+					new ObjectiveFunction((activeParams) -> { // when you optimize
 						int j = 0;
 						for (int i = 0; i < totalParams.length; i ++) {
 							if (active[i%active.length]) {
@@ -868,14 +874,13 @@ public class MRSt {
 							}
 						}
 						return func.apply(totalParams);
-					},
-					activeGuess,
-					activeLower,
-					activeUpper,
-					0, threshold);
+					}),
+					new InitialGuess(activeGuess),
+					new MultiDirectionalSimplex(activeScale),
+					new MaxIter(10000),
+					new MaxEval(100000)).getPoint();
 			
 			oldPosterior = newPosterior;
-			
 			int j = 0;
 			for (int i = 0; i < totalParams.length; i ++) {
 				if (active[i%active.length]) {
