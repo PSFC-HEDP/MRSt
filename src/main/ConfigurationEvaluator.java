@@ -74,12 +74,12 @@ public class ConfigurationEvaluator extends Application {
 	
 	private static final String[] HEADERS = {
 		"Yield factor", "Temperature factor", "Down-scatter factor", "Velocity shift (μm/ns)",
-		"Computation time (s)", "Bang time (ns)", "Max ρR (ns)",
-		"Max dρR/dt (ns)", "Ti at BT (keV)", "ρR at BT (g/cm^2)",
-		"vi at BT (μm/ns)", "dTi/dt at BT (keV/ns)",
-		"dρR/dt at BT (g/cm^2/ns)", "dvi/dt at BT (μm/ns^2)",
-		"Max ρR (g/cm^2)", "Total yield (10^15)", "Burn mean (ns)",
-		"Burn width (ns)", "Burn skew", "Burn kurtosis"};
+		"Computation time (s)", "Total yield (10^15)", "Bang time (ns)",
+		"Burn width (ns)", "Burn skew", "Burn kurtosis",
+		"Max \u03C1R (ns)", "\u03C1R at max (g/cm^2)",
+		"Burn-average \u03C1R (g/cm^2)", "d\u03C1R/dt at BT (g/cm^2/ns)",
+		"Burn-average Ti (keV)", "dTi/dt at BT (keV/ns)",
+		"Burn-average vi (km/s)", "dvi/dt at BT (km/s/ns)"};
 	private static final String[] HEADERS_WITH_ERRORS = new String[(HEADERS.length-4)*2+4];
 	
 	private Spinner<Double> foilDistance;

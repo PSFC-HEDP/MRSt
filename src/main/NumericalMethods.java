@@ -270,6 +270,21 @@ public class NumericalMethods {
 	}
 	
 	/**
+	 * compute the averaged value
+	 * @param y the values
+	 * @param f the weights
+	 */
+	public static Quantity average(Quantity[] y, Quantity[] f) {
+		Quantity p0 = new Quantity(0, y[0].getN());
+		Quantity p1 = new Quantity(0, y[0].getN());
+		for (int i = 0; i < y.length; i ++) {
+			p0 = p0.plus(f[i]);
+			p1 = p1.plus(f[i].times(y[i]));
+		}
+		return p1.over(p0);
+	}
+	
+	/**
 	 * compute the standard deviation of the histogram
 	 * @param x the bin edges
 	 * @param y the number in each bin
@@ -532,6 +547,27 @@ public class NumericalMethods {
 	}
 	
 	/**
+	 * interpolate the value onto the given array.
+	 * @param x0 the desired coordinate
+	 * @param x the array of coordinates (must be unimodally increasing)
+	 * @param y the array of values
+	 * @return y(x0), more or less
+	 */
+	public static Quantity interp(Quantity x0, double[] x, Quantity[] y) {
+		if (x0.value < x[0] || x0.value > x[x.length-1])
+			throw new IndexOutOfBoundsException("Nope. Not doing extrapolation: "+x0);
+		int l = 0, r = x.length;
+		while (r - l > 1) {
+			int m = (l + r)/2;
+			if (x0.value < x[m])
+				r = m;
+			else
+				l = m;
+		}
+		return y[l].times(x0.minus(x[r]).over(x[l] - x[r])).plus(y[r].times(x0.minus(x[l]).over(x[r] - x[l])));
+	}
+	
+	/**
 	 * find the second order finite difference derivative. for best results, x
 	 * should be evenly spaced.
 	 * @param x the x values
@@ -561,6 +597,20 @@ public class NumericalMethods {
 		for (int i = 0; i < dydx.length; i ++)
 			dydx[i] = y[i+1].minus(y[i]).over(x[i+1] - x[i]);
 		return dydx;
+	}
+	
+	/**
+	 * find the finite difference derivative. for best results, x should be evenly spaced.
+	 * @param x the x values
+	 * @param y the corresponding y values
+	 * @param x the time at which to computer it
+	 * @param Δx the time interval over which to compute it
+	 * @return the slope dy/dx at each point
+	 */
+	public static Quantity derivative(double[] x, Quantity[] y, Quantity x0, double Δx) {
+		if (x.length != y.length)
+			throw new IllegalArgumentException("Array lengths do not correspond.");
+		return interp(x0.plus(Δx/2.), x, y).minus(interp(x0 .minus(Δx/2.), x, y)).over(Δx);
 	}
 	
 	/**

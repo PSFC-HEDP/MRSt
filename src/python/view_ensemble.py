@@ -6,14 +6,13 @@ plt.rcParams.update({'font.family': 'serif', 'font.size': 10})
 X_LABEL = "Yield factor"
 
 Y_LABELS = [
-	("Bang time (ns)", 16.365), ("Max ρR - BT (ps)", -60.745), ("Max dρR/dt - BT (ps)", -127.5),
-	("Ti at BT (keV)", 10.835),
-	# ("ρR at BT (g/cm^2)", 0.6853),
-	("vi at BT (μm/ns)", 1.167),
-	("dTi/dt at BT (keV/ns)", 110.1), ("dρR/dt at BT (g/cm^2/ns)", -1.070),
-	("dvi/dt at BT (μm/ns^2)", -1368), ("Max ρR (g/cm^2)", .7814),
-	("Total yield", 4.8069e17), ("Burn mean (ns)", 16.358),
-	("Burn width (ns)", .06684), ("Burn skew", -1.145), ("Burn kurtosis", 6.507)
+	("Total yield", 4.8069e17),
+	("Burn-average ρR (g/cm^2)", 0), ("Burn-average Ti (keV)", 0),
+	("Bang time (ns)", 16.358), ("Max \u03C1R (ns)", 16.2),
+	("Burn width (ps)", 0),
+	("Burn skew", -1.145), ("Burn kurtosis", 6.507),
+	("dρR/dt at BT (mg/cm^2/(100ps))", -1.070), ("dTi/dt at BT (keV/(100ps))", 0),
+	("Burn-average vi (km/s)", 1.167), ("dvi/dt at BT (km/s/(100ps))", 0)
 ]
 
 COLUMNS = 2
@@ -36,14 +35,12 @@ def text_wrap(s):
 
 
 simulations = pd.read_csv('../../working/ensemble.csv', na_values=["Infinity"])
-simulations["Total yield"] = simulations["Total yield (10^15)"]*1e15
-simulations["Total yield error"] = simulations["Total yield (10^15) error"]*1e15
-for key in simulations:
-	if "(ns)" in key:
-		if "error" in key:
-			simulations[key[:-10]+"- BT (ps) error"] = np.sqrt(simulations[key]**2 + simulations["Bang time (ns) error"]**2)*1e3
-		else:
-			simulations[key[:-4]+"- BT (ps)"] = (simulations[key] - simulations["Bang time (ns)"])*1e3
+for suf in ["", " error"]:
+	simulations["Total yield"+suf] = simulations["Total yield (10^15)"+suf]*1e15
+	simulations["Burn width (ps)"+suf] = simulations["Burn width (ns)"+suf]/1e-3
+	simulations["dρR/dt at BT (mg/cm^2/(100ps))"+suf] = simulations["dρR/dt at BT (g/cm^2/ns)"+suf]/1e-2
+	simulations["dTi/dt at BT (keV/(100ps))"+suf] = simulations["dTi/dt at BT (keV/ns)"+suf]/1e1
+	simulations["dvi/dt at BT (km/s/(100ps))"+suf] = simulations["dvi/dt at BT (km/s/ns)"+suf]/1e1
 
 fig, axs = plt.subplots((len(Y_LABELS) + COLUMNS-1)//COLUMNS, COLUMNS, figsize=SIZE)
 fig.subplots_adjust(**MARGIN)

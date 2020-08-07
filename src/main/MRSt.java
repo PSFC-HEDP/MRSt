@@ -624,49 +624,42 @@ public class MRSt {
 		double[] timeCenters = new double[timeAxis.length-1];
 		for (int i = 0; i < timeCenters.length; i ++)
 			timeCenters[i] = (timeAxis[i] + timeAxis[i+1])/2;
-		Quantity[] dTidt = NumericalMethods.derivative(timeAxis, measurements[1]); // now we can freely analyze the resulting profiles
-		Quantity[] dρRdt = NumericalMethods.derivative(timeAxis, measurements[4]);
-		Quantity[] dvidt = NumericalMethods.derivative(timeAxis, measurements[3]);
 		
 		Quantity iMC = NumericalMethods.quadargmax(left, rite, measurements[4]); // index of max compression
 		Quantity maxCompress = NumericalMethods.interp(timeAxis, iMC); // time of max compression
-		Quantity maxPRRamp = NumericalMethods.quadargmax(left, rite-1, timeCenters, dρRdt); // time of max rhoR ramp
 		Quantity[] moments = new Quantity[5];
 		for (int k = 0; k < moments.length; k ++)
 			moments[k] = NumericalMethods.moment(k, timeBins, measurements[0]);
 		
 		Quantity[] res = {
 				new Quantity((endTime - startTime)/1000., covarianceMatrix.length),
-				bangTime, maxCompress, maxPRRamp,
-				NumericalMethods.interp(measurements[1], iBT),
-				NumericalMethods.interp(measurements[4], iBT),
-				NumericalMethods.interp(measurements[3], iBT),
-				NumericalMethods.interp(dTidt, iBT.minus(0.5)),
-				NumericalMethods.interp(dρRdt, iBT.minus(0.5)),
-				NumericalMethods.interp(dvidt, iBT.minus(0.5)),
-				NumericalMethods.interp(measurements[4], iMC),
-				moments[0].times(timeStep), moments[1],
+				moments[0].times(timeStep), bangTime,
 				moments[2].sqrt().times(2.355), moments[3], moments[4],
+				maxCompress,
+				NumericalMethods.interp(measurements[4], iMC),
+				NumericalMethods.average(measurements[4], measurements[0]),
+				NumericalMethods.derivative(timeAxis, measurements[4], bangTime, .1),
+				NumericalMethods.average(measurements[1], measurements[0]),
+				NumericalMethods.derivative(timeAxis, measurements[1], bangTime, .1),
+				NumericalMethods.average(measurements[3], measurements[0]),
+				NumericalMethods.derivative(timeAxis, measurements[3], bangTime, .1),
 		}; // collect the figures of merit
 		
 		if (logger != null) {
-			logger.info(String.format("Bang time:         %s ns", res[1].toString(covarianceMatrix)));
-			logger.info(String.format("Peak compression:  %s ns", res[2].toString(covarianceMatrix)));
-			logger.info(String.format("            = BT + %s ps", res[2].minus(res[1]).over(1e-3).toString(covarianceMatrix)));
-			logger.info(String.format("Max ρR ramp:       %s ps", res[3].toString(covarianceMatrix)));
-			logger.info(String.format("            = BT + %s ps", res[3].minus(res[1]).over(1e-3).toString(covarianceMatrix)));
-			logger.info(String.format("Ti at BT:          %s keV", res[4].toString(covarianceMatrix)));
-			logger.info(String.format("\u03C1R at BT:          %s μm/ns", res[5].toString(covarianceMatrix)));
-			logger.info(String.format("vi at BT:          %s μm/ns", res[6].toString(covarianceMatrix)));
-			logger.info(String.format("dTi/dt at BT:      %s keV/ns", res[7].toString(covarianceMatrix)));
-			logger.info(String.format("dρR/dt at BT:      %s g/cm^2/ns", res[8].toString(covarianceMatrix)));
-			logger.info(String.format("dvi/dt at BT:      %s μm/ns^2", res[9].toString(covarianceMatrix)));
-			logger.info(String.format("Peak ρR:           %s g/cm^2", res[10].toString(covarianceMatrix)));
-			logger.info(String.format("Total yield (μ0):  %s", res[11].times(1e15).toString(covarianceMatrix)));
-			logger.info(String.format("Burn mean (μ1):    %s ns", res[12].toString(covarianceMatrix)));
-			logger.info(String.format("Burn width (μ2):   %s ps", res[13].over(1e-3).toString(covarianceMatrix)));
-			logger.info(String.format("Burn skewness (μ3):%s", res[14].toString(covarianceMatrix)));
-			logger.info(String.format("Burn kurtosis (μ4):%s", res[15].toString(covarianceMatrix)));
+			logger.info(String.format("Total yield (μ0):  %s", res[1].times(1e15).toString(covarianceMatrix)));
+			logger.info(String.format("Bang time:         %s ns", res[2].toString(covarianceMatrix)));
+			logger.info(String.format("Burn width (μ2):   %s ps", res[3].over(1e-3).toString(covarianceMatrix)));
+			logger.info(String.format("Burn skewness (μ3):%s", res[4].toString(covarianceMatrix)));
+			logger.info(String.format("Burn kurtosis (μ4):%s", res[5].toString(covarianceMatrix)));
+			logger.info(String.format("Peak compression:  %s ns", res[6].toString(covarianceMatrix)));
+			logger.info(String.format("            = BT + %s ps", res[6].minus(res[2]).over(1e-3).toString(covarianceMatrix)));
+			logger.info(String.format("\u03C1R at peak:        %s g/cm^2", res[7].toString(covarianceMatrix)));
+			logger.info(String.format("Burn-averaged \u03C1R:  %s g/cm^2", res[8].toString(covarianceMatrix)));
+			logger.info(String.format("d\u03C1R/dt at BT:      %s mg/cm^2/(100 ps)", res[9].over(1e-2).toString(covarianceMatrix)));
+			logger.info(String.format("Burn-averaged Ti:  %s keV", res[10].toString(covarianceMatrix)));
+			logger.info(String.format("dTi/dt at BT:      %s keV/(100 ps)", res[11].over(1e1).toString(covarianceMatrix)));
+			logger.info(String.format("Burn-averaged vi:  %s km/s", res[12].toString(covarianceMatrix)));
+			logger.info(String.format("dvi/dt at BT:      %s μm/ns/(100 ps)", res[13].over(1e1).toString(covarianceMatrix)));
 		}
 		return res;
 	}
