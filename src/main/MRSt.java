@@ -447,8 +447,10 @@ public class MRSt {
 								Math.log(teoSpectrum[i][j]/spectrumScale); // encourage entropy
 				}
 				
+				penalty += params[1][j]/5 - Math.log(params[1][j]); // use gamma prior on temperatures	
+				penalty += params[2][j]/5 - Math.log(params[2][j]);
 				penalty += Math.pow(params[3][j]/50, 2)/2; // gaussian prior on velocity
-				penalty += params[4][j]/1.; // exponential prior on areal density
+				penalty += params[4][j]/1; // exponential prior on areal density
 				penalty += Math.pow(params[5][j]/.5, 2)/2; // and gaussian prior on asymmetry
 			}
 			
