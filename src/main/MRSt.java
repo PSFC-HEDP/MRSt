@@ -52,16 +52,16 @@ public class MRSt {
 	private static final int x = 0, y = 1, z = 2;
 	
 	private static final double SPEED_OF_LIGHT = 2.99792458e8;
-	private static final double[][] SIGMA_COEFFICIENTS = {	
-			{}, {},	
-			{51.6e-31, 52.5e-31, 59.5e-31, -17.4e-31, 20.8e-31, -14.8e-31, 7.73e-31, -4.92e-31, 3.11e-31},	
-			{79.2e-31, 116e-31, 118e-31, 14.8e-31, 14.8e-31},	
-	}; // m^2/sr
 	private static final DiscreteFunction ALPHA_KNOCKON_SPECTRUM = new DiscreteFunction(
 			new double[] {10.23, 10.5, 11.0, 11.25, 11.5, 12.0, 12.5, 13.0, 13.5, 14.0, 14.5,
 					15.0, 15.5, 16.0, 16.5, 17.0, 17.5, 18.0, 18.5, 19.0, 19.5, 19.85},
 			new double[] {1.62E-06, 4.87E-06, 3.71E-05, 8.85E-05, 0.00024044, 0.0019635, 0.016034, 0.097, 0.17674, 0.21588, 0.21588,
 					0.17674, 0.071859, 0.019584, 0.0056109, 0.00169, 0.00046811, 0.00014583, 4.26E-05, 1.28E-05, 3.68E-06, 1.62E-06}); // [1/MeV]
+	private static final DiscreteFunction DOWN_SCATTER_SPECTRUM = new DiscreteFunction(	
+			new double[] {11.50, 11.75, 12.00, 12.25, 12.50, 12.75, 13.00, 13.25,	
+					13.50, 13.75, 14.00, 14.25, 14.50},	
+			new double[] {0.026877796, 0.029223872, 0.030997082, 0.033544329, 0.035526223, 0.038301112, 0.040480957, 0.043125867,	
+					0.045434499, 0.048972573, 0.05105225, 0, 0}, 12); // [1/MeV/(g/cm^2)]
 	
 	private static final int STOPPING_DISTANCE_RESOLUTION = 64;
 	private static final double MIN_E = 12, MAX_E = 16; // histogram bounds [MeV]
@@ -957,6 +957,60 @@ public class MRSt {
 		return NumericalMethods.stds(this.measurements[5], this.covarianceMatrix);
 	}
 	
+		/**	
+	 * generate a time-averaged spectrum based on some parameters that are taken to be constant.	
+	 * @param Yn the total neutron yield [10^15]	
+	 * @param Ti the ion temperature [keV]	
+	 * @param Te the electron temperature [keV]	
+	 * @param vi the bulk flow rate parallel to the line of sight [μm/ns]	
+	 * @param ρR the areal density of fuel and shell surrounding the hot spot [g/cm^2]	
+	 * @param a2 the relative magnitude of the P2 mode	
+	 * @param eBins the edges of the energy bins [MeV]	
+	 * @param downScatterCalibration a function to maintain the down scatter ratio	
+	 * @return the theoretical number of particles in each energy bin, ignoring stochastity.	
+	 */	
+	public static double[] generateSpectrum(	
+			double Yn, double Ti, double Te, double vi, double ρR, double a2,	
+			double[] eBins) {	
+		return generateSpectrum(Yn, Ti, Te, vi, ρR, a2, eBins, false, null);	
+	}	
+	
+	/**	
+	 * generate a time-averaged spectrum based on some parameters that are taken to be constant.	
+	 * @param Yn the total neutron yield [10^15]	
+	 * @param Ti the ion temperature [keV]	
+	 * @param Te the electron temperature [keV]	
+	 * @param vi the bulk flow rate parallel to the line of sight [μm/ns]	
+	 * @param ρR the areal density of fuel and shell surrounding the hot spot [g/cm^2]	
+	 * @param a2 the relative magnitude of the P2 mode	
+	 * @param eBins the edges of the energy bins [MeV]	
+	 * @param downScatterCalibration a function to maintain the down scatter ratio	
+	 * @return the theoretical number of particles in each energy bin, ignoring stochastity.	
+	 */	
+	public static double[] generateSpectrum(	
+			double Yn, double Ti, double Te, double vi, double ρR, double a2,	
+			double[] eBins, DiscreteFunction downScatterCalibration) {	
+		return generateSpectrum(Yn, Ti, Te, vi, ρR, a2, eBins, false, downScatterCalibration);	
+	}	
+	
+	/**	
+	 * generate a time-averaged spectrum based on some parameters that are taken to be constant.	
+	 * @param Yn the total neutron yield [10^15]	
+	 * @param Ti the ion temperature [keV]	
+	 * @param Te the electron temperature [keV]	
+	 * @param vi the bulk flow rate parallel to the line of sight [μm/ns]	
+	 * @param ρR the areal density of fuel and shell surrounding the hot spot [g/cm^2]	
+	 * @param a2 the relative magnitude of the P2 mode	
+	 * @param eBins the edges of the energy bins [MeV]	
+	 * @param downScatterCalibration a function to maintain the down scatter ratio	
+	 * @return the theoretical number of particles in each energy bin, ignoring stochastity.	
+	 */	
+	public static double[] generateSpectrum(	
+			double Yn, double Ti, double Te, double vi, double ρR, double a2,	
+			double[] eBins, boolean onlyDS) {	
+		return generateSpectrum(Yn, Ti, Te, vi, ρR, a2, eBins, onlyDS, null);	
+	}
+	
 	
 	/**
 	 * generate a time-resolved spectrum based on some parameters that vary with time.
@@ -999,68 +1053,36 @@ public class MRSt {
 	 * @return the theoretical number of particles in each energy bin, ignoring stochastity.
 	 */
 	public static double[] generateSpectrum(
-			double Yn, double Ti, double Te, double vi, double ρR, double a2, double[] eBins) {
-		double nR = ρR/8.35276208e-28; // areal DT number density [m^-2]
+			double Yn, double Ti, double Te, double vi, double ρR, double a2,
+			double[] eBins, boolean onlyDS, DiscreteFunction downScatterCalibration) {
 		double ΔEth = 5.30509e-3/(1 + 2.4736e-3*Math.pow(Ti, 1.84))*Math.pow(Ti, 2/3.) + 1.3818e-3*Ti;
-		double δω =  5.1068e-4/(1 + 7.6223e-3*Math.pow(Ti, 1.78))*Math.pow(Ti, 2/3.) + 8.7691e-5*Ti;
-		double avgE = Math.max(0, 14.029 + ΔEth + .54e-3*vi); // primary peak (see paper) [MeV]
-		double σth = 177.259e-3/2.35482005*(1 + δω)*Math.sqrt(Ti); // primary width (see paper) [MeV]
-		double μ = avgE*Math.sqrt(Math.max(0, 1 - 3/2.*Math.pow(σth/avgE, 2)));
-		double σ2 = 4/3.*μ*(avgE - μ);
-		double USR = 8.6670e-5*Math.pow(Te, 2.5149); // probability of a neutron being scattered up by an alpha
-		double[] Isrc = new double[eBins.length]; // probability distribution at edges [MeV^-1]
+		double μ = Math.max(0, 14.029 + ΔEth + .54e-3*vi); // primary peak (see paper) [MeV]
+		double σ2 = .4034*μ*Ti/1e3; // primary width [MeV^2]
+		double upscat = 1 - Math.exp(-8.6670e-5*Math.pow(Te, 2.5149)); // probability of a neutron being scattered up by an alpha
+		double downscat = 1 - Math.exp(-.255184*ρR); // probability of a neutron being scattered down by DT
+		double total = Yn/(1 - upscat)/(1 - downscat); // total yield
+		if (downScatterCalibration != null)
+			ρR /= downScatterCalibration.evaluate(a2);
+		
+		double[] I = new double[eBins.length]; // probability distribution at edges [MeV^-1]
 		for (int i = 0; i < eBins.length; i ++) {
+			double cosθ = (1 - Math.min(eBins[i]/14., 1)) * 9/8.*2 - 1;	
 			if (Ti > 0 && σ2 > 0) {
-				Isrc[i] += Yn*1e15/Math.sqrt(2*Math.PI*σ2)*
-					Math.exp(-2*μ/σ2*Math.pow(Math.sqrt(eBins[i]) - Math.sqrt(μ), 2));
-				Isrc[i] += USR*Yn*1e15*ALPHA_KNOCKON_SPECTRUM.evaluate(eBins[i]);
+				if (!onlyDS) {
+					I[i] += Yn*1e15/Math.sqrt(2*Math.PI*σ2)*
+						Math.exp(-Math.pow((eBins[i] - μ), 2)/(2*σ2));
+					I[i] += upscat*total*1e15*ALPHA_KNOCKON_SPECTRUM.evaluate(eBins[i]);
+				}
+				I[i] += ρR*total*1e15*DOWN_SCATTER_SPECTRUM.evaluate(eBins[i])
+						*(1 + a2*NumericalMethods.legendre(2, cosθ));
 			}
 			else
-				Isrc[i] = 0;
+				I[i] = 0;
 		}
-		double[] Iprim = Isrc.clone();
-		double[] Iscat = new double[eBins.length]; // now do the downscatter spectrum
-		final double mn = 939.56563; // [MeV/c^2]
-		for (int A = 2; A <= 3; A ++) { // for both deuterium and tritium
-			final double mS = (A == 2) ? 1875.61296 : 2808.92116; // [MeV/c^2]
-//			final double mR = mS; // because we are not accounting for any inelastic scattering
-			final double α = 4*mn*mS/Math.pow(mn + mS, 2);
-			for (int i = 0; i < eBins.length; i ++) {
-				Iscat[i] = 0;
-				double[] cosθ = new double[eBins.length]; // create an array of angles corresponding to energies
-				for (int j = i; j < eBins.length; j ++) {
-//					double EfLab = eBins[i], EiLab = eBins[j];
-//					double EtCM = Math.sqrt(mn*mn + mS*mS + 2*(EiLab + mn)*mS);
-//					double EfCM = (EtCM*EtCM + mn*mn + mR*mR)/(2*EtCM);
-//					double pfCM = Math.sqrt(EfCM*EfCM - mn*mn);
-//					double piLab = Math.sqrt(EiLab*(EiLab + 2*mn));
-//					double EtLab = EiLab + mn + mS;
-//					cosθ[j] = ((EfLab + mn)*EtCM - EfCM*EtLab)/(piLab*pfCM);
-					cosθ[j] = 1 - (1 - eBins[i]/eBins[j])/(α/2); // XXX these equations from Hatarik et al. are just wrong 
-				}
-				for (int j = i; j < eBins.length-1; j ++) { // at each of those energies
-					double dσdΩ = 0;
-					for (int l = 0; l < SIGMA_COEFFICIENTS[A].length; l ++)
-						dσdΩ += SIGMA_COEFFICIENTS[A][l]*NumericalMethods.legendre(l, cosθ[j]); // estimate the cross section
-					double dcosθ = (j == i) ? (cosθ[j+1] - cosθ[j])/2 : (cosθ[j+1] - cosθ[j-1])/2;
-					double ψ = 1 + a2*(1.5*Math.pow(cosθ[j], 2) - .5);
-					double dΩ = -2*Math.PI*dcosθ;
-					Iprim[j] -= Isrc[j]*nR*ψ*dσdΩ*dΩ;
-					Iscat[i] += Isrc[j]*nR*ψ*dσdΩ*dΩ;
-				}
-			}
-		}
-		
-		for (int i = 0; i < eBins.length; i ++) // at some energies, the cross sections can get big enough that the whole spectrum is scattered
-			Iprim[i] = Math.max(0, Iprim[i]); // to deal with that, just truncate at 0
-		
-		double[] Itot = new double[eBins.length];
-		for (int i = 0; i < eBins.length; i ++)
-			Itot[i] = Iprim[i] + Iscat[i];
 		
 		double[] counts = new double[eBins.length-1];
 		for (int i = 0; i < counts.length; i ++)
-			counts[i] = (Itot[i] + Itot[i+1])/2.*(eBins[i+1] - eBins[i]);
+			counts[i] = (I[i] + I[i+1])/2.*(eBins[i+1] - eBins[i]);
 		return counts;
 	}
 	
