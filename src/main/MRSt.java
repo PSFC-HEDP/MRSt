@@ -843,7 +843,7 @@ public class MRSt {
 			throw new IllegalArgumentException("Scale and guess must have the same length");
 		
 		final boolean[] active = new boolean[totalScale.length];
-		for (int i = 0; i < active.length; i ++) {
+		for (int i = 0; i < active.length; i ++) { // expand the selected dimensions into a full array
 			if (i < 6*left || i >= 6*rite)
 				active[i] = false;
 			else if (activeDimensions.length == 0)
@@ -852,13 +852,13 @@ public class MRSt {
 				active[i] = activeDimensions[i%activeDimensions.length];
 		}
 		
-		int numTotal = active.length;
+		int numTotal = active.length; // count them
 		int numActive = 0;
 		for (boolean activeDimension: active)
 			if (activeDimension)
 				numActive ++;
 		
-		double[] activeGuess = new double[totalGuess.length/numTotal*numActive];
+		double[] activeGuess = new double[totalGuess.length/numTotal*numActive]; // so that you can make these arrays
 		double[] activeScale = new double[totalScale.length/numTotal*numActive];
 		double[] activeLower = new double[totalScale.length/numTotal*numActive];
 		double[] activeUpper = new double[totalScale.length/numTotal*numActive];
@@ -880,20 +880,26 @@ public class MRSt {
 		}
 		
 		double[] totalParams = totalGuess.clone();
-		double oldPosterior = Double.POSITIVE_INFINITY, newPosterior = func.apply(totalGuess);
+		System.out.println(func.apply(totalGuess));
+		activeGuess = Optimization.minimizeLBFGSB(
+				(activeParams) -> { // when you optimize
+					updateArray(totalParams, activeParams, active); // only optimize a subset of the dimensions
+					return func.apply(totalParams);
+				},
+				activeGuess,
+				activeLower,
+				activeUpper,
+				0, 1e-4);
+		updateArray(totalParams, activeGuess, active);
+		
+		double oldPosterior = Double.POSITIVE_INFINITY, newPosterior = func.apply(totalParams);
 		System.out.println(newPosterior);
 		MultivariateOptimizer optimizer = new PowellOptimizer(1e-14, 1);
 		while (oldPosterior - newPosterior > threshold) { // optimize it over and over; you'll get there eventually
 			activeGuess = optimizer.optimize(
 					GoalType.MINIMIZE,
 					new ObjectiveFunction((activeParams) -> { // when you optimize
-						int j = 0;
-						for (int i = 0; i < totalParams.length; i ++) {
-							if (active[i%active.length]) {
-								totalParams[i] = activeParams[j]; // you're only changing a subset of the parameters
-								j ++;
-							}
-						}
+						updateArray(totalParams, activeParams, active);
 						return func.apply(totalParams);
 					}),
 					new InitialGuess(activeGuess),
@@ -902,17 +908,21 @@ public class MRSt {
 					new MaxEval(100000)).getPoint();
 			
 			oldPosterior = newPosterior;
-			int j = 0;
-			for (int i = 0; i < totalParams.length; i ++) {
-				if (active[i%active.length]) {
-					totalParams[i] = activeGuess[j]; // you're only changing a subset of the parameters
-					j ++;
-				}
-			}
+			updateArray(totalParams, activeGuess, active);
 			newPosterior = func.apply(totalParams);
 			System.out.println(newPosterior);
 		}
 		return totalParams;
+	}
+	
+	private void updateArray(double[] totalVals, double[] activeVals, boolean[] active) {
+		int j = 0;
+		for (int i = 0; i < totalVals.length; i ++) {
+			if (active[i%active.length]) {
+				totalVals[i] = activeVals[j]; // you're only changing a subset of the parameters
+				j ++;
+			}
+		}
 	}
 	
 	public double[] getTimeBins() {
