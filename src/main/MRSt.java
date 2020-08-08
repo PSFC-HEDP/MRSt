@@ -23,21 +23,11 @@
  */
 package main;
 
-import java.util.Arrays;
 import java.util.Locale;
 import java.util.Random;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import org.apache.commons.math3.optim.InitialGuess;
-import org.apache.commons.math3.optim.MaxEval;
-import org.apache.commons.math3.optim.MaxIter;
-import org.apache.commons.math3.optim.nonlinear.scalar.GoalType;
-import org.apache.commons.math3.optim.nonlinear.scalar.MultivariateOptimizer;
-import org.apache.commons.math3.optim.nonlinear.scalar.ObjectiveFunction;
-import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.MultiDirectionalSimplex;
-import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.PowellOptimizer;
 
 import main.NumericalMethods.DiscreteFunction;
 import main.NumericalMethods.Quantity;
@@ -349,7 +339,8 @@ public class MRSt {
 		if (logger != null)  logger.info("beginning fit process.");
 		long startTime = System.currentTimeMillis();
 		
-		double gelf[][] = Optimization.optimizeGelfgat(F, D, this.transferMatrix, 1e-3);
+		double gelf[][] = Optimization.optimizeGelfgat(F, D, this.transferMatrix,
+				Math.max(1e-5, 1e3/NumericalMethods.sum(spectrum)));
 		
 		double[] opt = new double[6*timeAxis.length]; // initial guess for the coming Powell fit
 		double[] yieldGuess = new double[timeAxis.length];
@@ -360,15 +351,18 @@ public class MRSt {
 				exp[i] = gelf[i][j]/Δt;
 			
 			double[] fit = Optimization.minimizeNelderMead((x) -> {
-				if (x[0] < 0 || x[1] <= 1 || x[2] < 0 || Math.abs(x[3]) > 200 || x[4] < 0)
-					return Double.POSITIVE_INFINITY;
+				if (x[0] < 0)  return Double.POSITIVE_INFINITY;
+				if (x[1] < .5 || x[1] > 18) return Double.POSITIVE_INFINITY;
+				if (x[2] < .5 || x[2] > 18)  return Double.POSITIVE_INFINITY;
+				if (Math.abs(x[3]) > 200)    return Double.POSITIVE_INFINITY;
+				if (x[4] < 0 || x[4] > 3)    return Double.POSITIVE_INFINITY;
 				double[] teo = generateSpectrum(x[0], x[1], x[2], x[3], x[4], 0, energyBins);
 				double error = 0;
 				for (int i = 3; i < energyBins.length-1; i ++)
-					error += Math.pow(teo[i] - exp[i], 2);
+					error += Math.pow(teo[i] - exp[i], 2)/teo[i] + Math.log(teo[i]);
 				if (!Double.isFinite(error)) System.out.println(error);
 				return error;
-			}, new double[] {Math.max(1/efficiency[2][j], NumericalMethods.sum(exp)/1e15), 4, 0, 50, 1}, 1e-8);
+			}, new double[] {Math.max(1e-15, NumericalMethods.sum(exp)/1e15), 4, 4, 50, 1}, 1e-8);
 			
 			System.arraycopy(fit, 0, opt, 6*j, 5);
 			yieldGuess[j] = fit[0];
@@ -500,13 +494,13 @@ public class MRSt {
 		};
 
 		logger.log(Level.INFO, "...");
-		opt = optimize(logPosterior, opt, dimensionScale, 1e-4, 0, timeAxis.length, true, true, false, false, false, false);
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 1e-4, 0, timeAxis.length, true, true, false, false, false, false);
 		logger.log(Level.INFO, "...");
-		opt = optimize(logPosterior, opt, dimensionScale, 1e-4, 0, timeAxis.length, false, false, true, false, false, false);
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 1e-4, 0, timeAxis.length, false, false, true, false, false, false);
 		logger.log(Level.INFO, "...");
-		opt = optimize(logPosterior, opt, dimensionScale, 1e-4, 0, timeAxis.length, false, false, false, false, true, true);
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 1e-4, 0, timeAxis.length, false, false, false, false, true, true);
 		logger.log(Level.INFO, "...");
-		opt = optimize(logPosterior, opt, dimensionScale, 1e-4, 0, timeAxis.length, true, true, true, true, true, true);
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 1e-4, 0, timeAxis.length, true, true, true, true, true, true);
 		
 		this.measurements = new Quantity[6][timeAxis.length]; // unpack the optimized vector
 		for (int k = 0; k < measurements.length; k ++) {
@@ -818,17 +812,20 @@ public class MRSt {
 	 * @return
 	 */
 	private double[] optimize(Function<double[], Double> func, double[] totalGuess,
-			double[] totalScale, double threshold, int left, int rite,
+			double[] totalScale, double[] totalLower, double[] totalUpper, double threshold, int left, int rite,
 			boolean... activeDimensions) {
 		if (totalGuess.length != totalScale.length)
 			throw new IllegalArgumentException("Scale and guess must have the same length");
 		
-		final boolean[] active;
-		if (activeDimensions.length == 0)
-			active = new boolean[] {true};
-		else
-			active = activeDimensions;
-		System.out.println(Arrays.toString(active));
+		final boolean[] active = new boolean[totalScale.length];
+		for (int i = 0; i < active.length; i ++) {
+			if (i < 6*left || i >= 6*rite)
+				active[i] = false;
+			else if (activeDimensions.length == 0)
+				active[i] = true;
+			else
+				active[i] = activeDimensions[i%activeDimensions.length];
+		}
 		
 		int numTotal = active.length;
 		int numActive = 0;
@@ -838,50 +835,52 @@ public class MRSt {
 		
 		double[] activeGuess = new double[totalGuess.length/numTotal*numActive];
 		double[] activeScale = new double[totalScale.length/numTotal*numActive];
+		double[] activeLower = new double[totalScale.length/numTotal*numActive];
+		double[] activeUpper = new double[totalScale.length/numTotal*numActive];
 		{ // this extra scope is here so I can redeclare j later
 			int j = 0;
 			for (int i = 0; i < totalGuess.length; i ++) {
+				if (totalGuess[i] < totalLower[i])
+					throw new IllegalArgumentException("initial guess below bound at index "+i);
+				if (totalGuess[i] > totalUpper[i])
+					throw new IllegalArgumentException("initial guess above bound at index "+i);
 				if (active[i%active.length]) {
 					activeGuess[j] = totalGuess[i];
 					activeScale[j] = totalScale[i];
+					activeLower[j] = totalLower[i];
+					activeUpper[j] = totalUpper[i];
 					j ++;
 				}
 			}
 		}
 		
 		double[] totalParams = totalGuess.clone();
-		double oldPosterior = Double.POSITIVE_INFINITY, newPosterior = func.apply(totalGuess);
-		System.out.println(newPosterior);
-		MultivariateOptimizer optimizer = new PowellOptimizer(1e-14, 1);
-		while (oldPosterior - newPosterior > threshold) { // optimize it over and over; you'll get there eventually
-			activeGuess = optimizer.optimize(
-					GoalType.MINIMIZE,
-					new ObjectiveFunction((activeParams) -> { // when you optimize
-						int j = 0;
-						for (int i = 0; i < totalParams.length; i ++) {
-							if (active[i%active.length]) {
-								totalParams[i] = activeParams[j]; // you're only changing a subset of the parameters
-								j ++;
-							}
+		double posterior = func.apply(totalGuess);
+		activeGuess = Optimization.minimizeLBFGSB(
+				(activeParams) -> {
+					int j = 0;
+					for (int i = 0; i < totalParams.length; i ++) {
+						if (active[i%active.length]) {
+							totalParams[i] = activeParams[j]; // you're only changing a subset of the parameters
+							j ++;
 						}
-						return func.apply(totalParams);
-					}),
-					new InitialGuess(activeGuess),
-					new MultiDirectionalSimplex(activeScale),
-					new MaxIter(10000),
-					new MaxEval(100000)).getPoint();
-			
-			oldPosterior = newPosterior;
-			int j = 0;
-			for (int i = 0; i < totalParams.length; i ++) {
-				if (active[i%active.length]) {
-					totalParams[i] = activeGuess[j]; // you're only changing a subset of the parameters
-					j ++;
-				}
+					}
+					return func.apply(totalParams);
+				},
+				activeGuess,
+				activeLower,
+				activeUpper,
+				0, threshold);
+		
+		int j = 0;
+		for (int i = 0; i < totalParams.length; i ++) {
+			if (active[i%active.length]) {
+				totalParams[i] = activeGuess[j]; // you're only changing a subset of the parameters
+				j ++;
 			}
-			newPosterior = func.apply(totalParams);
-			System.out.println(newPosterior);
 		}
+		posterior = func.apply(totalParams);
+		System.out.println(posterior);
 		return totalParams;
 	}
 	
