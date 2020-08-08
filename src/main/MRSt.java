@@ -59,7 +59,7 @@ public class MRSt {
 	private static final double E_RESOLUTION = .09, T_RESOLUTION = 20e-3; // resolutions [MeV], [ns]
 //	private static final double E_RESOLUTION = .3, T_RESOLUTION = 40e-3;
 	private static final int TRANSFER_MATRIX_TRIES = 10000; // the number of points to sample in each column of the transfer matrix
-	private static final Random RANDOM = new Random(0);
+	private static final Random RANDOM = new Random(2);
 	
 	private final double foilDistance; // z coordinate of midplane of foil [m]
 	private final double foilThickness; // thickness of foil [m]
@@ -79,6 +79,7 @@ public class MRSt {
 	private final DiscreteFunction distanceVsEnergy; // stopping distance info
 	private final DiscreteFunction energyVsDistance; // inverse stopping distance info
 	private final DiscreteFunction energyVsPosition; // map between location on detector and energy going into lens
+	private final DiscreteFunction downScatterCalibration; // map between P2 asymmetry and resulting uncalibrated down scatter
 	
 	private final double[] energyBins; // endpoints of E bins for inferred spectrum [MeV]
 	private final double[] timeBins; // endpoints of time bins for inferred spectrum [ns]
@@ -157,6 +158,20 @@ public class MRSt {
 		this.timeAxis = new double[timeBins.length-1];
 		for (int i = 0; i < timeBins.length-1; i ++)
 			this.timeAxis[i] = (this.timeBins[i] + this.timeBins[i+1])/2;
+		
+		double[] a = new double[37];
+		double[] f = new double[37];
+		for (int i = 0; i < a.length; i ++) {
+			a[i] = i/18. - 1;
+			double[] dsr = generateSpectrum(1, 4, 4, 0, 1, a[i], energyBins, true);
+			for (int j = 0; j < dsr.length; j ++)
+				if (energyBins[j] < 13)
+					f[i] += dsr[j];
+		}
+		double ref = f[f.length/2];
+		for (int i = 0; i < a.length; i ++)
+			f[i] /= ref;
+		this.downScatterCalibration = new DiscreteFunction(a, f);
 		
 		double[] calibEnergies = new double[2*energyBins.length];
 		double[] detectorPosition = new double[calibEnergies.length];
@@ -356,7 +371,8 @@ public class MRSt {
 				if (x[2] < .5 || x[2] > 18)  return Double.POSITIVE_INFINITY;
 				if (Math.abs(x[3]) > 200)    return Double.POSITIVE_INFINITY;
 				if (x[4] < 0 || x[4] > 3)    return Double.POSITIVE_INFINITY;
-				double[] teo = generateSpectrum(x[0], x[1], x[2], x[3], x[4], 0, energyBins);
+				double[] teo = generateSpectrum(x[0], x[1], x[2], x[3], x[4], 0,
+						energyBins, downScatterCalibration);
 				double error = 0;
 				for (int i = 3; i < energyBins.length-1; i ++)
 					error += Math.pow(teo[i] - exp[i], 2)/teo[i] + Math.log(teo[i]);
@@ -392,15 +408,15 @@ public class MRSt {
 			rite ++;
 		
 		double spectrumScale = NumericalMethods.sum(gelf)/(timeBins.length-1)/(energyBins.length-1); // the characteristic magnitude of the neutron spectrum bins
-		double s0 = 0, s1 = 0, s2 = 0;
-		for (int i = 3; i < energyBins.length-1; i ++) {
-			for (int j = 0; j < timeBins.length-1; j ++) {
-				s0 += gelf[i][j];
-				s1 += gelf[i][j]*timeAxis[j];
-				s2 += gelf[i][j]*timeAxis[j]*timeAxis[j];
-			}
-		}
-		double expectedStd = Math.sqrt(s2/s0 - s1*s1/s0/s0); // the expected standard deviation of the burn in time
+//		double s0 = 0, s1 = 0, s2 = 0;
+//		for (int i = 3; i < energyBins.length-1; i ++) {
+//			for (int j = 0; j < timeBins.length-1; j ++) {
+//				s0 += gelf[i][j];
+//				s1 += gelf[i][j]*timeAxis[j];
+//				s2 += gelf[i][j]*timeAxis[j]*timeAxis[j];
+//			}
+//		}
+//		double expectedStd = Math.sqrt(s2/s0 - s1*s1/s0/s0); // the expected standard deviation of the burn in time
 		
 		Function<double[], Double> logPosterior = (double[] x) -> {
 			double[][] params = new double[6][timeAxis.length];
@@ -415,7 +431,7 @@ public class MRSt {
 			
 			double[][] teoSpectrum = generateSpectrum(
 					params[0], params[1], params[2], params[3], params[4], params[5],
-					energyBins, timeBins); // generate the neutron spectrum based on those
+					energyBins, timeBins, downScatterCalibration); // generate the neutron spectrum based on those
 			double[][] fitSpectrum = this.response(
 					energyBins, timeBins, teoSpectrum, false); // blur it according to the transfer matrix
 			
@@ -441,11 +457,11 @@ public class MRSt {
 								Math.log(teoSpectrum[i][j]/spectrumScale); // encourage entropy
 				}
 				
-				penalty += params[1][j]/5 - Math.log(params[1][j]); // use gamma prior on temperatures	
-				penalty += params[2][j]/5 - Math.log(params[2][j]);
+//				penalty += params[1][j]/5 - Math.log(params[1][j]); // use gamma prior on temperatures	
+//				penalty += params[2][j]/5 - Math.log(params[2][j]);
 				penalty += Math.pow(params[3][j]/50, 2)/2; // gaussian prior on velocity
 				penalty += params[4][j]/1; // exponential prior on areal density
-				penalty += Math.pow(params[5][j]/.5, 2)/2; // and gaussian prior on asymmetry
+				penalty += -100*(Math.log(1 - params[5][j]) + Math.log(1 + params[5][j])); // and beta prior on asymmetry
 			}
 			
 //			for (int j = 1; j < timeAxis.length; j ++) {
@@ -459,17 +475,17 @@ public class MRSt {
 //				}
 //			}
 			
-			double burn0 = 0, burn1 = 0;
-			for (int j = 0; j < timeAxis.length; j ++) {
-				burn0 += params[0][j];
-				burn1 += params[0][j]*timeAxis[j];
-			}
-			double burn2 = 0, burn4 = 0;
-			for (int j = 0; j < timeAxis.length; j ++) {
-				burn2 = params[0][j]*Math.pow((timeAxis[j] - burn1/burn0)/(2*expectedStd), 2);
-				burn4 = params[0][j]*Math.pow((timeAxis[j] - burn1/burn0)/(2*expectedStd), 4);
-				penalty += 1e4/burn0*Math.max(burn4/burn0 - burn2/burn0, 0);
-			}
+//			double burn0 = 0, burn1 = 0;
+//			for (int j = 0; j < timeAxis.length; j ++) {
+//				burn0 += params[0][j];
+//				burn1 += params[0][j]*timeAxis[j];
+//			}
+//			double burn2 = 0, burn4 = 0;
+//			for (int j = 0; j < timeAxis.length; j ++) {
+//				burn2 = params[0][j]*Math.pow((timeAxis[j] - burn1/burn0)/(2*expectedStd), 2);
+//				burn4 = params[0][j]*Math.pow((timeAxis[j] - burn1/burn0)/(2*expectedStd), 4);
+//				penalty += 1e4/burn0*Math.max(burn4/burn0 - burn2/burn0, 0);
+//			}
 			
 			for (int j = 1; j < timeAxis.length-1; j ++) {
 				double Tpp = (params[1][j-1] - 2*params[1][j] + params[1][j+1])/
@@ -477,17 +493,17 @@ public class MRSt {
 				penalty += Math.pow(Tpp/5000, 2)/2; // encourage a smooth ion temperature
 			}
 			
-			for (int j = 3; j < timeAxis.length; j ++) {
-				double Rppp = (params[4][j-3] - 3*params[4][j-2] + 3*params[4][j-1] - params[4][j])/
-						Math.pow(timeStep, 3);
-				penalty += Math.pow(Rppp/30000, 2)/2; // encourage a smooth rho-R
+			for (int j = 1; j < timeAxis.length-1; j ++) {
+				double Rpp = (params[4][j-1] - 2*params[4][j] + params[4][j+1])/
+						Math.pow(timeStep, 2);
+				penalty += Math.pow(Rpp/200, 2)/2; // encourage a smooth rho-R
 			}
 			
-			for (int j = 1; j < timeAxis.length-1; j ++) {
-				double App = (params[5][j-1] - 2*params[5][j] + params[5][j+1])/
-						Math.pow(timeStep, 2);
-				penalty += Math.pow(App/1000, 2)/2; // encourage a smooth asymmetry history
-			}
+//			for (int j = 1; j < timeAxis.length-1; j ++) {
+//				double App = (params[5][j-1] - 2*params[5][j] + params[5][j+1])/
+//						Math.pow(timeStep, 2);
+//				penalty += Math.pow(App/1000, 2)/2; // encourage a smooth asymmetry history
+//			}
 			
 //			System.out.println(penalty+" + "+error);
 			return penalty + error;
@@ -593,7 +609,7 @@ public class MRSt {
 		this.fitNeutronSpectrum = generateSpectrum( // and then interpret it
 				getNeutronYield(), getIonTemperature(), getElectronTemperature(),
 				getFlowVelocity(), getArealDensity(), getMode2Asymmetry(),
-				energyBins, timeBins);
+				energyBins, timeBins, downScatterCalibration);
 		this.fitDeuteronSpectrum = this.response(energyBins, timeBins, fitNeutronSpectrum, false);
 		
 //		for (int j = 0; j < fitNeutronSpectrum[0].length; j ++) {
@@ -1026,12 +1042,12 @@ public class MRSt {
 	 */
 	public static double[][] generateSpectrum(
 			double[] Yn, double Ti[], double[] Te, double vi[], double ρR[], double[] a2,
-			double[] eBins, double[] tBins) {
+			double[] eBins, double[] tBins, DiscreteFunction downScatterCalibration) {
 		double[][] spectrum = new double[eBins.length-1][tBins.length-1];
 		for (int j = 0; j < spectrum[0].length; j ++) {
 			double dt = (tBins[j+1] - tBins[j]); // bin width [ns]
 			double[] timeSlice = generateSpectrum(Yn[j]*dt, Ti[j], Te[j], vi[j], ρR[j], a2[j],
-					eBins);
+					eBins, downScatterCalibration);
 			for (int i = 0; i < spectrum.length; i ++)
 				spectrum[i][j] = timeSlice[i];
 		}
