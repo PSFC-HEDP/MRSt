@@ -473,16 +473,17 @@ public class MRSt {
 				penalty += -100*(Math.log(1 - params[5][j]) + Math.log(1 + params[5][j])); // and beta prior on asymmetry
 			}
 			
-//			for (int j = 1; j < timeAxis.length; j ++) {
-//				double Y = (params[0][j] + params[0][j-1])/2;
-//				double Yp = (params[0][j] - params[0][j-1])/timeStep;
-//				if (j <= bangIndex) Yp *= -1;
-//				if (Y > 0) {
-//					double z = Yp/Y*.2;
+			for (int j = 1; j < timeAxis.length; j ++) {
+				double Y = (params[0][j] + params[0][j-1])/2;
+				double Yp = (params[0][j] - params[0][j-1])/timeStep;
+				if (j <= bangIndex) Yp *= -1;
+				if (Y > 0) {
+					double z = Yp/Y*.2;
+					if (z > 0) penalty += .05*z*z;
 //					if (z < 0) penalty += Math.exp(z);
 //					else       penalty += .1 + .1*z + .05*z*z; // encourage a monotonically increasing yield before BT
-//				}
-//			}
+				}
+			}
 			
 //			double burn0 = 0, burn1 = 0;
 //			for (int j = 0; j < timeAxis.length; j ++) {
@@ -578,13 +579,15 @@ public class MRSt {
 				}
 			}
 			for (int i = 0; i < hessian.length; i ++) {
-				if (hessian[i][i] < 0)
+				if (hessian[i][i] < 0) {
 					hessian[i][i] = 0;
+				}
 			}
 			for (int i = 0; i < hessian.length; i ++) {
 				for (int j = i+1; j < hessian.length; j ++) {
-					if (Math.abs(hessian[i][j]) > Math.sqrt(hessian[i][i]*hessian[j][j]))
+					if (Math.abs(hessian[i][j]) > Math.sqrt(hessian[i][i]*hessian[j][j])) {
 						hessian[i][j] = hessian[j][i] = Math.signum(hessian[i][j])*Math.sqrt(hessian[i][i]*hessian[j][j]); // enforce positive semidefiniteness
+					}
 				}
 			}
 			

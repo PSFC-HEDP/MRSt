@@ -627,6 +627,10 @@ public class Optimization {
 				System.err.println("WARN: it tried to step uphill.");
 				dk = P(xk.minus(dk), lower, upper).minus(xk);
 			}
+			if (gk.dot(dk) > 0) {
+				System.err.println("WARN: wait, it's all uphill?");
+				return P(xk, lower, upper).T().values[0]; // well, dang.
+			}
 			
 			double λMax = Double.POSITIVE_INFINITY; // STEP 4: perform a line search
 			for (int i = 0; i < n; i ++) { // enforcing λMax to ensure the enhanced steps stay in bounds

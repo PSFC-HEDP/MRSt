@@ -1227,7 +1227,7 @@ public class NumericalMethods {
 		}
 		
 		public String toString(double[][] covariance) {
-			return String.format("%8.5g \u00B1 %8.3g", this.value, Math.sqrt(this.variance(covariance)));
+			return String.format("%8.6g \u00B1 %8.3g", this.value, Math.sqrt(this.variance(covariance)));
 		}
 	}
 	
