@@ -7,11 +7,11 @@ X_LABEL = "Yield factor"
 
 Y_LABELS = [
 	("Total yield", 4.6226e17), ("Total yield", 4.6226e17),
-	("Burn-average ρR (g/cm^2)", .692), ("Burn-average Ti (keV)", 10.205),
+	("Burn-average ρR (g/cm^2)", .6900), ("Burn-average Ti (keV)", 10.0204),
 	("Bang time (ns)", 16.3645),	("Burn width (ps)", 67.196),
-	("Burn skew", -1.1590), ("Burn kurtosis", 6.5652),
-	("dρR/dt at BT (mg/cm^2/(100ps))", -233.6), ("dTi/dt at BT (keV/(100ps))", 6.5228),
-	("Burn-average vi (km/s)", 1.4770), ("dvi/dt at BT (km/s/(100ps))", -72.87)
+	("Burn skew", -1.1589), ("Burn kurtosis", 6.5639),
+	("dρR/dt at BT (mg/cm^2/(100ps))", -282.4), ("dTi/dt at BT (keV/(100ps))", 6.467),
+	("Burn-average vi (km/s)", 1.734), ("dvi/dt at BT (km/s/(100ps))", -72.19)
 ]
 
 COLUMNS = 2
@@ -55,12 +55,12 @@ for i, (axis, true) in enumerate(Y_LABELS):
 	ax = axs[i//COLUMNS,i%COLUMNS]
 	valid = np.logical_not(np.isnan(simulations[axis+" error"]))
 	ax.scatter(simulations[X_LABEL][valid], simulations[axis][valid], s=10, zorder=1, label="Based on fit to synthetic data")
+	ax.plot(simulations[X_LABEL][order], yFactor[order]*true, 'C1--', zorder=0, label="Based on original data")
 	ax.set_ylim(auto=False)
 	ax.errorbar(simulations[X_LABEL][valid], simulations[axis][valid], yerr=simulations[axis+" error"][valid], elinewidth=1, linestyle='none')
-	if simulations[axis].min() > 0 and simulations[axis].max()/simulations[axis].min() >= 100:
+	if simulations[axis].min() > 0 and yFactor.max()/yFactor.min() >= 10:
 		ax.set_yscale('log')
 		ax.set_ylim(simulations[axis].min()/1.5, simulations[axis].max()*1.5)
-	ax.plot(simulations[X_LABEL][order], yFactor[order]*true, 'C1--', zorder=0, label="Based on original data")
 	if 'ield' in X_LABEL:
 		ax.set_xscale('log')
 	# ax.legend()

@@ -68,7 +68,7 @@ public class MRSt {
 	private static final double E_RESOLUTION = .09, T_RESOLUTION = 20e-3; // resolutions [MeV], [ns]
 //	private static final double E_RESOLUTION = .3, T_RESOLUTION = 40e-3;
 	private static final int TRANSFER_MATRIX_TRIES = 10000; // the number of points to sample in each column of the transfer matrix
-	private static final Random RANDOM = new Random(2);
+	private static final Random RANDOM = new Random(0);
 	
 	private final double foilDistance; // z coordinate of midplane of foil [m]
 	private final double foilThickness; // thickness of foil [m]
@@ -462,7 +462,7 @@ public class MRSt {
 			for (int j = 0; j < spectrum[0].length; j ++) {
 				for (int i = 0; i < spectrum.length; i ++) {
 					if (teoSpectrum[i][j] > 1e-20)
-						penalty += 1e-2*efficiency[i][j]*teoSpectrum[i][j]*
+						penalty += 1e-3*efficiency[i][j]*teoSpectrum[i][j]*
 								Math.log(teoSpectrum[i][j]/spectrumScale); // encourage entropy
 				}
 				
@@ -520,13 +520,13 @@ public class MRSt {
 		};
 
 		logger.log(Level.INFO, "...");
-		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 1, 0, timeAxis.length, true, true, false, false, false, false);
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, .1, 0, timeAxis.length, true, true, false, false, false, false);
 		logger.log(Level.INFO, "...");
-		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 1, 0, timeAxis.length, false, false, true, false, false, false);
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, .1, 0, timeAxis.length, false, false, true, false, false, false);
 		logger.log(Level.INFO, "...");
-		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 1, 0, timeAxis.length, false, false, false, false, true, true);
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, .1, 0, timeAxis.length, false, false, false, false, true, true);
 		logger.log(Level.INFO, "...");
-		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, .1, 0, timeAxis.length, true, true, true, true, true, true);
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, .01, 0, timeAxis.length, true, true, true, true, true, true);
 		
 		this.measurements = new Quantity[6][timeAxis.length]; // unpack the optimized vector
 		for (int k = 0; k < measurements.length; k ++) {
