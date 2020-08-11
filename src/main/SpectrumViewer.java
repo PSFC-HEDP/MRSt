@@ -192,7 +192,7 @@ public class SpectrumViewer extends Application {
 		rightPane.getChildren().add(container);
 		
 		this.errorBars = new CheckBox("Compute error bars");
-		this.errorBars.setSelected(false);
+		this.errorBars.setSelected(true);
 		rightPane.getChildren().add(errorBars);
 		
 		Button execute = new Button("Compute!");

@@ -603,7 +603,7 @@ public class MRSt {
 				}
 			}
 			for (int i = 0; i < hessian.length; i ++) {
-				if ((i < left || i >= rite) && !Double.isFinite(covarianceMatrix[i][i]))
+				if ((i/6 < left || i/6 >= rite) && !Double.isFinite(covarianceMatrix[i][i]))
 					covarianceMatrix[i][i] = 0; // get rid of any NaNs if they're off screen anyway
 //				for (int j = i+1; j < hessian.length; j ++) {
 //					if (Math.abs(covarianceMatrix[i][j]) > Math.sqrt(covarianceMatrix[i][i]*covarianceMatrix[j][j])) {
@@ -846,7 +846,8 @@ public class MRSt {
 	}
 	
 	/**
-	 * optimize certain elements of the input vector to maximize this function output
+	 * optimize certain elements of the input vector to maximize this function output.
+	 * this routine is bizarely convoluted, but if I don't do all of this it doesn't converge completely, and I don't understand why.
 	 * @param func the objective function to optimize
 	 * @param guess the initial guess
 	 * @param scale the scale lengths of the variables
@@ -1220,6 +1221,18 @@ public class MRSt {
 		for (double x: v)
 			s += Math.pow(x, 2);
 		return s;
+	}
+	
+	
+	/**
+	 * different methods for computing error bars: assume they are all zero, estimate a
+	 * hessian using finite differences and invert it into a covariance matrix, or calculate
+	 * them directly with statistics.
+	 * @author Justin Kunimune
+	 *
+	 */
+	public enum ErrorMode {
+		NONE, HESSIAN, STATISTICS;
 	}
 	
 	

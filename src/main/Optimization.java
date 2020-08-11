@@ -655,7 +655,7 @@ public class Optimization {
 			Matrix gkp1 = gradMat.apply(xk);
 			double fxkp1 = funcMat.apply(xk);
 			assert fxkp1 <= fxk;
-			if (sHist.size() > 1 && ((fxk - fxkp1)/Math.abs(fxk) < relTol || fxk - fxkp1 < absTol)) { // STEP 5: stop condition
+			if (sHist.size() > 1 && ((fxk - fxkp1)/Math.abs(fxk) <= relTol || fxk - fxkp1 <= absTol)) { // STEP 5: stop condition
 				return xk.T().values[0]; // if we're into it and the energy isn't really changing, then we're done
 			}
 			else if (iter > 2000) {
