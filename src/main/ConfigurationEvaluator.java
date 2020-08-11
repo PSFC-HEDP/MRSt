@@ -51,6 +51,7 @@ import javafx.scene.text.Font;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import main.CSV.COSYMapping;
+import main.MRSt.ErrorMode;
 
 
 /**
@@ -201,7 +202,7 @@ public class ConfigurationEvaluator extends Application {
 		}
 		this.variations[0].setSelected(true);
 		
-		this.errorBars = new CheckBox("Error bars");
+		this.errorBars = new CheckBox("Compute error bars");
 		this.errorBars.setSelected(true);
 		rightPane.getChildren().add(errorBars);
 		
@@ -259,15 +260,19 @@ public class ConfigurationEvaluator extends Application {
 						double flow =  (variations[3].isSelected()) ? 200*Math.random()*(2*Math.random() - 1) : 0;
 						MRSt.modifySpectrum(tBins, eBins, spec, yield, temp, downS, flow);
 						
-						boolean errorBars = this.errorBars.isSelected();
+						ErrorMode errorBars = this.errorBars.isSelected() ?
+								ErrorMode.HESSIAN :
+								ErrorMode.STATISTICS;
 						
 						logger.info(String.format("Yn = %f (%d/%d)", yield, k, NUM_YIELDS));
 						
 						double[] result;
 						try {
-							
-							result = mc.respond(eBins, tBins, spec, errorBars); // and run it many times!
-							
+							result = mc.respond(
+									eBins,
+									tBins,
+									spec,
+									errorBars); // and run it many times!
 						} catch (Exception e) {
 							logger.log(Level.SEVERE, e.getMessage(), e);
 							result = null;

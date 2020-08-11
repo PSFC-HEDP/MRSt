@@ -286,7 +286,7 @@ public class MRSt {
 	 *   Ti-ramp(BT), ρR-ramp(BT), vi-ramp(BT), max ρR, yield, μ1, μ2, μ3}, where each item is
 	 *   a value followed by its estimated error
 	 */
-	public double[] respond(double[] energies, double[] times, double[][] spectrum, boolean errorBars) {
+	public double[] respond(double[] energies, double[] times, double[][] spectrum, ErrorMode errorBars) {
 		this.deuteronSpectrum = this.response(energies, times, spectrum, true);
 		Quantity[] values = analyze(deuteronSpectrum, errorBars);
 		double[] output = new double[2*values.length];
@@ -344,7 +344,7 @@ public class MRSt {
 	 * @return {computation time, BT, peak-ρR, peak-ρR-ramp, Ti(BT), ρR(BT), vi(BT),
 	 *   Ti-ramp(BT), ρR-ramp(BT), vi-ramp(BT), max ρR, yield, μ1, μ2, μ3} or null if it can't even
 	 */
-	private Quantity[] analyze(double[][] spectrum, boolean errorBars) {
+	private Quantity[] analyze(double[][] spectrum, ErrorMode errorBars) {
 		if (spectrum.length != energyBins.length-1 || spectrum[0].length != timeBins.length-1)
 			throw new IllegalArgumentException("These dimensions are wrong.");
 		
@@ -536,11 +536,16 @@ public class MRSt {
 				measurements[k][j] = new Quantity(opt[6*j+k], grad);
 			}
 		}
+		this.fitNeutronSpectrum = generateSpectrum( // and then interpret it
+				getNeutronYield(), getIonTemperature(), getElectronTemperature(),
+				getFlowVelocity(), getArealDensity(), getMode2Asymmetry(),
+				energyBins, timeBins, downScatterCalibration);
+		this.fitDeuteronSpectrum = this.response(energyBins, timeBins, fitNeutronSpectrum, false);
 		
 		Quantity iBT = NumericalMethods.quadargmax(measurements[0]); // index of max yield
 		Quantity bangTime = NumericalMethods.interp(timeAxis, iBT); // time of max yield
 		
-		if (errorBars) {
+		if (errorBars == ErrorMode.HESSIAN) {
 			logger.log(Level.INFO, "calculating error bars.");
 			double c = logPosterior.apply(opt); // start by getting the actual value
 			double[] step = new double[6*timeAxis.length]; // and the values in all basis directions
@@ -607,6 +612,18 @@ public class MRSt {
 //						covarianceMatrix[j][j] *= Math.sqrt(erroneousFactor);
 //					}
 //				}
+			}
+		}
+		else if (errorBars == ErrorMode.STATISTICS) {
+			covarianceMatrix = new double[6*timeAxis.length][6*timeAxis.length];
+			for (int j = 0; j < timeAxis.length; j ++) {
+				double statistics = 1 + opt[6*j+0]*timeStep*1e15*this.efficiency(14e6); // total deuteron yield from this neutron time bin
+				covarianceMatrix[6*j+0][6*j+0] = Math.pow(opt[6*j+0], 2)/statistics;
+				covarianceMatrix[6*j+1][6*j+1] = Math.pow(opt[6*j+1], 2)*2/statistics;
+				covarianceMatrix[6*j+2][6*j+2] = 10;
+				covarianceMatrix[6*j+3][6*j+3] = Math.pow(opt[6*j+3], 2)/statistics;
+				covarianceMatrix[6*j+4][6*j+4] = Math.pow(opt[6*j+4], 2)/(statistics*.255*opt[6*j+4]);
+				covarianceMatrix[6*j+4][6*j+4] = 0.1;
 			}
 		}
 		else {

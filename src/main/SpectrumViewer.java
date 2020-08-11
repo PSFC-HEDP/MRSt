@@ -50,6 +50,7 @@ import javafx.scene.text.Font;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import main.CSV.COSYMapping;
+import main.MRSt.ErrorMode;
 
 
 /**
@@ -190,7 +191,7 @@ public class SpectrumViewer extends Application {
 		container.add(new Label("%"), 2, 0);
 		rightPane.getChildren().add(container);
 		
-		this.errorBars = new CheckBox("Compute errors");
+		this.errorBars = new CheckBox("Compute error bars");
 		this.errorBars.setSelected(false);
 		rightPane.getChildren().add(errorBars);
 		
@@ -237,7 +238,11 @@ public class SpectrumViewer extends Application {
 								focalPlaneTilt.getValue(),
 								logger); // make the simulation
 						
-						mc.respond(eBins, tBins, spec, errorBars.isSelected()); // and run it!
+						mc.respond(
+								eBins,
+								tBins,
+								spec,
+								errorBars.isSelected() ? ErrorMode.HESSIAN : ErrorMode.STATISTICS); // and run it!
 						
 					} catch (Exception e) {
 						logger.log(Level.SEVERE, e.getMessage(), e);
