@@ -399,7 +399,7 @@ public class MRSt {
 		double[] lowerBound = new double[6*timeAxis.length];
 		double[] upperBound = new double[6*timeAxis.length];
 		for (int j = 0; j < timeAxis.length; j ++) {
-			double[] scales = { Math.max(yieldGuess[j]/2., meanYield), 10, 10,  100, 1, .5 }; // rough ranges of these variables
+			double[] scales = { Math.max(yieldGuess[j]/2., meanYield), 10, 10,  200, 1, .5 }; // rough ranges of these variables
 			double[] lowers = {                                     0,  0,  0, -250, 0, -1 }; // lower bounds
 			double[] uppers = {              Double.POSITIVE_INFINITY, 20, 20,  250, 4,  1 }; // upper bounds
 			for (int k = 0; k < scales.length; k ++) {
@@ -468,7 +468,7 @@ public class MRSt {
 				
 //				penalty += params[1][j]/5 - Math.log(params[1][j]); // use gamma prior on temperatures	
 //				penalty += params[2][j]/5 - Math.log(params[2][j]);
-				penalty += Math.pow(params[3][j]/50, 2)/2; // gaussian prior on velocity
+//				penalty += Math.pow(params[3][j]/50, 2)/2; // gaussian prior on velocity
 				penalty += params[4][j]/1; // exponential prior on areal density
 				penalty += -100*(Math.log(1 - params[5][j]) + Math.log(1 + params[5][j])); // and beta prior on asymmetry
 			}
@@ -479,7 +479,7 @@ public class MRSt {
 				if (j <= bangIndex) Yp *= -1;
 				if (Y > 0) {
 					double z = Yp/Y*.2;
-					if (z > 0) penalty += .05*z*z;
+					if (z > 0) penalty += .1*z*z;
 //					if (z < 0) penalty += Math.exp(z);
 //					else       penalty += .1 + .1*z + .05*z*z; // encourage a monotonically increasing yield before BT
 				}
@@ -500,7 +500,13 @@ public class MRSt {
 			for (int j = 1; j < timeAxis.length-1; j ++) {
 				double Tpp = (params[1][j-1] - 2*params[1][j] + params[1][j+1])/
 						Math.pow(timeStep, 2);
-				penalty += Math.pow(Tpp/5000, 2)/2; // encourage a smooth ion temperature
+				penalty += Math.pow(Tpp/10000, 2)/2; // encourage a smooth ion temperature
+			}
+			
+			for (int j = 1; j < timeAxis.length-1; j ++) {
+				double Vpp = (params[3][j-1] - 2*params[3][j] + params[3][j+1])/
+						Math.pow(timeStep, 2);
+				penalty += Math.pow(Vpp/1e6, 2)/2; // encourage a smooth asymmetry history
 			}
 			
 			for (int j = 1; j < timeAxis.length-1; j ++) {
@@ -584,23 +590,20 @@ public class MRSt {
 				}
 			}
 			for (int i = 0; i < hessian.length; i ++) {
-				if (hessian[i][i] < 0) {
+				if (hessian[i][i] < 0)
 					hessian[i][i] = 0;
-				}
 			}
 			for (int i = 0; i < hessian.length; i ++) {
 				for (int j = i+1; j < hessian.length; j ++) {
-					if (Math.abs(hessian[i][j]) > Math.sqrt(hessian[i][i]*hessian[j][j])) {
+					if (Math.abs(hessian[i][j]) > Math.sqrt(hessian[i][i]*hessian[j][j]))
 						hessian[i][j] = hessian[j][i] = Math.signum(hessian[i][j])*Math.sqrt(hessian[i][i]*hessian[j][j]); // enforce positive semidefiniteness
-					}
 				}
 			}
 			
 			covarianceMatrix = NumericalMethods.pseudoinv(hessian);
 			for (int i = 0; i < hessian.length; i ++) {
-				if (covarianceMatrix[i][i] < 1/hessian[i][i]) { // these are all approximations, and sometimes they violate the properties of positive semidefiniteness
+				if (covarianceMatrix[i][i] < 1/hessian[i][i]) // these are all approximations, and sometimes they violate the properties of positive semidefiniteness
 					covarianceMatrix[i][i] = 1/hessian[i][i]; // do what you must to make it work
-				}
 			}
 			for (int i = 0; i < hessian.length; i ++) {
 				if ((i/6 < left || i/6 >= rite) && !Double.isFinite(covarianceMatrix[i][i]))
@@ -634,12 +637,6 @@ public class MRSt {
 		if (logger != null)
 			logger.info(String.format(Locale.US, "completed in %.2f minutes.",
 					(endTime - startTime)/60000.));
-		
-		this.fitNeutronSpectrum = generateSpectrum( // and then interpret it
-				getNeutronYield(), getIonTemperature(), getElectronTemperature(),
-				getFlowVelocity(), getArealDensity(), getMode2Asymmetry(),
-				energyBins, timeBins, downScatterCalibration);
-		this.fitDeuteronSpectrum = this.response(energyBins, timeBins, fitNeutronSpectrum, false);
 		
 //		for (int j = 0; j < fitNeutronSpectrum[0].length; j ++) {
 //			double ds = 0, prim = 0;
