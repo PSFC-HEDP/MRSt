@@ -478,10 +478,9 @@ public class MRSt {
 				double Yp = (params[0][j] - params[0][j-1])/timeStep;
 				if (j <= bangIndex) Yp *= -1;
 				if (Y > 0) {
-					double z = Yp/Y*.2;
-					if (z > 0) penalty += .1*z*z;
-//					if (z < 0) penalty += Math.exp(z);
-//					else       penalty += .1 + .1*z + .05*z*z; // encourage a monotonically increasing yield before BT
+					double z = Yp/Y*1.;
+					if (z < 0) penalty += Math.exp(z);
+					else       penalty += .1*(1 + z + z*z/2.); // encourage a monotonically increasing yield before BT
 				}
 			}
 			
@@ -591,7 +590,7 @@ public class MRSt {
 			}
 			for (int i = 0; i < hessian.length; i ++) {
 				if (hessian[i][i] < 0)
-					hessian[i][i] = 0;
+					hessian[i][i] = Double.NaN;
 			}
 			for (int i = 0; i < hessian.length; i ++) {
 				for (int j = i+1; j < hessian.length; j ++) {
@@ -605,16 +604,15 @@ public class MRSt {
 				if (covarianceMatrix[i][i] < 1/hessian[i][i]) // these are all approximations, and sometimes they violate the properties of positive semidefiniteness
 					covarianceMatrix[i][i] = 1/hessian[i][i]; // do what you must to make it work
 			}
+			for (int i = (int)iBT.value-2; i >= 0; i --) { // this is kind of weird...
+				double yHere = opt[6*i], yNext = opt[6*(i+1)]; // but it helps the error bars deal with this particular nonlinearity
+				double σNext = Math.sqrt(covarianceMatrix[6*(i+1)][6*(i+1)]);
+				covarianceMatrix[6*i][6*i] = Math.min(covarianceMatrix[6*i][6*i],
+						Math.pow(yNext + σNext - yHere, 2));
+			}
 			for (int i = 0; i < hessian.length; i ++) {
 				if ((i/6 < left || i/6 >= rite) && !Double.isFinite(covarianceMatrix[i][i]))
 					covarianceMatrix[i][i] = 0; // get rid of any NaNs if they're off screen anyway
-//				for (int j = i+1; j < hessian.length; j ++) {
-//					if (Math.abs(covarianceMatrix[i][j]) > Math.sqrt(covarianceMatrix[i][i]*covarianceMatrix[j][j])) {
-//						double erroneousFactor = Math.pow(covarianceMatrix[i][j], 2)/(covarianceMatrix[i][i]*covarianceMatrix[j][j]);
-//						covarianceMatrix[i][i] *= Math.sqrt(erroneousFactor);
-//						covarianceMatrix[j][j] *= Math.sqrt(erroneousFactor);
-//					}
-//				}
 			}
 		}
 		else if (errorBars == ErrorMode.STATISTICS) {
