@@ -604,15 +604,27 @@ public class MRSt {
 				if (covarianceMatrix[i][i] < 1/hessian[i][i]) // these are all approximations, and sometimes they violate the properties of positive semidefiniteness
 					covarianceMatrix[i][i] = 1/hessian[i][i]; // do what you must to make it work
 			}
-			for (int i = (int)iBT.value-2; i >= 0; i --) { // this is kind of weird...
+			for (int i = (int)iBT.value-1; i >= 0; i --) { // this is kind of weird...
 				double yHere = opt[6*i], yNext = opt[6*(i+1)]; // but it helps the error bars deal with this particular nonlinearity
 				double σNext = Math.sqrt(covarianceMatrix[6*(i+1)][6*(i+1)]);
 				covarianceMatrix[6*i][6*i] = Math.min(covarianceMatrix[6*i][6*i],
 						Math.pow(yNext + σNext - yHere, 2));
 			}
+			for (int i = (int)iBT.value+2; i < timeAxis.length; i ++) { // this is kind of weird...
+				double yHere = opt[6*i], yLast = opt[6*(i-1)]; // but it helps the error bars deal with this particular nonlinearity
+				double σLast = Math.sqrt(covarianceMatrix[6*(i-1)][6*(i-1)]);
+				covarianceMatrix[6*i][6*i] = Math.min(covarianceMatrix[6*i][6*i],
+						Math.pow(yLast + σLast - yHere, 2));
+			}
 			for (int i = 0; i < hessian.length; i ++) {
 				if ((i/6 < left || i/6 >= rite) && !Double.isFinite(covarianceMatrix[i][i]))
 					covarianceMatrix[i][i] = 0; // get rid of any NaNs if they're off screen anyway
+			}
+			for (int i = 0; i < hessian.length; i ++) {
+				for (int j = i+1; j < hessian.length; j ++) {
+					if (Math.abs(covarianceMatrix[i][j]) > Math.sqrt(covarianceMatrix[i][i]*covarianceMatrix[j][j]))
+						covarianceMatrix[i][j] = covarianceMatrix[j][i] = Math.signum(covarianceMatrix[i][j])*Math.sqrt(covarianceMatrix[i][i]*covarianceMatrix[j][j]); // enforce positive semidefiniteness
+				}
 			}
 		}
 		else if (errorBars == ErrorMode.STATISTICS) {
