@@ -621,12 +621,13 @@ public class MRSt {
 			covarianceMatrix = new double[6*timeAxis.length][6*timeAxis.length];
 			for (int j = 0; j < timeAxis.length; j ++) {
 				double statistics = 1 + opt[6*j+0]*timeStep*1e15*this.efficiency(14e6); // total deuteron yield from this neutron time bin
+				double dsStatistics = 1 + opt[6*j+0]*timeStep*1e15*this.efficiency(14e6)*opt[6*j+4]/21.;
 				covarianceMatrix[6*j+0][6*j+0] = Math.pow(opt[6*j+0], 2)/statistics;
-				covarianceMatrix[6*j+1][6*j+1] = Math.pow(opt[6*j+1], 2)*2/statistics;
+				covarianceMatrix[6*j+1][6*j+1] = Math.pow(opt[6*j+1], 2)*2/(statistics - 1);
 				covarianceMatrix[6*j+2][6*j+2] = 10;
-				covarianceMatrix[6*j+3][6*j+3] = Math.pow(opt[6*j+3], 2)/statistics;
-				covarianceMatrix[6*j+4][6*j+4] = Math.pow(opt[6*j+4], 2)/(statistics*.255*opt[6*j+4]);
-				covarianceMatrix[6*j+4][6*j+4] = 0.1;
+				covarianceMatrix[6*j+3][6*j+3] = .4034*14*opt[6*j+1]/1e3/statistics/Math.pow(.54e-3, 2);
+				covarianceMatrix[6*j+4][6*j+4] = Math.pow(opt[6*j+4], 2)/dsStatistics;
+				covarianceMatrix[6*j+5][6*j+5] = 0.1;
 			}
 		}
 		else {
