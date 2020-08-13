@@ -1168,7 +1168,22 @@ public class NumericalMethods {
 		}
 		
 		public double variance(double[][] covariance) {
-			return this.gradient.dot(new Matrix(covariance).times(this.gradient));
+			double variance = this.gradient.dot(new Matrix(covariance).times(this.gradient));
+			if (variance < 0) { // if it doesn't work
+				double[][] newCovariance = new double[covariance.length][covariance.length];
+				for (int i = 0; i < covariance.length; i ++) {
+					if (covariance[i][i] < 0)
+						return variance; // first check that the diagonal terms are positive (they should be)
+					for (int j = 0; j < covariance.length; j ++) {
+						if (i == j)  newCovariance[i][j] = covariance[i][j]; // then halving the off-diagonal terms and try again
+						else         newCovariance[i][j] = covariance[i][j]/2;
+					}
+				}
+				return this.variance(newCovariance);
+			}
+			else {
+				return variance;
+			}
 		}
 		
 		public Quantity plus(double constant) {
