@@ -668,7 +668,7 @@ public class Optimization {
 			if (yk.dot(sk) > 1e-15*yk.norm()) {
 				yHist.addLast(yk);
 				sHist.addLast(sk);
-				θ = yk.dot(yk)/yk.dot(sk);
+				θ = yk.dot(sk)/sk.dot(sk);
 			}
 			if (yHist.size() > mMax) {
 				yHist.removeFirst();
