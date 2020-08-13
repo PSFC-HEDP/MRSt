@@ -377,9 +377,9 @@ public class MRSt {
 			double[] fit = Optimization.minimizeNelderMead((x) -> {
 				if (x[0] < 0)  return Double.POSITIVE_INFINITY;
 				if (x[1] < .5 || x[1] > 18) return Double.POSITIVE_INFINITY;
-				if (x[2] < .5 || x[2] > 18)  return Double.POSITIVE_INFINITY;
-				if (Math.abs(x[3]) > 200)    return Double.POSITIVE_INFINITY;
-				if (x[4] < 0 || x[4] > 3)    return Double.POSITIVE_INFINITY;
+				if (x[2] < .5 || x[2] > 18) return Double.POSITIVE_INFINITY;
+				if (Math.abs(x[3]) > 200)   return Double.POSITIVE_INFINITY;
+				if (x[4] < 0 || x[4] > 3)   return Double.POSITIVE_INFINITY;
 				double[] teo = generateSpectrum(x[0], x[1], x[2], x[3], x[4], 0,
 						energyBins, downScatterCalibration);
 				double error = 0;
@@ -505,7 +505,7 @@ public class MRSt {
 			for (int j = 1; j < timeAxis.length-1; j ++) {
 				double Vpp = (params[3][j-1] - 2*params[3][j] + params[3][j+1])/
 						Math.pow(timeStep, 2);
-				penalty += Math.pow(Vpp/1e6, 2)/2; // encourage a smooth asymmetry history
+				penalty += Math.pow(Vpp/5e4, 2)/2; // encourage a smooth ion velocity
 			}
 			
 			for (int j = 1; j < timeAxis.length-1; j ++) {

@@ -518,6 +518,22 @@ public class Optimization {
 					}
 				}
 				Matrix Mk = Mkinv.inv();
+				for (int i = 0; i < Mk.getN(); i ++)
+					for (int j = 0; j < Mk.getM(); j ++)
+						if (Double.isNaN(Mk.get(i, j))) {
+							System.out.println(θ);
+							System.out.println(yHist.getLast().dot(yHist.getLast())/yHist.getLast().dot(sHist.getLast()));
+							System.out.println(yHist.getLast().dot(sHist.getLast())/sHist.getLast().dot(sHist.getLast()));
+							System.out.println(Mkinv);
+							System.out.println(Mk);
+							for (int ih = 0; ih < Mk.getN(); ih ++) {
+								for (int jo = 0; jo < Mk.getM(); jo ++) {
+									if (ih != jo)
+										Mkinv.set(ih, jo, Mkinv.get(ih, jo)/2);
+								}
+							}
+							Mk = Mkinv.inv();
+						}
 				
 				double[] breakpoints = new double[n]; // STEP 2: find the Cauchy point -- the quadratic minimum in the downhill direction
 				Matrix d = new Matrix(n, 1);
