@@ -607,14 +607,14 @@ public class MRSt {
 			for (int i = (int)iBT.value-1; i >= 0; i --) { // this is kind of weird...
 				double yHere = opt[6*i], yNext = opt[6*(i+1)]; // but it helps the error bars deal with this particular nonlinearity
 				double σNext = Math.sqrt(covarianceMatrix[6*(i+1)][6*(i+1)]);
-				covarianceMatrix[6*i][6*i] = Math.min(covarianceMatrix[6*i][6*i],
-						Math.pow(yNext + σNext - yHere, 2));
+				covarianceMatrix[6*i][6*i] = Math.min(Math.min(covarianceMatrix[6*i][6*i],
+						Math.pow((yNext - yHere)*2/3., 2)), Math.pow(2*σNext, 2));
 			}
 			for (int i = (int)iBT.value+2; i < timeAxis.length; i ++) { // this is kind of weird...
 				double yHere = opt[6*i], yLast = opt[6*(i-1)]; // but it helps the error bars deal with this particular nonlinearity
 				double σLast = Math.sqrt(covarianceMatrix[6*(i-1)][6*(i-1)]);
-				covarianceMatrix[6*i][6*i] = Math.min(covarianceMatrix[6*i][6*i],
-						Math.pow(yLast + σLast - yHere, 2));
+				covarianceMatrix[6*i][6*i] = Math.min(Math.min(covarianceMatrix[6*i][6*i],
+						Math.pow((yLast - yHere)*2/3., 2)), Math.pow(2*σLast, 2));
 			}
 			for (int i = 0; i < hessian.length; i ++) {
 				if ((i/6 < left || i/6 >= rite) && !Double.isFinite(covarianceMatrix[i][i]))
