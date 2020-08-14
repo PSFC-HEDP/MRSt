@@ -83,11 +83,16 @@ public class Optimization {
 			}
 			med = Math.min(med, truMax); // enforce that it not go past its true maximum
 			double f = func.apply(med);
+			if (Double.isNaN(f)) {
+				max = med; // ew, get away from it!
+				med = (max + min)/2;
+				continue;
+			}
 			if (f < lowestValue) { // keep track of the lowest value we could find just in case all fails
 				lowestPlace = med;
 				lowestValue = f;
 			}
-			if (f > f0 + α*(med - x0)*δf0 || Double.isNaN(f)) { // if the decrease condition is not met
+			if (f > f0 + α*(med - x0)*δf0) { // if the decrease condition is not met
 				max = med; // we need to go closer
 				med = (max + min)/2;
 				continue;
@@ -670,7 +675,8 @@ public class Optimization {
 			
 			Matrix gkp1 = gradMat.apply(xk);
 			double fxkp1 = funcMat.apply(xk);
-			assert fxkp1 <= fxk;
+			if (Double.isNaN(fxkp1))
+				throw new IllegalArgumentException("no, no. You can't do that.");
 			if ((fxk - fxkp1)/Math.abs(fxk) <= relTol || fxk - fxkp1 <= absTol) { // STEP 5: stop condition
 				return xk.T().values[0]; // if we're into it and the energy isn't really changing, then we're done
 			}
@@ -678,6 +684,7 @@ public class Optimization {
 				System.err.println("WARN: Maximum iterations reached.");
 				return xk.T().values[0];
 			}
+			assert fxkp1 <= fxk: fxkp1+", "+fxk+", "+Math.abs(fxk)+", "+relTol+", "+absTol;
 			
 			Matrix sk = dk.times(λk); // STEP 6: save historical vector information
 			Matrix yk = gkp1.minus(gk);
