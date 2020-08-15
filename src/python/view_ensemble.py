@@ -6,10 +6,10 @@ plt.rcParams.update({'font.family': 'serif', 'font.size': 10})
 X_LABEL = "Yield factor"
 
 Y_LABELS = [
-	("Total yield", 4.6226e17), ("Total yield", 4.6226e17),
-	("Burn-average ρR (g/cm^2)", .6900), ("Burn-average Ti (keV)", 10.0204),
-	("Bang time (ns)", 16.3645),	("Burn width (ps)", 67.196),
-	("Burn skew", -1.1589), ("Burn kurtosis", 6.5639),
+	("Total yield", 4.7838e17), ("Total yield", 4.7838e17),
+	("Burn-average ρR (g/cm^2)", .6900), ("Burn-average Ti (keV)", 10.0183),
+	("Bang time (ns)", 16.3645),	("Burn width (ps)", 66.732),
+	("Burn skew", -1.1469), ("Burn kurtosis", 6.516),
 	("dρR/dt at BT (mg/cm^2/(100ps))", -282.4), ("dTi/dt at BT (keV/(100ps))", 6.467),
 	("Burn-average vi (km/s)", 1.734), ("dvi/dt at BT (km/s/(100ps))", -72.19)
 ]
