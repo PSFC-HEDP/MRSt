@@ -469,7 +469,7 @@ public class MRSt {
 //				penalty += params[1][j]/5 - Math.log(params[1][j]); // use gamma prior on temperatures	
 //				penalty += params[2][j]/5 - Math.log(params[2][j]);
 //				penalty += Math.pow(params[3][j]/50, 2)/2; // gaussian prior on velocity
-				penalty += params[4][j]/1; // exponential prior on areal density
+//				penalty += params[4][j]/1; // exponential prior on areal density
 				penalty += -100*(Math.log(1 - params[5][j]) + Math.log(1 + params[5][j])); // and beta prior on asymmetry
 			}
 			
@@ -479,7 +479,7 @@ public class MRSt {
 				if (j <= bangIndex) Yp *= -1;
 				if (Y > 0) {
 					double z = Yp/Y*1.;
-					if (z < 0) penalty += Math.exp(z);
+					if (z < 0) penalty += .1*Math.exp(z);
 					else       penalty += .1*(1 + z + z*z/2.); // encourage a monotonically increasing yield before BT
 				}
 			}
@@ -499,7 +499,7 @@ public class MRSt {
 			for (int j = 1; j < timeAxis.length-1; j ++) {
 				double Tpp = (params[1][j-1] - 2*params[1][j] + params[1][j+1])/
 						Math.pow(timeStep, 2);
-				penalty += Math.pow(Tpp/5000, 2)/2; // encourage a smooth ion temperature
+				penalty += Math.pow(Tpp/2000, 2)/2; // encourage a smooth ion temperature
 			}
 			
 			for (int j = 1; j < timeAxis.length-1; j ++) {
@@ -511,7 +511,7 @@ public class MRSt {
 			for (int j = 1; j < timeAxis.length-1; j ++) {
 				double Rpp = (params[4][j-1] - 2*params[4][j] + params[4][j+1])/
 						Math.pow(timeStep, 2);
-				penalty += Math.pow(Rpp/200, 2)/2; // encourage a smooth rho-R
+				penalty += Math.pow(Rpp/100, 2)/2; // encourage a smooth rho-R
 			}
 			
 //			for (int j = 1; j < timeAxis.length-1; j ++) {
@@ -587,6 +587,7 @@ public class MRSt {
 						}
 					}
 				}
+//				System.out.println(new Matrix(hessian).g)
 			}
 			for (int i = 0; i < hessian.length; i ++) {
 				if (hessian[i][i] < 0)
@@ -604,17 +605,22 @@ public class MRSt {
 				if (covarianceMatrix[i][i] < 1/hessian[i][i]) // these are all approximations, and sometimes they violate the properties of positive semidefiniteness
 					covarianceMatrix[i][i] = 1/hessian[i][i]; // do what you must to make it work
 			}
-			for (int i = (int)iBT.value-1; i >= 0; i --) { // this is kind of weird...
-				double yHere = opt[6*i], yNext = opt[6*(i+1)]; // but it helps the error bars deal with this particular nonlinearity
-				double σNext = Math.sqrt(covarianceMatrix[6*(i+1)][6*(i+1)]);
-				covarianceMatrix[6*i][6*i] = Math.min(Math.min(covarianceMatrix[6*i][6*i],
-						Math.pow((yNext - yHere)*2/3., 2)), Math.pow(2*σNext, 2));
-			}
-			for (int i = (int)iBT.value+2; i < timeAxis.length; i ++) { // this is kind of weird...
-				double yHere = opt[6*i], yLast = opt[6*(i-1)]; // but it helps the error bars deal with this particular nonlinearity
-				double σLast = Math.sqrt(covarianceMatrix[6*(i-1)][6*(i-1)]);
-				covarianceMatrix[6*i][6*i] = Math.min(Math.min(covarianceMatrix[6*i][6*i],
-						Math.pow((yLast - yHere)*2/3., 2)), Math.pow(2*σLast, 2));
+//			for (int i = 0; i < timeAxis.length; i ++) { // we know these will never be negative
+//				if (opt[6*i] > 0)
+//					covarianceMatrix[6*i][6*i] = Math.min(covarianceMatrix[6*i][6*i], Math.pow(opt[6*i], 2));
+//			}
+			int iMax = (int)Math.round(iBT.value);
+			for (int i = 0; i < timeAxis.length; i ++) {
+				for (int j = iMax - i; j <= iMax + i; j += Math.max(1, 2*i)) {
+					if (j >= 0 && j < timeAxis.length) {
+						double yHere = opt[6*j];
+						double σ2Max = 0;
+						for (int k = j-1; k <= j+1; k += 2) // this is kind of weird...
+							if (k >= 0 && k < timeAxis.length)
+								σ2Max += Math.pow(yHere - opt[6*k], 2)/2.;
+						covarianceMatrix[6*j][6*j] = Math.min(covarianceMatrix[6*j][6*j], σ2Max); // but it helps the error bars deal with this particular nonlinearity
+					}
+				}
 			}
 			for (int i = 0; i < hessian.length; i ++) {
 				if ((i/6 < left || i/6 >= rite) && !Double.isFinite(covarianceMatrix[i][i]))

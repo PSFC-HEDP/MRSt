@@ -70,6 +70,8 @@ public class Optimization {
 			throw new IllegalArgumentException("Initial step must be downhill.");
 		if (δf0 == 0)
 			return x0; // if the gradient here is naught, there's absolutely noting we can do
+		if (Double.isNaN(f0))
+			throw new IllegalArgumentException("Initial guess was NaN.");
 		
 		final double α = 1e-4, β = 0.9;
 		
@@ -77,8 +79,14 @@ public class Optimization {
 		double min = x0, max = x0 + 2*stepMax;
 		double truMax = x0 + stepMax;
 		double lowestPlace = x0, lowestValue = f0;
+		if (Double.isNaN(lowestValue))
+			throw new IllegalStateException("You little bitch.");
 		while (true) {
+			if (Double.isNaN(lowestValue))
+				throw new IllegalStateException("How?! When?!");
 			if ((max - min)/Math.max(med, step0) < 1e-10) { // if this has become quite tight
+				if (Double.isNaN(func.apply(lowestPlace)))
+					throw new IllegalStateException("waaaa how did this happen "+lowestValue);
 				return lowestPlace;
 			}
 			med = Math.min(med, truMax); // enforce that it not go past its true maximum
@@ -91,6 +99,8 @@ public class Optimization {
 			if (f < lowestValue) { // keep track of the lowest value we could find just in case all fails
 				lowestPlace = med;
 				lowestValue = f;
+				if (Double.isNaN(lowestValue))
+					throw new IllegalStateException("I literally just asked you if f was NaN");
 			}
 			if (f > f0 + α*(med - x0)*δf0) { // if the decrease condition is not met
 				max = med; // we need to go closer
@@ -104,6 +114,8 @@ public class Optimization {
 					med = (max + min)/2;
 				}
 				else if (med == truMax) {
+					if (Double.isNaN(func.apply(truMax)))
+						throw new IllegalStateException("But I already asked if f(med) was NaN! "+f);
 					return truMax; // this might be the best we can get
 				}
 				else {
@@ -113,6 +125,9 @@ public class Optimization {
 				continue;
 			}
 			
+			if (Double.isNaN(func.apply(med))) {
+				throw new IllegalArgumentException("What are you doing? I asked you if f was NaN!");
+			}
 			return med; // if both are met, we're done here
 		}
 	}
