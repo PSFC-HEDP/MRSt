@@ -166,7 +166,7 @@ public class ConfigurationEvaluator extends Application {
 		leftPane.add(new Label("mm"), 2, row);
 		row ++;
 		
-		this.focalPlaneTilt = new Spinner<Double>(0.0, 89.9, 70.3, 5.0);
+		this.focalPlaneTilt = new Spinner<Double>(0.0, 89.9, 66.586, 5.0);
 		focalPlaneTilt.setEditable(true);
 		leftPane.add(new Label("F. plane angle"), 0, row);
 		leftPane.add(focalPlaneTilt, 1, row);
@@ -234,6 +234,7 @@ public class ConfigurationEvaluator extends Application {
 								cosyCoefficients,
 								cosyExponents,
 								focalPlaneTilt.getValue(),
+								1,
 								logger); // make the simulation
 					} catch (Exception e) {
 						logger.log(Level.SEVERE, e.getMessage(), e);
@@ -305,14 +306,17 @@ public class ConfigurationEvaluator extends Application {
 		console.setPrefWidth(400);
 		console.setFont(Font.font("Monospace"));
 		logger = Logger.getLogger("main");
-		logger.addHandler(new StreamHandler() {
+		logger.setLevel(Level.FINER);
+		StreamHandler consoleHandler = new StreamHandler() {
 			public void publish(LogRecord record) {
 				Platform.runLater(() -> {
 					console.appendText(String.format("%7s: %s\n",
 							record.getLevel().toString(), record.getMessage()));
 				});
 			}
-		});
+		};
+		consoleHandler.setLevel(Level.ALL);
+		logger.addHandler(consoleHandler);
 		rightPane.getChildren().add(console);
 		
 		StackPane root = new StackPane();

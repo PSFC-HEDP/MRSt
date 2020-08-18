@@ -236,6 +236,7 @@ public class SpectrumViewer extends Application {
 								cosyCoefficients,
 								cosyExponents,
 								focalPlaneTilt.getValue(),
+								1,
 								logger); // make the simulation
 						
 						mc.respond(
@@ -283,14 +284,17 @@ public class SpectrumViewer extends Application {
 		console.setPrefWidth(400);
 		console.setFont(Font.font("Monospace"));
 		logger = Logger.getLogger("main");
-		logger.addHandler(new StreamHandler() {
+		logger.setLevel(Level.ALL);
+		StreamHandler consoleHandler = new StreamHandler() {
 			public void publish(LogRecord record) {
 				Platform.runLater(() -> {
 					console.appendText(String.format("%7s: %s\n",
 							record.getLevel().toString(), record.getMessage()));
 				});
 			}
-		});
+		};
+		consoleHandler.setLevel(Level.ALL);
+		logger.addHandler(consoleHandler);
 		rightPane.getChildren().add(console);
 		
 		StackPane root = new StackPane();
