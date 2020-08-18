@@ -469,7 +469,7 @@ public class MRSt {
 //				penalty += params[1][j]/5 - Math.log(params[1][j]); // use gamma prior on temperatures	
 //				penalty += params[2][j]/5 - Math.log(params[2][j]);
 //				penalty += Math.pow(params[3][j]/50, 2)/2; // gaussian prior on velocity
-//				penalty += params[4][j]/1; // exponential prior on areal density
+//				penalty += params[4][j]/2.; // exponential prior on areal density
 				penalty += -100*(Math.log(1 - params[5][j]) + Math.log(1 + params[5][j])); // and beta prior on asymmetry
 			}
 			
@@ -505,13 +505,13 @@ public class MRSt {
 			for (int j = 1; j < timeAxis.length-1; j ++) {
 				double Vpp = (params[3][j-1] - 2*params[3][j] + params[3][j+1])/
 						Math.pow(timeStep, 2);
-				penalty += Math.pow(Vpp/2e4, 2)/2; // encourage a smooth ion velocity
+				penalty += Math.pow(Vpp/5e4, 2)/2; // encourage a smooth ion velocity
 			}
 			
 			for (int j = 1; j < timeAxis.length-1; j ++) {
 				double Rpp = (params[4][j-1] - 2*params[4][j] + params[4][j+1])/
 						Math.pow(timeStep, 2);
-				penalty += Math.pow(Rpp/100, 2)/2; // encourage a smooth rho-R
+				penalty += Math.pow(Rpp/200, 2)/2; // encourage a smooth rho-R
 			}
 			
 //			for (int j = 1; j < timeAxis.length-1; j ++) {
@@ -609,18 +609,13 @@ public class MRSt {
 //				if (opt[6*i] > 0)
 //					covarianceMatrix[6*i][6*i] = Math.min(covarianceMatrix[6*i][6*i], Math.pow(opt[6*i], 2));
 //			}
-			int iMax = (int)Math.round(iBT.value);
-			for (int i = 0; i < timeAxis.length; i ++) {
-				for (int j = iMax - i; j <= iMax + i; j += Math.max(1, 2*i)) {
-					if (j >= 0 && j < timeAxis.length) {
-						double yHere = opt[6*j];
-						double σ2Max = 0;
-						for (int k = j-1; k <= j+1; k += 2) // this is kind of weird...
-							if (k >= 0 && k < timeAxis.length)
-								σ2Max += Math.pow(yHere - opt[6*k], 2)/2.;
-						covarianceMatrix[6*j][6*j] = Math.min(covarianceMatrix[6*j][6*j], σ2Max); // but it helps the error bars deal with this particular nonlinearity
-					}
-				}
+			for (int i = 0; i < timeAxis.length; i ++) { // this is kind of weird...
+				double σ2Max;
+				if (i-1 < 0 || (i+1 < timeAxis.length && opt[6*(i+1)] > opt[6*(i-1)]))
+					σ2Max = Math.pow(opt[6*i] - opt[6*(i+1)], 2);
+				else
+					σ2Max = Math.pow(opt[6*i] - opt[6*(i-1)], 2);
+				covarianceMatrix[6*i][6*i] = Math.min(covarianceMatrix[6*i][6*i], σ2Max); // but it helps the error bars deal with this particular nonlinearity
 			}
 			for (int i = 0; i < hessian.length; i ++) {
 				if ((i/6 < left || i/6 >= rite) && !Double.isFinite(covarianceMatrix[i][i]))
