@@ -56,6 +56,18 @@ public class ConsoleEvaluator {
 	
 	
 	public static final void main(String[] args) {
+		for (int i = 0; i < HEADERS.length; i ++) {
+			if (i < 4)
+				HEADERS_WITH_ERRORS[i] = HEADERS[i];
+			else {
+				HEADERS_WITH_ERRORS[2*(i-4)+4] = HEADERS[i];
+				int locationOfTheWordQuoteErrorUnquote = HEADERS[i].indexOf('(') - 1;
+				if (locationOfTheWordQuoteErrorUnquote == -2)
+					locationOfTheWordQuoteErrorUnquote = HEADERS[i].length();
+				HEADERS_WITH_ERRORS[2*(i-4)+5] = HEADERS[i] + " error";
+			}
+		}
+
 		char config = args[0].charAt(0);
 		int numYields = Integer.parseInt(args[1]);
 		if (config != 'h' && config != 'm' && config != 'l')
@@ -69,7 +81,7 @@ public class ConsoleEvaluator {
 		logger.addHandler(consoleHandler);
 		logger.log(Level.INFO, "beginning "+numYields+" evaluations for configuration "+config);
 		
-		String filename = String.format("ensemble_%s_%d_%tF_%tR", config, numYields, System.currentTimeMillis(), System.currentTimeMillis());
+		String filename = String.format("ensemble_%s_%d_%tF_%tR.csv", config, numYields, System.currentTimeMillis(), System.currentTimeMillis());
 		
 		MRSt mc = null;
 		try {
