@@ -97,21 +97,21 @@ public class ConsoleEvaluator {
 			logger.log(Level.SEVERE, e.getMessage(), e);
 		}
 		
-		double[] eBins = null, tBins = null;
-		double[][] spec = null;
-		try {
-			eBins = CSV.readColumn(new File("data/Energy bins.txt"));
-			tBins = CSV.readColumn(new File("data/nsp_150327_16p26_time - copia.txt"));
-			spec = CSV.read(new File("data/nsp_150327_16p26.txt"), '\t');
-			spec = MRSt.interpretSpectrumFile(tBins, eBins, spec);
-		} catch (ArrayIndexOutOfBoundsException | NumberFormatException e) {
-			logger.log(Level.SEVERE, e.getMessage(), e);
-		} catch (IOException e) {
-			logger.log(Level.SEVERE, e.getMessage(), e);
-		}
-		
 		double[][] results = new double[numYields][HEADERS_WITH_ERRORS.length];
 		for (int k = 0; k < numYields; k ++) {
+			double[] eBins = null, tBins = null;
+			double[][] spec = null;
+			try {
+				eBins = CSV.readColumn(new File("data/Energy bins.txt"));
+				tBins = CSV.readColumn(new File("data/nsp_150327_16p26_time - copia.txt"));
+				spec = CSV.read(new File("data/nsp_150327_16p26.txt"), '\t');
+				spec = MRSt.interpretSpectrumFile(tBins, eBins, spec);
+			} catch (ArrayIndexOutOfBoundsException | NumberFormatException e) {
+				logger.log(Level.SEVERE, e.getMessage(), e);
+			} catch (IOException e) {
+				logger.log(Level.SEVERE, e.getMessage(), e);
+			}
+			
 			double yield = Math.pow(10, -3.*Math.random());
 			MRSt.modifySpectrum(tBins, eBins, spec, yield, 1, 1, 0);
 			
