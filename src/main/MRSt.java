@@ -123,7 +123,7 @@ public class MRSt {
 			double apertureDistance, double apertureWidth, double apertureHeight,
 			double minimumEnergy, double maximumEnergy, double referenceEnergy,
 			double[][] cosyCoefficients, int[][] cosyExponents,
-			double focalTilt, int precision, Logger logger) {
+			double focalTilt, double precision, Logger logger) {
 		this.foilDistance = foilDistance;
 		this.foilThickness = foilThickness;
 		this.apertureDistance = apertureDistance;
@@ -246,11 +246,11 @@ public class MRSt {
 				double[] xt = this.simulate(energy, time); // do the simulation!
 				simulationCount ++;
 				
-//				if (Double.isNaN(xt[0]))	continue; // sometimes, they won't hit the CSI. That's fine.
+				if (Double.isNaN(xt[0]))	continue; // sometimes, they won't hit the CSI. That's fine.
 				double[] et = this.backCalculate(xt[0], xt[1]); // otherwise do the stretch/compress time correction
 				
 				double e = et[0]/(-Particle.E.charge)/1e6, t = et[1]/1e-9; // then convert to the same units as the bins
-				e = energy/1e6; t = time/1e-9;
+//				e = energy/1e6; t = time/1e-9;
 				int eBin = (int)((e - MIN_E)/(MAX_E - MIN_E)*(energyBins.length-1));
 				int tBin = (int)((t - MIN_T)/(MAX_T - MIN_T)*(timeBins.length-1));
 				if (eBin >= 0 && eBin < energyBins.length-1 && tBin >= 0 && tBin < timeBins.length-1) // if it falls in detectable bounds
