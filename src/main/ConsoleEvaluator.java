@@ -26,6 +26,7 @@ package main;
 import java.io.File;
 import java.io.IOException;
 import java.util.logging.ConsoleHandler;
+import java.util.logging.FileHandler;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -55,7 +56,7 @@ public class ConsoleEvaluator {
 	private static final String[] HEADERS_WITH_ERRORS = new String[(HEADERS.length-4)*2+4];
 	
 	
-	public static final void main(String[] args) {
+	public static final void main(String[] args) throws SecurityException, IOException {
 		for (int i = 0; i < HEADERS.length; i ++) {
 			if (i < 4)
 				HEADERS_WITH_ERRORS[i] = HEADERS[i];
@@ -73,15 +74,16 @@ public class ConsoleEvaluator {
 		if (config != 'h' && config != 'm' && config != 'l')
 			throw new IllegalArgumentException("first argument must be 'low', 'med', or 'high'.");
 		
-		Logger logger = Logger.getLogger("main");
-		logger.setLevel(Level.INFO);
-//		logger.setLevel(Level.ALL);
-		Handler consoleHandler = new ConsoleHandler();
-		consoleHandler.setLevel(Level.ALL);
-		logger.addHandler(consoleHandler);
-		logger.log(Level.INFO, "beginning "+numYields+" evaluations for configuration "+config);
+		String filename = String.format("ensemble_%s_%d_%tF_%tR", config, numYields, System.currentTimeMillis(), System.currentTimeMillis());
 		
-		String filename = String.format("ensemble_%s_%d_%tF_%tR.csv", config, numYields, System.currentTimeMillis(), System.currentTimeMillis());
+		Logger logger = Logger.getLogger("main");
+		logger.setLevel(Level.ALL);
+		Handler consoleHandler = new ConsoleHandler();
+		consoleHandler.setLevel(Level.FINER);
+		logger.addHandler(consoleHandler);
+		Handler logfileHandler = new FileHandler("working/"+filename+".log");
+		logger.addHandler(logfileHandler);
+		logger.log(Level.INFO, "beginning "+numYields+" evaluations for configuration "+config);
 		
 		MRSt mc = null;
 		try {
@@ -152,8 +154,8 @@ public class ConsoleEvaluator {
 			
 			if ((k+1)%20 == 0 || k+1 == numYields) {
 				try {
-					CSV.write(results, new File("working/"+filename), ',', HEADERS_WITH_ERRORS);
-					logger.log(Level.INFO, "Saved ensemble results to working/"+filename);
+					CSV.write(results, new File("working/"+filename+".csv"), ',', HEADERS_WITH_ERRORS);
+					logger.log(Level.INFO, "Saved ensemble results to working/"+filename+"csv");
 				} catch (IOException e) {
 					logger.log(Level.SEVERE, e.getMessage(), e);
 				}

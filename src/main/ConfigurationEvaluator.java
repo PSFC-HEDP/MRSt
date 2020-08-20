@@ -306,7 +306,7 @@ public class ConfigurationEvaluator extends Application {
 		console.setPrefWidth(400);
 		console.setFont(Font.font("Monospace"));
 		logger = Logger.getLogger("main");
-		logger.setLevel(Level.FINER);
+		logger.setLevel(Level.ALL);
 		StreamHandler consoleHandler = new StreamHandler() {
 			public void publish(LogRecord record) {
 				Platform.runLater(() -> {
@@ -315,7 +315,7 @@ public class ConfigurationEvaluator extends Application {
 				});
 			}
 		};
-		consoleHandler.setLevel(Level.ALL);
+		consoleHandler.setLevel(Level.FINER);
 		logger.addHandler(consoleHandler);
 		rightPane.getChildren().add(console);
 		

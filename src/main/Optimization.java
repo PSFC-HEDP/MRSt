@@ -505,7 +505,7 @@ public class Optimization {
 		
 		while (true) {
 			if (Math.random() < 1e-2)
-				System.out.println("INFO: "+fxk);
+				System.out.println("FINER: "+fxk);
 			
 			final int m = yHist.size();
 			Matrix dk;

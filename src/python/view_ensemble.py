@@ -33,7 +33,7 @@ def text_wrap(s):
 	return s
 
 
-simulations = pd.read_csv('../../working/ensemble.csv', na_values=["Infinity"])
+simulations = pd.read_csv('../../working/ensemble_h_1000_2020-08-18_21%3A24.csv', na_values=["Infinity"])
 for suf in ["", " error"]:
 	simulations["Total yield"+suf] = simulations["Total yield (10^15)"+suf]*1e15
 	simulations["Burn width (ps)"+suf] = simulations["Burn width (ns)"+suf]/1e-3
@@ -54,10 +54,10 @@ for i, (axis, true) in enumerate(Y_LABELS):
 
 	ax = axs[i//COLUMNS,i%COLUMNS]
 	valid = np.logical_not(np.isnan(simulations[axis+" error"]))
-	ax.scatter(simulations[X_LABEL][valid], simulations[axis][valid], s=10, zorder=1, label="Based on fit to synthetic data")
+	ax.scatter(simulations[X_LABEL][valid], simulations[axis][valid], s=2, zorder=1, label="Based on fit to synthetic data")
 	ax.plot(simulations[X_LABEL][order], yFactor[order]*true, 'C1--', zorder=0, label="Based on original data")
 	ax.set_ylim(auto=False)
-	ax.errorbar(simulations[X_LABEL][valid], simulations[axis][valid], yerr=simulations[axis+" error"][valid], elinewidth=1, linestyle='none')
+	# ax.errorbar(simulations[X_LABEL][valid], simulations[axis][valid], yerr=simulations[axis+" error"][valid], elinewidth=1, linestyle='none')
 	if simulations[axis].min() > 0 and yFactor.max()/yFactor.min() >= 10:
 		ax.set_yscale('log')
 		ax.set_ylim(simulations[axis].min()/1.5, simulations[axis].max()*1.5)
