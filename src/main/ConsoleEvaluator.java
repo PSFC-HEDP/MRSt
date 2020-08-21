@@ -74,7 +74,7 @@ public class ConsoleEvaluator {
 		if (config != 'h' && config != 'm' && config != 'l')
 			throw new IllegalArgumentException("first argument must be 'low', 'med', or 'high'.");
 		
-		String filename = String.format("ensemble_%s_%d_%tF_%tR", config, numYields, System.currentTimeMillis(), System.currentTimeMillis());
+		String filename = String.format("ensemble_%s_%d_%tF", config, numYields, System.currentTimeMillis(), System.currentTimeMillis());
 		
 		Logger logger = Logger.getLogger("main");
 		logger.setLevel(Level.ALL);
