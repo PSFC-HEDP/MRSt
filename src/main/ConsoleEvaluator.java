@@ -93,11 +93,11 @@ public class ConsoleEvaluator {
 			mc = new MRSt(
 					Particle.D,
 					3e-3,
-					(config == 'h') ? 150e-6 : (config == 'm') ? 225e-6 : 300e-6,
-					(config == 'h') ? 25e-6 : (config == 'm') ? 50e-6 : 80e-6,
+					(config == 'm') ? 225e-6 : (config == 'l') ? 300e-6 : (config == 'x') ? 400e-6 : 300e-6,
+					(config == 'm') ? 50e-6 : (config == 'l') ? 80e-6 : (config == 'x') ? 120e-6 : 120e-6,
 					CSV.read(new File("data/stopping_power_deuterons.csv"), ','),
 					6e0,
-					(config == 'h') ? 2e-3 : (config == 'm') ? 3e-3 : 4e-3,
+					(config == 'm') ? 3e-3 : (config == 'l') ? 4e-3 : (config == 'x') ? 5e-3 : 4e-3,
 					20e-3,
 					COSY_MINIMUM_ENERGY,
 					COSY_MAXIMUM_ENERGY,
@@ -105,7 +105,7 @@ public class ConsoleEvaluator {
 					cosyCoefficients,
 					cosyExponents,
 					68,
-					(config == 'h') ? 8. : (config == 'm') ? 2. : 1.,
+					(config == 'm') ? 2. : (config == 'l') ? 1. : (config == 'x') ? .5 : .5,
 					logger); // make the simulation
 		} catch (Exception e) {
 			logger.log(Level.SEVERE, e.getMessage(), e);
