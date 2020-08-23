@@ -71,8 +71,8 @@ public class ConsoleEvaluator {
 
 		char config = args[0].charAt(0);
 		int numYields = Integer.parseInt(args[1]);
-		if (config != 'h' && config != 'm' && config != 'l')
-			throw new IllegalArgumentException("first argument must be 'low', 'med', or 'high'.");
+		if (config != 'h' && config != 'm' && config != 'l' && config != 'x' && config != 't')
+			throw new IllegalArgumentException("first argument must be 'low', 'med', or 'high', or 'xtra low' or 'thick'.");
 		
 		String filename = String.format("ensemble_%s_%d_%tF", config, numYields, System.currentTimeMillis(), System.currentTimeMillis());
 		
