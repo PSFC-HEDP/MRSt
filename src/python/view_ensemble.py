@@ -7,7 +7,7 @@ X_LABEL = "Yield factor"
 
 Y_LABELS = [
 	("Total yield", 2e14, 4.7838e17, 9e18, 1e13), ("Total yield", 2e14, 4.7838e17, 9e18, 1e13),
-	("Burn-average ρR (g/cm^2)", 0.4, .6900, 1.1, 3e-3), ("Burn-average Ti (keV)", 8.8, 10.0198, 11.2, 3e-2),
+	("Burn-average ρR (g/cm^2)", 0.3, .6900, 1.1, 3e-3), ("Burn-average Ti (keV)", 8.8, 10.0198, 11.2, 3e-2),
 	("Bang time (ns)", 16.349, 16.3645, 16.371, 3e-4),	("Burn width (ps)", 58, 66.732, 77, 1e-1),
 	("Burn skew", -2.1, -1.1469, 0.11, 1e-2), ("Burn kurtosis", 3.8, 6.5166, 9.2, 1e-1),
 	("dρR/dt at BT (mg/cm^2/(100ps))", -850, -282.4, 450, 3e1), ("dTi/dt at BT (keV/(100ps))", -0.2, 6.467, 12.2, 3e-1),

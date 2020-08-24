@@ -77,6 +77,7 @@ public class ConsoleEvaluator {
 		String filename = String.format("ensemble_%s_%d_%tF", config, numYields, System.currentTimeMillis(), System.currentTimeMillis());
 		
 		Logger logger = Logger.getLogger("main");
+		logger.setUseParentHandlers(false);
 		logger.setLevel(Level.ALL);
 		Handler consoleHandler = new ConsoleHandler();
 		consoleHandler.setLevel(Level.FINER);
@@ -93,8 +94,8 @@ public class ConsoleEvaluator {
 			mc = new MRSt(
 					Particle.D,
 					3e-3,
-					(config == 'm') ? 225e-6 : (config == 'l') ? 300e-6 : (config == 'x') ? 400e-6 : 300e-6,
-					(config == 'm') ? 50e-6 : (config == 'l') ? 80e-6 : (config == 'x') ? 120e-6 : 120e-6,
+					(config == 'm') ? 225e-6 : (config == 'l') ? 300e-6 : (config == 'x') ? 400e-6 : 400e-6,
+					(config == 'm') ? 50e-6 : (config == 'l') ? 80e-6 : (config == 'x') ? 120e-6 : 160e-6,
 					CSV.read(new File("data/stopping_power_deuterons.csv"), ','),
 					6e0,
 					(config == 'm') ? 3e-3 : (config == 'l') ? 4e-3 : (config == 'x') ? 5e-3 : 4e-3,
@@ -155,7 +156,7 @@ public class ConsoleEvaluator {
 			if ((k+1)%20 == 0 || k+1 == numYields) {
 				try {
 					CSV.write(results, new File("working/"+filename+".csv"), ',', HEADERS_WITH_ERRORS);
-					logger.log(Level.INFO, "Saved ensemble results to working/"+filename+"csv");
+					logger.log(Level.INFO, "Saved ensemble results to working/"+filename+".csv");
 				} catch (IOException e) {
 					logger.log(Level.SEVERE, e.getMessage(), e);
 				}
