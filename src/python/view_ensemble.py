@@ -21,7 +21,7 @@ N_BINS = 10
 # COLUMNS = 3
 # SIZE = (16, 9)
 # MARGIN = dict(bottom=.06, top=.94, left=.06, right=.99, wspace=.26, hspace=.05)
-FILENAME = '../../working/ensemble_h_1000_2020-08-20_16%3A43.csv'
+FILENAME = '../../working/ensemble_t_1000_2020-08-24.csv'
 
 
 def text_wrap(s):
@@ -36,6 +36,7 @@ def text_wrap(s):
 
 
 simulations = pd.read_csv(FILENAME, na_values=["Infinity"])
+simulations = simulations[simulations["Yield factor"] != 0]
 for suf in ["", " error"]:
 	simulations["Total yield"+suf] = simulations["Total yield (10^15)"+suf]*1e15
 	simulations["Burn width (ps)"+suf] = simulations["Burn width (ns)"+suf]/1e-3

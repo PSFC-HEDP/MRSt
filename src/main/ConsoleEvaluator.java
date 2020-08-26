@@ -71,8 +71,8 @@ public class ConsoleEvaluator {
 
 		char config = args[0].charAt(0);
 		int numYields = Integer.parseInt(args[1]);
-		if (config != 'h' && config != 'm' && config != 'l' && config != 'x' && config != 't')
-			throw new IllegalArgumentException("first argument must be 'low', 'med', or 'high', or 'xtra low' or 'thick'.");
+		if (config != 'h' && config != 'm' && config != 'l' && config != 'x' && config != 't' && config != 'n' && config != 'g' && config != 'f' && config != 'b')
+			throw new IllegalArgumentException("first argument must be 'low', 'med', or 'high', or 'xtra low' or 'thick' or 'narrow', 'gao', or 'flat' or 'best'.");
 		
 		String filename = String.format("ensemble_%s_%d_%tF", config, numYields, System.currentTimeMillis(), System.currentTimeMillis());
 		
@@ -94,12 +94,12 @@ public class ConsoleEvaluator {
 			mc = new MRSt(
 					Particle.D,
 					3e-3,
-					(config == 'm') ? 225e-6 : (config == 'l') ? 300e-6 : (config == 'x') ? 400e-6 : 400e-6,
-					(config == 'm') ? 50e-6 : (config == 'l') ? 80e-6 : (config == 'x') ? 120e-6 : 160e-6,
+					(config == 'm') ? 225e-6 : (config == 'l') ? 300e-6 : (config == 'x') ? 400e-6 : (config == 't') ? 400e-6 : (config == 'n') ? 300e-6 : (config == 'g') ? 300e-6 : (config == 'f') ? 400e-6 : 400e-6,
+					(config == 'm') ? 50e-6 : (config == 'l') ? 80e-6 : (config == 'x') ? 120e-6 : (config == 't') ? 160e-6 : (config == 'n') ? 80e-6 : (config == 'g') ? 80e-6 : (config == 'f') ? 60e-6 : 80e-6,
 					CSV.read(new File("data/stopping_power_deuterons.csv"), ','),
 					6e0,
-					(config == 'm') ? 3e-3 : (config == 'l') ? 4e-3 : (config == 'x') ? 5e-3 : 4e-3,
-					20e-3,
+					(config == 'm') ? 3e-3 : (config == 'l') ? 4e-3 : (config == 'x') ? 5e-3 : (config == 't') ? 4e-3 : (config == 'n') ? 3e-3 : (config == 'g') ? 4e-3 : (config == 'f') ? 4e-3 : 5e-3,
+					(config == 'g') ? 40e-3 : (config == 'b') ? 30e-3 : 20e-3,
 					COSY_MINIMUM_ENERGY,
 					COSY_MAXIMUM_ENERGY,
 					COSY_REFERENCE_ENERGY,
@@ -127,7 +127,7 @@ public class ConsoleEvaluator {
 				logger.log(Level.SEVERE, e.getMessage(), e);
 			}
 			
-			double yield = Math.pow(10, -3.*Math.random());
+			double yield = Math.pow(10, -.5*Math.random());
 			MRSt.modifySpectrum(tBins, eBins, spec, yield, 1, 1, 0);
 			
 			logger.log(Level.INFO, String.format("Yn = %f (%d/%d)", yield, k, numYields));
