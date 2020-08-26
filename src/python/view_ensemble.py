@@ -17,11 +17,11 @@ Y_LABELS = [
 COLUMNS = 2
 SIZE = (8.0, 10.5)
 MARGIN = dict(bottom=.06, top=.94, left=.12, right=.99, wspace=.35, hspace=.05)
-N_BINS = 10
+BIN_WIDTH = 0.3 # in bels
 # COLUMNS = 3
 # SIZE = (16, 9)
 # MARGIN = dict(bottom=.06, top=.94, left=.06, right=.99, wspace=.26, hspace=.05)
-FILENAME = '../../working/ensemble_t_1000_2020-08-24.csv'
+FILENAME = '../../working/ensemble_b_300_2020-08-26.csv'
 
 
 def text_wrap(s):
@@ -47,7 +47,7 @@ for suf in ["", " error"]:
 fig_p, axs_p = plt.subplots((len(Y_LABELS) + COLUMNS-1)//COLUMNS, COLUMNS, figsize=SIZE)
 fig_p.subplots_adjust(**MARGIN)
 
-bins = np.geomspace(simulations[X_LABEL].min(), simulations[X_LABEL].max(), N_BINS+1)
+bins = np.geomspace(simulations[X_LABEL].min(), simulations[X_LABEL].max(), max(3, 1 + int(np.ptp(simulations[X_LABEL])/BIN_WIDTH)))
 fig_w, axs_w = plt.subplots((len(Y_LABELS) + COLUMNS-1)//COLUMNS, COLUMNS, figsize=SIZE)
 fig_w.subplots_adjust(**MARGIN)
 
@@ -83,11 +83,11 @@ for i, (axis, y_min, y_true, y_max, presis) in enumerate(Y_LABELS):
 
 	ax = axs_w[i//COLUMNS,i%COLUMNS]
 	stds, errs = [], []
-	for j in range(N_BINS):
+	for j in range(1, len(bins)):
 		stds.append(
-			np.sqrt(np.mean(np.square((simulations[axis] - yFactor*y_true)[(simulations[X_LABEL] >= bins[j]) & (simulations[X_LABEL] < bins[j+1])]))))
+			np.sqrt(np.mean(np.square((simulations[axis] - yFactor*y_true)[(simulations[X_LABEL] >= bins[j-1]) & (simulations[X_LABEL] < bins[j])]))))
 		errs.append(
-			np.mean(simulations[axis+" error"][(simulations[X_LABEL] >= bins[j]) & (simulations[X_LABEL] < bins[j+1])]))
+			np.mean(simulations[axis+" error"][(simulations[X_LABEL] >= bins[j-1]) & (simulations[X_LABEL] < bins[j])]))
 	ax.plot(np.sqrt(bins[1:]*bins[:-1]), stds, 'C0-', label="Standard deviation from actuality")
 	ax.plot(np.sqrt(bins[1:]*bins[:-1]), errs, 'C1--', label="Reported error bar size")
 	ax.set_yscale('log')

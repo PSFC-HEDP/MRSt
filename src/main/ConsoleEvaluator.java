@@ -106,7 +106,7 @@ public class ConsoleEvaluator {
 					cosyCoefficients,
 					cosyExponents,
 					68,
-					(config == 'm') ? 2. : (config == 'l') ? 1. : (config == 'x') ? .5 : .5,
+					.1, // (just to be sure)
 					logger); // make the simulation
 		} catch (Exception e) {
 			logger.log(Level.SEVERE, e.getMessage(), e);
