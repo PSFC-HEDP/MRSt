@@ -464,11 +464,11 @@ public class MRSt {
 			for (int j = 0; j < spectrum[0].length; j ++) {
 				for (int i = 0; i < spectrum.length; i ++) {
 					if (teoSpectrum[i][j] > 1e-20)
-						penalty += 1e-3*efficiency[i][j]*teoSpectrum[i][j]*
+						penalty += 3e-4*efficiency[i][j]*teoSpectrum[i][j]*
 								Math.log(teoSpectrum[i][j]/spectrumScale); // encourage entropy
 				}
 				
-//				penalty += params[1][j]/5 - Math.log(params[1][j]); // use gamma prior on temperatures	
+//				penalty += params[1][j]/5 - Math.log(params[1][j]); // use gamma prior on temperatures
 //				penalty += params[2][j]/5 - Math.log(params[2][j]);
 //				penalty += Math.pow(params[3][j]/50, 2)/2; // gaussian prior on velocity
 				penalty += params[4][j]/1.5; // exponential prior on areal density
