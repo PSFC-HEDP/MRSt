@@ -1,17 +1,18 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import re
 plt.rcParams.update({'font.family': 'serif', 'font.size': 10})
 
 X_LABEL = "Yield factor"
 
 Y_LABELS = [
-	("Total yield", 2e14, 4.7838e17, 9e18, 1e13), ("Total yield", 2e14, 4.7838e17, 9e18, 1e13),
-	("Burn-average ρR (g/cm^2)", 0.3, .6900, 1.1, 3e-3), ("Burn-average Ti (keV)", 8.8, 10.0198, 11.2, 3e-2),
-	("Bang time (ns)", 16.349, 16.3645, 16.371, 3e-4),	("Burn width (ps)", 58, 66.732, 77, 1e-1),
-	("Burn skew", -2.1, -1.1469, 0.11, 1e-2), ("Burn kurtosis", 3.8, 6.5166, 9.2, 1e-1),
-	("dρR/dt at BT (mg/cm^2/(100ps))", -850, -282.4, 450, 3e1), ("dTi/dt at BT (keV/(100ps))", -0.2, 6.467, 12.2, 3e-1),
-	("Burn-average vi (km/s)", -20.2, 1.734, 20.2, 3e-1), ("dvi/dt at BT (km/s/(100ps))", -170, -72.19, 20, 3e0)
+	("Total yield", 2e14, 4.7838e17, 9e18, 1e-4, True), ("Total yield", 2e14, 4.7838e17, 9e18, 1e-4, True),
+	("Burn-average ρR (g/cm^2)", 0.3, .6900, 1.1, 3e-3, True), ("Burn-average Ti (keV)", 8.8, 10.0198, 11.2, 3e-3, True),
+	("Bang time (ns)", 16.349, 16.3645, 16.371, 3e-4, False),	("Burn width (ps)", 58, 66.732, 77, 1e-1, False),
+	("Burn skew", -2.1, -1.1469, 0.11, 1e-2, False), ("Burn kurtosis", 3.8, 6.5166, 9.2, 1e-1, False),
+	("dρR/dt at BT (mg/cm^2/(100ps))", -850, -282.4, 450, 3e1, False), ("dTi/dt at BT (keV/(100ps))", -0.2, 6.467, 12.2, 3e-1, False),
+	("Burn-average vi (km/s)", -20.2, 1.734, 20.2, 3e-1, False), ("dvi/dt at BT (km/s/(100ps))", -170, -72.19, 20, 3e0, False)
 ]
 
 COLUMNS = 2
@@ -21,7 +22,7 @@ BIN_WIDTH = 0.3 # in bels
 # COLUMNS = 3
 # SIZE = (16, 9)
 # MARGIN = dict(bottom=.06, top=.94, left=.06, right=.99, wspace=.26, hspace=.05)
-FILENAME = '../../working/ensemble_b_300_2020-08-26.csv'
+FILENAME = '../../working/ensemble_s_301_2020-08-27.csv'
 
 
 def text_wrap(s):
@@ -51,17 +52,17 @@ bins = np.geomspace(simulations[X_LABEL].min(), simulations[X_LABEL].max(), max(
 fig_w, axs_w = plt.subplots((len(Y_LABELS) + COLUMNS-1)//COLUMNS, COLUMNS, figsize=SIZE)
 fig_w.subplots_adjust(**MARGIN)
 
-for i, (axis, y_min, y_true, y_max, presis) in enumerate(Y_LABELS):
-	if 'keV' in axis:      yFactor = simulations["Temperature factor"]
-	elif 'g/cm^2' in axis: yFactor = simulations["Down-scatter factor"]
-	elif 'yield' in axis:  yFactor = simulations["Yield factor"]
-	else:                  yFactor = np.ones(len(simulations.index))
+for i, (axis, y_min, y_true, y_max, presis, percent) in enumerate(Y_LABELS):
+	if 'keV' in axis:      y_factor = simulations["Temperature factor"]
+	elif 'g/cm^2' in axis: y_factor = simulations["Down-scatter factor"]
+	elif 'yield' in axis:  y_factor = simulations["Yield factor"]
+	else:                  y_factor = np.ones(len(simulations.index))
 	order = np.argsort(simulations[X_LABEL])
 	order = order[np.isfinite(simulations["Total yield"].values[order])].values
 
 	ax = axs_p[i//COLUMNS,i%COLUMNS]
 	valid = np.logical_not(np.isnan(simulations[axis+" error"]))
-	ax.plot(simulations[X_LABEL][order], yFactor[order]*y_true, 'C1--', zorder=0, label="Based on original data")
+	ax.plot(simulations[X_LABEL][order], y_factor[order]*y_true, 'C1--', zorder=0, label="Based on original data")
 	ax.scatter(simulations[X_LABEL][valid], simulations[axis][valid], s=2, zorder=1, label="Based on fit to synthetic data")
 	# ax.errorbar(simulations[X_LABEL][valid], simulations[axis][valid], yerr=simulations[axis+" error"][valid], elinewidth=1, linestyle='none')
 	if y_min > 0 and y_max/y_min >= 10:
@@ -85,11 +86,17 @@ for i, (axis, y_min, y_true, y_max, presis) in enumerate(Y_LABELS):
 	stds, errs = [], []
 	for j in range(1, len(bins)):
 		stds.append(
-			np.sqrt(np.mean(np.square((simulations[axis] - yFactor*y_true)[(simulations[X_LABEL] >= bins[j-1]) & (simulations[X_LABEL] < bins[j])]))))
+			np.sqrt(np.mean(np.square((simulations[axis] - y_factor*y_true)[(simulations[X_LABEL] >= bins[j-1]) & (simulations[X_LABEL] < bins[j])]))))
 		errs.append(
 			np.mean(simulations[axis+" error"][(simulations[X_LABEL] >= bins[j-1]) & (simulations[X_LABEL] < bins[j])]))
-	ax.plot(np.sqrt(bins[1:]*bins[:-1]), stds, 'C0-', label="Standard deviation from actuality")
-	ax.plot(np.sqrt(bins[1:]*bins[:-1]), errs, 'C1--', label="Reported error bar size")
+	bin_centers = np.sqrt(bins[1:]*bins[:-1])
+	y_factor = np.interp(bin_centers, simulations[X_LABEL], y_factor)
+	if not percent:
+		ax.plot(bin_centers, stds, 'C0-', label="Standard deviation from actuality")
+		ax.plot(bin_centers, errs, 'C1--', label="Reported error bar size")
+	else:
+		ax.plot(bin_centers, stds/(y_factor*y_true), 'C0-', label="Standard deviation from actuality")
+		ax.plot(bin_centers, errs/(y_factor*y_true), 'C1--', label="Reported error bar size")
 	ax.set_yscale('log')
 	if 'ield' in X_LABEL:
 		ax.set_xscale('log')
@@ -104,7 +111,10 @@ for i, (axis, y_min, y_true, y_max, presis) in enumerate(Y_LABELS):
 		ax.xaxis.tick_top()
 	else:
 		ax.xaxis.set_visible(False)
-	ax.set_ylabel(text_wrap(axis))
+	if not percent:
+		ax.set_ylabel(text_wrap(axis))
+	else:
+		ax.set_ylabel(text_wrap(re.sub(r'(\([^)]+\))?$', '', axis)))
 
 config = '-'+FILENAME[23] if len(FILENAME) > 23 else ''
 fig_p.savefig('../../working/mrst-scatter{}.eps'.format(config))
