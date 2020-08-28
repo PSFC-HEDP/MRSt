@@ -64,7 +64,7 @@ public class MRSt {
 	
 	private static final int STOPPING_DISTANCE_RESOLUTION = 64;
 	private static final double MIN_E = 12, MAX_E = 16; // histogram bounds [MeV]
-	private static final double MIN_T = 16.0, MAX_T = 16.5; // histogram bounds [ns]
+	private static final double MIN_T = 16.0, MAX_T = 16.6; // histogram bounds [ns]
 	private static final double E_RESOLUTION = .09, T_RESOLUTION = 20e-3; // resolutions [MeV], [ns]
 //	private static final double E_RESOLUTION = .3, T_RESOLUTION = 40e-3;
 	private static final int TRANSFER_MATRIX_TRIES = 10000; // the number of points to sample in each column of the transfer matrix
