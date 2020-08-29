@@ -367,7 +367,7 @@ public class MRSt {
 		long startTime = System.currentTimeMillis();
 		
 		double gelf[][] = Optimization.optimizeGelfgat(F, D, this.transferMatrix,
-				Math.max(1e-5, 1e3/NumericalMethods.sum(spectrum)));
+				Math.max(1e-5, 1e6/NumericalMethods.sum(spectrum)));
 		
 		double[] opt = new double[6*timeAxis.length]; // initial guess for the coming Powell fit
 		double[] yieldGuess = new double[timeAxis.length];
@@ -418,16 +418,14 @@ public class MRSt {
 		while (rite < timeAxis.length && opt[6*(rite)] > opt[6*(rite)]/1e3)
 			rite ++;
 		
-		double spectrumScale = NumericalMethods.sum(gelf)/(timeBins.length-1)/(energyBins.length-1); // the characteristic magnitude of the neutron spectrum bins
-//		double s0 = 0, s1 = 0, s2 = 0;
-//		for (int i = 3; i < energyBins.length-1; i ++) {
-//			for (int j = 0; j < timeBins.length-1; j ++) {
-//				s0 += gelf[i][j];
-//				s1 += gelf[i][j]*timeAxis[j];
-//				s2 += gelf[i][j]*timeAxis[j]*timeAxis[j];
-//			}
-//		}
-//		double expectedStd = Math.sqrt(s2/s0 - s1*s1/s0/s0); // the expected standard deviation of the burn in time
+		double s1 = 0, s2 = 0;
+		for (int i = 3; i < energyBins.length-1; i ++) {
+			for (int j = 0; j < timeBins.length-1; j ++) {
+				s1 += gelf[i][j];
+				s2 += gelf[i][j]*gelf[i][j];
+			}
+		}
+		double spectrumScale = s2 / s1;
 		
 		Function<double[], Double> logPosterior = (double[] x) -> {
 			double[][] params = new double[6][timeAxis.length];
@@ -464,7 +462,7 @@ public class MRSt {
 			for (int j = 0; j < spectrum[0].length; j ++) {
 				for (int i = 0; i < spectrum.length; i ++) {
 					if (teoSpectrum[i][j] > 1e-20)
-						penalty += 3e-4*efficiency[i][j]*teoSpectrum[i][j]*
+						penalty += 1e-3*efficiency[i][j]*teoSpectrum[i][j]*
 								Math.log(teoSpectrum[i][j]/spectrumScale); // encourage entropy
 				}
 				
@@ -481,8 +479,8 @@ public class MRSt {
 				if (j <= bangIndex) Yp *= -1;
 				if (Y > 0) {
 					double z = Yp/Y*1.;
-					if (z < 0) penalty += .1*Math.exp(z);
-					else       penalty += .1*(1 + z + z*z/2.); // encourage a monotonically increasing yield before BT
+					if (z < 0) penalty += .2*Math.exp(z);
+					else       penalty += .2*(1 + z + z*z/2.); // encourage a monotonically increasing yield before BT
 				}
 			}
 			
