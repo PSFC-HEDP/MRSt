@@ -631,6 +631,7 @@ public class NumericalMethods {
 	
 	/**
 	 * convert this 2d histogram to a lower resolution. the output bins must be uniform.
+	 * only works if the input spectrum has a higher resolution than the output spectrum :P
 	 * @param xI the horizontal bin edges of the input histogram
 	 * @param yI the vertical bin edges of the input histogram
 	 * @param zI the counts of the input histogram
@@ -643,21 +644,21 @@ public class NumericalMethods {
 		if (yI.length-1 != zI.length || xI.length-1 != zI[0].length)
 			throw new IllegalArgumentException("Array sizes don't match fix it.");
 		
-		double[][] zO = new double[yO.length-1][xO.length-1]; // first resize the input spectrum to match the transfer matrix
+		double[][] zO = new double[yO.length-1][xO.length-1]; // resize the input array to match the output array
 		for (int iI = 0; iI < yI.length-1; iI ++) {
 			for (int jI = 0; jI < xI.length-1; jI ++) { // for each small pixel on the input spectrum
 				double iO = (yI[iI] - yO[0])/(yO[1] - yO[0]); // find the big pixel of the scaled spectrum
 				double jO = (xI[jI] - xO[0])/(xO[1] - xO[0]); // that contains the upper left corner
-				int iOint = (int)Math.floor(iO);
+				int iOint = (int) Math.floor(iO);
 				double iOmod = iO - iOint;
-				int jOint = (int)Math.floor(jO);
+				int jOint = (int) Math.floor(jO);
 				double jOmod = jO - jOint;
 				double cU = Math.min(1, (1 - iOmod)*(yO[1] - yO[0])/(yI[iI+1] - yI[iI])); // find the fraction of it that is above the next pixel
 				double cL = Math.min(1, (1 - jOmod)*(xO[1] - xO[0])/(xI[jI+1] - xI[jI])); // and left of the next pixel
 				
 				addIfInBounds(zO, iOint,   jOint,   zI[iI][jI]*cU*cL); // now add the contents of this spectrum
 				addIfInBounds(zO, iOint,   jOint+1, zI[iI][jI]*cU*(1-cL)); // being careful to distribute them properly
-				addIfInBounds(zO, iOint+1, jOint,   zI[iI][jI]*(1-cU)*cL); // (I used this convenience method because otherwise I would have to check all the bounds)
+				addIfInBounds(zO, iOint+1, jOint,   zI[iI][jI]*(1-cU)*cL); // (I used this convenience method because otherwise I would have to check all the bounds all the time)
 				addIfInBounds(zO, iOint+1, jOint+1, zI[iI][jI]*(1-cU)*(1-cL));
 			}
 		}

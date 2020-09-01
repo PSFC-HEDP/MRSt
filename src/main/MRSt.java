@@ -99,8 +99,9 @@ public class MRSt {
 	private double[][] fitNeutronSpectrum; // backward-fit neutron counts
 	private double[][] fitDeuteronSpectrum; // backward-fit deuteron counts (this should be similar to deuteronSpectrum)
 	
+	private final double[] energyAxis; // centers of energy bins [ns]
 	private final double timeStep;
-	private final double[] timeAxis; // 1D vectors for higher level measurements [ns]
+	private final double[] timeAxis; // centers of time bins [ns]
 	private Quantity[][] measurements; // yield, ion temperature, electron temperature, velocity, areal density, and P2 asymmetry
 	private double[][] covarianceMatrix; // and covariances that go with all of these
 	
@@ -166,6 +167,9 @@ public class MRSt {
 		for (int i = 0; i < timeBins.length; i ++)
 			this.timeBins[i] = MIN_T + i*(MAX_T - MIN_T)/(timeBins.length-1);
 		
+		this.energyAxis = new double[energyBins.length-1];
+		for (int i = 0; i < energyBins.length-1; i ++)
+			this.energyAxis[i] = (this.energyBins[i] + this.energyBins[i+1])/2;
 		this.timeStep = timeBins[1] - timeBins[0];
 		this.timeAxis = new double[timeBins.length-1];
 		for (int i = 0; i < timeBins.length-1; i ++)
@@ -304,8 +308,8 @@ public class MRSt {
 	 * compute the total response to an implosion with the given neutron spectrum using the
 	 * precomputed transfer matrix. account for electrostatic time correction, but not for any
 	 * analysis.
-	 * @param energies the edges of the energy bins
-	 * @param times the edges of the time bins
+	 * @param energies the edges of the energy bins [MeV]
+	 * @param times the edges of the time bins [ns]
 	 * @param inSpectrum the neutron counts in each bin
 	 * @param stochastic whether to add noise to mimic real data
 	 * @return the counts in the measured spectrum bins
@@ -316,7 +320,7 @@ public class MRSt {
 			throw new IllegalArgumentException("These dimensions don't make any sense.");
 		
 		double[][] sizedSpectrum = NumericalMethods.downsample(
-				inTBins, inEBins, inSpectrum, this.timeBins, this.energyBins);
+				inTBins, inEBins, inSpectrum, this.timeBins, this.energyBins); // first bin the spectrum
 		
 		double[] u = new double[(energyBins.length-1)*(timeBins.length-1)];
 		for (int i = 0; i < energyBins.length-1; i ++)
@@ -791,8 +795,6 @@ public class MRSt {
 		double distance = (foilDistance + foilThickness/2 - rFoil[z])/dHat[z];
 		E1 = energyVsDistance.evaluate(distanceVsEnergy.evaluate(E1) - distance); // lose some energy by dragging through the foil
 		
-//		System.out.print(E1/Particle.P.charge/1e6+", ");
-		
 		if (E1 < cosyKmin || E1 > cosyKmax) {
 			return new double[] { Double.NaN, Double.NaN, Double.NaN }; // some won't make it through the "energy aperture"
 		}
@@ -977,6 +979,10 @@ public class MRSt {
 	
 	public double[] getTimeAxis() {
 		return this.timeAxis;
+	}
+	
+	public double[] getEnergyAxis() {
+		return this.energyAxis;
 	}
 	
 	public double[] getNeutronYield() {

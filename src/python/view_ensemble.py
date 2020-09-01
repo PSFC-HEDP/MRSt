@@ -9,10 +9,10 @@ X_LABEL = "Yield factor"
 Y_LABELS = [
 	("Total yield", 2e14, 4.7838e17, 9e18, 5e-2, True), ("Total yield", 2e14, 4.7838e17, 9e18, 5e-2, True),
 	("Burn-average ρR (g/cm^2)", 0.3, .6900, 1.1, 7e-2, True), ("Burn-average Ti (keV)", 8.8, 10.0198, 11.2, 7e-2, True),
-	("Bang time (ns)", 16.349, 16.3645, 16.371, 1e-2, False),	("Burn width (ps)", 58, 66.732, 77, 7, False),
-	("Burn skew", -2.1, -1.1469, 0.11, 3e-1, False), ("Burn kurtosis", 3.8, 6.5166, 9.2, 3, False),
+	("Bang time (ns)", 16.349, 16.3645, 16.381, 1e-2, False),	("Burn width (ps)", 58, 66.732, 77, 7, False),
+	("Burn skew", -2.1, -1.1469, 0.11, 3e-1, False), ("Burn kurtosis", 2.8, 6.5166, 10.2, 3, False),
 	("dρR/dt at BT (mg/cm^2/(100ps))", -850, -282.4, 450, 60, False), ("dTi/dt at BT (keV/(100ps))", -0.2, 6.467, 12.2, 1.9, False),
-	("Burn-average vi (km/s)", -20.2, 1.734, 20.2, 20, False), ("dvi/dt at BT (km/s/(100ps))", -170, -72.19, 20, 8, False)
+	("Burn-average vi (km/s)", -20.2, 1.734, 20.2, 10, False), ("dvi/dt at BT (km/s/(100ps))", -170, -72.19, 20, 8, False)
 ]
 
 COLUMNS = 2
@@ -22,7 +22,7 @@ BIN_WIDTH = 0.3 # in bels
 # COLUMNS = 3
 # SIZE = (16, 9)
 # MARGIN = dict(bottom=.06, top=.94, left=.06, right=.99, wspace=.26, hspace=.05)
-FILENAME = '../../working/ensemble_s_301_2020-08-27.csv'
+FILENAME = '../../working/ensemble_b_1000_2020-08-29.csv'
 
 
 def text_wrap(s):
@@ -48,7 +48,7 @@ for suf in ["", " error"]:
 fig_p, axs_p = plt.subplots((len(Y_LABELS) + COLUMNS-1)//COLUMNS, COLUMNS, figsize=SIZE)
 fig_p.subplots_adjust(**MARGIN)
 
-bins = np.geomspace(simulations[X_LABEL].min(), simulations[X_LABEL].max(), max(3, 1 + int(np.ptp(simulations[X_LABEL])/BIN_WIDTH)))
+bins = np.geomspace(simulations[X_LABEL].min(), simulations[X_LABEL].max(), max(3, 1 + int(np.ptp(np.log10(simulations[X_LABEL]))/BIN_WIDTH)))
 fig_w, axs_w = plt.subplots((len(Y_LABELS) + COLUMNS-1)//COLUMNS, COLUMNS, figsize=SIZE)
 fig_w.subplots_adjust(**MARGIN)
 
@@ -95,6 +95,8 @@ for i, (axis, y_min, y_true, y_max, presis, percent) in enumerate(Y_LABELS):
 			np.sqrt(np.mean(np.square((simulations[axis] - y_factor*y_true)[(simulations[X_LABEL] >= bins[j-1]) & (simulations[X_LABEL] < bins[j])]))))
 		errs.append(
 			np.mean(simulations[axis+" error"][(simulations[X_LABEL] >= bins[j-1]) & (simulations[X_LABEL] < bins[j])]))
+	if "/dt" in axis:
+		print(f"σ = {stds[-1]}")
 	bin_centers = np.sqrt(bins[1:]*bins[:-1])
 	y_factor = np.interp(bin_centers, simulations[X_LABEL], y_factor)
 	if not percent:
