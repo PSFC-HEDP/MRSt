@@ -7,12 +7,12 @@ plt.rcParams.update({'font.family': 'serif', 'font.size': 10})
 X_LABEL = "Yield factor"
 
 Y_LABELS = [
-	("Total yield", 2e14, 4.7838e17, 9e18, 5e-2, True), ("Total yield", 2e14, 4.7838e17, 9e18, 5e-2, True),
-	("Burn-average ρR (g/cm^2)", 0.3, .6900, 1.1, 7e-2, True), ("Burn-average Ti (keV)", 8.8, 10.0198, 11.2, 7e-2, True),
-	("Bang time (ns)", 16.349, 16.3645, 16.381, 1e-2, False),	("Burn width (ps)", 58, 66.732, 77, 7, False),
-	("Burn skew", -2.1, -1.1469, 0.11, 3e-1, False), ("Burn kurtosis", 2.8, 6.5166, 10.2, 3, False),
-	("dρR/dt at BT (mg/cm^2/(100ps))", -850, -282.4, 450, 60, False), ("dTi/dt at BT (keV/(100ps))", -0.2, 6.467, 12.2, 1.9, False),
-	("Burn-average vi (km/s)", -20.2, 1.734, 20.2, 10, False), ("dvi/dt at BT (km/s/(100ps))", -170, -72.19, 20, 8, False)
+	("Total yield", 2e14, 4.79839e17, 9e18, 5e-2, True), ("Total yield", 2e14, 4.7838e17, 9e18, 5e-2, True),
+	("Burn-average ρR (g/cm^2)", 0.3, .68998, 1.1, 7e-2, True), ("Burn-average Ti (keV)", 8.8, 10.0186, 11.2, 7e-2, True),
+	("Bang time (ns)", 16.349, 16.3632, 16.381, 1e-2, False),	("Burn width (ps)", 58, 66.711, 77, 7, False),
+	("Burn skew", -2.1, -1.1572, 0.11, 3e-1, False), ("Burn kurtosis", 2.8, 6.5079, 10.2, 3, False),
+	("dρR/dt at BT (mg/cm^2/(100ps))", -850, -196.9, 450, 60, False), ("dTi/dt at BT (keV/(100ps))", -0.2, 6.733, 12.2, 1.9, False),
+	("Burn-average vi (km/s)", -20.2, 1.83, 20.2, 10, False), ("dvi/dt at BT (km/s/(100ps))", -170, -87.3, 20, 8, False)
 ]
 
 COLUMNS = 2
@@ -22,7 +22,7 @@ BIN_WIDTH = 0.3 # in bels
 # COLUMNS = 3
 # SIZE = (16, 9)
 # MARGIN = dict(bottom=.06, top=.94, left=.06, right=.99, wspace=.26, hspace=.05)
-FILENAME = '../../working/ensemble_b_1000_2020-08-29.csv'
+FILENAME = '../../working/ensemble_6_10_6.0_2_1000_2020-09-02.csv'
 
 
 def text_wrap(s):
@@ -110,7 +110,7 @@ for i, (axis, y_min, y_true, y_max, presis, percent) in enumerate(Y_LABELS):
 	ax.set_yscale('log')
 	if 'ield' in X_LABEL:
 		ax.set_xscale('log')
-	ax.set_ylim(presis*1.6e-2, presis*2.5)
+	ax.set_ylim(presis*3.2e-2, presis*5)
 	if i == 0:
 		ax.legend()
 	if i//COLUMNS == axs_p.shape[0]-1:
@@ -126,7 +126,7 @@ for i, (axis, y_min, y_true, y_max, presis, percent) in enumerate(Y_LABELS):
 	else:
 		ax.set_ylabel(text_wrap(re.sub(r'(\([^)]+\))?$', '', axis)))
 
-config = '-'+FILENAME[23] if len(FILENAME) > 23 else ''
+config = '-'+FILENAME[23:38] if len(FILENAME) > 23 else ''
 fig_p.savefig('../../working/mrst-scatter{}.eps'.format(config))
 fig_p.savefig('../../working/mrst-scatter{}.png'.format(config))
 fig_w.savefig('../../working/mrst-errors{}.eps'.format(config))

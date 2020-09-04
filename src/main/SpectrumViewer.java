@@ -135,7 +135,7 @@ public class SpectrumViewer extends Application {
 		leftPane.add(new Label("mm"), 2, row);
 		row ++;
 		
-		this.apertureHeight = new Spinner<Double>(1.0, 50.0, 30.0, 1.0);
+		this.apertureHeight = new Spinner<Double>(1.0, 50.0, 20.0, 1.0);
 		apertureHeight.setEditable(true);
 		leftPane.add(new Label("Aper. height"), 0, row);
 		leftPane.add(apertureHeight, 1, row);

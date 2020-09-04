@@ -69,12 +69,13 @@ public class ConsoleEvaluator {
 			}
 		}
 
-		char config = args[0].charAt(0);
-		int numYields = Integer.parseInt(args[1]);
-		if (config != 'h' && config != 'm' && config != 'l' && config != 'x' && config != 'n' && config != 'g' && config != 'f' && config != 'b' && config != 's' && config != 'a')
-			throw new IllegalArgumentException("first argument must be 'low', 'med', or 'high', or 'xtra low' or 'narrow', 'gao', or 'flat' or 'best' or 'smart' or 'alt'.");
+		double foilRadius = Double.parseDouble(args[0])*1e-6; // foil radius measured in μm
+		double foilThickness = Double.parseDouble(args[1])*1e-6; // foil thickness measured in μm
+		double apertureWidth = Double.parseDouble(args[2])*1e-3; // aperture width in mm
+		double apertureHeight = Double.parseDouble(args[3])*1e-3; // aperture height in mm
+		int numYields = Integer.parseInt(args[4]); // number of datums to do
 		
-		String filename = String.format("ensemble_%s_%d_%tF", config, numYields, System.currentTimeMillis(), System.currentTimeMillis());
+		String filename = String.format("ensemble_%.0f_%.0f_%.1f_%.0f_%d_%tF", foilRadius/1e-4, foilThickness/1e-5, apertureWidth/1e-3, apertureHeight/1e-2, numYields, System.currentTimeMillis());
 		
 		Logger logger = Logger.getLogger("main");
 		logger.setUseParentHandlers(false);
@@ -84,7 +85,7 @@ public class ConsoleEvaluator {
 		logger.addHandler(consoleHandler);
 		Handler logfileHandler = new FileHandler("working/"+filename+".log");
 		logger.addHandler(logfileHandler);
-		logger.log(Level.INFO, "beginning "+numYields+" evaluations for configuration "+config);
+		logger.log(Level.INFO, "beginning "+numYields+" evaluations");
 		
 		MRSt mc = null;
 		try {
@@ -94,12 +95,12 @@ public class ConsoleEvaluator {
 			mc = new MRSt(
 					Particle.D,
 					3e-3,
-					(config == 'm') ? 225e-6 : (config == 'l') ? 300e-6 : (config == 'x') ? 400e-6  : (config == 'n') ? 300e-6 : (config == 'g') ? 300e-6 : (config == 'f') ? 400e-6 : (config == 'b') ? 400e-6 : (config == 's') ? 400e-6 : (config == 'a') ? 400e-6 : 0,
-					(config == 'm') ? 50e-6 : (config == 'l') ? 80e-6 : (config == 'x') ? 120e-6 : (config == 'n') ? 80e-6 : (config == 'g') ? 80e-6 : (config == 'f') ? 60e-6 : (config == 'b') ? 80e-6 : (config == 's') ? 80e-6 : (config == 'a') ? 60e-6 : 0,
+					foilRadius,
+					foilThickness,
 					CSV.read(new File("data/stopping_power_deuterons.csv"), ','),
 					6e0,
-					(config == 'm') ? 3e-3 : (config == 'l') ? 4e-3 : (config == 'x') ? 5e-3 : (config == 'n') ? 3e-3 : (config == 'g') ? 4e-3 : (config == 'f') ? 4e-3 : (config == 'b') ? 5e-3 : (config == 's') ? 4e-3 : (config == 'a') ? 4e-3 : 0,
-					(config == 'g' || config == 'a') ? 40e-3 : (config == 'b' || config == 's') ? 30e-3 : 20e-3,
+					apertureWidth,
+					apertureHeight,
 					COSY_MINIMUM_ENERGY,
 					COSY_MAXIMUM_ENERGY,
 					COSY_REFERENCE_ENERGY,
@@ -153,7 +154,7 @@ public class ConsoleEvaluator {
 				for (int i = 4; i < results[k].length; i ++)
 					results[k][i] = Double.NaN;
 			
-			if ((k+1)%20 == 0 || k+1 == numYields) {
+			if ((k+1)%5 == 0 || k+1 == numYields) {
 				try {
 					CSV.write(results, new File("working/"+filename+".csv"), ',', HEADERS_WITH_ERRORS);
 					logger.log(Level.INFO, "Saved ensemble results to working/"+filename+".csv");
