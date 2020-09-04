@@ -473,8 +473,8 @@ public class MRSt {
 //				penalty += params[1][j]/5 - Math.log(params[1][j]); // use gamma prior on temperatures
 //				penalty += params[2][j]/5 - Math.log(params[2][j]);
 //				penalty += Math.pow(params[3][j]/50, 2)/2; // gaussian prior on velocity
-				penalty += params[4][j]/1.5; // exponential prior on areal density
-				penalty += -100*(Math.log(1 - params[5][j]) + Math.log(1 + params[5][j])); // and beta prior on asymmetry
+//				penalty += params[4][j]/1.5; // exponential prior on areal density
+				penalty += -25*(Math.log(1 - params[5][j]) + Math.log(1 + params[5][j])); // and beta prior on asymmetry
 			}
 			
 			for (int j = 1; j < timeAxis.length; j ++) {
