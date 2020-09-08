@@ -509,7 +509,7 @@ public class MRSt {
 			for (int j = 1; j < timeAxis.length-1; j ++) {
 				double Vpp = (params[3][j-1] - 2*params[3][j] + params[3][j+1])/
 						Math.pow(timeStep, 2);
-				penalty += Math.pow(Vpp/5e4, 2)/2; // encourage a smooth ion velocity
+				penalty += Math.pow(Vpp/1e5, 2)/2; // encourage a smooth ion velocity
 			}
 			
 			for (int j = 1; j < timeAxis.length-1; j ++) {
