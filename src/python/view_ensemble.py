@@ -7,7 +7,7 @@ plt.rcParams.update({'font.family': 'serif', 'font.size': 10})
 X_LABEL = "Yield factor"
 
 Y_LABELS = [
-	("Total yield", 2e14, 4.79839e17, 9e18, 5e-2, True), ("Total yield", 2e14, 4.7838e17, 9e18, 5e-2, True),
+	("Total yield", 2e14, 4.79839e17, 9e17, 5e-2, True), ("Total yield", 2e14, 4.7838e17, 9e17, 5e-2, True),
 	("Burn-average ρR (g/cm^2)", 0.3, .68998, 1.1, 7e-2, True), ("Burn-average Ti (keV)", 8.8, 10.0186, 11.2, 7e-2, True),
 	("Bang time (ns)", 16.349, 16.3632, 16.381, 1e-2, False),	("Burn width (ps)", 58, 66.711, 77, 7, False),
 	("Burn skew", -2.1, -1.1572, 0.11, 3e-1, False), ("Burn kurtosis", 2.8, 6.5079, 10.2, 3, False),
@@ -16,13 +16,13 @@ Y_LABELS = [
 ]
 
 COLUMNS = 2
-SIZE = (8.0, 10.5)
+SIZE = (17.0, 10.5)
 MARGIN = dict(bottom=.06, top=.94, left=.12, right=.99, wspace=.35, hspace=.05)
 BIN_WIDTH = 0.3 # in bels
 # COLUMNS = 3
 # SIZE = (16, 9)
 # MARGIN = dict(bottom=.06, top=.94, left=.06, right=.99, wspace=.26, hspace=.05)
-FILENAME = '../../working/ensemble_6_10_6.0_2_1000_2020-09-02.csv'
+FILENAME = '../../working/ensemble_3_5_4.0_2_1000_2020-09-06.csv'
 
 
 def text_wrap(s):
@@ -45,12 +45,9 @@ for suf in ["", " error"]:
 	simulations["dTi/dt at BT (keV/(100ps))"+suf] = simulations["dTi/dt at BT (keV/ns)"+suf]/1e1
 	simulations["dvi/dt at BT (km/s/(100ps))"+suf] = simulations["dvi/dt at BT (km/s/ns)"+suf]/1e1
 
-fig_p, axs_p = plt.subplots((len(Y_LABELS) + COLUMNS-1)//COLUMNS, COLUMNS, figsize=SIZE)
-fig_p.subplots_adjust(**MARGIN)
-
+fig, axs = plt.subplots((len(Y_LABELS) + COLUMNS-1)//COLUMNS, COLUMNS*2, figsize=SIZE)
+fig.subplots_adjust(**MARGIN)
 bins = np.geomspace(simulations[X_LABEL].min(), simulations[X_LABEL].max(), max(3, 1 + int(np.ptp(np.log10(simulations[X_LABEL]))/BIN_WIDTH)))
-fig_w, axs_w = plt.subplots((len(Y_LABELS) + COLUMNS-1)//COLUMNS, COLUMNS, figsize=SIZE)
-fig_w.subplots_adjust(**MARGIN)
 
 for i, (axis, y_min, y_true, y_max, presis, percent) in enumerate(Y_LABELS):
 	if 'keV' in axis:      y_factor = simulations["Temperature factor"]
@@ -60,7 +57,7 @@ for i, (axis, y_min, y_true, y_max, presis, percent) in enumerate(Y_LABELS):
 	order = np.argsort(simulations[X_LABEL])
 	order = order[np.isfinite(simulations["Total yield"].values[order])].values
 
-	ax = axs_p[i//COLUMNS,i%COLUMNS]
+	ax = axs[i//COLUMNS, i%COLUMNS * 2 + 0]
 	valid = np.logical_not(np.isnan(simulations[axis+" error"]))
 	if not percent:
 		ax.fill_between(simulations[X_LABEL][order],
@@ -78,7 +75,7 @@ for i, (axis, y_min, y_true, y_max, presis, percent) in enumerate(Y_LABELS):
 	ax.set_ylim(y_min, y_max)
 	if i == 0:
 		ax.legend()
-	if i//COLUMNS == axs_p.shape[0]-1:
+	if i//COLUMNS == axs.shape[0]-1:
 		ax.set_xlabel(X_LABEL)
 	elif i//COLUMNS == 0:
 		ax.set_xlabel(X_LABEL)
@@ -88,7 +85,7 @@ for i, (axis, y_min, y_true, y_max, presis, percent) in enumerate(Y_LABELS):
 		ax.xaxis.set_visible(False)
 	ax.set_ylabel(text_wrap(axis))
 
-	ax = axs_w[i//COLUMNS,i%COLUMNS]
+	ax = axs[i//COLUMNS, i%COLUMNS * 2 + 1]
 	stds, errs = [], []
 	for j in range(1, len(bins)):
 		stds.append(
@@ -98,7 +95,7 @@ for i, (axis, y_min, y_true, y_max, presis, percent) in enumerate(Y_LABELS):
 	if "/dt" in axis:
 		print(f"σ = {stds[-1]}")
 	bin_centers = np.sqrt(bins[1:]*bins[:-1])
-	y_factor = np.interp(bin_centers, simulations[X_LABEL], y_factor)
+	y_factor = np.interp(bin_centers, simulations[X_LABEL][order], y_factor[order])
 	if not percent:
 		ax.plot(bin_centers, stds, 'C0-', label="Standard deviation from actuality")
 		ax.plot(bin_centers, y_factor*presis, 'C1--', label="Required accuracy")
@@ -113,7 +110,7 @@ for i, (axis, y_min, y_true, y_max, presis, percent) in enumerate(Y_LABELS):
 	ax.set_ylim(presis*3.2e-2, presis*5)
 	if i == 0:
 		ax.legend()
-	if i//COLUMNS == axs_p.shape[0]-1:
+	if i//COLUMNS == axs.shape[0]-1:
 		ax.set_xlabel(X_LABEL)
 	elif i//COLUMNS == 0:
 		ax.set_xlabel(X_LABEL)
@@ -127,9 +124,7 @@ for i, (axis, y_min, y_true, y_max, presis, percent) in enumerate(Y_LABELS):
 		ax.set_ylabel(text_wrap(re.sub(r'(\([^)]+\))?$', '', axis)))
 
 config = '-'+FILENAME[23:38] if len(FILENAME) > 23 else ''
-fig_p.savefig('../../working/mrst-scatter{}.eps'.format(config))
-fig_p.savefig('../../working/mrst-scatter{}.png'.format(config))
-fig_w.savefig('../../working/mrst-errors{}.eps'.format(config))
-fig_w.savefig('../../working/mrst-errors{}.png'.format(config))
+fig.savefig('../../working/mrst{}.eps'.format(config))
+fig.savefig('../../working/mrst{}.png'.format(config))
 
 plt.show()
