@@ -524,8 +524,8 @@ public class Optimization {
 			throw new IllegalArgumentException("Initial guess yielded bunk value");
 		
 		while (true) {
-			if (Math.random() < 1e-2)
-				System.out.println("FINER: "+fxk);
+//			if (Math.random() < 1e-2)
+//				System.out.println("FINER: "+fxk);
 			
 			final int m = yHist.size();
 			Matrix dk;

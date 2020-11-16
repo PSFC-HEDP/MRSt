@@ -4,14 +4,14 @@ import matplotlib.pyplot as plt
 import re
 plt.rcParams.update({'font.family': 'serif', 'font.size': 10})
 
-# INCLUDE_ERRORS = True
-# COLUMNS = 1
-# SIZE = (16, 9)
-# MARGIN = dict(bottom=.06, top=.94, left=.06, right=.99, wspace=.30, hspace=.05)
-INCLUDE_ERRORS = False
+INCLUDE_ERRORS = True
 COLUMNS = 2
-SIZE = (8.0, 10.5)
-MARGIN = dict(bottom=.06, top=.94, left=.11, right=.99, wspace=.30, hspace=.05)
+SIZE = (16, 9)
+MARGIN = dict(bottom=.06, top=.94, left=.06, right=.99, wspace=.30, hspace=.05)
+# INCLUDE_ERRORS = False
+# COLUMNS = 2
+# SIZE = (8.0, 10.5)
+# MARGIN = dict(bottom=.06, top=.94, left=.11, right=.99, wspace=.30, hspace=.05)
 # INCLUDE_ERRORS = False
 # COLUMNS = 3
 # SIZE = (12, 3)
@@ -74,6 +74,7 @@ fig.subplots_adjust(**MARGIN)
 bins = np.geomspace(simulations[X_LABEL].min(), simulations[X_LABEL].max(), max(3, 1 + int(np.ptp(np.log10(simulations[X_LABEL]))/BIN_WIDTH)))
 
 for i, (axis, y_min, y_true, y_max, presis, percent) in enumerate(Y_LABELS): # iterate through each desired plot
+	if axis is None: continue
 	if INCLUDE_ERRORS:
 		ax = axs[i//COLUMNS, i%COLUMNS * 2 + 0] # identify the corresponding axis object
 	else:
@@ -129,7 +130,12 @@ for i, (axis, y_min, y_true, y_max, presis, percent) in enumerate(Y_LABELS): # i
 
 if INCLUDE_ERRORS:
 	for i, (axis, y_min, y_true, y_max, presis, percent) in enumerate(Y_LABELS):
+		if axis is None: continue
 		ax = axs[i//COLUMNS, i%COLUMNS * 2 + 1]
+
+		x = simulations[X_LABEL] # and the corresponding data
+		y = simulations[axis]
+		ɛ = simulations[axis+" error"]
 
 		ax.set_xlim(x.min()/1.2, x.max()*1.2)
 		if 'ield' in X_LABEL:
@@ -156,10 +162,10 @@ if INCLUDE_ERRORS:
 		elif 'yield' in axis:  y_factor = simulations["Yield factor"]
 		else:                  y_factor = np.ones(len(simulations.index))
 
-		if presis <= 1e-2 and "(n" in axis:
-			axis = axis.replace("(n", "(p")
-			presis *= 1e3
-			y_true *= 1e3
+		# if presis <= 1e-2 and "(n" in axis:
+		# 	axis = axis.replace("(n", "(p")
+		# 	presis *= 1e3
+		# 	y_true *= 1e3
 
 		point_errors = y - y_factor*y_true
 		if percent:
