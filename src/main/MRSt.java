@@ -247,13 +247,11 @@ public class MRSt {
 				double energy = energy0 + RANDOM.nextDouble()*(energy1 - energy0); // randomly choose values from the bin
 				double time = time0 + RANDOM.nextDouble()*(time1 - time0); // [s]
 				
-				double[] xt = this.simulate(energy, time); // do the simulation!
+				double[] et = this.simulate(energy, time); // do the simulation!
 				simulationCount ++;
+				if (Double.isNaN(et[0]))	continue; // sometimes, they won't hit the CsI cathode. That's fine.
 				
-				if (Double.isNaN(xt[0]))	continue; // sometimes, they won't hit the CSI. That's fine.
-				double[] et = this.backCalculate(xt[0], xt[1]); // otherwise do the stretch/compress time correction
-				
-				double e = et[0]/(-Particle.E.charge)/1e6, t = et[1]/1e-9; // then convert to the same units as the bins
+				double e = et[0]/1e6, t = et[1]/1e-9; // then convert to the same units as the bins
 //				e = energy/1e6; t = time/1e-9;
 				int eBin = (int)((e - MIN_E)/(MAX_E - MIN_E)*(energyBins.length-1));
 				int tBin = (int)((t - MIN_T)/(MAX_T - MIN_T)*(timeBins.length-1));
@@ -289,9 +287,8 @@ public class MRSt {
 	 * @param spectrum the time- and energy- resolved neutron spectrum in number of neutrons. each
 	 * row corresponds to one element of energies, and each column one element of times. [#/MeV/ns]
 	 * @param errorBars whether to bother computing error bars
-	 * @return {computation time, BT, peak-ρR, peak-ρR-ramp, Ti(BT), ρR(BT), vi(BT),
-	 *   Ti-ramp(BT), ρR-ramp(BT), vi-ramp(BT), max ρR, yield, μ1, μ2, μ3}, where each item is
-	 *   a value followed by its estimated error
+	 * @return {computation time, 0, Yn, err, BT, err, BW, err, skewness, err, kurtosis, err, peak compression, err, rho R (BT), err,
+	 * \< rho R \>, err, d(rho R)/dt, err, \<Ti\>, err, dTi/dt, err, \<vi\>, err, dvi/dt, err}
 	 */
 	public double[] respond(double[] energies, double[] times, double[][] spectrum, ErrorMode errorBars) {
 		this.deuteronSpectrum = this.response(energies, times, spectrum, true);
@@ -348,8 +345,8 @@ public class MRSt {
 	 * for ion temperature, areal density, and yield.
 	 * @param spectrum the time-corrected spectrum we want to understand
 	 * @param errorBars should error bars be computed (it's rather intensive)?
-	 * @return {computation time, BT, peak-ρR, peak-ρR-ramp, Ti(BT), ρR(BT), vi(BT),
-	 *   Ti-ramp(BT), ρR-ramp(BT), vi-ramp(BT), max ρR, yield, μ1, μ2, μ3} or null if it can't even
+	 * @return {computation time, Yn, BT, BW, skewness, kurtosis, peak compression, rho R (BT),
+	 * \< rho R \>, d(rho R)/dt, \<Ti\>, dTi/dt, \<vi\>, dvi/dt} or null if it can't even
 	 */
 	private Quantity[] analyze(double[][] spectrum, ErrorMode errorBars) {
 		if (spectrum.length != energyBins.length-1 || spectrum[0].length != timeBins.length-1)
@@ -358,7 +355,7 @@ public class MRSt {
 		double[][] F = spectrum;
 		
 		if (NumericalMethods.max(spectrum) == 0) {
-			logger.log(Level.SEVERE, "The deuteron spectrum is empty.");
+			if (logger != null) logger.log(Level.SEVERE, "The deuteron spectrum is empty.");
 			return null;
 		}
 		
@@ -503,19 +500,26 @@ public class MRSt {
 			for (int j = 1; j < timeAxis.length-1; j ++) {
 				double Tpp = (params[1][j-1] - 2*params[1][j] + params[1][j+1])/
 						Math.pow(timeStep, 2);
-				penalty += Math.pow(Tpp/2000, 2)/2; // encourage a smooth ion temperature
+				penalty += Math.pow(Tpp/1000, 2)/2; // encourage a smooth ion temperature
 			}
 			
 			for (int j = 1; j < timeAxis.length-1; j ++) {
 				double Vpp = (params[3][j-1] - 2*params[3][j] + params[3][j+1])/
 						Math.pow(timeStep, 2);
-				penalty += Math.pow(Vpp/1e5, 2)/2; // encourage a smooth ion velocity
+				penalty += Math.pow(Vpp/2e5, 2)/2; // encourage a smooth ion velocity
 			}
 			
-			for (int j = 1; j < timeAxis.length-1; j ++) {
-				double Rpp = (params[4][j-1] - 2*params[4][j] + params[4][j+1])/
-						Math.pow(timeStep, 2);
-				penalty += Math.pow(Rpp/200, 2)/2; // encourage a smooth rho-R
+//			for (int j = 1; j < timeAxis.length-1; j ++) {
+//				double Rpp = (params[4][j-1] - 2*params[4][j] + params[4][j+1])/
+//						Math.pow(timeStep, 2);
+//				penalty += Math.pow(Rpp/200, 2)/2; // encourage a smooth rho-R
+//			}
+			
+			for (int j = 1; j < timeAxis.length; j ++) {
+				double Rp = (params[4][j-1] - params[4][j])/timeStep;
+				double R = (params[4][j-1] + params[4][j])/2;
+				if (Rp != 0)
+					penalty += (Rp*Rp)/R/30; // encourage a smooth rho-R
 			}
 			
 //			for (int j = 1; j < timeAxis.length-1; j ++) {
@@ -528,13 +532,13 @@ public class MRSt {
 			return penalty + error;
 		};
 
-		logger.log(Level.FINE, "...");
+		if (logger != null) logger.log(Level.FINE, "...");
 		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, .1*precision, 0, timeAxis.length, true, true, false, false, false, false);
-		logger.log(Level.FINE, "...");
+		if (logger != null) logger.log(Level.FINE, "...");
 		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, .1*precision, 0, timeAxis.length, false, false, true, false, false, false);
-		logger.log(Level.FINE, "...");
+		if (logger != null) logger.log(Level.FINE, "...");
 		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, .1*precision, 0, timeAxis.length, false, false, false, false, true, true);
-		logger.log(Level.FINE, "...");
+		if (logger != null) logger.log(Level.FINE, "...");
 		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, .01*precision, 0, timeAxis.length, true, true, true, true, true, true);
 		
 		this.measurements = new Quantity[6][timeAxis.length]; // unpack the optimized vector
@@ -555,7 +559,7 @@ public class MRSt {
 		Quantity bangTime = NumericalMethods.interp(timeAxis, iBT); // time of max yield
 		
 		if (errorBars == ErrorMode.HESSIAN) {
-			logger.log(Level.INFO, "calculating error bars.");
+			if (logger != null) logger.log(Level.INFO, "calculating error bars.");
 			double c = logPosterior.apply(opt); // start by getting the actual value
 			double[] step = new double[6*timeAxis.length]; // and the values in all basis directions
 			for (int i = 0; i < step.length; i ++) {
@@ -708,10 +712,11 @@ public class MRSt {
 	
 	/**
 	 * simulate a single random neutron emitted from TCC at the given energy and determine the
-	 * position and time at which its child ion crosses the focal plane.
+	 * position and time at which its child ion crosses the focal plane, time corrected, and
+	 * the back-calculated energy.
 	 * @param energy initial energy of released neutron [eV].
 	 * @param time initial time of released neutron [s].
-	 * @return { signed hypot(x,z), t } [m, s].
+	 * @return { energy, time } [eV, s].
 	 */
 	public double[] simulate(double energy, double time) {
 		double[] rCollision = chooseCollisionPosition();
@@ -722,7 +727,7 @@ public class MRSt {
 		
 		double[] rFocal = computeFocusedPosition(rCollision, vFinal, time);
 		
-		return new double[] { rFocal[x]/Math.cos(focalPlaneAngle), rFocal[3] };
+		return backCalculate(rFocal[x]/Math.cos(focalPlaneAngle), rFocal[3]);
 	}
 	
 	/**
@@ -740,7 +745,7 @@ public class MRSt {
 		double d0 = (E - cosyK0)/cosyK0;
 		double lf = cosyPolynomial(4, new double[] {0, 0, 0, 0, 0, d0}); // re-use the COSY mapping to estimate the time of flight from energy
 		t = time - (cosyT0 + lf*cosyT1 + focusingDistance/v);
-		return new double[] { E/energyFactor, t };
+		return new double[] { E/energyFactor/Particle.P.charge, t };
 	}
 	
 	/**
@@ -912,7 +917,7 @@ public class MRSt {
 		}
 		
 		double[] totalParams = totalGuess.clone();
-		logger.log(Level.FINER, Double.toString(func.apply(totalGuess)));
+		if (logger != null) logger.log(Level.FINER, Double.toString(func.apply(totalGuess)));
 		activeGuess = Optimization.minimizeLBFGSB(
 				(activeParams) -> { // when you optimize
 					updateArray(totalParams, activeParams, active); // only optimize a subset of the dimensions
@@ -925,7 +930,7 @@ public class MRSt {
 		updateArray(totalParams, activeGuess, active);
 		
 		double oldPosterior = Double.POSITIVE_INFINITY, newPosterior = func.apply(totalParams);
-		logger.log(Level.FINER, Double.toString(newPosterior));
+		if (logger != null) logger.log(Level.FINER, Double.toString(newPosterior));
 		MultivariateOptimizer optimizer = new PowellOptimizer(1e-14, 1);
 		while (oldPosterior - newPosterior > threshold) { // optimize it over and over; you'll get there eventually
 			activeGuess = optimizer.optimize(
@@ -942,7 +947,7 @@ public class MRSt {
 			oldPosterior = newPosterior;
 			updateArray(totalParams, activeGuess, active);
 			newPosterior = func.apply(totalParams);
-			logger.log(Level.FINER, Double.toString(newPosterior));
+			if (logger != null) logger.log(Level.FINER, Double.toString(newPosterior));
 		}
 		return totalParams;
 	}
