@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import re
+import sys
 plt.rcParams.update({'font.family': 'serif', 'font.size': 10})
 
 # INCLUDE_ERRORS = True
@@ -17,8 +18,12 @@ MARGIN = dict(bottom=.06, top=.94, left=.11, right=.99, wspace=.30, hspace=.05)
 # SIZE = (8, 6)
 # MARGIN = dict(bottom=.10, top=.90, left=.10, right=.99, wspace=.30, hspace=.03)
 
+if len(sys.argv) <= 1:
+	FILENAME = '../../working/ensemble.csv'
+	# FILENAME = '../../working/ensemble_4_10_5_2_1000_2020-09-06.csv'
+else:
+	FILENAME = '../../working/'+sys.argv[1]
 BIN_WIDTH = 0.3 # in bels
-FILENAME = '../../working/ensemble_4_10_5.0_2_1000_2020-09-06.csv'
 REFERENCE_YIELD = 1e16
 
 X_LABEL = "Yield"

@@ -170,12 +170,12 @@ public class SpectrumViewer extends Application {
 					this.energyBins = CSV.readColumn(file);
 				}));
 		
-		rightPane.getChildren().add(chooseFileWidget("Time bin file:", stage, "nsp_150327_16p26_time - copia.txt",
+		rightPane.getChildren().add(chooseFileWidget("Time bin file:", stage, "Time bins.txt",
 				(file) -> {
 					this.timeBins = CSV.readColumn(file);
 				}));
 		
-		rightPane.getChildren().add(chooseFileWidget("Spectrum file:", stage, "nsp_150327_16p26.txt",
+		rightPane.getChildren().add(chooseFileWidget("Spectrum file:", stage, "spectrum.txt",
 				(file) -> {
 					this.spectrum = CSV.read(file, '\t');
 				}));
@@ -212,7 +212,12 @@ public class SpectrumViewer extends Application {
 					try {
 						eBins = energyBins.clone(); // save the current values of these spectra
 						tBins = timeBins.clone();
-						spec = MRSt.interpretSpectrumFile(tBins, eBins, spectrum); // deal with the necessary differentiation etc
+						if (spectrum.length != eBins.length-1 || spectrum[0].length != tBins.length-1) {
+							logger.info("interpreting weird spectrum file");
+							spec = MRSt.interpretSpectrumFile(tBins, eBins, spectrum); // deal with the necessary differentiation etc
+						}
+						else
+							spec = spectrum.clone();
 						MRSt.modifySpectrum(tBins, eBins, spec, yieldFactor.getValue()/100., 1, 1, 0);
 					} catch (ArrayIndexOutOfBoundsException e) {
 						logger.severe("Invalid input spectrum file.");

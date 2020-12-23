@@ -3,11 +3,12 @@ import matplotlib.pyplot as plt
 from matplotlib import colors
 import sys
 
-# import os
-# os.chdir('../..')
-# print(os.getcwd())
-# xlabel, ylabel, title = 'Time (ns)', 'Energy (MeV)', 'Original neutron spectrum'
-xlabel, ylabel, title = sys.argv[1:]
+if len(sys.argv) > 1:
+	xlabel, ylabel, title = sys.argv[1:]
+else:
+	import os
+	os.chdir('../..')
+	xlabel, ylabel, title = 'Time (ns)', 'Energy (MeV)', 'Original neutron spectrum'
 
 X = np.genfromtxt('working/{}_x.csv'.format(title), delimiter=',')
 Y = np.genfromtxt('working/{}_y.csv'.format(title), delimiter=',')
