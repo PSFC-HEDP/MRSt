@@ -505,7 +505,7 @@ public class Optimization {
 		
 		while (true) {
 			if (Math.random() < 1e-2)
-				System.out.println("INFO: "+fxk);
+				System.out.println("FINER: "+fxk);
 			
 			final int m = yHist.size();
 			Matrix dk;
@@ -838,6 +838,8 @@ public class Optimization {
 	 * @return
 	 */
 	public static double[][] optimizeGelfgat(double[][] F, double[][] D, double[][] P, double tol) {
+		if (F.length != D.length || F[0].length != D[0].length || P.length != P[0].length || P.length != D.length*D[0].length)
+			throw new IllegalArgumentException("I can't work with this; have you seen these dimensions‽ "+F.length+"×"+F[0].length+", "+D.length+"×"+D[0].length+", "+P.length+"×"+P[0].length+"!");
 		final int n = F.length, m = F[0].length;
 		
 		double[][] g = new double[n][m];
@@ -850,11 +852,11 @@ public class Optimization {
 		double L = Double.NEGATIVE_INFINITY, Lprev;
 		do { // use Gelfgat et al.'s program to deconvolve the spectrum
 			double Σg = 0;
-			for (int i = 0; i < g.length; i ++)
-				for (int j = 0; j < g[i].length; j ++)
+			for (int i = 0; i < n; i ++)
+				for (int j = 0; j < m; j ++)
 					Σg += g[i][j];
-			for (int i = 0; i < g.length; i ++)
-				for (int j = 0; j < g[i].length; j ++)
+			for (int i = 0; i < n; i ++)
+				for (int j = 0; j < m; j ++)
 					g[i][j] /= Σg; // renormalize g to account for roundoff
 			
 			double[][] s = new double[n][m];
@@ -900,7 +902,7 @@ public class Optimization {
 			
 			for (int i = 0; i < n; i ++)
 				for (int j = 0; j < m; j ++)
-					g[i][j] += h/2*δg[i][j];
+					g[i][j] = Math.max(0, g[i][j] + h/2*δg[i][j]);
 			
 			Lprev = L;
 			L = 0;
@@ -909,7 +911,7 @@ public class Optimization {
 					L += -1/2.*Math.pow(F[k][l] - G*s[k][l], 2)/D[k][l];
 			
 			iter ++;
-		} while (iter < 6 || (L - Lprev)/Math.abs(L) > tol);
+		} while (iter < 6 || (L - Lprev)/(n*m) > tol);
 		
 		double[][] s = new double[n][m];
 		for (int i = 0; i < n; i ++)
