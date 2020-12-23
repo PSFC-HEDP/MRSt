@@ -343,6 +343,27 @@ public class NumericalMethods {
 		return sum(arr)/arr.length;
 	}
 	
+	public static double fwhm(double[] x, double[] y) {
+		int max = argmax(y);
+		double xR = Double.POSITIVE_INFINITY;
+		for (int i = max + 1; i < y.length; i ++) {
+			if (y[i] < y[max]/2.) {
+				double c = (y[max]/2. - y[i])/(y[i-1] - y[i]);
+				xR = (c*x[i+1] + x[i] + (1-c)*x[i-1])/2.;
+				break;
+			}
+		}
+		double xL = Double.NEGATIVE_INFINITY;
+		for (int i = max; i >= 1; i --) {
+			if (y[i-1] < y[max]/2.) {
+				double c = (y[max]/2. - y[i])/(y[i-1] - y[i]);
+				xL = (c*x[i+1] + x[i] + (1-c)*x[i-1])/2.;
+				break;
+			}
+		}
+		return xR - xL;
+	}
+	
 	public static double max(double[] arr) {
 		double max = Double.NEGATIVE_INFINITY;
 		for (double x: arr)
