@@ -4,18 +4,19 @@ import matplotlib.pyplot as plt
 import re
 plt.rcParams.update({'font.family': 'serif', 'font.size': 10})
 
-INCLUDE_ERRORS = True
-COLUMNS = 2
-SIZE = (16, 9)
-MARGIN = dict(bottom=.06, top=.94, left=.06, right=.99, wspace=.30, hspace=.05)
-# INCLUDE_ERRORS = False
+# INCLUDE_ERRORS = True
 # COLUMNS = 2
-# SIZE = (8.0, 10.5)
-# MARGIN = dict(bottom=.06, top=.94, left=.11, right=.99, wspace=.30, hspace=.05)
-# INCLUDE_ERRORS = False
-# COLUMNS = 3
-# SIZE = (12, 3)
-# MARGIN = dict(bottom=.15, top=.95, left=.05, right=.99, wspace=.30, hspace=.05)
+# SIZE = (16, 9)
+# MARGIN = dict(bottom=.06, top=.94, left=.06, right=.99, wspace=.30, hspace=.05)
+INCLUDE_ERRORS = False
+COLUMNS = 2
+SIZE = (8.0, 10.5)
+MARGIN = dict(bottom=.06, top=.94, left=.11, right=.99, wspace=.30, hspace=.05)
+# INCLUDE_ERRORS = True
+# COLUMNS = 1
+# SIZE = (8, 6)
+# MARGIN = dict(bottom=.10, top=.90, left=.10, right=.99, wspace=.30, hspace=.03)
+
 BIN_WIDTH = 0.3 # in bels
 FILENAME = '../../working/ensemble_4_10_5.0_2_1000_2020-09-06.csv'
 REFERENCE_YIELD = 1e16
@@ -23,18 +24,18 @@ REFERENCE_YIELD = 1e16
 X_LABEL = "Yield"
 
 Y_LABELS = [
+	("Burn-average ρR (g/cm^2)", 0.3, .68998, 1.1, 7e-2, True), ("Burn-average Ti (keV)", 7.8, 10.05, 12.2, 7e-2, True),
 	# (None, 0, 0, 0, 0, False), ("Total yield", 2e14, 4.7838e17, 9e17, 5e-2, True),
-	("Burn-average ρR (g/cm^2)", 0.3, .68998, 1.1, 7e-2, True), ("Burn-average Ti (keV)", 7.8, 10.0186, 12.2, 7e-2, True),
 	("Bang time (ns)", 16.339, 16.3632, 16.391, 1e-2, False),	("Burn width (ps)", 47, 66.711, 83, 7, False),
-	("Burn skewness", -2.1, -1.1572, 0.11, 3e-1, False), ("Burn kurtosis", -0.5, 6.5079, 15.5, 3, False),
-	("dρR/dt at BT (mg/cm^2/(100ps))", -850, -196.9, 450, 60, False), ("dTi/dt at BT (keV/(100ps))", -0.2, 6.733, 12.2, 1.9, False),
-	("Burn-average vi (km/s)", -15.2, 1.83, 15.2, 20, False), ("dvi/dt at BT (km/s/(100ps))", -170, -87.3, 20, 8, False)
-	# ("Burn width (ps)", 47, 66.711, 83, 7, False), ("Burn skewness", -2.1, -1.1572, 0.11, 3e-1, False), ("dTi/dt at BT (keV/(100ps))", -0.2, 6.733, 12.2, 1.9, False),
+	("Burn skewness", -2.1, -1.15, 0.11, 3e-1, False), ("Burn kurtosis", -0.5, 6.4, 15.5, 3, False),
+	("dρR/dt at BT (mg/cm^2/(100ps))", -850, -220, 450, 60, False), ("dTi/dt at BT (keV/(100ps))", -0.2, 6.4, 12.2, 1.9, False),
+	("Burn-average vi (km/s)", -15.2, 1, 15.2, 20, False), ("dvi/dt at BT (km/s/(100ps))", -170, -75, 20, 8, False)
+	# ("Burn width (ps)", 47, 66.711, 83, 7, False), ("Burn skewness", -2.1, -1.15, 0.11, 3e-1, False), ("dTi/dt at BT (keV/(100ps))", -0.2, 6.4, 12.2, 1.9, False),
 ]
 
 
 def text_wrap(s):
-	if len(s) > 50:#14:
+	if len(s) > 14:
 		i = len(s)//2
 		for j in range(i):
 			if s[i+j] == ' ':
@@ -84,7 +85,7 @@ for i, (axis, y_min, y_true, y_max, presis, percent) in enumerate(Y_LABELS): # i
 	y = simulations[axis]
 	ɛ = simulations[axis+" error"]
 
-	ax.set_xlim(x.min()/1.2, x.max()*1.2) # set up the x axis
+	ax.set_xlim(x.min(), x.max()) # set up the x axis
 	if 'ield' in X_LABEL:
 		ax.set_xscale('log')
 	if i//COLUMNS == axs.shape[0]-1:
@@ -110,7 +111,9 @@ for i, (axis, y_min, y_true, y_max, presis, percent) in enumerate(Y_LABELS): # i
 
 	order = np.argsort(x) # get some useful indices of the data
 	order = order[np.isfinite(simulations["Total yield"].values[order])].values
-	# valid = np.isfinite(simulations[axis+" error"])
+
+	μ = rolling_average(y[order], n=min(108, y.size-1))
+	σ = np.sqrt(rolling_average((y - y_factor*y_true)[order]**2, n=min(108, y.size-1)))
 
 	if not percent: # plot the actual stuff
 		ax.fill_between(x[order],
@@ -118,11 +121,13 @@ for i, (axis, y_min, y_true, y_max, presis, percent) in enumerate(Y_LABELS): # i
 	else:
 		ax.fill_between(x[order],
 			y_factor[order]*y_true*(1 - presis), y_factor[order]*y_true*(1 + presis), color='#F7DFC8')
-	ax.plot(x[order], y_factor[order]*y_true, 'C1--', zorder=1, label="Based on original data")
-	ax.scatter(x[order], y[order], s=2, zorder=2, label="Based on fit to synthetic data")
+	ax.plot(x[order], y_factor[order]*y_true, 'C1-', zorder=1, label="Based on original data")
+	ax.scatter(x[order], y[order], s=1, zorder=2, label="Based on fit to synthetic data")
 	# ax.errorbar(x[order], y[order], yerr=ɛ[order], elinewidth=1, linestyle='none')
-	ax.plot(x[order], rolling_average(y[order] + ɛ[order], n=24), 'C2--', label="Reported error bars on fit")
-	ax.plot(x[order], rolling_average(y[order] - ɛ[order], n=24), 'C2--')
+	# ax.plot(x[order], rolling_average(y[order] + ɛ[order], n=min(36, y.size-1)), 'C3--', label="Reported error bars on fit")
+	# ax.plot(x[order], rolling_average(y[order] - ɛ[order], n=min(36, y.size-1)), 'C3--')
+	ax.plot(x[order], μ + σ, 'C2-', zorder=1, label="1σ variation")
+	ax.plot(x[order], μ - σ, 'C2-', zorder=1)
 	if y_min > 0 and y_max/y_min >= 10:
 		ax.set_yscale('log')
 	ax.set_ylim(y_min, y_max)
@@ -137,7 +142,7 @@ if INCLUDE_ERRORS:
 		y = simulations[axis]
 		ɛ = simulations[axis+" error"]
 
-		ax.set_xlim(x.min()/1.2, x.max()*1.2)
+		ax.set_xlim(x.min(), x.max())
 		if 'ield' in X_LABEL:
 			ax.set_xscale('log')
 		if i//COLUMNS == axs.shape[0]-1:
@@ -202,7 +207,7 @@ if INCLUDE_ERRORS:
 		else:
 			ax.set_ylabel(text_wrap(re.sub(r'(\([^)]+\))?$', '', axis) + " error"))
 
-config = '-'+FILENAME[23:38] if len(FILENAME) > 23 else ''
+config = '-'+FILENAME[23:36] if len(FILENAME) > 23 else ''
 fig.savefig('../../working/mrst{}.eps'.format(config))
 fig.savefig('../../working/mrst{}.png'.format(config))
 
