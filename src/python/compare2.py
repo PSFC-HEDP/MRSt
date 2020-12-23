@@ -3,6 +3,10 @@ import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
 import sys
 
+# import os
+# os.chdir('../..')
+# print(os.getcwd())
+# xlabel, ylabel, titleA, titleB = 'Energy', 'Count', 'Original neutron spectrum', 'Fitted neutron spectrum'
 xlabel, ylabel, titleA, titleB = sys.argv[1:]
 
 X = np.genfromtxt('working/{}_x.csv'.format(titleA), delimiter=',')

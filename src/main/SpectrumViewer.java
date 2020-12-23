@@ -107,14 +107,14 @@ public class SpectrumViewer extends Application {
 		leftPane.add(new Label("mm"), 2, row);
 		row ++;
 		
-		this.foilRadius = new Spinner<Double>(0.1, 1.0, 0.3, 0.01); // TODO maybe throw a warning if the radius >~ the distance
+		this.foilRadius = new Spinner<Double>(0.1, 1.0, 0.4, 0.01); // TODO maybe throw a warning if the radius >~ the distance
 		foilRadius.setEditable(true);
 		leftPane.add(new Label("Foil radius"), 0, row);
 		leftPane.add(foilRadius, 1, row);
 		leftPane.add(new Label("mm"), 2, row);
 		row ++;
 		
-		this.foilThickness = new Spinner<Double>(5., 500., 80., 5.);
+		this.foilThickness = new Spinner<Double>(5., 500., 100., 5.);
 		foilThickness.setEditable(true);
 		leftPane.add(new Label("Foil thickness"), 0, row);
 		leftPane.add(foilThickness, 1, row);
@@ -128,7 +128,7 @@ public class SpectrumViewer extends Application {
 		leftPane.add(new Label("m"), 2, row);
 		row ++;
 		
-		this.apertureWidth = new Spinner<Double>(1.0, 50.0, 4.0, 1.0);
+		this.apertureWidth = new Spinner<Double>(1.0, 50.0, 5.0, 1.0);
 		apertureWidth.setEditable(true);
 		leftPane.add(new Label("Aper. width"), 0, row);
 		leftPane.add(apertureWidth, 1, row);
@@ -170,12 +170,12 @@ public class SpectrumViewer extends Application {
 					this.energyBins = CSV.readColumn(file);
 				}));
 		
-		rightPane.getChildren().add(chooseFileWidget("Time bin file:", stage, "nsp_150327_16p26_time - copia.txt",
+		rightPane.getChildren().add(chooseFileWidget("Time bin file:", stage, "Time bins.txt",
 				(file) -> {
 					this.timeBins = CSV.readColumn(file);
 				}));
 		
-		rightPane.getChildren().add(chooseFileWidget("Spectrum file:", stage, "nsp_150327_16p26.txt",
+		rightPane.getChildren().add(chooseFileWidget("Spectrum file:", stage, "spectrum.txt",
 				(file) -> {
 					this.spectrum = CSV.read(file, '\t');
 				}));
@@ -212,7 +212,12 @@ public class SpectrumViewer extends Application {
 					try {
 						eBins = energyBins.clone(); // save the current values of these spectra
 						tBins = timeBins.clone();
-						spec = MRSt.interpretSpectrumFile(tBins, eBins, spectrum); // deal with the necessary differentiation etc
+						if (spectrum.length != eBins.length-1 || spectrum[0].length != tBins.length-1) {
+							logger.info("interpreting weird spectrum file");
+							spec = MRSt.interpretSpectrumFile(tBins, eBins, spectrum); // deal with the necessary differentiation etc
+						}
+						else
+							spec = spectrum.clone();
 						MRSt.modifySpectrum(tBins, eBins, spec, yieldFactor.getValue()/100., 1, 1, 0);
 					} catch (ArrayIndexOutOfBoundsException e) {
 						logger.severe("Invalid input spectrum file.");
@@ -236,6 +241,7 @@ public class SpectrumViewer extends Application {
 								cosyCoefficients,
 								cosyExponents,
 								focalPlaneTilt.getValue(),
+								.1,
 								logger); // make the simulation
 						
 						mc.respond(
@@ -283,14 +289,17 @@ public class SpectrumViewer extends Application {
 		console.setPrefWidth(400);
 		console.setFont(Font.font("Monospace"));
 		logger = Logger.getLogger("main");
-		logger.addHandler(new StreamHandler() {
+		logger.setLevel(Level.ALL);
+		StreamHandler consoleHandler = new StreamHandler() {
 			public void publish(LogRecord record) {
 				Platform.runLater(() -> {
 					console.appendText(String.format("%7s: %s\n",
 							record.getLevel().toString(), record.getMessage()));
 				});
 			}
-		});
+		};
+		consoleHandler.setLevel(Level.ALL);
+		logger.addHandler(consoleHandler);
 		rightPane.getChildren().add(console);
 		
 		StackPane root = new StackPane();

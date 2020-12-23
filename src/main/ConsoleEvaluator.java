@@ -75,7 +75,7 @@ public class ConsoleEvaluator {
 		double apertureHeight = Double.parseDouble(args[3])*1e-3; // aperture height in mm
 		int numYields = Integer.parseInt(args[4]); // number of datums to do
 		
-		String filename = String.format("ensemble_%.0f_%.0f_%.1f_%.0f_%d_%tF", foilRadius/1e-4, foilThickness/1e-5, apertureWidth/1e-3, apertureHeight/1e-2, numYields, System.currentTimeMillis());
+		String filename = String.format("ensemble_%.0f_%.0f_%.0f_%.0f_%d_%tF", foilRadius/1e-4, foilThickness/1e-5, apertureWidth/1e-3, apertureHeight/1e-2, numYields, System.currentTimeMillis());
 		
 		Logger logger = Logger.getLogger("main");
 		logger.setUseParentHandlers(false);
@@ -121,7 +121,10 @@ public class ConsoleEvaluator {
 				eBins = CSV.readColumn(new File("data/Energy bins.txt"));
 				tBins = CSV.readColumn(new File("data/nsp_150327_16p26_time - copia.txt"));
 				spec = CSV.read(new File("data/nsp_150327_16p26.txt"), '\t');
-				spec = MRSt.interpretSpectrumFile(tBins, eBins, spec);
+				if (spec.length != eBins.length-1 || spec[0].length != tBins.length-1) {
+					System.out.println("interpreting a weird spectrum file...");
+					spec = MRSt.interpretSpectrumFile(tBins, eBins, spec);
+				}
 			} catch (ArrayIndexOutOfBoundsException | NumberFormatException e) {
 				logger.log(Level.SEVERE, e.getMessage(), e);
 			} catch (IOException e) {

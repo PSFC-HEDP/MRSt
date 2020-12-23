@@ -71,12 +71,12 @@ public class ConfigurationEvaluator extends Application {
 	private static final int SPACING_1 = 10;
 	private static final int SPACING_2 = 4;
 	
-	private static final int NUM_YIELDS = 75;
+	private static final int NUM_YIELDS = 18;
 	
 	private static final String[] HEADERS = {
 		"Yield factor", "Temperature factor", "Down-scatter factor", "Velocity shift (μm/ns)",
 		"Computation time (s)", "Total yield (10^15)", "Bang time (ns)",
-		"Burn width (ns)", "Burn skew", "Burn kurtosis",
+		"Burn width (ns)", "Burn skewness", "Burn kurtosis",
 		"Max \u03C1R (ns)", "\u03C1R at max (g/cm^2)",
 		"Burn-average \u03C1R (g/cm^2)", "d\u03C1R/dt at BT (g/cm^2/ns)",
 		"Burn-average Ti (keV)", "dTi/dt at BT (keV/ns)",
@@ -131,14 +131,14 @@ public class ConfigurationEvaluator extends Application {
 		leftPane.add(new Label("mm"), 2, row);
 		row ++;
 		
-		this.foilRadius = new Spinner<Double>(0.1, 1.0, 0.3, 0.01);
+		this.foilRadius = new Spinner<Double>(0.1, 1.0, 0.4, 0.01);
 		foilRadius.setEditable(true);
 		leftPane.add(new Label("Foil radius"), 0, row);
 		leftPane.add(foilRadius, 1, row);
 		leftPane.add(new Label("mm"), 2, row);
 		row ++;
 		
-		this.foilThickness = new Spinner<Double>(5., 500., 80., 5.);
+		this.foilThickness = new Spinner<Double>(5., 500., 100., 5.);
 		foilThickness.setEditable(true);
 		leftPane.add(new Label("Foil thickness"), 0, row);
 		leftPane.add(foilThickness, 1, row);
@@ -152,7 +152,7 @@ public class ConfigurationEvaluator extends Application {
 		leftPane.add(new Label("m"), 2, row);
 		row ++;
 		
-		this.apertureWidth = new Spinner<Double>(1.0, 50.0, 4.0, 1.0);
+		this.apertureWidth = new Spinner<Double>(1.0, 50.0, 5.0, 1.0);
 		apertureWidth.setEditable(true);
 		leftPane.add(new Label("Aper. width"), 0, row);
 		leftPane.add(apertureWidth, 1, row);
@@ -166,7 +166,7 @@ public class ConfigurationEvaluator extends Application {
 		leftPane.add(new Label("mm"), 2, row);
 		row ++;
 		
-		this.focalPlaneTilt = new Spinner<Double>(0.0, 89.9, 70.3, 5.0);
+		this.focalPlaneTilt = new Spinner<Double>(0.0, 89.9, 66.586, 5.0);
 		focalPlaneTilt.setEditable(true);
 		leftPane.add(new Label("F. plane angle"), 0, row);
 		leftPane.add(focalPlaneTilt, 1, row);
@@ -234,6 +234,7 @@ public class ConfigurationEvaluator extends Application {
 								cosyCoefficients,
 								cosyExponents,
 								focalPlaneTilt.getValue(),
+								1,
 								logger); // make the simulation
 					} catch (Exception e) {
 						logger.log(Level.SEVERE, e.getMessage(), e);
@@ -245,16 +246,19 @@ public class ConfigurationEvaluator extends Application {
 						double[][] spec = null;
 						try {
 							eBins = CSV.readColumn(new File("data/Energy bins.txt"));
-							tBins = CSV.readColumn(new File("data/nsp_150327_16p26_time - copia.txt"));
-							spec = CSV.read(new File("data/nsp_150327_16p26.txt"), '\t');
-							spec = MRSt.interpretSpectrumFile(tBins, eBins, spec);
+							tBins = CSV.readColumn(new File("data/Time bins.txt"));
+							spec = CSV.read(new File("data/spectrum.txt"), '\t');
+							if (spec.length != eBins.length-1 || spec[0].length != tBins.length-1) {
+								logger.info("interpreting a weird spectrum file...");
+								spec = MRSt.interpretSpectrumFile(tBins, eBins, spec);
+							}
 						} catch (ArrayIndexOutOfBoundsException | NumberFormatException e) {
 							logger.log(Level.SEVERE, e.getMessage(), e);
 						} catch (IOException e) {
 							logger.log(Level.SEVERE, e.getMessage(), e);
 						}
 						
-						double yield = (variations[0].isSelected()) ? Math.pow(10, -k*3./NUM_YIELDS) : 1;
+						double yield = (variations[0].isSelected()) ? Math.pow(10, -3.*Math.random()) : 1;
 						double temp =  (variations[1].isSelected()) ? Math.exp(2*Math.random() - 1) : 1; // roll the dies on the spectrum modifications
 						double downS = (variations[2].isSelected()) ? Math.exp(2*Math.random() - 1) : 1;
 						double flow =  (variations[3].isSelected()) ? 200*Math.random()*(2*Math.random() - 1) : 0;
@@ -286,15 +290,23 @@ public class ConfigurationEvaluator extends Application {
 						else
 							for (int i = 4; i < results[k].length; i ++)
 								results[k][i] = Double.NaN;
+						
+						if (k%6 == 5 || k == NUM_YIELDS - 1) {
+							try {
+								CSV.write(results, new File("working/"+saveFile.getText()), ',',
+										HEADERS_WITH_ERRORS);
+							} catch (IOException e) {
+								logger.log(Level.SEVERE, e.getMessage(), e);
+							}
+							logger.info("Saved ensemble results to working/"+saveFile.getText());
+						}
 					}
-					
 					try {
-						CSV.write(results, new File("working/"+saveFile.getText()), ',',
-								HEADERS_WITH_ERRORS);
+						ProcessBuilder plotPB = new ProcessBuilder("python", "src/python/view_ensemble.py", saveFile.getText());
+						plotPB.start();
 					} catch (IOException e) {
-						logger.log(Level.SEVERE, e.getMessage(), e);
+						System.err.println("Could not access plotting files and/or scripts.");
 					}
-					logger.info("Saved ensemble results to working/"+saveFile.getText());
 				}).start();
 			}
 		});
@@ -305,14 +317,17 @@ public class ConfigurationEvaluator extends Application {
 		console.setPrefWidth(400);
 		console.setFont(Font.font("Monospace"));
 		logger = Logger.getLogger("main");
-		logger.addHandler(new StreamHandler() {
+		logger.setLevel(Level.ALL);
+		StreamHandler consoleHandler = new StreamHandler() {
 			public void publish(LogRecord record) {
 				Platform.runLater(() -> {
 					console.appendText(String.format("%7s: %s\n",
 							record.getLevel().toString(), record.getMessage()));
 				});
 			}
-		});
+		};
+		consoleHandler.setLevel(Level.FINER);
+		logger.addHandler(consoleHandler);
 		rightPane.getChildren().add(console);
 		
 		StackPane root = new StackPane();
