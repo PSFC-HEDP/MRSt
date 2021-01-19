@@ -48,7 +48,7 @@ public class ConsoleEvaluator {
 	private static final String[] HEADERS = {
 		"Yield factor", "Temperature factor", "Down-scatter factor", "Velocity shift (μm/ns)",
 		"Computation time (s)", "Total yield (10^15)", "Bang time (ns)",
-		"Burn width (ns)", "Burn skew", "Burn kurtosis",
+		"Burn width (ns)", "Burn skewness", "Burn kurtosis",
 		"Max \u03C1R (ns)", "\u03C1R at max (g/cm^2)",
 		"Burn-average \u03C1R (g/cm^2)", "d\u03C1R/dt at BT (g/cm^2/ns)",
 		"Burn-average Ti (keV)", "dTi/dt at BT (keV/ns)",
