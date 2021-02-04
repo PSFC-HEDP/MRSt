@@ -2,18 +2,26 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys
 
-# import os
-# os.chdir('../..')
-# print(os.getcwd())
-# xlabel, ylabels, title, n = 'Time (ns)', 'Ti (keV)\nρR (g/cm^2)\nYn (10^15/ns)\nVi (km/s)', 'data', 4
-xlabel, ylabels, title, n = sys.argv[1:]
+if len(sys.argv) <= 1:
+	import os
+	os.chdir('../..')
+	print(os.getcwd())
+	xlabel, ylabels, title, n = 'Time (ns)', 'Ti (keV)\nρR (g/cm^2)\nYn (10^15/ns)\nVi (km/s)', 'data', 4
+else:
+	xlabel, ylabels, title, n = sys.argv[1:]
 
 ylabels = ylabels.split('\n')
 n = int(n)
 
-X = np.genfromtxt('working/{}_x.csv'.format(title), delimiter=',')
-Ys = [np.genfromtxt('working/{}_y_{}.csv'.format(title, i), delimiter=',') for i in range(n)]
-Δs = [np.genfromtxt('working/{}_err_{}.csv'.format(title, i), delimiter=',') for i in range(n)]
+XA = np.loadtxt('working/{}_x.csv'.format(title), delimiter=',')
+YAs = [np.loadtxt('working/{}_y_{}.csv'.format(title, i), delimiter=',') for i in range(n)]
+ΔAs = [np.loadtxt('working/{}_err_{}.csv'.format(title, i), delimiter=',') for i in range(n)]
+
+if True:
+	data = np.loadtxt('data/Yn-rR-Ti_150327_16p26 - Yn-rR-Ti_150327_16p26.csv', delimiter=',', skiprows=1)
+	XB = data[:,0]
+	YBs = [data[:,2], data[:,4] + data[:,5], data[:,1], np.zeros(XB.shape)]
+	YBs[2] *= np.sum(YAs[2]*(XA[1] - XA[0]))/np.sum(YBs[2]*(XB[1] - XB[0]))
 
 fig, host_ax = plt.subplots()
 fig.subplots_adjust(right=1 - (0.12*(n-1)))
@@ -30,17 +38,18 @@ for i in range(n):
 		axes[i].spines['right'].set_visible(True)
 
 	rainge = {'Y':(0,None), 'T':(0,16), 'ρ':(0,1.5), 'V':(-100,100), 'a':(-1, 1)}[ylabels[i][0]]
-	Ys[i][np.isnan(Δs[i])] = np.nan
-	plots.append(axes[i].plot(X, Ys[i], label=ylabels[i], color='C'+str(i))[0])
-	axes[i].fill_between(X, Ys[i] - Δs[i], Ys[i] + Δs[i], color='C'+str(i), alpha=0.3)
+	YAs[i][np.isnan(ΔAs[i])] = np.nan
+	plots.append(axes[i].plot(XA, YAs[i], label=ylabels[i], color=f'C{i}')[0])
+	if True:     axes[i].plot(XB, YBs[i], '--', color=f'C{i}')[0]
+	axes[i].fill_between(XA, YAs[i] - ΔAs[i], YAs[i] + ΔAs[i], color='C'+str(i), alpha=0.3)
 	axes[i].set_ylabel(ylabels[i])
 	axes[i].set_ylim(*rainge)
 
 	if ylabels[i].startswith('Y'):
-		Ymax = Ys[i].max(initial=0, where=np.isfinite(Ys[i]))
-		lims = np.min(np.where(Ys[i]/Ymax >= 1e-3, X, np.inf)), np.max(np.where(Ys[i]/Ymax >= 1e-3, X, -np.inf))
+		Ymax = YAs[i].max(initial=0, where=np.isfinite(YAs[i]))
+		lims = np.min(np.where(YAs[i]/Ymax >= 1e-3, XA, np.inf)), np.max(np.where(YAs[i]/Ymax >= 1e-3, XA, -np.inf))
 		if not all(np.isfinite(lims)):
-			lims = X[0], X[-1]
+			lims = XA[0], XA[-1]
 
 axes[0].set_xlabel(xlabel)
 axes[0].set_xlim(*lims)

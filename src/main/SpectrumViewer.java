@@ -267,10 +267,8 @@ public class SpectrumViewer extends Application {
 						plotLines(mc.getTimeAxis(), "Time (ns)",
 								mc.getIonTemperature(), mc.getIonTemperatureError(), "Ti (keV)",
 								mc.getArealDensity(), mc.getArealDensityError(), "ρR (g/cm^2)",
-								mc.getNeutronYield(), mc.getNeutronYieldError(), "Yn (10^15/ns)"
-								,mc.getFlowVelocity(), mc.getFlowVelocityError(), "Vi cosθ (μm/ns)"
-//								,mc.getElectronTemperature(), mc.getElectronTemperatureError(), "Te (keV)"
-//								,mc.getMode2Asymmetry(), mc.getMode2AsymmetryError(), "a2 ()"
+								mc.getNeutronYield(), mc.getNeutronYieldError(), "Yn (10^15/ns)",
+								mc.getFlowVelocity(), mc.getFlowVelocityError(), "Vi cosθ (μm/ns)"
 						);
 						compareHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getCorrectedSpectrum(), mc.getFittedSpectrum(),
 								"Time", "Energy (MeV)", "Synthetic deuteron spectrum", "Fitted deuteron spectrum");
