@@ -60,7 +60,7 @@ public class SpectrumGenerator {
 		for (int i = 1; i < time.length; i ++)
 			tBins[i] = (time[i-1] + time[i])/2.;
 		tBins[time.length] = (3*time[time.length-1] - time[time.length-2])/2.;
-		double[][] spectrum = MRSt.generateSpectrum(Yn, Ti, zero, zero, ρR, zero, eBins, tBins, null);
+		double[][] spectrum = MRSt.generateSpectrum(Yn, Ti, zero, zero, ρR, eBins, tBins);
 		
 		CSV.writeColumn(tBins, new File("data/Time bins.txt"));
 		CSV.write(spectrum, new File("data/spectrum.txt"), '\t');
