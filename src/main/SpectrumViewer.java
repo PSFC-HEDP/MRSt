@@ -217,13 +217,14 @@ public class SpectrumViewer extends Application {
 							spec = MRSt.interpretSpectrumFile(tBins, eBins, spectrum); // deal with the necessary differentiation etc
 						}
 						else
-							spec = spectrum.clone();
+							spec = deepClone(spectrum);
 						MRSt.modifySpectrum(tBins, eBins, spec, yieldFactor.getValue()/100., 1, 1, 0);
 					} catch (ArrayIndexOutOfBoundsException e) {
 						logger.severe("Invalid input spectrum file.");
 						return;
 					}
 					
+					logger.log(Level.INFO, "running fit on spectrum with yield factor = "+yieldFactor.getValue()/100);
 					MRSt mc = null;
 					try {
 						mc = new MRSt(
@@ -421,6 +422,15 @@ public class SpectrumViewer extends Application {
 			e.printStackTrace();
 		}
 		return new VBox(SPACING_2, new Label(title), output);
+	}
+	
+	
+	private static double[][] deepClone(double[][] old) {
+		double[][] now = new double[old.length][old[0].length];
+		for (int i = 0; i < old.length; i ++)
+			for (int j = 0; j < old[i].length; j ++)
+				now[i][j] = old[i][j];
+		return now;
 	}
 	
 	

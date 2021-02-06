@@ -462,10 +462,10 @@ public class MRSt {
 								Math.log(teoSpectrum[i][j]/spectrumScale); // encourage entropy
 				}
 				
-//				penalty += params[1][j]/5 - Math.log(params[1][j]); // use gamma prior on temperatures
+				penalty += params[1][j]/5 - Math.log(params[1][j]); // use gamma prior on temperatures
 //				penalty += params[2][j]/5 - Math.log(params[2][j]);
 				penalty += Math.pow(params[3][j]/50, 2)/2; // gaussian prior on velocity
-//				penalty += params[4][j]/1.5; // exponential prior on areal density
+				penalty += params[4][j]/1.0; // exponential prior on areal density
 			}
 			
 			for (int j = 1; j < timeAxis.length; j ++) {
@@ -494,7 +494,7 @@ public class MRSt {
 			for (int j = 1; j < timeAxis.length-1; j ++) {
 				double Tpp = (params[1][j-1] - 2*params[1][j] + params[1][j+1])/
 						Math.pow(timeStep, 2);
-				penalty += Math.pow(Tpp/5000, 2)/2; // encourage a smooth ion temperature
+				penalty += Math.pow(Tpp/5e3, 2)/2; // encourage a smooth ion temperature
 			}
 			
 			for (int j = 1; j < timeAxis.length-1; j ++) {
@@ -513,7 +513,7 @@ public class MRSt {
 				double Rp = (params[4][j-1] - params[4][j])/timeStep;
 				double R = (params[4][j-1] + params[4][j])/2;
 				if (Rp != 0)
-					penalty += (Rp*Rp)/R/500; // encourage a smooth rho-R
+					penalty += (Rp*Rp)/R/200; // encourage a smooth rho-R
 			}
 			
 //			System.out.println(penalty+" + "+error);
