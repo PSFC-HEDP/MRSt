@@ -29,15 +29,16 @@ REFERENCE_YIELD = 1e16
 X_LABEL = "Yield"
 
 Y_LABELS = [
-	("Burn-average ρR (g/cm^2)", 0.55, 0.695, 0.85, 7e-2, True), ("Burn-average Ti (keV)", 8.5, 10.05, 11.5, 7e-2, True),
-	# (None, 0, 0, 0, 0, False), ("Total yield", 2e14, 4.7838e17, 9e17, 5e-2, True),
-	("Bang time (ns)", 16.344, 16.364, 16.386, 1e-2, False),	("Burn width (ps)", 53, 67.1, 82, 7, False),
-	("Burn skewness", -1.8, -1.11, -0.4, 3e-1, False), ("Burn kurtosis", -0.5, 6.4, 15.5, 3, False),
-	("dρR/dt at BT (mg/cm^2/(100ps))", -550, -225, 100, 60, False), ("dTi/dt at BT (keV/(100ps))", 2, 7.0, 12, 1.9, False),
-	# ("Burn-average vi (km/s)", -15.2, 0, 15.2, 20, False), ("dvi/dt at BT (km/s/(100ps))", -150, -100, -50, 8, False)
-	# ("Bang time (ns)", 16.344, 16.364, 16.386, 1e-2, False), ("Burn width (ps)", 53, 67, 82, 7, False),
-	# ("Burn skewness", -1.8, -1.10, -0.4, 3e-1, False), ("Burn-average Ti (keV)", 8.5, 10.05, 11.5, 7e-2, True),
-	# ("dTi/dt at BT (keV/(100ps))", 2, 7.1, 12, 1.9, False), ("Burn-average ρR (g/cm^2)", 0.55, 0.69, 0.85, 7e-2, True),
+	# (None, 0, 0, 0, 0, False), ("Total yield", 2e14, 4.36508e17, 9e17, 5e-2, True),
+	# ("Bang time (ns)", 16.344, 16.2596, 16.386, 1e-2, False),	("Burn width (ps)", 53, 67.1, 82, 7, False),
+	# ("Burn skewness", -1.8, -.7690, -0.4, 3e-1, False), ("Burn kurtosis", -0.5, 4.921, 15.5, 3, False),
+	# ("dρR/dt at BT (mg/cm^2/(100ps))", -550, -978.3, 100, 60, False), ("dTi/dt at BT (keV/(100ps))", 1.5, 2.170, 12, 1.9, False),
+	# ("Burn-average vi (km/s)", -15.2, 0, 15.2, 20, False), ("dvi/dt at BT (km/s/(100ps))", -110, 0, 110, 8, False)
+	# ("Bang time (ns)", 16.344, 16.2596, 16.386, 1e-2, False), ("Burn width (ps)", 53, 66.16, 82, 7, False),
+	# ("Burn skewness", -1.8, -.7690, -0.4, 3e-1, False), ("Burn-average Ti (keV)", 6.5, 7.342, 11.5, 7e-2, True),
+	# ("dTi/dt at BT (keV/(100ps))", 1.5, 2.170, 12, 1.9, False), ("Burn-average ρR (g/cm^2)", 0.55, .9959, 1.25, 7e-2, True),
+	("Peak Ti (keV)", 0, 8.073, 20, 0, False),	("Energy confinement time (ps)", 0, 114.8e-3, 200e-3, 0, False),
+	("Cooling Ti (keV)", 0, 8.033, 20, 0, False), ("Cooling time (ps)", 0, 2414e-3, 2500e-3, 0, False),
 ]
 
 

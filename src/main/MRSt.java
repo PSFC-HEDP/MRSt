@@ -23,7 +23,6 @@
  */
 package main;
 
-import java.util.Arrays;
 import java.util.Locale;
 import java.util.Random;
 import java.util.function.Function;
@@ -60,14 +59,13 @@ public class MRSt {
 	private static final DiscreteFunction DOWN_SCATTER_SPECTRUM = new DiscreteFunction(	
 			new double[] {11.50, 11.75, 12.00, 12.25, 12.50, 12.75, 13.00, 13.25,	
 					13.50, 13.75, 14.00, 14.25, 14.50},	
-			new double[] {0.026877796, 0.029223872, 0.030997082, 0.033544329, 0.035526223, 0.038301112, 0.040480957, 0.043125867,	
+			new double[] {0.026877796, 0.029223872, 0.030997082, 0.033544329, 0.035526223, 0.038301112, 0.040480957, 0.043125867,
 					0.045434499, 0.048972573, 0.05105225, 0, 0}, 12); // [1/MeV/(g/cm^2)]
 	
 	private static final int STOPPING_DISTANCE_RESOLUTION = 64;
 	private static final double MIN_E = 12, MAX_E = 16; // histogram bounds [MeV]
 	private static final double MIN_T = 16.0, MAX_T = 16.5; // histogram bounds [ns]
 	private static final double E_RESOLUTION = .09, T_RESOLUTION = 20e-3; // resolutions [MeV], [ns]
-//	private static final double E_RESOLUTION = .3, T_RESOLUTION = 40e-3;
 	private static final int TRANSFER_MATRIX_TRIES = 10000; // the number of points to sample in each column of the transfer matrix
 	private static final Random RANDOM = new Random(0);
 	
@@ -166,6 +164,19 @@ public class MRSt {
 		this.timeBins = new double[(int) ((MAX_T - MIN_T)/T_RESOLUTION + 1)];
 		for (int i = 0; i < timeBins.length; i ++)
 			this.timeBins[i] = MIN_T + i*(MAX_T - MIN_T)/(timeBins.length-1);
+		
+//		double[][] actual;
+//		try {
+//			actual = CSV.read(new File("data/Yn-rR-Ti_150327_16p26 - Yn-rR-Ti_150327_16p26.csv"), ',', 1);
+//		} catch (NumberFormatException e) {
+//			actual = null;
+//		} catch (IOException e) {
+//			actual = null;
+//		}
+//		this.timeBins = new double[actual.length+1];
+//		for (int i = 0; i < timeBins.length-1; i ++)
+//			this.timeBins[i] = actual[i][0] - (actual[1][0] - actual[0][0])/2.;
+//		this.timeBins[timeBins.length-1] = actual[actual.length-1][0] + (actual[1][0] - actual[0][0])/2.;
 		
 		this.energyAxis = new double[energyBins.length-1];
 		for (int i = 0; i < energyBins.length-1; i ++)
@@ -401,28 +412,11 @@ public class MRSt {
 		while (left-1 >= 0 && opt[5*(left-1)] > opt[5*bangIndex]/1e3)
 			left --;
 		int rite = bangIndex;
-		while (rite < timeAxis.length && opt[5*(rite)] > opt[5*(rite)]/1e3)
+		while (rite < timeAxis.length && opt[5*(rite)] > opt[5*bangIndex]/1e3)
 			rite ++;
 		
-//		double s1 = 0, s2 = 0;
-//		for (int i = 3; i < energyBins.length-1; i ++) {
-//			for (int j = 0; j < timeBins.length-1; j ++) {
-//				s1 += gelf[i][j];
-//				s2 += gelf[i][j]*gelf[i][j];
-//			}
-//		}
-//		double spectrumScale = s2 / s1;
 		double spectrumScale = NumericalMethods.sum(gelf)/(timeBins.length-1)/(energyBins.length-1); // the characteristic magnitude of the neutron spectrum bins
-//		double s0 = 0, s1 = 0, s2 = 0;
-//		for (int i = 3; i < energyBins.length-1; i ++) {
-//			for (int j = 0; j < timeBins.length-1; j ++) {
-//				s0 += gelf[i][j];
-//				s1 += gelf[i][j]*timeAxis[j];
-//				s2 += gelf[i][j]*timeAxis[j]*timeAxis[j];
-//			}
-//		}
-//		double expectedStd = Math.sqrt(s2/s0 - s1*s1/s0/s0); // the expected standard deviation of the burn in time
-		
+
 		Function<double[], Double> logPosterior = (double[] x) -> {
 			double[][] params = new double[5][timeAxis.length];
 			for (int k = 0; k < params.length; k ++) // first unpack the state vector
@@ -537,6 +531,25 @@ public class MRSt {
 				measurements[k][j] = new Quantity(opt[5*j+k], grad);
 			}
 		}
+		
+//		double[][] actual;
+//		try {
+//			actual = CSV.read(new File("data/Yn-rR-Ti_150327_16p26 - Yn-rR-Ti_150327_16p26.csv"), ',', 1);
+//		} catch (NumberFormatException e) {
+//			actual = null;
+//		} catch (IOException e) {
+//			actual = null;
+//		}
+//		this.measurements = new Quantity[5][timeAxis.length]; // read the actual values
+//		for (int i = 0; i < timeAxis.length; i ++) {
+//			this.timeAxis[i] = actual[i][0];
+//			this.measurements[0][i] = new Quantity(actual[i][1], 5*timeAxis.length);
+//			this.measurements[1][i] = new Quantity(actual[i][2], 5*timeAxis.length);
+//			this.measurements[2][i] = new Quantity(0, 5*timeAxis.length);
+//			this.measurements[3][i] = new Quantity(0, 5*timeAxis.length);
+//			this.measurements[4][i] = new Quantity(actual[i][4] + actual[i][5], 5*timeAxis.length);
+//		}
+		
 		this.fitNeutronSpectrum = generateSpectrum( // and then interpret it
 				getNeutronYield(), getIonTemperature(), getElectronTemperature(),
 				getFlowVelocity(), getArealDensity(), energyBins, timeBins);
@@ -633,7 +646,6 @@ public class MRSt {
 				covarianceMatrix[5*j+2][5*j+2] = 10;
 				covarianceMatrix[5*j+3][5*j+3] = .4034*14*opt[5*j+1]/1e3/statistics/Math.pow(.54e-3, 2);
 				covarianceMatrix[5*j+4][5*j+4] = Math.pow(opt[5*j+4], 2)/dsStatistics;
-				covarianceMatrix[5*j+5][5*j+5] = 0.1;
 			}
 		}
 		else {
@@ -654,12 +666,12 @@ public class MRSt {
 //			System.out.println(ds/prim);
 //		}
 		
-		double[] timeCenters = new double[timeAxis.length-1];
-		for (int i = 0; i < timeCenters.length; i ++)
-			timeCenters[i] = (timeAxis[i] + timeAxis[i+1])/2;
-		
 		Quantity iMC = NumericalMethods.quadargmax(left, rite, measurements[4]); // index of max compression
 		Quantity maxCompress = NumericalMethods.interp(timeAxis, iMC); // time of max compression
+		Quantity[] dTdt = NumericalMethods.derivative(timeAxis, measurements[1]);
+		Quantity[] d2Tdt2 = NumericalMethods.derivative(timeAxis, dTdt);
+		Quantity iTPeak = NumericalMethods.quadargmax(left, rite, measurements[1]);
+		Quantity iTCool = NumericalMethods.quadargmin(left, rite, dTdt);
 		Quantity[] moments = new Quantity[5];
 		for (int k = 0; k < moments.length; k ++)
 			moments[k] = NumericalMethods.moment(k, timeBins, measurements[0]);
@@ -676,6 +688,10 @@ public class MRSt {
 				NumericalMethods.derivative(timeAxis, measurements[1], bangTime, .1),
 				NumericalMethods.average(measurements[3], measurements[0]),
 				NumericalMethods.derivative(timeAxis, measurements[3], bangTime, .1),
+				NumericalMethods.interp(measurements[1], iTPeak),
+				NumericalMethods.interp(measurements[1], iTPeak).over(NumericalMethods.interp(d2Tdt2, iTPeak)).abs().sqrt(),
+				NumericalMethods.interp(measurements[1], iTCool),
+				NumericalMethods.interp(measurements[1], iTCool).over(NumericalMethods.interp(dTdt, iTCool)).times(-1),
 		}; // collect the figures of merit
 		
 		if (logger != null) {
@@ -693,6 +709,11 @@ public class MRSt {
 			logger.info(String.format("dTi/dt at BT:      %s keV/(100 ps)", res[11].over(1e1).toString(covarianceMatrix)));
 			logger.info(String.format("Burn-averaged vi:  %s km/s", res[12].toString(covarianceMatrix)));
 			logger.info(String.format("dvi/dt at BT:      %s μm/ns/(100 ps)", res[13].over(1e1).toString(covarianceMatrix)));
+			logger.info(String.format("dvi/dt at BT:      %s μm/ns/(100 ps)", res[13].over(1e1).toString(covarianceMatrix)));
+			logger.info(String.format("T_peak:            %s keV", res[14].toString(covarianceMatrix)));
+			logger.info(String.format("τ_ECT:             %s ps", res[15].over(1e-3).toString(covarianceMatrix)));
+			logger.info(String.format("T_cool:            %s keV", res[16].toString(covarianceMatrix)));
+			logger.info(String.format("τ_cool:            %s ps", res[17].over(1e-3).toString(covarianceMatrix)));
 		}
 		return res;
 	}
@@ -969,50 +990,98 @@ public class MRSt {
 		return this.fitDeuteronSpectrum;
 	}
 	
+	/**
+	 * get the time bin centers in [ns]
+	 * @return
+	 */
 	public double[] getTimeAxis() {
 		return this.timeAxis;
 	}
 	
+	/**
+	 * get the energy bin centers in [keV]
+	 * @return
+	 */
 	public double[] getEnergyAxis() {
 		return this.energyAxis;
 	}
 	
+	/**
+	 * get the neutron yield mean values in [10^15/ns]
+	 * @return
+	 */
 	public double[] getNeutronYield() {
 		return NumericalMethods.modes(this.measurements[0]);
 	}
 	
+	/**
+	 * get the neutron yield error bars in [10^15/ns]
+	 * @return
+	 */
 	public double[] getNeutronYieldError() {
 		return NumericalMethods.stds(this.measurements[0], this.covarianceMatrix);
 	}
 	
+	/**
+	 * get the ion temperature mean values in [keV]
+	 * @return
+	 */
 	public double[] getIonTemperature() {
 		return NumericalMethods.modes(this.measurements[1]);
 	}
 	
+	/**
+	 * get the ion temperature error bars in [keV]
+	 * @return
+	 */
 	public double[] getIonTemperatureError() {
 		return NumericalMethods.stds(this.measurements[1], this.covarianceMatrix);
 	}
 	
+	/**
+	 * get the electron temperature mean values in [keV]
+	 * @return
+	 */
 	public double[] getElectronTemperature() {
 		return NumericalMethods.modes(this.measurements[2]);
 	}
 	
+	/**
+	 * get the electron temperature error bars in [keV]
+	 * @return
+	 */
 	public double[] getElectronTemperatureError() {
 		return NumericalMethods.stds(this.measurements[2], this.covarianceMatrix);
 	}
 	
+	/**
+	 * get the bulk flow mean values in [km/s]
+	 * @return
+	 */
 	public double[] getFlowVelocity() {
 		return NumericalMethods.modes(this.measurements[3]);
 	}
 	
+	/**
+	 * get the bulk flow mean values in [km/s]
+	 * @return
+	 */
 	public double[] getFlowVelocityError() {
 		return NumericalMethods.stds(this.measurements[3], this.covarianceMatrix);
 	}
 	
+	/**
+	 * get the ρR mean values in [g/cm^2]
+	 * @return
+	 */
 	public double[] getArealDensity() {
 		return NumericalMethods.modes(this.measurements[4]);
 	}
 	
+	/**
+	 * get the ρR error bars in [g/cm^2]
+	 * @return
+	 */
 	public double[] getArealDensityError() {
 		return NumericalMethods.stds(this.measurements[4], this.covarianceMatrix);
 	}

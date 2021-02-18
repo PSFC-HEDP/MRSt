@@ -364,6 +364,20 @@ public class NumericalMethods {
 		return xR - xL;
 	}
 	
+	public static double[] minus(double[] x) {
+		double[] out = new double[x.length];
+		for (int i = 0; i < out.length; i ++)
+			out[i] = -x[i];
+		return out;
+	}
+	
+	public static Quantity[] minus(Quantity[] x) {
+		Quantity[] out = new Quantity[x.length];
+		for (int i = 0; i < out.length; i ++)
+			out[i] = x[i].times(-1);
+		return out;
+	}
+	
 	public static double max(double[] arr) {
 		double max = Double.NEGATIVE_INFINITY;
 		for (double x: arr)
@@ -415,12 +429,16 @@ public class NumericalMethods {
 	 * @return i such that x[i] >= x[j] for all j
 	 */
 	public static int argmin(double[] x) {
-		int argmin = -1;
-		for (int i = 0; i < x.length; i ++)
-			if (!Double.isNaN(x[i]) && (argmin == -1 ||
-					x[i] < x[argmin]))
-				argmin = i;
-		return argmin;
+		return argmax(minus(x));
+	}
+	
+	/**
+	 * find the interpolative index of the highest value
+	 * @param x the array of values
+	 * @return i such that x[i] >= x[j] for all j
+	 */
+	public static Quantity quadargmin(int left, int right, Quantity[] x) {
+		return quadargmax(left, right, minus(x));
 	}
 	
 	/**
@@ -614,9 +632,41 @@ public class NumericalMethods {
 	public static Quantity[] derivative(double[] x, Quantity[] y) {
 		if (x.length != y.length)
 			throw new IllegalArgumentException("Array lengths do not correspond.");
+		if (x.length < 3)
+			throw new IllegalArgumentException("I can't make inferences in these condicions!");
+		Quantity[] dydx = new Quantity[x.length];
+		for (int i = 0; i < y.length; i ++) {
+			if (i == 0)
+				dydx[i] = y[i].times(-3).plus(y[i+1].times(4)).plus(y[i+2].times(-1)).over(x[i+2] - x[i]);
+			else if (i < y.length - 1)
+				dydx[i] = y[i+1].minus(y[i-1]).over(x[i+1] - x[i-1]);
+			else
+				dydx[i] = y[i-2].times(-1).plus(y[i-1].times(4)).plus(y[i].times(-3)).over(x[i] - x[i-2]);
+		}
+		return dydx;
+	}
+	
+	/**
+	 * find the second order finite difference double derivative. for best results, x
+	 * should be evenly spaced.
+	 * @param x the x values
+	 * @param y the corresponding y values
+	 * @return the slope d^2y/dx^2 at each point
+	 */
+	public static Quantity[] secondDerivative(double[] x, Quantity[] y) {
+		if (x.length != y.length)
+			throw new IllegalArgumentException("Array lengths do not correspond.");
+		if (x.length < 3)
+			throw new IllegalArgumentException("I can't make inferences in these condicions!");
 		Quantity[] dydx = new Quantity[x.length-1];
-		for (int i = 0; i < dydx.length; i ++)
-			dydx[i] = y[i+1].minus(y[i]).over(x[i+1] - x[i]);
+		for (int i = 0; i < y.length; i ++) {
+			if (i == 0)
+				dydx[i] = y[i].plus(y[i+1].times(-2)).plus(y[i+2]).over(Math.pow(x[i+1] - x[i-1], 2)/4.);
+			else if (i < y.length - 1)
+				dydx[i] = y[i+1].minus(y[i].times(2)).plus(y[i-1]).over(Math.pow(x[i+1] - x[i-1], 2)/4.);
+			else
+				dydx[i] = y[i-2].plus(y[i-1].times(-2)).plus(y[i]).over(Math.pow(x[i+1] - x[i-1], 2)/4.);
+		}
 		return dydx;
 	}
 	
@@ -1250,6 +1300,13 @@ public class NumericalMethods {
 		
 		public Quantity sqrt() {
 			return this.pow(1/2.);
+		}
+		
+		public Quantity abs() {
+			if (this.value < 0)
+				return this.times(-1);
+			else
+				return this;
 		}
 		
 		public Quantity mod(double divisor) {

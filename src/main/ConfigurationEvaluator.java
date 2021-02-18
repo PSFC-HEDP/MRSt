@@ -80,7 +80,9 @@ public class ConfigurationEvaluator extends Application {
 		"Max \u03C1R (ns)", "\u03C1R at max (g/cm^2)",
 		"Burn-average \u03C1R (g/cm^2)", "d\u03C1R/dt at BT (g/cm^2/ns)",
 		"Burn-average Ti (keV)", "dTi/dt at BT (keV/ns)",
-		"Burn-average vi (km/s)", "dvi/dt at BT (km/s/ns)"};
+		"Burn-average vi (km/s)", "dvi/dt at BT (km/s/ns)",
+		"Peak Ti (keV)", "Energy confinement time (ns)",
+		"Cooling Ti (keV)", "Cooling time (ns)"};
 	private static final String[] HEADERS_WITH_ERRORS = new String[(HEADERS.length-4)*2+4];
 	
 	private Spinner<Double> foilDistance;

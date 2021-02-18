@@ -25,8 +25,6 @@ package main;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
-
 import main.CSV.COSYMapping;
 import main.MRSt.ErrorMode;
 
