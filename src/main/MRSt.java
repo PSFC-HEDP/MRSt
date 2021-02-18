@@ -456,7 +456,7 @@ public class MRSt {
 								Math.log(teoSpectrum[i][j]/spectrumScale); // encourage entropy
 				}
 				
-				penalty += params[1][j]/5 - Math.log(params[1][j]); // use gamma prior on temperatures
+//				penalty += params[1][j]/5 - Math.log(params[1][j]); // use gamma prior on temperatures
 //				penalty += params[2][j]/5 - Math.log(params[2][j]);
 				penalty += Math.pow(params[3][j]/50, 2)/2; // gaussian prior on velocity
 				penalty += params[4][j]/1.0; // exponential prior on areal density
@@ -468,8 +468,8 @@ public class MRSt {
 				if (j <= bangIndex) Yp *= -1;
 				if (Y > 0) {
 					double z = Yp/Y*1.;
-					if (z < 0) penalty += .1*Math.exp(z);
-					else       penalty += .1*(1 + z + z*z/2.); // encourage a monotonically increasing yield before BT
+					if (z < 0) penalty += .05*Math.exp(z);
+					else       penalty += .05*(1 + z + z*z/2.); // encourage a monotonically increasing yield before BT
 				}
 			}
 			
@@ -485,10 +485,11 @@ public class MRSt {
 //				penalty += 1e4/burn0*Math.max(burn4/burn0 - burn2/burn0, 0);
 //			}
 			
-			for (int j = 1; j < timeAxis.length-1; j ++) {
-				double Tpp = (params[1][j-1] - 2*params[1][j] + params[1][j+1])/
-						Math.pow(timeStep, 2);
-				penalty += Math.pow(Tpp/5e3, 2)/2; // encourage a smooth ion temperature
+			for (int j = 1; j < timeAxis.length; j ++) {
+				double Tp = (params[1][j-1] - params[1][j])/timeStep;
+				double T = (params[1][j-1] + params[1][j])/2;
+				if (Tp != 0)
+					penalty += (Tp*Tp)/T/400; // encourage a smooth rho-R
 			}
 			
 			for (int j = 1; j < timeAxis.length-1; j ++) {
@@ -496,12 +497,6 @@ public class MRSt {
 						Math.pow(timeStep, 2);
 				penalty += Math.pow(Vpp/2e5, 2)/2; // encourage a smooth ion velocity
 			}
-			
-//			for (int j = 1; j < timeAxis.length-1; j ++) {
-//				double Rpp = (params[4][j-1] - 2*params[4][j] + params[4][j+1])/
-//						Math.pow(timeStep, 2);
-//				penalty += Math.pow(Rpp/200, 2)/2; // encourage a smooth rho-R
-//			}
 			
 			for (int j = 1; j < timeAxis.length; j ++) {
 				double Rp = (params[4][j-1] - params[4][j])/timeStep;
@@ -708,7 +703,6 @@ public class MRSt {
 			logger.info(String.format("Burn-averaged Ti:  %s keV", res[10].toString(covarianceMatrix)));
 			logger.info(String.format("dTi/dt at BT:      %s keV/(100 ps)", res[11].over(1e1).toString(covarianceMatrix)));
 			logger.info(String.format("Burn-averaged vi:  %s km/s", res[12].toString(covarianceMatrix)));
-			logger.info(String.format("dvi/dt at BT:      %s μm/ns/(100 ps)", res[13].over(1e1).toString(covarianceMatrix)));
 			logger.info(String.format("dvi/dt at BT:      %s μm/ns/(100 ps)", res[13].over(1e1).toString(covarianceMatrix)));
 			logger.info(String.format("T_peak:            %s keV", res[14].toString(covarianceMatrix)));
 			logger.info(String.format("τ_ECT:             %s ps", res[15].over(1e-3).toString(covarianceMatrix)));
