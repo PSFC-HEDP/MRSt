@@ -1302,6 +1302,10 @@ public class NumericalMethods {
 			return this.pow(1/2.);
 		}
 		
+		public Quantity exp() {
+			return new Quantity(Math.exp(this.value), this.gradient.times(Math.exp(this.value)));
+		}
+		
 		public Quantity abs() {
 			if (this.value < 0)
 				return this.times(-1);

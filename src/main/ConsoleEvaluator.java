@@ -121,8 +121,8 @@ public class ConsoleEvaluator {
 			double[][] spec = null;
 			try {
 				eBins = CSV.readColumn(new File("data/Energy bins.txt"));
-				tBins = CSV.readColumn(new File("data/nsp_150327_16p26_time - copia.txt"));
-				spec = CSV.read(new File("data/nsp_150327_16p26.txt"), '\t');
+				tBins = CSV.readColumn(new File("data/Time bins.txt"));
+				spec = CSV.read(new File("data/spectrum.txt"), '\t');
 				if (spec.length != eBins.length-1 || spec[0].length != tBins.length-1) {
 					System.out.println("interpreting a weird spectrum file...");
 					spec = MRSt.interpretSpectrumFile(tBins, eBins, spec);
