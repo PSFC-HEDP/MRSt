@@ -37,7 +37,7 @@ for i in range(n):
 		for sp in axes[i].spines.values(): sp.set_visible(False)
 		axes[i].spines['right'].set_visible(True)
 
-	rainge = {'Y':(0,None), 'T':(0,16), 'ρ':(0,1.5), 'V':(-100,100), 'a':(-1, 1)}[ylabels[i][0]]
+	rainge = {'Y':(0,None), 'T':(0,12), 'ρ':(0,1.5), 'V':(-100,100), 'a':(-1, 1)}[ylabels[i][0]]
 	YAs[i][np.isnan(ΔAs[i])] = np.nan
 	plots.append(axes[i].plot(XA, YAs[i], label=ylabels[i], color=f'C{i}')[0])
 	if True:     axes[i].plot(XB, YBs[i], '--', color=f'C{i}')[0]
