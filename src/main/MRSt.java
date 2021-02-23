@@ -48,9 +48,29 @@ import main.NumericalMethods.Quantity;
  */
 public class MRSt {
 	
+	public static final String[] HEADERS = {
+		"Yield factor", "Temperature factor", "Down-scatter factor", "Velocity shift (μm/ns)",
+		"Computation time (s)", "Total yield (10^15)", "Bang time (ns)",
+		"Burn width (ns)", "Burn skewness", "Burn kurtosis",
+		"Stagnation (ns)", "\u03C1R at stagnation (g/cm^2)",
+		"Burn-average \u03C1R (g/cm^2)", "d\u03C1R/dt at BT (g/cm^2/ns)",
+		"Burn-average Ti (keV)", "dTi/dt at BT (keV/ns)",
+		"dTi/dt at stagnation (keV/ns)", " d^2Ti/dt^2 at stagnation, (keV/ns^2)",
+		"Burn-average vi (km/s)", "dvi/dt at BT (km/s/ns)",
+		"d^2V/dt^2/V at stagnation (1/ns^2)",
+		"Peak Ti (keV)", "Energy confinement time (ns)",
+		"Cooling Ti (keV)", "Cooling time (ns)"}; // the names, units, and order of time-dependent burn parameters
+	public static final String[] HEADERS_WITH_ERRORS = appendErrorsToHeader(HEADERS);
+	
 	private static final int x = 0, y = 1, z = 2;
 	
 	private static final double SPEED_OF_LIGHT = 2.99792458e8;
+	private static final double eV = Math.abs(Particle.E.charge);
+	private static final double keV = 1e3*Math.abs(Particle.E.charge);
+	private static final double MeV = 1e6*Math.abs(Particle.E.charge);
+	private static final double μm = 1e-6;
+	private static final double ns = 1e-9;
+	
 	private static final DiscreteFunction ALPHA_KNOCKON_SPECTRUM = new DiscreteFunction(
 			new double[] {10.23, 10.5, 11.0, 11.25, 11.5, 12.0, 12.5, 13.0, 13.5, 14.0, 14.5,
 					15.0, 15.5, 16.0, 16.5, 17.0, 17.5, 18.0, 18.5, 19.0, 19.5, 19.85},
@@ -67,6 +87,10 @@ public class MRSt {
 	private static final double MIN_T = 16.0, MAX_T = 16.5; // histogram bounds [ns]
 	private static final double E_RESOLUTION = .09, T_RESOLUTION = 20e-3; // resolutions [MeV], [ns]
 	private static final int TRANSFER_MATRIX_TRIES = 10000; // the number of points to sample in each column of the transfer matrix
+	
+	private static final double NOMINAL_INITIAL_VOLUME = 1;
+	private static final double NOMINAL_INITIAL_RHO_R = 0.1;
+	
 	private static final Random RANDOM = new Random(0);
 	
 	private final double foilDistance; // z coordinate of midplane of foil [m]
@@ -74,7 +98,7 @@ public class MRSt {
 	private final double apertureDistance; // distance from TCC to aperture [m]
 	private final double apertureWidth; // horizontal dimension of aperture [m]
 	private final double apertureHeight; // vertical dimension of aperture [m]
-	private final double cosyKmin, cosyKmax; // bounds on deuterons that will be detected by the CSI
+	private final double cosyKmin, cosyKmax; // bounds on deuterons that will be detected by the CSI [J]
 	private final double cosyK0, cosyV0, cosyT0, cosyT1; // reference coordinates for beam used by COSY [J], [m/s], [s], [s?]
 	private final double focalPlaneAngle; // angle of focal plane [rad]
 	private final double precision; // factor by which to ease the convergence conditions
@@ -107,13 +131,21 @@ public class MRSt {
 	
 	/**
 	 * perform some preliminary calculations for the provided configuration.
-	 * @param stoppingPower a double[][] containing two columns and n rows. the zeroth column is
+	 * @param ion either Particle.P or Particle.D
+	 * @param foilDistance the distance from TCC to the foil [m]
+	 * @param foilRadius the radius of the foil [m]
+	 * @param foilThickness the thickness of the foil [m]
+	 * @param stoppingPowerData a double[][] containing two columns and n rows. the zeroth column is
 	 * the reference values of E in [keV] and the last column is the corresponding values of
 	 * dE/dx in [keV/μm].
-	 * @param focalTilt angle of the focal plane (0 means untilted) [deg]
-	 * @param referenceEnergy minimum ion energy allowed in COSY calculation [eV]
-	 * @param referenceEnergy maximum ion energy allowed in COSY calculation [eV]
+	 * @param apertureDistance the distance from TCC to the aperture [m]
+	 * @param apertureWidth the width of the aperture [m]
+	 * @param apertureHeight the hite of the aperture [m]
+	 * @param minimumEnergy the lowest energy to bother simulating [eV]
+	 * @param maximumEnergy the hiest energy to bother simulating [eV]
 	 * @param referenceEnergy expected ion energy used in COSY calculation [eV]
+	 * @param cosyCoefficients
+	 * @param focalTilt angle of the focal plane (0 means untilted) [deg]
 	 * @param precision 
 	 */
 	public MRSt(
@@ -128,9 +160,9 @@ public class MRSt {
 		this.apertureDistance = apertureDistance;
 		this.apertureWidth = apertureWidth;
 		this.apertureHeight = apertureHeight;
-		this.cosyKmin = minimumEnergy*(-Particle.E.charge);
-		this.cosyKmax = maximumEnergy*(-Particle.E.charge);
-		this.cosyK0 = referenceEnergy*(-Particle.E.charge); // save this in a more useful unit
+		this.cosyKmin = minimumEnergy*eV;
+		this.cosyKmax = maximumEnergy*eV;
+		this.cosyK0 = referenceEnergy*eV; // save this in a more useful unit
 		this.cosyV0 = Math.sqrt(2*cosyK0/ion.mass); // and get the corresponding speed
 		double γ = Math.pow(1 - Math.pow(cosyV0/SPEED_OF_LIGHT, 2), -1/2.);
 		double L = (1 + γ)/γ*2*cosyCoefficients[5][4]; // here's a fun shortcut to estimating the length of the lens: first order analysis
@@ -151,8 +183,8 @@ public class MRSt {
 		double[] dxdE = new double[stoppingPowerData.length]; // integrate the stopping power to get stopping distance
 		double[] E = new double[stoppingPowerData.length];
 		for (int i = 0; i < stoppingPowerData.length; i ++) {
-			dxdE[i] = 1/(stoppingPowerData[i][1]*1e9*(-Particle.E.charge)); // converting from [GeV/m] to [m/J]
-			E[i] = stoppingPowerData[i][0]*1e3*(-Particle.E.charge); // and from [keV] to [J]
+			dxdE[i] = 1/(stoppingPowerData[i][1]*keV/μm); // converting from [keV/μm]
+			E[i] = stoppingPowerData[i][0]*keV; // and from [keV]
 		}
 		DiscreteFunction distanceVsEnergyRaw = new DiscreteFunction(E, dxdE).antiderivative();
 		this.distanceVsEnergy = distanceVsEnergyRaw.indexed(STOPPING_DISTANCE_RESOLUTION); // m(J)
@@ -189,7 +221,7 @@ public class MRSt {
 		double[] calibEnergies = new double[2*energyBins.length];
 		double[] detectorPosition = new double[calibEnergies.length];
 		for (int i = 0; i < calibEnergies.length; i ++) {
-			calibEnergies[i] = (MIN_E + (MAX_E - MIN_E)*i/(calibEnergies.length-1))*energyFactor*1e6*(-Particle.E.charge);
+			calibEnergies[i] = (MIN_E + (MAX_E - MIN_E)*i/(calibEnergies.length-1))*energyFactor*MeV;
 			double[] v = {0, 0, Math.sqrt(2*calibEnergies[i]/ion.mass)};
 			double[] r = computeFocusedPosition(new double[] {0,0,0}, v, 0);
 			detectorPosition[i] = r[x]/Math.cos(focalPlaneAngle);
@@ -238,7 +270,7 @@ public class MRSt {
 		int j0 = timeBins.length/2; // time symmetry means we only need to evaluate at one time
 		for (int i = 0; i < energyBins.length-1; i ++) { // sweep through all energies
 			double energy0 = energyBins[i]*1e6, energy1 = energyBins[i+1]*1e6; // [eV]
-			double time0 = timeBins[j0]*1e-9, time1 = timeBins[j0+1]*1e-9; // [s]
+			double time0 = timeBins[j0]*ns, time1 = timeBins[j0+1]*ns; // [s]
 			double weight = efficiency((energy0 + energy1)/2)/TRANSFER_MATRIX_TRIES;
 			for (int k = 0; k < TRANSFER_MATRIX_TRIES; k ++) {
 				double energy = energy0 + RANDOM.nextDouble()*(energy1 - energy0); // randomly choose values from the bin
@@ -248,7 +280,7 @@ public class MRSt {
 				simulationCount ++;
 				if (Double.isNaN(et[0]))	continue; // sometimes, they won't hit the CsI cathode. That's fine.
 				
-				double e = et[0]/1e6, t = et[1]/1e-9; // then convert to the same units as the bins
+				double e = et[0]/1e6, t = et[1]/ns; // then convert to the same units as the bins
 //				e = energy/1e6; t = time/1e-9;
 				int eBin = (int)((e - MIN_E)/(MAX_E - MIN_E)*(energyBins.length-1));
 				int tBin = (int)((t - MIN_T)/(MAX_T - MIN_T)*(timeBins.length-1));
@@ -456,10 +488,8 @@ public class MRSt {
 								Math.log(teoSpectrum[i][j]/spectrumScale); // encourage entropy
 				}
 				
-//				penalty += params[1][j]/5 - Math.log(params[1][j]); // use gamma prior on temperatures
-//				penalty += params[2][j]/5 - Math.log(params[2][j]);
 				penalty += Math.pow(params[3][j]/50, 2)/2; // gaussian prior on velocity
-				penalty += params[4][j]/1.0; // exponential prior on areal density
+				penalty += params[4][j]/0.5; // exponential prior on areal density
 			}
 			
 			for (int j = 1; j < timeAxis.length; j ++) {
@@ -473,36 +503,24 @@ public class MRSt {
 				}
 			}
 			
-//			double burn0 = 0, burn1 = 0;
-//			for (int j = 0; j < timeAxis.length; j ++) {
-//				burn0 += params[0][j];
-//				burn1 += params[0][j]*timeAxis[j];
-//			}
-//			double burn2 = 0, burn4 = 0;
-//			for (int j = 0; j < timeAxis.length; j ++) {
-//				burn2 = params[0][j]*Math.pow((timeAxis[j] - burn1/burn0)/(2*expectedStd), 2);
-//				burn4 = params[0][j]*Math.pow((timeAxis[j] - burn1/burn0)/(2*expectedStd), 4);
-//				penalty += 1e4/burn0*Math.max(burn4/burn0 - burn2/burn0, 0);
-//			}
-			
 			for (int j = 1; j < timeAxis.length; j ++) {
 				double Tp = (params[1][j-1] - params[1][j])/timeStep;
 				double T = (params[1][j-1] + params[1][j])/2;
 				if (Tp != 0)
-					penalty += (Tp*Tp)/T/400; // encourage a smooth rho-R
-			}
-			
-			for (int j = 1; j < timeAxis.length-1; j ++) {
-				double Vpp = (params[3][j-1] - 2*params[3][j] + params[3][j+1])/
-						Math.pow(timeStep, 2);
-				penalty += Math.pow(Vpp/2e5, 2)/2; // encourage a smooth ion velocity
+					penalty += (Tp*Tp)/T/2000; // encourage a smooth Ti
 			}
 			
 			for (int j = 1; j < timeAxis.length; j ++) {
 				double Rp = (params[4][j-1] - params[4][j])/timeStep;
 				double R = (params[4][j-1] + params[4][j])/2;
 				if (Rp != 0)
-					penalty += (Rp*Rp)/R/200; // encourage a smooth rho-R
+					penalty += (Rp*Rp)/R/500; // encourage a smooth rho-R
+			}
+			
+			for (int j = 1; j < timeAxis.length-1; j ++) {
+				double Vpp = (params[3][j-1] - 2*params[3][j] + params[3][j+1])/
+						Math.pow(timeStep, 2);
+				penalty += Math.pow(Vpp/2e5, 2)/2; // encourage a smooth ion velocity
 			}
 			
 //			System.out.println(penalty+" + "+error);
@@ -661,12 +679,19 @@ public class MRSt {
 //			System.out.println(ds/prim);
 //		}
 		
+		Quantity[] V = new Quantity[measurements[4].length];
+		for (int i = 0; i < V.length; i ++)
+			V[i] = measurements[4][i].over(NOMINAL_INITIAL_RHO_R).pow(-1.5).times(NOMINAL_INITIAL_VOLUME);
+		
 		Quantity iMC = NumericalMethods.quadargmax(left, rite, measurements[4]); // index of max compression
 		Quantity maxCompress = NumericalMethods.interp(timeAxis, iMC); // time of max compression
 		Quantity[] dTdt = NumericalMethods.derivative(timeAxis, measurements[1]);
-		Quantity[] d2Tdt2 = NumericalMethods.derivative(timeAxis, dTdt);
+		Quantity[] d2Tdt2 = NumericalMethods.secondDerivative(timeAxis, measurements[1]);
+		Quantity[] d2Vdt2 = NumericalMethods.secondDerivative(timeAxis, V);
 		Quantity iTPeak = NumericalMethods.quadargmax(left, rite, measurements[1]);
 		Quantity iTCool = NumericalMethods.quadargmin(left, rite, dTdt);
+		Quantity TPeak = NumericalMethods.interp(measurements[1], iTPeak);
+		Quantity τECT = TPeak.over(NumericalMethods.interp(d2Tdt2, iTPeak)).abs().sqrt();
 		Quantity[] moments = new Quantity[5];
 		for (int k = 0; k < moments.length; k ++)
 			moments[k] = NumericalMethods.moment(k, timeBins, measurements[0]);
@@ -681,10 +706,12 @@ public class MRSt {
 				NumericalMethods.derivative(timeAxis, measurements[4], bangTime, .1),
 				NumericalMethods.average(measurements[1], measurements[0]),
 				NumericalMethods.derivative(timeAxis, measurements[1], bangTime, .1),
+				NumericalMethods.interp(dTdt, iMC),
+				NumericalMethods.interp(d2Tdt2, iMC),
 				NumericalMethods.average(measurements[3], measurements[0]),
 				NumericalMethods.derivative(timeAxis, measurements[3], bangTime, .1),
-				NumericalMethods.interp(measurements[1], iTPeak),
-				NumericalMethods.interp(measurements[1], iTPeak).over(NumericalMethods.interp(d2Tdt2, iTPeak)).abs().sqrt(),
+				NumericalMethods.interp(d2Vdt2, iMC).over(NumericalMethods.interp(V, iMC)),
+				TPeak, τECT,
 				NumericalMethods.interp(measurements[1], iTCool),
 				NumericalMethods.interp(measurements[1], iTCool).over(NumericalMethods.interp(dTdt, iTCool)).times(-1),
 		}; // collect the figures of merit
@@ -702,12 +729,15 @@ public class MRSt {
 			logger.info(String.format("d\u03C1R/dt at BT:      %s mg/cm^2/(100 ps)", res[9].over(1e-2).toString(covarianceMatrix)));
 			logger.info(String.format("Burn-averaged Ti:  %s keV", res[10].toString(covarianceMatrix)));
 			logger.info(String.format("dTi/dt at BT:      %s keV/(100 ps)", res[11].over(1e1).toString(covarianceMatrix)));
-			logger.info(String.format("Burn-averaged vi:  %s km/s", res[12].toString(covarianceMatrix)));
-			logger.info(String.format("dvi/dt at BT:      %s μm/ns/(100 ps)", res[13].over(1e1).toString(covarianceMatrix)));
-			logger.info(String.format("T_peak:            %s keV", res[14].toString(covarianceMatrix)));
-			logger.info(String.format("τ_ECT:             %s ps", res[15].over(1e-3).toString(covarianceMatrix)));
-			logger.info(String.format("T_cool:            %s keV", res[16].toString(covarianceMatrix)));
-			logger.info(String.format("τ_cool:            %s ps", res[17].over(1e-3).toString(covarianceMatrix)));
+			logger.info(String.format("dTi/dt at PC:      %s keV/ns", res[12].toString(covarianceMatrix)));
+			logger.info(String.format("d^2Ti/dt^2 at PC:  %s keV/ns^2", res[13].toString(covarianceMatrix)));
+			logger.info(String.format("Burn-averaged vi:  %s km/s", res[14].toString(covarianceMatrix)));
+			logger.info(String.format("dvi/dt at BT:      %s μm/ns/(100 ps)", res[15].over(1e1).toString(covarianceMatrix)));
+			logger.info(String.format("d^2V/dt^2/V at PC: %s 1/ns^2", res[16].toString(covarianceMatrix)));
+//			logger.info(String.format("T_peak:            %s keV", res[17].toString(covarianceMatrix)));
+//			logger.info(String.format("τ_ECT:             %s ps", res[18].over(1e-3).toString(covarianceMatrix)));
+//			logger.info(String.format("T_cool:            %s keV", res[19].toString(covarianceMatrix)));
+//			logger.info(String.format("τ_cool:            %s ps", res[20].over(1e-3).toString(covarianceMatrix)));
 		}
 		return res;
 	}
@@ -737,9 +767,9 @@ public class MRSt {
 	 * time and energy, by guessing its energy and accounting for travel time.
 	 * @param position the position where it hits the focal plane [m]
 	 * @param time the time at which it hits the focal plane [s]
-	 * @return { energy, time } [J, s].
+	 * @return { energy, time } [eV, s].
 	 */
-	public double[] backCalculate(double position, double time) {
+	private double[] backCalculate(double position, double time) {
 		double focusingDistance = position*Math.sin(focalPlaneAngle);
 		double E = energyVsPosition.evaluate(position); // [J]
 		double t;
@@ -747,7 +777,7 @@ public class MRSt {
 		double d0 = (E - cosyK0)/cosyK0;
 		double lf = cosyPolynomial(4, new double[] {0, 0, 0, 0, 0, d0}); // re-use the COSY mapping to estimate the time of flight from energy
 		t = time - (cosyT0 + lf*cosyT1 + focusingDistance/v);
-		return new double[] { E/energyFactor/Particle.P.charge, t };
+		return new double[] { E/energyFactor/eV, t };
 	}
 	
 	/**
@@ -775,25 +805,24 @@ public class MRSt {
 	
 	/**
 	 * compute the velocity with which the deuteron passes through the aperture.
-	 * @param vInitial {vx,vy,vz} of the neutron as it enters the foil [m/s].
-	 * @param A ratio of charged particle mass to neutron mass.
+	 * @param energy the energy of the initial particle [eV]
 	 * @param rFoil {x,y,z} of the point at which the neutron strikes the deuteron [m].
 	 * @param rAperture {x,y,z} of the point where the deuteron passes through the aperture [m].
 	 * @return { vx, vy, vz } [m/s]
 	 */
 	private double[] computeFinalVelocity(
 			double energy, double[] rFoil, double[] rAperture) {
-		double E0 = -Particle.E.charge*energy; // convert energy from [eV] to [J]
+		double E0 = energy*eV; // convert energy from [eV] to [J]
 		
 		double[] nHat = { // get the unit vector in the direction of the neutron
 				rFoil[x], rFoil[y], rFoil[z] };
-		double norm = Math.sqrt(sqr(nHat));
+		double norm = Math.sqrt(NumericalMethods.sqr(nHat));
 		for (int i = 0; i < 3; i ++)
 			nHat[i] /= norm;
 		
 		double[] dHat = { // and the unit vector in the direction of the ion
 				rAperture[x] - rFoil[x], rAperture[y] - rFoil[y], rAperture[z] - rFoil[z] };
-		norm = Math.sqrt(sqr(dHat));
+		norm = Math.sqrt(NumericalMethods.sqr(dHat));
 		for (int i = 0; i < 3; i ++)
 			dHat[i] /= norm;
 		
@@ -826,7 +855,7 @@ public class MRSt {
 		double x0 = rFoil[x], y0 = rFoil[y]; // COSY takes spatial coordinates in [m] (assume foil is thin so we can ignore rFoil[2])
 		double a0 = vInit[x]/cosyV0, b0 = vInit[y]/cosyV0; // angular coordinates in [rad] (more or less)
 		double t0 = 0; // assume time it takes neutron to hit foil is negligible
-		double K0 = 1/2.*ion.mass*sqr(vInit); // for the 'd' coordinate, we must convert velocity to energy
+		double K0 = 1/2.*ion.mass*NumericalMethods.sqr(vInit); // for the 'd' coordinate, we must convert velocity to energy
 		double d0 = (K0 - cosyK0)/cosyK0; // and then compare that to an expected reference energy
 		double[] input = { x0, a0, y0, b0, t0, d0 };
 		double[] output = new double[5];
@@ -1080,6 +1109,7 @@ public class MRSt {
 		return NumericalMethods.stds(this.measurements[4], this.covarianceMatrix);
 	}
 	
+	
 	/**	
 	 * generate a time-averaged spectrum based on some parameters that are taken to be constant.	
 	 * @param Yn the total neutron yield [10^15]	
@@ -1242,16 +1272,21 @@ public class MRSt {
 			energies[i] = energies[i] - .54e-3*flow;
 	}
 	
-	/**
-	 * square a vector, because this takes so long to write out every time.
-	 * @param v
-	 * @return
-	 */
-	private static double sqr(double[] v) {
-		double s = 0;
-		for (double x: v)
-			s += Math.pow(x, 2);
-		return s;
+
+	private static final String[] appendErrorsToHeader(String[] headers) {
+		String[] out = new String[2*headers.length + 4];
+		for (int i = 0; i < headers.length; i ++) {
+			if (i < 4)
+				out[i] = headers[i];
+			else {
+				out[2*(i-4)+4] = headers[i];
+				int locationOfTheWordQuoteErrorUnquote = headers[i].indexOf('(') - 1;
+				if (locationOfTheWordQuoteErrorUnquote == -2)
+					locationOfTheWordQuoteErrorUnquote = headers[i].length();
+				out[2*(i-4)+5] = headers[i] + " error";
+			}
+		}
+		return out;
 	}
 	
 	

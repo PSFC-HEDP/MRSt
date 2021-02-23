@@ -14,13 +14,13 @@ COLUMNS = 2
 SIZE = (7.5, 9.0)
 MARGIN = dict(bottom=.06, top=.94, left=.12, right=.99, wspace=.30, hspace=.05)
 # INCLUDE_ERRORS = False
-# COLUMNS = 3
-# SIZE = (12, 4)
+# COLUMNS = 1
+# SIZE = (4, 6)
 # MARGIN = dict(bottom=.12, top=.87, left=.06, right=.99, wspace=.25, hspace=.03)
 
 if len(sys.argv) <= 1:
 	# FILENAME = '../../working/ensemble with Linux adjustments and strong smoothing.csv'
-	FILENAME = '../../working/ensemble_4_10_5_2_1200_2021-01-01.csv'
+	FILENAME = '../../working/ensemble_4_10_5_2_500_2021-02-19.csv'
 else:
 	FILENAME = '../../working/'+sys.argv[1]
 BIN_WIDTH = 0.3 # in bels
@@ -30,15 +30,15 @@ X_LABEL = "Yield"
 
 Y_LABELS = [
 	# (None, 0, 0, 0, 0, False), ("Total yield", 2e14, 4.36508e17, 9e17, 5e-2, True),
-	# ("Bang time (ns)", 16.344, 16.2596, 16.386, 1e-2, False),	("Burn width (ps)", 53, 67.1, 82, 7, False),
-	# ("Burn skewness", -1.8, -.7690, -0.4, 3e-1, False), ("Burn kurtosis", -0.5, 4.921, 15.5, 3, False),
-	# ("dρR/dt at BT (mg/cm^2/(100ps))", -550, -978.3, 100, 60, False), ("dTi/dt at BT (keV/(100ps))", 1.5, 2.170, 12, 1.9, False),
+	# ("Bang time (ns)", 16.23, 16.2596, 16.29, 1e-2, False),	("Burn width (ps)", 53, 67.1, 82, 7, False),
+	# ("Burn skewness", -1.6, -.7690, -0.1, 3e-1, False), ("Burn kurtosis", -0.5, 4.921, 8.5, 3, False),
+	# ("dρR/dt at BT (mg/cm^2/(100ps))", -1150, -978.3, -100, 60, False), ("dTi/dt at BT (keV/(100ps))", -2.3, 2.170, 6.3, 1.9, False),
 	# ("Burn-average vi (km/s)", -15.2, 0, 15.2, 20, False), ("dvi/dt at BT (km/s/(100ps))", -110, 0, 110, 8, False)
 	# ("Bang time (ns)", 16.344, 16.2596, 16.386, 1e-2, False), ("Burn width (ps)", 53, 66.16, 82, 7, False),
 	# ("Burn skewness", -1.8, -.7690, -0.4, 3e-1, False), ("Burn-average Ti (keV)", 6.5, 7.342, 11.5, 7e-2, True),
 	# ("dTi/dt at BT (keV/(100ps))", 1.5, 2.170, 12, 1.9, False), ("Burn-average ρR (g/cm^2)", 0.55, .9959, 1.25, 7e-2, True),
-	("Peak Ti (keV)", 0, 8.073, 20, 0, False),	("Energy confinement time (ps)", 0, 114.8e-3, 200e-3, 0, False),
-	("Cooling Ti (keV)", 0, 8.033, 20, 0, False), ("Cooling time (ps)", 0, 2414e-3, 2500e-3, 0, False),
+	("Peak Ti (keV)", 0, 8.073, 13, 0, False),	("Energy confinement time (ps)", 0, 114.8, 200, 0, False),
+	("Cooling Ti (keV)", 0, 8.033, 13, 0, False), ("Cooling time (ps)", 0, 2414, 2500, 0, False),
 ]
 
 
@@ -67,13 +67,16 @@ def rolling_average(y, n):
 simulations = pd.read_csv(FILENAME, na_values=["Infinity"])
 simulations = simulations[simulations["Yield factor"] != 0]
 simulations["Yield"] = simulations["Yield factor"]*4.7838e17
-for suf in ["", " error"]:
-	simulations["Total yield"+suf] = simulations["Total yield (10^15)"+suf]*1e15
-	simulations["Bang time (ps)"+suf] = simulations["Bang time (ns)"+suf]/1e-3
-	simulations["Burn width (ps)"+suf] = simulations["Burn width (ns)"+suf]/1e-3
-	simulations["dρR/dt at BT (mg/cm^2/(100ps))"+suf] = simulations["dρR/dt at BT (g/cm^2/ns)"+suf]/1e-2
-	simulations["dTi/dt at BT (keV/(100ps))"+suf] = simulations["dTi/dt at BT (keV/ns)"+suf]/1e1
-	simulations["dvi/dt at BT (km/s/(100ps))"+suf] = simulations["dvi/dt at BT (km/s/ns)"+suf]/1e1
+for parameter in simulations:
+	if '(ns)' in parameter:
+		simulations[parameter.replace('(ns)', '(ps)')] = simulations[parameter]*1e-9/1e-12
+	if '/ns' in parameter:
+		simulations[parameter.replace('/ns', '/(100ps)')] = simulations[parameter]/1e-9*100e-12
+	if ' (10^15)' in parameter:
+		simulations[parameter.replace(' (10^15)', '')] = simulations[parameter]*1e15
+for parameter in simulations:
+	if '(g/' in parameter:
+		simulations[parameter.replace('(g/', '(mg/')] = simulations[parameter]/1e-3
 
 if INCLUDE_ERRORS:
 	fig, axs = plt.subplots((len(Y_LABELS) + COLUMNS-1)//COLUMNS, COLUMNS*2, figsize=SIZE)
@@ -122,8 +125,8 @@ for i, (axis, y_min, y_true, y_max, presis, percent) in enumerate(Y_LABELS): # i
 	order = np.argsort(x) # get some useful indices of the data
 	order = order[np.isfinite(simulations["Total yield"].values[order])].values
 
-	μ = rolling_average(y[order], n=min(108, (y.size-1)//2))
-	σ = np.sqrt(rolling_average((y[order] - μ)**2, n=min(108, (y.size-1)//2)))
+	μ = rolling_average(y[order], n=min(72, (y.size-1)//2))
+	σ = np.sqrt(rolling_average((y[order] - μ)**2, n=min(72, (y.size-1)//2)))
 
 	if not percent: # plot the actual stuff
 		ax.fill_between(x[order],
@@ -133,8 +136,8 @@ for i, (axis, y_min, y_true, y_max, presis, percent) in enumerate(Y_LABELS): # i
 			y_factor[order]*y_true*(1 - presis), y_factor[order]*y_true*(1 + presis), color='#F7DFC8')
 	ax.plot(x[order], y_factor[order]*y_true, 'C1-', zorder=1, label="Based on original data")
 	ax.scatter(x[order], y[order], s=1, zorder=2, label="Based on fit to synthetic data")
-	ax.plot(x[order], μ + σ, 'C3-', zorder=1, label="1σ variation")
-	ax.plot(x[order], μ - σ, 'C3-', zorder=1)
+	# ax.plot(x[order], μ + σ, 'C3-', zorder=1, label="1σ variation")
+	# ax.plot(x[order], μ - σ, 'C3-', zorder=1)
 	if y_min > 0 and y_max/y_min >= 10:
 		ax.set_yscale('log')
 	ax.set_ylim(y_min, y_max)

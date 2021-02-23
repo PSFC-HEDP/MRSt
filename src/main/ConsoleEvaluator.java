@@ -45,29 +45,17 @@ public class ConsoleEvaluator {
 	private static final double COSY_MAXIMUM_ENERGY = 14.2e6;
 	private static final double COSY_REFERENCE_ENERGY = 12.45e6;
 	
-	private static final String[] HEADERS = {
-		"Yield factor", "Temperature factor", "Down-scatter factor", "Velocity shift (μm/ns)",
-		"Computation time (s)", "Total yield (10^15)", "Bang time (ns)",
-		"Burn width (ns)", "Burn skewness", "Burn kurtosis",
-		"Max \u03C1R (ns)", "\u03C1R at max (g/cm^2)",
-		"Burn-average \u03C1R (g/cm^2)", "d\u03C1R/dt at BT (g/cm^2/ns)",
-		"Burn-average Ti (keV)", "dTi/dt at BT (keV/ns)",
-		"Burn-average vi (km/s)", "dvi/dt at BT (km/s/ns)",
-		"Peak Ti (keV)", "Energy confinement time (ns)",
-		"Cooling Ti (keV)", "Cooling time (ns)"};
-	private static final String[] HEADERS_WITH_ERRORS = new String[(HEADERS.length-4)*2+4];
-	
 	
 	public static final void main(String[] args) throws SecurityException, IOException {
-		for (int i = 0; i < HEADERS.length; i ++) {
+		for (int i = 0; i < MRSt.HEADERS.length; i ++) {
 			if (i < 4)
-				HEADERS_WITH_ERRORS[i] = HEADERS[i];
+				MRSt.HEADERS_WITH_ERRORS[i] = MRSt.HEADERS[i];
 			else {
-				HEADERS_WITH_ERRORS[2*(i-4)+4] = HEADERS[i];
-				int locationOfTheWordQuoteErrorUnquote = HEADERS[i].indexOf('(') - 1;
+				MRSt.HEADERS_WITH_ERRORS[2*(i-4)+4] = MRSt.HEADERS[i];
+				int locationOfTheWordQuoteErrorUnquote = MRSt.HEADERS[i].indexOf('(') - 1;
 				if (locationOfTheWordQuoteErrorUnquote == -2)
-					locationOfTheWordQuoteErrorUnquote = HEADERS[i].length();
-				HEADERS_WITH_ERRORS[2*(i-4)+5] = HEADERS[i] + " error";
+					locationOfTheWordQuoteErrorUnquote = MRSt.HEADERS[i].length();
+				MRSt.HEADERS_WITH_ERRORS[2*(i-4)+5] = MRSt.HEADERS[i] + " error";
 			}
 		}
 
@@ -115,7 +103,7 @@ public class ConsoleEvaluator {
 			logger.log(Level.SEVERE, e.getMessage(), e);
 		}
 		
-		double[][] results = new double[numYields][HEADERS_WITH_ERRORS.length];
+		double[][] results = new double[numYields][MRSt.HEADERS_WITH_ERRORS.length];
 		for (int k = 0; k < numYields; k ++) {
 			double[] eBins = null, tBins = null;
 			double[][] spec = null;
@@ -161,7 +149,7 @@ public class ConsoleEvaluator {
 			
 			if ((k+1)%5 == 0 || k+1 == numYields) {
 				try {
-					CSV.write(results, new File("working/"+filename+".csv"), ',', HEADERS_WITH_ERRORS);
+					CSV.write(results, new File("working/"+filename+".csv"), ',', MRSt.HEADERS_WITH_ERRORS);
 					logger.log(Level.INFO, "Saved ensemble results to working/"+filename+".csv");
 				} catch (IOException e) {
 					logger.log(Level.SEVERE, e.getMessage(), e);

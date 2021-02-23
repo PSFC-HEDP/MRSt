@@ -378,6 +378,15 @@ public class NumericalMethods {
 		return out;
 	}
 	
+	public static double sqr(double[] v) {
+		double s = 0;
+		for (double x: v)
+			s += Math.pow(x, 2);
+		return s;
+	}
+	
+
+	
 	public static double max(double[] arr) {
 		double max = Double.NEGATIVE_INFINITY;
 		for (double x: arr)
@@ -658,16 +667,12 @@ public class NumericalMethods {
 			throw new IllegalArgumentException("Array lengths do not correspond.");
 		if (x.length < 3)
 			throw new IllegalArgumentException("I can't make inferences in these condicions!");
-		Quantity[] dydx = new Quantity[x.length-1];
-		for (int i = 0; i < y.length; i ++) {
-			if (i == 0)
-				dydx[i] = y[i].plus(y[i+1].times(-2)).plus(y[i+2]).over(Math.pow(x[i+1] - x[i-1], 2)/4.);
-			else if (i < y.length - 1)
-				dydx[i] = y[i+1].minus(y[i].times(2)).plus(y[i-1]).over(Math.pow(x[i+1] - x[i-1], 2)/4.);
-			else
-				dydx[i] = y[i-2].plus(y[i-1].times(-2)).plus(y[i]).over(Math.pow(x[i+1] - x[i-1], 2)/4.);
-		}
-		return dydx;
+		Quantity[] d2ydx2 = new Quantity[x.length];
+		for (int i = 1; i < x.length - 1; i ++)
+			d2ydx2[i] = y[i+1].minus(y[i].times(2)).plus(y[i-1]).over(Math.pow(x[i+1] - x[i-1], 2)/4.);
+		d2ydx2[0] = d2ydx2[1];
+		d2ydx2[x.length-1] = d2ydx2[x.length-2];
+		return d2ydx2;
 	}
 	
 	/**
