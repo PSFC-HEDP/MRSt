@@ -439,7 +439,7 @@ public class MRSt {
 				upperBound[5*j+k] = uppers[k];
 			}
 		}
-
+		
 		int left = bangIndex; // bounds of data about which we actually care
 		while (left-1 >= 0 && opt[5*(left-1)] > opt[5*bangIndex]/1e3)
 			left --;
@@ -447,8 +447,8 @@ public class MRSt {
 		while (rite < timeAxis.length && opt[5*(rite)] > opt[5*bangIndex]/1e3)
 			rite ++;
 		
-		double spectrumScale = NumericalMethods.sum(gelf)/(timeBins.length-1)/(energyBins.length-1); // the characteristic magnitude of the neutron spectrum bins
-
+//		double spectrumScale = NumericalMethods.sum(gelf)/(timeBins.length-1)/(energyBins.length-1); // the characteristic magnitude of the neutron spectrum bins
+		
 		Function<double[], Double> logPosterior = (double[] x) -> {
 			double[][] params = new double[5][timeAxis.length];
 			for (int k = 0; k < params.length; k ++) // first unpack the state vector
@@ -482,14 +482,15 @@ public class MRSt {
 			
 			double penalty = 0; // negative log of prior (ignoring global normalization)
 			for (int j = 0; j < spectrum[0].length; j ++) {
-				for (int i = 0; i < spectrum.length; i ++) {
-					if (teoSpectrum[i][j] > 1e-20)
-						penalty += 1e-6*efficiency[i][j]*teoSpectrum[i][j]*
-								Math.log(teoSpectrum[i][j]/spectrumScale); // encourage entropy
-				}
+//				for (int i = 0; i < spectrum.length; i ++) {
+//					if (teoSpectrum[i][j] > 1e-20)
+//						penalty += 1e-6*efficiency[i][j]*teoSpectrum[i][j]*
+//								Math.log(teoSpectrum[i][j]/spectrumScale); // encourage entropy
+//				}
 				
+//				penalty += 1e-12*params[0][j]*Math.log(params[0][j]/meanYield); // encourage entropy
 				penalty += Math.pow(params[3][j]/50, 2)/2; // gaussian prior on velocity
-				penalty += params[4][j]/0.5; // exponential prior on areal density
+				penalty += params[4][j]/1.0; // exponential prior on areal density
 			}
 			
 			for (int j = 1; j < timeAxis.length; j ++) {
@@ -507,14 +508,14 @@ public class MRSt {
 				double Tp = (params[1][j-1] - params[1][j])/timeStep;
 				double T = (params[1][j-1] + params[1][j])/2;
 				if (Tp != 0)
-					penalty += (Tp*Tp)/T/2000; // encourage a smooth Ti
+					penalty += (Tp*Tp)/T/1000; // encourage a smooth Ti
 			}
 			
 			for (int j = 1; j < timeAxis.length; j ++) {
 				double Rp = (params[4][j-1] - params[4][j])/timeStep;
 				double R = (params[4][j-1] + params[4][j])/2;
 				if (Rp != 0)
-					penalty += (Rp*Rp)/R/500; // encourage a smooth rho-R
+					penalty += (Rp*Rp)/R/100; // encourage a smooth rho-R
 			}
 			
 			for (int j = 1; j < timeAxis.length-1; j ++) {
