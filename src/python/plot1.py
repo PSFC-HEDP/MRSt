@@ -6,7 +6,7 @@ if len(sys.argv) <= 1:
 	import os
 	os.chdir('../..')
 	print(os.getcwd())
-	xlabel, ylabels, title, n = 'Time (ns)', 'Ti (keV)\nρR (g/cm^2)\nYn (10^15/ns)\nVi (km/s)', 'data', 4
+	xlabel, ylabels, title, n = 'Time (ns)', 'Ti (keV)\nρR (g/cm^2)\nYn (10^15/ns)', 'data', 3
 else:
 	xlabel, ylabels, title, n = sys.argv[1:]
 

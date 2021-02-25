@@ -3,24 +3,24 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import re
 import sys
-plt.rcParams.update({'font.family': 'serif', 'font.size': 10})
+plt.rcParams.update({'font.family': 'serif', 'font.size': 12})
 
-# INCLUDE_ERRORS = True
-# COLUMNS = 2
-# SIZE = (16, 8)
-# MARGIN = dict(bottom=.06, top=.94, left=.06, right=.99, wspace=.30, hspace=.05)
-INCLUDE_ERRORS = False
+INCLUDE_ERRORS = True
 COLUMNS = 2
-SIZE = (7.5, 9.0)
-MARGIN = dict(bottom=.06, top=.94, left=.12, right=.99, wspace=.30, hspace=.05)
+SIZE = (16, 8)
+MARGIN = dict(bottom=.06, top=.94, left=.06, right=.99, wspace=.30, hspace=.05)
+# INCLUDE_ERRORS = False
+# COLUMNS = 2
+# SIZE = (7.5, 9.0)
+# MARGIN = dict(bottom=.06, top=.94, left=.12, right=.99, wspace=.30, hspace=.05)
 # INCLUDE_ERRORS = False
 # COLUMNS = 1
-# SIZE = (4, 6)
-# MARGIN = dict(bottom=.12, top=.87, left=.06, right=.99, wspace=.25, hspace=.03)
+# SIZE = (5, 7)
+# MARGIN = dict(bottom=.08, top=.92, left=.23, right=.99, wspace=.25, hspace=.05)
 
 if len(sys.argv) <= 1:
 	# FILENAME = '../../working/ensemble with Linux adjustments and strong smoothing.csv'
-	FILENAME = '../../working/ensemble_4_10_5_2_500_2021-02-19.csv'
+	FILENAME = '../../working/ensemble_4_10_5_2_1000_2021-02-24.csv'
 else:
 	FILENAME = '../../working/'+sys.argv[1]
 BIN_WIDTH = 0.3 # in bels
@@ -30,15 +30,15 @@ X_LABEL = "Yield"
 
 Y_LABELS = [
 	# (None, 0, 0, 0, 0, False), ("Total yield", 2e14, 4.36508e17, 9e17, 5e-2, True),
-	# ("Bang time (ns)", 16.23, 16.2596, 16.29, 1e-2, False),	("Burn width (ps)", 53, 67.1, 82, 7, False),
-	# ("Burn skewness", -1.6, -.7690, -0.1, 3e-1, False), ("Burn kurtosis", -0.5, 4.921, 8.5, 3, False),
-	# ("dρR/dt at BT (mg/cm^2/(100ps))", -1150, -978.3, -100, 60, False), ("dTi/dt at BT (keV/(100ps))", -2.3, 2.170, 6.3, 1.9, False),
+	("Bang time (ns)", 16.23, 16.2596, 16.29, 1e-2, False),	("Burn width (ps)", 53, 67.1, 82, 7, False),
+	("Burn skewness", -1.6, -.7690, -0.1, 3e-1, False), ("Burn kurtosis", -0.5, 4.921, 8.5, 3, False),
+	("dρR/dt at BT (mg/cm^2/(100ps))", -1150, -978.3, -100, 60, False), #("dTi/dt at BT (keV/(100ps))", -2.3, 2.170, 6.3, 1.9, False),
 	# ("Burn-average vi (km/s)", -15.2, 0, 15.2, 20, False), ("dvi/dt at BT (km/s/(100ps))", -110, 0, 110, 8, False)
 	# ("Bang time (ns)", 16.344, 16.2596, 16.386, 1e-2, False), ("Burn width (ps)", 53, 66.16, 82, 7, False),
 	# ("Burn skewness", -1.8, -.7690, -0.4, 3e-1, False), ("Burn-average Ti (keV)", 6.5, 7.342, 11.5, 7e-2, True),
 	# ("dTi/dt at BT (keV/(100ps))", 1.5, 2.170, 12, 1.9, False), ("Burn-average ρR (g/cm^2)", 0.55, .9959, 1.25, 7e-2, True),
-	("Peak Ti (keV)", 0, 8.073, 13, 0, False),	("Energy confinement time (ps)", 0, 114.8, 200, 0, False),
-	("Cooling Ti (keV)", 0, 8.033, 13, 0, False), ("Cooling time (ps)", 0, 2414, 2500, 0, False),
+	("d^2V/dt^2/V at stagnation (1/ns^2)", -1000, 420.1, 2000, 50, False),# ("dTi/dt at BT (keV/(100ps))", 1.5, 6, 12, 1.9, False),
+	("dTi/dt at stagnation (keV/(100ps))", -20, 4, 40, 1.9, False), (" d^2Ti/dt^2 at stagnation (keV/ns^2)", -5000, 1861, 5000, 400, False),#("dTi/dt at stagnation (keV/(100ps))", -20, 30.20, 40, 1.9, False),
 ]
 
 
@@ -83,7 +83,7 @@ if INCLUDE_ERRORS:
 else:
 	fig, axs = plt.subplots((len(Y_LABELS) + COLUMNS-1)//COLUMNS, COLUMNS, figsize=SIZE)
 if len(axs.shape) == 1: # force the axis matrix to be 2D since Matplotlib apparently automatically reduces any array where one of the dimensions is 1
-	axs = axs[np.newaxis, :]
+	axs = axs[:, np.newaxis]
 fig.subplots_adjust(**MARGIN)
 bins = np.geomspace(simulations[X_LABEL].min(), simulations[X_LABEL].max(), max(3, 1 + int(np.ptp(np.log10(simulations[X_LABEL]))/BIN_WIDTH)))
 
