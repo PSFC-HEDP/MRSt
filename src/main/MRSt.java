@@ -23,6 +23,8 @@
  */
 package main;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.Locale;
 import java.util.Random;
 import java.util.function.Function;
@@ -54,10 +56,9 @@ public class MRSt {
 		"Burn width (ns)", "Burn skewness", "Burn kurtosis",
 		"Stagnation (ns)", "\u03C1R at stagnation (g/cm^2)",
 		"Burn-average \u03C1R (g/cm^2)", "d\u03C1R/dt at BT (g/cm^2/ns)",
-		"Burn-average Ti (keV)", "dTi/dt at BT (keV/ns)",
-		"dTi/dt at stagnation (keV/ns)", "d^2Ti/dt^2 at stagnation (keV/ns^2)",
+		"Burn-average Ti (keV)", "dTi/dt at BT (keV/ns)", "d^2Ti/dt^2 at BT (keV/ns^2)",
 		"Burn-average vi (km/s)", "dvi/dt at BT (km/s/ns)",
-		"d^2V/dt^2/V at stagnation (1/ns^2)",
+		"d^2V/dt^2/V at BT (1/ns^2)",
 		"Peak Ti (keV)", "Energy confinement time (ns)",
 		"Cooling Ti (keV)", "Cooling time (ns)"}; // the names, units, and order of time-dependent burn parameters
 	public static final String[] HEADERS_WITH_ERRORS = appendErrorsToHeader(HEADERS);
@@ -76,9 +77,9 @@ public class MRSt {
 					15.0, 15.5, 16.0, 16.5, 17.0, 17.5, 18.0, 18.5, 19.0, 19.5, 19.85},
 			new double[] {1.62E-06, 4.87E-06, 3.71E-05, 8.85E-05, 0.00024044, 0.0019635, 0.016034, 0.097, 0.17674, 0.21588, 0.21588,
 					0.17674, 0.071859, 0.019584, 0.0056109, 0.00169, 0.00046811, 0.00014583, 4.26E-05, 1.28E-05, 3.68E-06, 1.62E-06}); // [1/MeV]
-	private static final DiscreteFunction DOWN_SCATTER_SPECTRUM = new DiscreteFunction(	
-			new double[] {11.50, 11.75, 12.00, 12.25, 12.50, 12.75, 13.00, 13.25,	
-					13.50, 13.75, 14.00, 14.25, 14.50},	
+	private static final DiscreteFunction DOWN_SCATTER_SPECTRUM = new DiscreteFunction(
+			new double[] {11.50, 11.75, 12.00, 12.25, 12.50, 12.75, 13.00, 13.25,
+					13.50, 13.75, 14.00, 14.25, 14.50},
 			new double[] {0.026877796, 0.029223872, 0.030997082, 0.033544329, 0.035526223, 0.038301112, 0.040480957, 0.043125867,
 					0.045434499, 0.048972573, 0.05105225, 0, 0}, 12); // [1/MeV/(g/cm^2)]
 	
@@ -88,7 +89,7 @@ public class MRSt {
 	private static final double E_RESOLUTION = .09, T_RESOLUTION = 20e-3; // resolutions [MeV], [ns]
 	private static final int TRANSFER_MATRIX_TRIES = 10000; // the number of points to sample in each column of the transfer matrix
 	
-	private static final double NOMINAL_INITIAL_VOLUME = 1;
+	private static final double NOMINAL_INITIAL_VOLUME = 1; // (this doesn't really matter)
 	private static final double NOMINAL_INITIAL_RHO_R = 0.1;
 	
 	private static final Random RANDOM = new Random(0);
@@ -489,8 +490,8 @@ public class MRSt {
 //				}
 				
 //				penalty += 1e-12*params[0][j]*Math.log(params[0][j]/meanYield); // encourage entropy
-				penalty += Math.pow(params[3][j]/50, 2)/2; // gaussian prior on velocity
-				penalty += params[4][j]/1.0; // exponential prior on areal density
+				penalty += Math.pow(params[3][j]/20, 2)/2; // gaussian prior on velocity
+				penalty += params[4][j]/2.0; // exponential prior on areal density
 			}
 			
 			for (int j = 1; j < timeAxis.length; j ++) {
@@ -671,15 +672,6 @@ public class MRSt {
 			logger.info(String.format(Locale.US, "completed in %.2f minutes.",
 					(endTime - startTime)/60000.));
 		
-//		for (int j = 0; j < fitNeutronSpectrum[0].length; j ++) {
-//			double ds = 0, prim = 0;
-//			for (int i = 0; i < fitNeutronSpectrum.length; i ++) {
-//				if (energyBins[i] < 13)  ds += fitNeutronSpectrum[i][j];
-//				else                     prim += fitNeutronSpectrum[i][j];
-//			}
-//			System.out.println(ds/prim);
-//		}
-		
 		Quantity[] V = new Quantity[measurements[4].length];
 		for (int i = 0; i < V.length; i ++)
 			V[i] = measurements[4][i].over(NOMINAL_INITIAL_RHO_R).pow(-1.5).times(NOMINAL_INITIAL_VOLUME);
@@ -688,7 +680,7 @@ public class MRSt {
 		Quantity maxCompress = NumericalMethods.interp(timeAxis, iMC); // time of max compression
 		Quantity[] dTdt = NumericalMethods.derivative(timeAxis, measurements[1]);
 		Quantity[] d2Tdt2 = NumericalMethods.secondDerivative(timeAxis, measurements[1]);
-		Quantity[] d2Vdt2 = NumericalMethods.secondDerivative(timeAxis, V);
+//		Quantity[] d2Vdt2 = NumericalMethods.secondDerivative(timeAxis, V);
 		Quantity iTPeak = NumericalMethods.quadargmax(left, rite, measurements[1]);
 		Quantity iTCool = NumericalMethods.quadargmin(left, rite, dTdt);
 		Quantity TPeak = NumericalMethods.interp(measurements[1], iTPeak);
@@ -707,11 +699,12 @@ public class MRSt {
 				NumericalMethods.derivative(timeAxis, measurements[4], bangTime, .1),
 				NumericalMethods.average(measurements[1], measurements[0]),
 				NumericalMethods.derivative(timeAxis, measurements[1], bangTime, .1),
-//				NumericalMethods.secondDerivative(timeAxis, measurements[1], bangTime, .1),
-				NumericalMethods.interp(d2Tdt2, iMC),
+				NumericalMethods.secondDerivative(timeAxis, measurements[1], bangTime, .1),
+//				NumericalMethods.interp(d2Tdt2, iBT),
 				NumericalMethods.average(measurements[3], measurements[0]),
 				NumericalMethods.derivative(timeAxis, measurements[3], bangTime, .1),
-				NumericalMethods.interp(d2Vdt2, iMC).over(NumericalMethods.interp(V, iMC)),
+//				NumericalMethods.interp(d2Vdt2, iMC).over(NumericalMethods.interp(V, iBT)),
+				NumericalMethods.secondDerivative(timeAxis, V, bangTime, .1),
 				TPeak, τECT,
 				NumericalMethods.interp(measurements[1], iTCool),
 				NumericalMethods.interp(measurements[1], iTCool).over(NumericalMethods.interp(dTdt, iTCool)).times(-1),
@@ -730,10 +723,10 @@ public class MRSt {
 			logger.info(String.format("d\u03C1R/dt at BT:      %s mg/cm^2/(100 ps)", res[9].over(1e-2).toString(covarianceMatrix)));
 			logger.info(String.format("Burn-averaged Ti:  %s keV", res[10].toString(covarianceMatrix)));
 			logger.info(String.format("dTi/dt at BT:      %s keV/(100 ps)", res[11].over(1e1).toString(covarianceMatrix)));
-			logger.info(String.format("d^2Ti/dt^2 at PC:  %s keV/ns^2", res[12].toString(covarianceMatrix)));
+			logger.info(String.format("d^2Ti/dt^2 at BT:  %s keV/ns^2", res[12].toString(covarianceMatrix)));
 			logger.info(String.format("Burn-averaged vi:  %s km/s", res[13].toString(covarianceMatrix)));
 			logger.info(String.format("dvi/dt at BT:      %s μm/ns/(100 ps)", res[14].over(1e1).toString(covarianceMatrix)));
-			logger.info(String.format("d^2V/dt^2/V at PC: %s 1/ns^2", res[15].toString(covarianceMatrix)));
+			logger.info(String.format("d^2V/dt^2/V at BT: %s 1/ns^2", res[15].toString(covarianceMatrix)));
 //			logger.info(String.format("T_peak:            %s keV", res[17].toString(covarianceMatrix)));
 //			logger.info(String.format("τ_ECT:             %s ps", res[18].over(1e-3).toString(covarianceMatrix)));
 //			logger.info(String.format("T_cool:            %s keV", res[19].toString(covarianceMatrix)));
@@ -1110,35 +1103,35 @@ public class MRSt {
 	}
 	
 	
-	/**	
-	 * generate a time-averaged spectrum based on some parameters that are taken to be constant.	
-	 * @param Yn the total neutron yield [10^15]	
-	 * @param Ti the ion temperature [keV]	
-	 * @param Te the electron temperature [keV]	
-	 * @param vi the bulk flow rate parallel to the line of sight [μm/ns]	
-	 * @param ρR the areal density of fuel and shell surrounding the hot spot [g/cm^2]	
-	 * @param eBins the edges of the energy bins [MeV]	
-	 * @return the theoretical number of particles in each energy bin, ignoring stochastity.	
-	 */	
-	public static double[] generateSpectrum(	
-			double Yn, double Ti, double Te, double vi, double ρR, double[] eBins) {	
-		return generateSpectrum(Yn, Ti, Te, vi, ρR, eBins, false, null);	
+	/**
+	 * generate a time-averaged spectrum based on some parameters that are taken to be constant.
+	 * @param Yn the total neutron yield [10^15]
+	 * @param Ti the ion temperature [keV]
+	 * @param Te the electron temperature [keV]
+	 * @param vi the bulk flow rate parallel to the line of sight [μm/ns]
+	 * @param ρR the areal density of fuel and shell surrounding the hot spot [g/cm^2]
+	 * @param eBins the edges of the energy bins [MeV]
+	 * @return the theoretical number of particles in each energy bin, ignoring stochastity.
+	 */
+	public static double[] generateSpectrum(
+			double Yn, double Ti, double Te, double vi, double ρR, double[] eBins) {
+		return generateSpectrum(Yn, Ti, Te, vi, ρR, eBins, false, null);
 	}
 	
-	/**	
-	 * generate a time-averaged spectrum based on some parameters that are taken to be constant.	
-	 * @param Yn the total neutron yield [10^15]	
-	 * @param Ti the ion temperature [keV]	
-	 * @param Te the electron temperature [keV]	
-	 * @param vi the bulk flow rate parallel to the line of sight [μm/ns]	
-	 * @param ρR the areal density of fuel and shell surrounding the hot spot [g/cm^2]	
-	 * @param eBins the edges of the energy bins [MeV]	
-	 * @return the theoretical number of particles in each energy bin, ignoring stochastity.	
-	 */	
-	public static double[] generateSpectrum(	
-			double Yn, double Ti, double Te, double vi, double ρR,	
-			double[] eBins, boolean onlyDS) {	
-		return generateSpectrum(Yn, Ti, Te, vi, ρR, eBins, onlyDS);	
+	/**
+	 * generate a time-averaged spectrum based on some parameters that are taken to be constant.
+	 * @param Yn the total neutron yield [10^15]
+	 * @param Ti the ion temperature [keV]
+	 * @param Te the electron temperature [keV]
+	 * @param vi the bulk flow rate parallel to the line of sight [μm/ns]
+	 * @param ρR the areal density of fuel and shell surrounding the hot spot [g/cm^2]
+	 * @param eBins the edges of the energy bins [MeV]
+	 * @return the theoretical number of particles in each energy bin, ignoring stochastity.
+	 */
+	public static double[] generateSpectrum(
+			double Yn, double Ti, double Te, double vi, double ρR,
+			double[] eBins, boolean onlyDS) {
+		return generateSpectrum(Yn, Ti, Te, vi, ρR, eBins, onlyDS, null);
 	}
 	
 	
@@ -1156,10 +1149,29 @@ public class MRSt {
 	public static double[][] generateSpectrum(
 			double[] Yn, double Ti[], double[] Te, double vi[], double ρR[],
 			double[] eBins, double[] tBins) {
+		return generateSpectrum(Yn, Ti, Te, vi, ρR, eBins, tBins, false);
+	}
+	
+	
+	/**
+	 * generate a time-resolved spectrum based on some parameters that vary with time.
+	 * @param Yn the neutron yield rate [10^15/ns]
+	 * @param Ti the ion temperature [keV]
+	 * @param Te the electron temperature [keV]
+	 * @param vi the bulk flow rate parallel to the line of sight [μm/ns]
+	 * @param ρR the areal density of fuel and shell surrounding the hot spot [g/cm^2]
+	 * @param tBins the edges of the time bins [ns]
+	 * @param eBins the edges of the energy bins [MeV]
+	 * @param onlyDS only return the DS spectrum; remove all primaries
+	 * @return the theoretical number of particles in each energy bin, ignoring stochastity.
+	 */
+	public static double[][] generateSpectrum(
+			double[] Yn, double Ti[], double[] Te, double vi[], double ρR[],
+			double[] eBins, double[] tBins, boolean onlyDS) {
 		double[][] spectrum = new double[eBins.length-1][tBins.length-1];
 		for (int j = 0; j < spectrum[0].length; j ++) {
 			double dt = (tBins[j+1] - tBins[j]); // bin width [ns]
-			double[] timeSlice = generateSpectrum(Yn[j]*dt, Ti[j], Te[j], vi[j], ρR[j], eBins);
+			double[] timeSlice = generateSpectrum(Yn[j]*dt, Ti[j], Te[j], vi[j], ρR[j], eBins, onlyDS);
 			for (int i = 0; i < spectrum.length; i ++)
 				spectrum[i][j] = timeSlice[i];
 		}
@@ -1196,7 +1208,7 @@ public class MRSt {
 						Math.exp(-Math.pow((eBins[i] - μ), 2)/(2*σ2));
 					I[i] += upscat*total*1e15*ALPHA_KNOCKON_SPECTRUM.evaluate(eBins[i]);
 				}
-				I[i] += ρR*total*1e15*DOWN_SCATTER_SPECTRUM.evaluate(eBins[i]);
+				I[i] += ρR*total*1e15*Math.max(0, DOWN_SCATTER_SPECTRUM.evaluate(eBins[i]));
 			}
 			else
 				I[i] = 0;

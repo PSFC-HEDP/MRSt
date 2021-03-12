@@ -23,6 +23,7 @@
  */
 package main;
 
+import java.util.Arrays;
 import java.util.Locale;
 import java.util.Random;
 
@@ -675,18 +676,99 @@ public class NumericalMethods {
 		return d2ydx2;
 	}
 	
+	private static Quantity[][] getLocalDataProperties(double[] x, Quantity[] y, Quantity x0, double Δx) {
+		if (x.length != y.length)
+			throw new IllegalArgumentException("Array lengths do not correspond.");
+		int n = y[0].getN();
+		Quantity xL = x0.minus(Δx/2), xR = x0.plus(Δx/2);
+		if (xL.value < x[0])
+			xL = new Quantity(x[0], n);
+		if (xR.value > x[x.length-1])
+			xR = new Quantity(x[x.length-1], n);
+		
+		int s = 0;
+		for (int i = 0; i < x.length; i ++)
+			if (x[i] > xL.value && x[i] < xR.value)
+				s ++;
+		s += 2;
+		
+		Quantity[] xData = new Quantity[s];
+		int l = 1;
+		for (int i = 0; i < x.length; i ++) {
+			if (x[i] > xL.value && x[i] < xR.value) {
+				xData[l] = new Quantity(x[i], n);
+				l ++;
+			}
+		}
+		xData[0] = xL;
+		xData[s-1] = xR;
+		
+		Quantity[] wate = new Quantity[s];
+		wate[0] = xData[1].minus(xData[0]);
+		for (int i = 1; i < s-1; i ++)
+			wate[i] = xData[i+1].minus(xData[i-1]);
+		wate[s-1] = xData[s-1].minus(xData[s-2]);
+		
+		Quantity[] yData = new Quantity[s];
+		for (int i = 0; i < s; i ++)
+			yData[i] = interp(xData[i], x, y);
+		Quantity[][] sums = new Quantity[5][2];
+		for (int j = 0 ; j < sums.length; j ++)
+			for (int k = 0; k < sums[j].length; k ++)
+				sums[j][k] = new Quantity(0, n);
+		for (int i = 0; i < s; i ++)
+			for (int j = 0; j < sums.length; j ++)
+				for (int k = 0; k < sums[j].length; k ++)
+					sums[j][k] = sums[j][k].plus(xData[i].pow(j).times(yData[i].pow(k)).times(wate[i]));
+		System.out.println("looking between "+(x0.value - Δx/2)+" and "+(x0.value + Δx/2));
+		System.out.println(s);
+		
+		Quantity[][] moments = new Quantity[5][2];
+		for (int j = 0; j < moments.length; j ++)
+			for (int k = 0; k < moments[j].length; k ++)
+				moments[j][k] = sums[j][k].over(sums[0][0]);
+		return moments;
+	}
+	
 	/**
-	 * find the finite difference derivative. for best results, x should be evenly spaced.
+	 * find the finite difference derivative at a point.
 	 * @param x the x values
 	 * @param y the corresponding y values
 	 * @param x the time at which to computer it
 	 * @param Δx the time interval over which to compute it
 	 * @return the slope dy/dx at each point
 	 */
-	public static Quantity derivative(double[] x, Quantity[] y, Quantity x0, double Δx) {
-		if (x.length != y.length)
-			throw new IllegalArgumentException("Array lengths do not correspond.");
-		return interp(x0.plus(Δx/2.), x, y).minus(interp(x0 .minus(Δx/2.), x, y)).over(Δx);
+	public static Quantity derivative(double[] x, Quantity[] y, Quantity x0, double Δx) { // TODO do some interpolation with nearby points
+		Quantity[][] moments = getLocalDataProperties(x, y, x0, Δx);
+		return moments[0][1].times(moments[1][0]).minus(moments[1][1]).over(
+				moments[1][0].times(moments[1][0]).minus(moments[2][0]));
+	}
+	
+	/**
+	 * find the second derivative at a point.
+	 * @param x the x values
+	 * @param y the corresponding y values
+	 * @param x the time at which to computer it
+	 * @param Δx the time interval over which to compute it
+	 * @return the slope dy/dx at each point
+	 */
+	public static Quantity secondDerivative(double[] x, Quantity[] y, Quantity x0, double Δx) {
+		Quantity[][] moments = getLocalDataProperties(x, y, x0, Δx);
+		double[][] A = new double[][] {
+			{moments[2][0].value, moments[1][0].value, moments[0][0].value},
+			{moments[3][0].value, moments[2][0].value, moments[1][0].value},
+			{moments[4][0].value, moments[3][0].value, moments[2][0].value},
+		};
+		double[][] Ainv = NumericalMethods.matinv(A);
+		for (int i = 0; i < x.length; i ++)
+			System.out.printf("[%f, %f],\n", x[i], y[i].value);
+		System.out.printf("y = %f x^2 + %f x + %f\n",
+				moments[0][1].times(Ainv[0][0]).plus(moments[1][1].times(Ainv[0][1])).plus(moments[2][1].times(Ainv[0][2])).value,
+				moments[0][1].times(Ainv[1][0]).plus(moments[1][1].times(Ainv[1][1])).plus(moments[2][1].times(Ainv[1][2])).value,
+				moments[0][1].times(Ainv[2][0]).plus(moments[1][1].times(Ainv[2][1])).plus(moments[2][1].times(Ainv[2][2])).value
+				);
+		System.out.println(moments[0][1].times(Ainv[0][0]).plus(moments[1][1].times(Ainv[0][1])).plus(moments[2][1].times(Ainv[0][2])).times(2).value);
+		return moments[0][1].times(Ainv[0][0]).plus(moments[1][1].times(Ainv[0][1])).plus(moments[2][1].times(Ainv[0][2])).times(2);
 	}
 	
 	/**
