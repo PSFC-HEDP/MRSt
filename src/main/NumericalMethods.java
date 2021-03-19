@@ -616,6 +616,21 @@ public class NumericalMethods {
 	}
 	
 	/**
+	 * take the floating-point index of an array using cubic interpolation.
+	 * @param x the array of values
+	 * @param i the partial index
+	 * @return x[i], more or less
+	 */
+	public static Quantity quadInterp(Quantity[] x, Quantity i) {
+		if (i.value < 0 || i.value > x.length-1)
+			throw new IndexOutOfBoundsException("Even partial indices have limits: "+i);
+		int i0 = Math.max(1, Math.min(x.length-3, (int) i.value));
+		Quantity xA = x[i0-1], xB = x[i0], xC = x[i0+1], xD = x[i0+2];
+		Quantity δA = i.minus(i0 - 1), δB = i.minus(i0), δC = i.minus(i0 + 1).times(-1), δD = i.minus(i0 + 2).times(-1);
+		return xB.times(δA).times(δC).times(δD).times(3).plus(xC.times(δA).times(δB).times(δD).times(3)).minus(xA.times(δB).times(δC).times(δD)).minus(xD.times(δA).times(δB).times(δC)).over(6);
+	}
+	
+	/**
 	 * find the second order finite difference derivative. for best results, x
 	 * should be evenly spaced.
 	 * @param x the x values

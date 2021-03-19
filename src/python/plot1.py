@@ -6,7 +6,7 @@ if len(sys.argv) <= 1:
 	import os
 	os.chdir('../..')
 	print(os.getcwd())
-	xlabel, ylabels, title, n = 'Time (ns)', 'Ti (keV)\nρR (g/cm^2)\nYn (10^15/ns)\nVi (km/s)', 'data', 4
+	xlabel, ylabels, title, n = 'Time (ns)', 'Ti (keV)\nρR (g/cm^2)\nYn (10^15/ns)', 'data', 3
 else:
 	xlabel, ylabels, title, n = sys.argv[1:]
 
@@ -23,7 +23,7 @@ if True:
 	YBs = [data[:,2], data[:,4] + data[:,5], data[:,1], np.zeros(XB.shape)]
 	YBs[2] *= np.sum(YAs[2]*(XA[1] - XA[0]))/np.sum(YBs[2]*(XB[1] - XB[0]))
 
-fig, host_ax = plt.subplots()
+fig, host_ax = plt.subplots(figsize=(8,5))
 fig.subplots_adjust(right=1 - (0.12*(n-1)))
 axes = [host_ax]
 plots = []
@@ -37,7 +37,7 @@ for i in range(n):
 		for sp in axes[i].spines.values(): sp.set_visible(False)
 		axes[i].spines['right'].set_visible(True)
 
-	rainge = {'Y':(0,None), 'T':(0,12), 'ρ':(0,1.5), 'V':(-100,100), 'a':(-1, 1)}[ylabels[i][0]]
+	rainge = {'Y':(0,None), 'T':(0,10), 'ρ':(0,1.5), 'V':(-100,100), 'a':(-1, 1)}[ylabels[i][0]]
 	YAs[i][np.isnan(ΔAs[i])] = np.nan
 	plots.append(axes[i].plot(XA, YAs[i], label=ylabels[i], color=f'C{i}')[0])
 	if True:     axes[i].plot(XB, YBs[i], '--', color=f'C{i}')[0]
@@ -47,7 +47,7 @@ for i in range(n):
 
 	if ylabels[i].startswith('Y'):
 		Ymax = YAs[i].max(initial=0, where=np.isfinite(YAs[i]))
-		lims = np.min(np.where(YAs[i]/Ymax >= 1e-3, XA, np.inf)), np.max(np.where(YAs[i]/Ymax >= 1e-3, XA, -np.inf))
+		lims = np.min(XA[YAs[i]/Ymax >= 1e-3]), np.max(XA[YAs[i]/Ymax >= 1e-3])
 		if not all(np.isfinite(lims)):
 			lims = XA[0], XA[-1]
 
@@ -57,4 +57,18 @@ axes[0].set_xlim(*lims)
 axes[0].legend(plots, [p.get_label() for p in plots])
 
 plt.tight_layout()
+
+fig, axis = plt.subplots()
+for i in range(n):
+	if ylabels[i][0] == 'T':
+		i_temp = i
+	elif ylabels[i][0] == 'ρ':
+		i_dens = i
+	elif ylabels[i][0] == 'Y':
+		valid = YAs[i]/Ymax >= 1e-3
+axis.errorbar(x=YAs[i_dens][valid], xerr=ΔAs[i_dens][valid], y=YAs[i_temp][valid], yerr=ΔAs[i_temp][valid], fmt='-.')
+axis.plot(YBs[i_dens], YBs[i_temp], '--k')
+axis.set_xlabel("ρR (g/cm^2)")
+axis.set_ylabel("Ti (keV)")
+
 plt.show()

@@ -52,9 +52,9 @@ public class MRSt {
 		"Yield factor", "Temperature factor", "Down-scatter factor", "Velocity shift (μm/ns)",
 		"Computation time (s)", "Total yield (10^15)", "Bang time (ns)",
 		"Burn width (ns)", "Burn skewness", "Burn kurtosis",
-		"Stagnation (ns)", "\u03C1R at stagnation (g/cm^2)",
-		"Burn-average \u03C1R (g/cm^2)", "d\u03C1R/dt at BT (g/cm^2/ns)",
-		"Burn-average Ti (keV)", "dTi/dt at BT (keV/ns)",
+		"Stagnation - BT (ns)", "\u03C1R at stagnation (g/cm^2)",
+		"Burn-average \u03C1R (g/cm^2)", "\u03C1R at BT (g/cm^2)", "d\u03C1R/dt at BT (g/cm^2/ns)",
+		"Burn-average Ti (keV)", "Ti at BT (keV)", "dTi/dt at BT (keV/ns)",
 		"dTi/dt at stagnation (keV/ns)", " d^2Ti/dt^2 at stagnation, (keV/ns^2)",
 		"Burn-average vi (km/s)", "dvi/dt at BT (km/s/ns)",
 		"d^2V/dt^2/V at stagnation (1/ns^2)",
@@ -487,10 +487,10 @@ public class MRSt {
 //						penalty += 1e-6*efficiency[i][j]*teoSpectrum[i][j]*
 //								Math.log(teoSpectrum[i][j]/spectrumScale); // encourage entropy
 //				}
-				
 //				penalty += 1e-12*params[0][j]*Math.log(params[0][j]/meanYield); // encourage entropy
-				penalty += Math.pow(params[3][j]/50, 2)/2; // gaussian prior on velocity
-				penalty += params[4][j]/1.0; // exponential prior on areal density
+				penalty += Math.pow(params[3][j]/20, 2)/2; // gaussian prior on velocity
+				penalty += params[1][j]/10.0 - Math.log(params[1][j])/2.; // gamma prior on temp
+				penalty += params[4][j]/2.0; // exponential prior on areal density
 			}
 			
 			for (int j = 1; j < timeAxis.length; j ++) {
@@ -515,7 +515,7 @@ public class MRSt {
 				double Rp = (params[4][j-1] - params[4][j])/timeStep;
 				double R = (params[4][j-1] + params[4][j])/2;
 				if (Rp != 0)
-					penalty += (Rp*Rp)/R/100; // encourage a smooth rho-R
+					penalty += (Rp*Rp)/R/200; // encourage a smooth rho-R
 			}
 			
 			for (int j = 1; j < timeAxis.length-1; j ++) {
@@ -527,15 +527,15 @@ public class MRSt {
 //			System.out.println(penalty+" + "+error);
 			return penalty + error;
 		};
-
+		
 		if (logger != null) logger.log(Level.FINE, "...");
-		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, .1*precision, 0, timeAxis.length, true, true, false, false, false, false);
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, .1*precision, 0, timeAxis.length, true, true, false, false, false);
 		if (logger != null) logger.log(Level.FINE, "...");
-		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, .1*precision, 0, timeAxis.length, false, false, true, false, false, false);
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, .1*precision, 0, timeAxis.length, false, false, true, false, false);
 		if (logger != null) logger.log(Level.FINE, "...");
-		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, .1*precision, 0, timeAxis.length, false, false, false, false, true, true);
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, .1*precision, 0, timeAxis.length, false, false, false, false, true);
 		if (logger != null) logger.log(Level.FINE, "...");
-		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, .01*precision, 0, timeAxis.length, true, true, true, true, true, true);
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, .01*precision, 0, timeAxis.length, true, true, true, true, true);
 		
 		this.measurements = new Quantity[5][timeAxis.length]; // unpack the optimized vector
 		for (int k = 0; k < measurements.length; k ++) {
@@ -701,11 +701,13 @@ public class MRSt {
 				new Quantity((endTime - startTime)/1000., covarianceMatrix.length),
 				moments[0].times(timeStep), bangTime,
 				moments[2].sqrt().times(2.355), moments[3], moments[4],
-				maxCompress,
-				NumericalMethods.interp(measurements[4], iMC),
+				maxCompress.minus(bangTime),
+				NumericalMethods.quadInterp(measurements[4], iMC),
 				NumericalMethods.average(measurements[4], measurements[0]),
+				NumericalMethods.quadInterp(measurements[4], iBT),
 				NumericalMethods.derivative(timeAxis, measurements[4], bangTime, .1),
 				NumericalMethods.average(measurements[1], measurements[0]),
+				NumericalMethods.quadInterp(measurements[1], iBT),
 				NumericalMethods.derivative(timeAxis, measurements[1], bangTime, .1),
 				NumericalMethods.interp(dTdt, iMC),
 				NumericalMethods.interp(d2Tdt2, iMC),
@@ -717,24 +719,31 @@ public class MRSt {
 				NumericalMethods.interp(measurements[1], iTCool).over(NumericalMethods.interp(dTdt, iTCool)).times(-1),
 		}; // collect the figures of merit
 		
+		for (int i = 0; i < measurements[1].length; i ++)
+			System.out.println("  "+measurements[1][i].value);
+		System.out.println(iBT.value);
+		System.out.println(measurements[1][(int)iBT.value].value);
+		System.out.println(NumericalMethods.interp(measurements[1], iBT).value);
+		
 		if (logger != null) {
 			logger.info(String.format("Total yield (μ0):  %s", res[1].times(1e15).toString(covarianceMatrix)));
 			logger.info(String.format("Bang time:         %s ns", res[2].toString(covarianceMatrix)));
 			logger.info(String.format("Burn width (μ2):   %s ps", res[3].over(1e-3).toString(covarianceMatrix)));
 			logger.info(String.format("Burn skewness (μ3):%s", res[4].toString(covarianceMatrix)));
 			logger.info(String.format("Burn kurtosis (μ4):%s", res[5].toString(covarianceMatrix)));
-			logger.info(String.format("Peak compression:  %s ns", res[6].toString(covarianceMatrix)));
-			logger.info(String.format("            = BT + %s ps", res[6].minus(res[2]).over(1e-3).toString(covarianceMatrix)));
+			logger.info(String.format("Peak compression:  %s ps + BT", res[6].over(1e-3).toString(covarianceMatrix)));
 			logger.info(String.format("\u03C1R at peak:        %s g/cm^2", res[7].toString(covarianceMatrix)));
 			logger.info(String.format("Burn-averaged \u03C1R:  %s g/cm^2", res[8].toString(covarianceMatrix)));
-			logger.info(String.format("d\u03C1R/dt at BT:      %s mg/cm^2/(100 ps)", res[9].over(1e-2).toString(covarianceMatrix)));
-			logger.info(String.format("Burn-averaged Ti:  %s keV", res[10].toString(covarianceMatrix)));
-			logger.info(String.format("dTi/dt at BT:      %s keV/(100 ps)", res[11].over(1e1).toString(covarianceMatrix)));
-			logger.info(String.format("dTi/dt at PC:      %s keV/ns", res[12].toString(covarianceMatrix)));
-			logger.info(String.format("d^2Ti/dt^2 at PC:  %s keV/ns^2", res[13].toString(covarianceMatrix)));
-			logger.info(String.format("Burn-averaged vi:  %s km/s", res[14].toString(covarianceMatrix)));
-			logger.info(String.format("dvi/dt at BT:      %s μm/ns/(100 ps)", res[15].over(1e1).toString(covarianceMatrix)));
-			logger.info(String.format("d^2V/dt^2/V at PC: %s 1/ns^2", res[16].toString(covarianceMatrix)));
+			logger.info(String.format("\u03C1R at BT:          %s g/cm^2", res[9].toString(covarianceMatrix)));
+			logger.info(String.format("d\u03C1R/dt at BT:      %s mg/cm^2/(100 ps)", res[10].over(1e-2).toString(covarianceMatrix)));
+			logger.info(String.format("Burn-averaged Ti:  %s keV", res[11].toString(covarianceMatrix)));
+			logger.info(String.format("Ti at BT:          %s keV", res[12].toString(covarianceMatrix)));
+			logger.info(String.format("dTi/dt at BT:      %s keV/(100 ps)", res[13].over(1e1).toString(covarianceMatrix)));
+			logger.info(String.format("dTi/dt at PC:      %s keV/ns", res[14].toString(covarianceMatrix)));
+			logger.info(String.format("d^2Ti/dt^2 at PC:  %s keV/ns^2", res[15].toString(covarianceMatrix)));
+			logger.info(String.format("Burn-averaged vi:  %s km/s", res[16].toString(covarianceMatrix)));
+			logger.info(String.format("dvi/dt at BT:      %s μm/ns/(100 ps)", res[17].over(1e1).toString(covarianceMatrix)));
+			logger.info(String.format("d^2V/dt^2/V at PC: %s 1/ns^2", res[18].toString(covarianceMatrix)));
 //			logger.info(String.format("T_peak:            %s keV", res[17].toString(covarianceMatrix)));
 //			logger.info(String.format("τ_ECT:             %s ps", res[18].over(1e-3).toString(covarianceMatrix)));
 //			logger.info(String.format("T_cool:            %s keV", res[19].toString(covarianceMatrix)));

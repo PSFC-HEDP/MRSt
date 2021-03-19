@@ -20,7 +20,7 @@ MARGIN = dict(bottom=.06, top=.94, left=.12, right=.99, wspace=.30, hspace=.05)
 
 if len(sys.argv) <= 1:
 	# FILENAME = '../../working/ensemble with Linux adjustments and strong smoothing.csv'
-	FILENAME = '../../working/ensemble_4_10_5_2_500_2021-02-19.csv'
+	FILENAME = '../../working/ensemble_4_10_5_2_1000_2021-03-01.csv'
 else:
 	FILENAME = '../../working/'+sys.argv[1]
 BIN_WIDTH = 0.3 # in bels
@@ -82,8 +82,14 @@ if INCLUDE_ERRORS:
 	fig, axs = plt.subplots((len(Y_LABELS) + COLUMNS-1)//COLUMNS, COLUMNS*2, figsize=SIZE)
 else:
 	fig, axs = plt.subplots((len(Y_LABELS) + COLUMNS-1)//COLUMNS, COLUMNS, figsize=SIZE)
-if len(axs.shape) == 1: # force the axis matrix to be 2D since Matplotlib apparently automatically reduces any array where one of the dimensions is 1
-	axs = axs[np.newaxis, :]
+try:
+	if len(axs.shape) == 1: # force the axis matrix to be 2D since Matplotlib apparently automatically reduces any array where one of the dimensions is 1
+		axs = axs[:, np.newaxis]
+except AttributeError:
+	axs = np.array([[axs]])
+# if axs.shape[1] != COLUMNS: # and force it to be correct since Matplotlib apparently automatically transposes any array with one row‽‽
+# 	axs = axs.T
+
 fig.subplots_adjust(**MARGIN)
 bins = np.geomspace(simulations[X_LABEL].min(), simulations[X_LABEL].max(), max(3, 1 + int(np.ptp(np.log10(simulations[X_LABEL]))/BIN_WIDTH)))
 
@@ -141,7 +147,7 @@ for i, (axis, y_min, y_true, y_max, presis, percent) in enumerate(Y_LABELS): # i
 	if y_min > 0 and y_max/y_min >= 10:
 		ax.set_yscale('log')
 	ax.set_ylim(y_min, y_max)
-	ax.set_ylabel(text_wrap(axis))
+	ax.set_ylabel(text_wrap(axis.replace("^2", "²")))
 
 if INCLUDE_ERRORS:
 	for i, (axis, y_min, y_true, y_max, presis, percent) in enumerate(Y_LABELS):
@@ -211,7 +217,7 @@ if INCLUDE_ERRORS:
 		ax.set_ylim(presis*3.2e-2, presis*5)
 		if not percent:
 			if "(" in axis:
-				ax.set_ylabel(text_wrap(axis[:axis.index("(")].replace(" at BT", "") + "error " + axis[axis.index("("):]))
+				ax.set_ylabel(text_wrap(axis[:axis.index("(")].replace(" at BT", "").replace("^2", "²") + "error " + axis[axis.index("("):]))
 			else:
 				ax.set_ylabel(text_wrap(axis+" error"))
 		else:
