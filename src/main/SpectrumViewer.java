@@ -86,6 +86,7 @@ public class SpectrumViewer extends Application {
 	private double[] timeBins;
 	private double[] energyBins;
 	private double[][] spectrum;
+	private String spectrumName;
 	private Logger logger;
 	
 	
@@ -165,19 +166,23 @@ public class SpectrumViewer extends Application {
 		
 		VBox rightPane = new VBox(SPACING_1);
 		
-		rightPane.getChildren().add(chooseFileWidget("Energy bin file:", stage, "Energy bins.txt",
+		rightPane.getChildren().add(chooseFileWidget("Energy bin file:", stage, "energy.txt",
 				(file) -> {
 					this.energyBins = CSV.readColumn(file);
 				}));
 		
-		rightPane.getChildren().add(chooseFileWidget("Time bin file:", stage, "Time bins.txt",
+		rightPane.getChildren().add(chooseFileWidget("Time bin file:", stage, "time og.txt",
 				(file) -> {
 					this.timeBins = CSV.readColumn(file);
 				}));
 		
-		rightPane.getChildren().add(chooseFileWidget("Spectrum file:", stage, "spectrum.txt",
+		rightPane.getChildren().add(chooseFileWidget("Spectrum file:", stage, "spectrum og.txt",
 				(file) -> {
 					this.spectrum = CSV.read(file, '\t');
+					if (file.getName().startsWith("spectrum "))
+						this.spectrumName = file.getName().substring(9, file.getName().length()-4);
+					else
+						this.spectrumName = "-";
 				}));
 		
 		this.stoppingPowerData = CSV.read(STOPPING_POWER_FILE, ',');
@@ -265,7 +270,8 @@ public class SpectrumViewer extends Application {
 								"Time (ns)", "Energy (MeV)", "Fitted neutron spectrum");
 						plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getFittedSpectrum(),
 								"Time (ns)", "Energy (MeV)", "Fitted deuteron spectrum");
-						plotLines(mc.getTimeAxis(), "Time (ns)",
+						plotLines(spectrumName,
+								mc.getTimeAxis(), "Time (ns)",
 								mc.getIonTemperature(), mc.getIonTemperatureError(), "Ti (keV)",
 								mc.getArealDensity(), mc.getArealDensityError(), "ρR (g/cm^2)",
 								mc.getNeutronYield(), mc.getNeutronYieldError(), "Yn (10^15/ns)"
@@ -336,7 +342,7 @@ public class SpectrumViewer extends Application {
 	 *   ...}
 	 * @throws IOException if there's an issue talking to disk
 	 */
-	private static void plotLines(double[] x, String xLabel, Object... yDatums) throws IOException {
+	private static void plotLines(String name, double[] x, String xLabel, Object... yDatums) throws IOException {
 		double[][] ys = new double[yDatums.length/3][];
 		double[][] Δs = new double[yDatums.length/3][];
 		String[] yLabels = new String[yDatums.length/3];
@@ -353,7 +359,7 @@ public class SpectrumViewer extends Application {
 			CSV.writeColumn(Δs[i], new File(String.format("working/%s_err_%d.csv", "Data", i)));
 		}
 		ProcessBuilder plotPB = new ProcessBuilder("python", "src/python/plot1.py",
-				xLabel, String.join("\n", yLabels), "data", Integer.toString(ys.length));
+				xLabel, String.join("\n", yLabels), "data", name, Integer.toString(ys.length));
 		plotPB.start();
 	}
 	

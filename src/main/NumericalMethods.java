@@ -705,6 +705,17 @@ public class NumericalMethods {
 	}
 	
 	/**
+	 * return the index of the pair of bin edges in an evenly spaced array that contains
+	 * the value
+	 * @param value
+	 * @param binEdges
+	 * @return int in the range [0, bins.length-1)
+	 */
+	public static int bin(double value, double[] binEdges) {
+		return (int)((value - binEdges[0])/(binEdges[binEdges.length-1] - binEdges[0])*binEdges.length);
+	}
+	
+	/**
 	 * coerce x into the range [min, max]
 	 * @param min inclusive minimum
 	 * @param max inclusive maximum

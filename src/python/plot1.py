@@ -6,22 +6,25 @@ if len(sys.argv) <= 1:
 	import os
 	os.chdir('../..')
 	print(os.getcwd())
-	xlabel, ylabels, title, n = 'Time (ns)', 'Ti (keV)\nρR (g/cm^2)\nYn (10^15/ns)', 'data', 3
+	xlabel, ylabels, title, answer, n = 'Time (ns)', 'Ti (keV)\nρR (g/cm^2)\nYn (10^15/ns)', 'data', 'og', 3
 else:
-	xlabel, ylabels, title, n = sys.argv[1:]
+	xlabel, ylabels, title, answer, n = sys.argv[1:]
 
 ylabels = ylabels.split('\n')
 n = int(n)
 
-XA = np.loadtxt('working/{}_x.csv'.format(title), delimiter=',')
-YAs = [np.loadtxt('working/{}_y_{}.csv'.format(title, i), delimiter=',') for i in range(n)]
-ΔAs = [np.loadtxt('working/{}_err_{}.csv'.format(title, i), delimiter=',') for i in range(n)]
+XA = np.loadtxt(f'working/{title}_x.csv', delimiter=',')
+YAs = [np.loadtxt(f'working/{title}_y_{i}.csv', delimiter=',') for i in range(n)]
+ΔAs = [np.loadtxt(f'working/{title}_err_{i}.csv', delimiter=',') for i in range(n)]
 
-if True:
-	data = np.loadtxt('data/Yn-rR-Ti_150327_16p26 - Yn-rR-Ti_150327_16p26.csv', delimiter=',', skiprows=1)
-	XB = data[:,0]
-	YBs = [data[:,2], data[:,4] + data[:,5], data[:,1], np.zeros(XB.shape)]
-	YBs[2] *= np.sum(YAs[2]*(XA[1] - XA[0]))/np.sum(YBs[2]*(XB[1] - XB[0]))
+if answer != '-':
+	try:
+		data = np.loadtxt(f'data/trajectories {answer}.csv', delimiter=',', skiprows=1) # get the true curves
+		XB = data[:,0]
+		YBs = [data[:,4], data[:,3], data[:,1], np.zeros(XB.shape)] # extract the relevant info from them
+		YBs[2] *= np.sum(YAs[2]*(XA[1] - XA[0]))/np.sum(YBs[2]*(XB[1] - XB[0])) # normalize the yield curves to account for any magnitude discrepancy
+	except IOError:
+		pass
 
 fig, host_ax = plt.subplots(figsize=(8,5))
 fig.subplots_adjust(right=1 - (0.12*(n-1)))

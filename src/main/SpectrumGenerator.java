@@ -38,10 +38,11 @@ public class SpectrumGenerator {
 	 * @throws NumberFormatException 
 	 */
 	public static void main(String[] args) throws NumberFormatException, IOException {
+		String filename = "high";
 		double[][] thing;
 		double[] eBins;
-		thing = CSV.read(new File("data/Yn-rR-Ti_150327_16p26 - Yn-rR-Ti_150327_16p26.csv"), ',', 1);
-		eBins = CSV.readColumn(new File("data/Energy bins.txt"));
+		thing = CSV.read(new File("data/trajectories "+filename+".csv"), ',', 1);
+		eBins = CSV.readColumn(new File("data/energy.txt"));
 		
 		double[] time = new double[thing.length];
 		double[] ρR = new double[thing.length];
@@ -50,9 +51,9 @@ public class SpectrumGenerator {
 		double[] zero = new double[thing.length];
 		for (int i = 0; i < thing.length; i ++) {
 			time[i] = thing[i][0];
-			Yn[i] = thing[i][1]*1e3;
-			Ti[i] = thing[i][2];
-			ρR[i] = thing[i][4] + thing[i][5];
+			Yn[i] = thing[i][1]/(14e6*1.6e-19)/1e15;
+			Ti[i] = thing[i][4];
+			ρR[i] = thing[i][3];
 			zero[i] = 0;
 		}
 		double[] tBins = new double[time.length + 1];
@@ -62,8 +63,8 @@ public class SpectrumGenerator {
 		tBins[time.length] = (3*time[time.length-1] - time[time.length-2])/2.;
 		double[][] spectrum = MRSt.generateSpectrum(Yn, Ti, zero, zero, ρR, eBins, tBins);
 		
-		CSV.writeColumn(tBins, new File("data/Time bins.txt"));
-		CSV.write(spectrum, new File("data/spectrum.txt"), '\t');
+		CSV.writeColumn(tBins, new File("data/time "+filename+".txt"));
+		CSV.write(spectrum, new File("data/spectrum "+filename+".txt"), '\t');
 	}
 
 }

@@ -84,12 +84,9 @@ public class MRSt {
 	
 	private static final int STOPPING_DISTANCE_RESOLUTION = 64;
 	private static final double MIN_E = 12, MAX_E = 16; // histogram bounds [MeV]
-	private static final double MIN_T = 16.0, MAX_T = 16.5; // histogram bounds [ns]
 	private static final double E_RESOLUTION = .09, T_RESOLUTION = 20e-3; // resolutions [MeV], [ns]
 	private static final int TRANSFER_MATRIX_TRIES = 10000; // the number of points to sample in each column of the transfer matrix
-	
-	private static final double NOMINAL_INITIAL_VOLUME = 1;
-	private static final double NOMINAL_INITIAL_RHO_R = 0.1;
+	private static final double TRANSFER_FUNC_ERROR = 0;//0.02; // the error in the transfer function
 	
 	private static final Random RANDOM = new Random(0);
 	
@@ -114,16 +111,17 @@ public class MRSt {
 	private final DiscreteFunction energyVsPosition; // map between location on detector and energy going into lens
 	
 	private final double[] energyBins; // endpoints of E bins for inferred spectrum [MeV]
-	private final double[] timeBins; // endpoints of time bins for inferred spectrum [ns]
-	private final double[][] transferMatrix; // the full nmx2nm transfer matrix plus smoothing rows
-	private final double[][] efficiency; // the fraction of neutrons in this bin that will be detected
+	private double[] timeBins; // endpoints of time bins for inferred spectrum [ns]
+	private double[][] rongTransferMatrix; // the full nmx2nm believed transfer matrix plus smoothing rows
+	private double[][] trueTransferMatrix; // the full nmx2nm actual transfer matrix plus smoothing rows
+	private double[][] efficiency; // the fraction of neutrons in this bin that will be detected
 	private double[][] deuteronSpectrum; // time-corrected deuteron counts
 	private double[][] fitNeutronSpectrum; // backward-fit neutron counts
 	private double[][] fitDeuteronSpectrum; // backward-fit deuteron counts (this should be similar to deuteronSpectrum)
 	
 	private final double[] energyAxis; // centers of energy bins [ns]
-	private final double timeStep;
-	private final double[] timeAxis; // centers of time bins [ns]
+	private double timeStep;
+	private double[] timeAxis; // centers of time bins [ns]
 	private Quantity[][] measurements; // yield, ion temperature, electron temperature, velocity, areal density, and P2 asymmetry
 	private double[][] covarianceMatrix; // and covariances that go with all of these
 	
@@ -193,9 +191,6 @@ public class MRSt {
 		this.energyBins = new double[(int) ((MAX_E - MIN_E)/E_RESOLUTION + 1)];
 		for (int i = 0; i < energyBins.length; i ++)
 			this.energyBins[i] = (MIN_E + i*(MAX_E - MIN_E)/(energyBins.length-1));
-		this.timeBins = new double[(int) ((MAX_T - MIN_T)/T_RESOLUTION + 1)];
-		for (int i = 0; i < timeBins.length; i ++)
-			this.timeBins[i] = MIN_T + i*(MAX_T - MIN_T)/(timeBins.length-1);
 		
 //		double[][] actual;
 //		try {
@@ -213,10 +208,6 @@ public class MRSt {
 		this.energyAxis = new double[energyBins.length-1];
 		for (int i = 0; i < energyBins.length-1; i ++)
 			this.energyAxis[i] = (this.energyBins[i] + this.energyBins[i+1])/2;
-		this.timeStep = timeBins[1] - timeBins[0];
-		this.timeAxis = new double[timeBins.length-1];
-		for (int i = 0; i < timeBins.length-1; i ++)
-			this.timeAxis[i] = (this.timeBins[i] + this.timeBins[i+1])/2;
 		
 		double[] calibEnergies = new double[2*energyBins.length];
 		double[] detectorPosition = new double[calibEnergies.length];
@@ -230,16 +221,25 @@ public class MRSt {
 				.indexed(energyBins.length); // J(m)
 		
 		this.logger = logger;
-		
-		this.transferMatrix = evaluateTransferMatrix();
-		this.efficiency = new double[energyBins.length-1][timeBins.length-1];
-		for (int i = 0; i < energyBins.length-1; i ++)
-			for (int j = 0; j < timeBins.length-1; j ++)
-				for (int k = 0; k < energyBins.length-1; k ++)
-					for (int l = 0; l < timeBins.length-1; l ++)
-						efficiency[i][j] += this.transferMatrix[(timeBins.length-1)*k+l][(timeBins.length-1)*i+j];
 	}
 	
+	/**
+	 * establish the time bins and related quantities
+	 * @param spectrumTimeBins
+	 */
+	private void instantiateTimeAxis(double[] spectrumTimeBins) {
+		double minT = spectrumTimeBins[0] - 0.1;
+		double maxT = spectrumTimeBins[spectrumTimeBins.length-1] + 0.1;
+		this.timeBins = new double[(int) ((maxT - minT)/T_RESOLUTION + 1)];
+		for (int i = 0; i < timeBins.length; i ++)
+			this.timeBins[i] = minT + i*(maxT - minT)/(timeBins.length-1);
+		this.timeStep = timeBins[1] - timeBins[0];
+		this.timeAxis = new double[timeBins.length-1];
+		for (int i = 0; i < timeBins.length-1; i ++)
+			this.timeAxis[i] = (this.timeBins[i] + this.timeBins[i+1])/2;
+	
+	}
+
 	/**
 	 * compute the probability that a given neutron released at this energy will spawn an ion
 	 * and knock that ion through the aperture.
@@ -282,8 +282,8 @@ public class MRSt {
 				
 				double e = et[0]/1e6, t = et[1]/ns; // then convert to the same units as the bins
 //				e = energy/1e6; t = time/1e-9;
-				int eBin = (int)((e - MIN_E)/(MAX_E - MIN_E)*(energyBins.length-1));
-				int tBin = (int)((t - MIN_T)/(MAX_T - MIN_T)*(timeBins.length-1));
+				int eBin = NumericalMethods.bin(e, energyBins);
+				int tBin = NumericalMethods.bin(t, timeBins);
 				if (eBin >= 0 && eBin < energyBins.length-1 && tBin >= 0 && tBin < timeBins.length-1) // if it falls in detectable bounds
 					matrix[(timeBins.length-1)*eBin + tBin][(timeBins.length-1)*i + j0] += weight; // add it to the row
 			}
@@ -320,7 +320,33 @@ public class MRSt {
 	 * \< rho R \>, err, d(rho R)/dt, err, \<Ti\>, err, dTi/dt, err, \<vi\>, err, dvi/dt, err}
 	 */
 	public double[] respond(double[] energies, double[] times, double[][] spectrum, ErrorMode errorBars) {
-		this.deuteronSpectrum = this.response(energies, times, spectrum, true);
+		this.instantiateTimeAxis(times); // first, create the detector time bins
+		
+		this.rongTransferMatrix = evaluateTransferMatrix(); // use those to put the transfer matrix together
+		
+		double energyResolutionModifier = 1 + (2*RANDOM.nextDouble() - 1)*TRANSFER_FUNC_ERROR;
+		double timeResolutionModifier = 1 + (2*RANDOM.nextDouble() - 1)*TRANSFER_FUNC_ERROR;
+		System.out.println("augmenting energy resolution by "+energyResolutionModifier+" and time resolution by "+timeResolutionModifier);
+		for (int i = 0; i < 4; i ++)
+			this.cosyCoefficients[i][0] *= energyResolutionModifier;
+		for (int i = 0; i < 6; i ++)
+			if (i != 4)
+				this.cosyCoefficients[i][4] *= timeResolutionModifier;
+		this.trueTransferMatrix = evaluateTransferMatrix(); // now make up the actual transfer matrix
+		for (int i = 0; i < 4; i ++)
+			this.cosyCoefficients[i][0] /= energyResolutionModifier;
+		for (int i = 0; i < 6; i ++)
+			if (i != 4)
+				this.cosyCoefficients[i][4] /= timeResolutionModifier;
+		
+		this.efficiency = new double[energyBins.length-1][timeBins.length-1];
+		for (int i = 0; i < energyBins.length-1; i ++)
+			for (int j = 0; j < timeBins.length-1; j ++)
+				for (int k = 0; k < energyBins.length-1; k ++)
+					for (int l = 0; l < timeBins.length-1; l ++)
+						efficiency[i][j] += this.trueTransferMatrix[(timeBins.length-1)*k+l][(timeBins.length-1)*i+j];
+		
+		this.deuteronSpectrum = this.response(energies, times, spectrum, true, true);
 		Quantity[] values = analyze(deuteronSpectrum, errorBars);
 		double[] output = new double[2*values.length];
 		for (int i = 0; i < values.length; i ++) {
@@ -338,10 +364,11 @@ public class MRSt {
 	 * @param times the edges of the time bins [ns]
 	 * @param inSpectrum the neutron counts in each bin
 	 * @param stochastic whether to add noise to mimic real data
+	 * @param actual whether to use the true response function or what we believe to be the response function
 	 * @return the counts in the measured spectrum bins
 	 */
 	public double[][] response(double[] inEBins, double[] inTBins, double[][] inSpectrum,
-			boolean stochastic) {
+			boolean stochastic, boolean actual) {
 		if (inSpectrum.length != inEBins.length-1 || inSpectrum[0].length != inTBins.length-1)
 			throw new IllegalArgumentException("These dimensions don't make any sense.");
 		
@@ -353,7 +380,11 @@ public class MRSt {
 			for (int j = 0; j < timeBins.length-1; j ++)
 				u[(timeBins.length-1)*i + j] = sizedSpectrum[i][j]; // now flatten the spectrum
 		
-		double[] v = NumericalMethods.matmul(transferMatrix, u); // then do the multiplication
+		double[] v;
+		if (actual)
+			v = NumericalMethods.matmul(trueTransferMatrix, u); // then do the multiplication
+		else
+			v = NumericalMethods.matmul(rongTransferMatrix, u);
 		
 		double[][] outSpectrum = new double[energyBins.length-1][timeBins.length-1];
 		for (int i = 0; i < energyBins.length-1; i ++)
@@ -384,8 +415,11 @@ public class MRSt {
 		double[][] F = spectrum;
 		
 		if (NumericalMethods.max(spectrum) == 0) {
-			if (logger != null) logger.log(Level.SEVERE, "The deuteron spectrum is empty.");
+			if (logger != null) logger.log(Level.SEVERE, "There were no deuterons detected.");
 			return null;
+		}
+		else {
+			logger.log(Level.INFO, String.format("There were %.0f deuterons detected.", NumericalMethods.sum(spectrum)));
 		}
 		
 		double[][] D = new double[energyBins.length-1][timeBins.length-1];
@@ -396,7 +430,7 @@ public class MRSt {
 		if (logger != null)  logger.info("beginning fit process.");
 		long startTime = System.currentTimeMillis();
 		
-		double gelf[][] = Optimization.optimizeGelfgat(F, D, this.transferMatrix,
+		double gelf[][] = Optimization.optimizeGelfgat(F, D, this.rongTransferMatrix,
 				Math.max(1e-5, 1e4/NumericalMethods.sum(spectrum)));
 		
 		double[] opt = new double[5*timeAxis.length]; // initial guess for the coming Powell fit
@@ -464,7 +498,7 @@ public class MRSt {
 					params[0], params[1], params[2], params[3], params[4],
 					energyBins, timeBins); // generate the neutron spectrum based on those
 			double[][] fitSpectrum = this.response(
-					energyBins, timeBins, teoSpectrum, false); // blur it according to the transfer matrix
+					energyBins, timeBins, teoSpectrum, false, false); // blur it according to the transfer matrix
 			
 			double error = 0; // negative Bayes factor (in nepers)
 			for (int i = 0; i < spectrum.length; i ++) {
@@ -567,7 +601,8 @@ public class MRSt {
 		this.fitNeutronSpectrum = generateSpectrum( // and then interpret it
 				getNeutronYield(), getIonTemperature(), getElectronTemperature(),
 				getFlowVelocity(), getArealDensity(), energyBins, timeBins);
-		this.fitDeuteronSpectrum = this.response(energyBins, timeBins, fitNeutronSpectrum, false);
+		this.fitDeuteronSpectrum = this.response(energyBins, timeBins, fitNeutronSpectrum,
+				false, false);
 		
 		Quantity iBT = NumericalMethods.quadargmax(measurements[0]); // index of max yield
 		Quantity bangTime = NumericalMethods.interp(timeAxis, iBT); // time of max yield
@@ -680,9 +715,9 @@ public class MRSt {
 //			System.out.println(ds/prim);
 //		}
 		
-		Quantity[] V = new Quantity[measurements[4].length];
+		Quantity[] V = new Quantity[measurements[4].length]; // this is not really volume; it is (ρR)^(-2/3)
 		for (int i = 0; i < V.length; i ++)
-			V[i] = measurements[4][i].over(NOMINAL_INITIAL_RHO_R).pow(-1.5).times(NOMINAL_INITIAL_VOLUME);
+			V[i] = measurements[4][i].pow(-1.5);
 		
 		Quantity iMC = NumericalMethods.quadargmax(left, rite, measurements[4]); // index of max compression
 		Quantity maxCompress = NumericalMethods.interp(timeAxis, iMC); // time of max compression
@@ -718,12 +753,6 @@ public class MRSt {
 				NumericalMethods.interp(measurements[1], iTCool),
 				NumericalMethods.interp(measurements[1], iTCool).over(NumericalMethods.interp(dTdt, iTCool)).times(-1),
 		}; // collect the figures of merit
-		
-		for (int i = 0; i < measurements[1].length; i ++)
-			System.out.println("  "+measurements[1][i].value);
-		System.out.println(iBT.value);
-		System.out.println(measurements[1][(int)iBT.value].value);
-		System.out.println(NumericalMethods.interp(measurements[1], iBT).value);
 		
 		if (logger != null) {
 			logger.info(String.format("Total yield (μ0):  %s", res[1].times(1e15).toString(covarianceMatrix)));
