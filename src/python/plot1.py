@@ -61,17 +61,17 @@ axes[0].legend(plots, [p.get_label() for p in plots])
 
 plt.tight_layout()
 
-fig, axis = plt.subplots()
-for i in range(n):
-	if ylabels[i][0] == 'T':
-		i_temp = i
-	elif ylabels[i][0] == 'ρ':
-		i_dens = i
-	elif ylabels[i][0] == 'Y':
-		valid = YAs[i]/Ymax >= 1e-3
-axis.errorbar(x=YAs[i_dens][valid], xerr=ΔAs[i_dens][valid], y=YAs[i_temp][valid], yerr=ΔAs[i_temp][valid], fmt='-.')
-axis.plot(YBs[i_dens], YBs[i_temp], '--k')
-axis.set_xlabel("ρR (g/cm^2)")
-axis.set_ylabel("Ti (keV)")
+# fig, axis = plt.subplots()
+# for i in range(n):
+# 	if ylabels[i][0] == 'T':
+# 		i_temp = i
+# 	elif ylabels[i][0] == 'ρ':
+# 		i_dens = i
+# 	elif ylabels[i][0] == 'Y':
+# 		valid = YAs[i]/Ymax >= 1e-3
+# axis.errorbar(x=YAs[i_dens][valid], xerr=ΔAs[i_dens][valid], y=YAs[i_temp][valid], yerr=ΔAs[i_temp][valid], fmt='-.')
+# axis.plot(YBs[i_dens], YBs[i_temp], '--k')
+# axis.set_xlabel("ρR (g/cm^2)")
+# axis.set_ylabel("Ti (keV)")
 
 plt.show()

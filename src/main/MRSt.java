@@ -23,6 +23,7 @@
  */
 package main;
 
+import java.util.Arrays;
 import java.util.Locale;
 import java.util.Random;
 import java.util.function.Function;
@@ -228,8 +229,8 @@ public class MRSt {
 	 * @param spectrumTimeBins
 	 */
 	private void instantiateTimeAxis(double[] spectrumTimeBins) {
-		double minT = spectrumTimeBins[0] - 0.1;
-		double maxT = spectrumTimeBins[spectrumTimeBins.length-1] + 0.1;
+		double minT = spectrumTimeBins[0] - 0.05;
+		double maxT = spectrumTimeBins[spectrumTimeBins.length-1] + 0.05;
 		this.timeBins = new double[(int) ((maxT - minT)/T_RESOLUTION + 1)];
 		for (int i = 0; i < timeBins.length; i ++)
 			this.timeBins[i] = minT + i*(maxT - minT)/(timeBins.length-1);
@@ -273,17 +274,17 @@ public class MRSt {
 			double time0 = timeBins[j0]*ns, time1 = timeBins[j0+1]*ns; // [s]
 			double weight = efficiency((energy0 + energy1)/2)/TRANSFER_MATRIX_TRIES;
 			for (int k = 0; k < TRANSFER_MATRIX_TRIES; k ++) {
-				double energy = energy0 + RANDOM.nextDouble()*(energy1 - energy0); // randomly choose values from the bin
-				double time = time0 + RANDOM.nextDouble()*(time1 - time0); // [s]
+				double energyI = energy0 + RANDOM.nextDouble()*(energy1 - energy0); // randomly choose values from the bin
+				double timeI = time0 + RANDOM.nextDouble()*(time1 - time0); // [s]
 				
-				double[] et = this.simulate(energy, time); // do the simulation!
+				double[] et = this.simulate(energyI, timeI); // do the simulation!
 				simulationCount ++;
 				if (Double.isNaN(et[0]))	continue; // sometimes, they won't hit the CsI cathode. That's fine.
 				
-				double e = et[0]/1e6, t = et[1]/ns; // then convert to the same units as the bins
+				double energyO = et[0]/1e6, timeO = et[1]/ns; // then convert to the same units as the bins
 //				e = energy/1e6; t = time/1e-9;
-				int eBin = NumericalMethods.bin(e, energyBins);
-				int tBin = NumericalMethods.bin(t, timeBins);
+				int eBin = NumericalMethods.bin(energyO, energyBins);
+				int tBin = NumericalMethods.bin(timeO, timeBins);
 				if (eBin >= 0 && eBin < energyBins.length-1 && tBin >= 0 && tBin < timeBins.length-1) // if it falls in detectable bounds
 					matrix[(timeBins.length-1)*eBin + tBin][(timeBins.length-1)*i + j0] += weight; // add it to the row
 			}
@@ -545,11 +546,18 @@ public class MRSt {
 					penalty += (Tp*Tp)/T/1000; // encourage a smooth Ti
 			}
 			
+//			for (int j = 1; j < timeAxis.length-1; j ++) {
+//				double Tpp = (params[1][j-1] - 2*params[1][j] + params[1][j+1])/(timeStep*timeStep);
+//				double T = (params[1][j-1] + params[1][j] + params[1][j+1])/2;
+//				if (Tpp != 0)
+//					penalty += (Tpp*Tpp)/T/2e6; // encourage a smooth Ti
+//			}
+			
 			for (int j = 1; j < timeAxis.length; j ++) {
 				double Rp = (params[4][j-1] - params[4][j])/timeStep;
 				double R = (params[4][j-1] + params[4][j])/2;
 				if (Rp != 0)
-					penalty += (Rp*Rp)/R/200; // encourage a smooth rho-R
+					penalty += (Rp*Rp)/R/500; // encourage a smooth rho-R
 			}
 			
 			for (int j = 1; j < timeAxis.length-1; j ++) {

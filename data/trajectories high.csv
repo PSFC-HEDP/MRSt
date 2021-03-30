@@ -1,4 +1,4 @@
-ns,eprodr,rhoR_fuel(gcm^2),rhoR_total(gcm^2),tion_bw(keV)
+time(ns),eprodr,rhoR_fuel(gcm^2),rhoR_total(gcm^2),tion_bw(keV)
 7.5034,2.1423e-02,2.3741e-02,8.9820e-02,2.7341e+00
 7.5133,2.2176e-02,2.4689e-02,9.1733e-02,2.6809e+00
 7.5232,2.2899e-02,2.5708e-02,9.3763e-02,2.6275e+00
