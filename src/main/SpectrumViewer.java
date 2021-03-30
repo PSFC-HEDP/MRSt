@@ -176,7 +176,7 @@ public class SpectrumViewer extends Application {
 					this.timeBins = CSV.readColumn(file);
 				}));
 		
-		rightPane.getChildren().add(chooseFileWidget("Spectrum file:", stage, "spectrum og.txt",
+		rightPane.getChildren().add(chooseFileWidget("Spectrum file:", stage, "spectrum og with falling temp.txt",
 				(file) -> {
 					this.spectrum = CSV.read(file, '\t');
 					if (file.getName().startsWith("spectrum "))

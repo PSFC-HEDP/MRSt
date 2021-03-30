@@ -87,7 +87,7 @@ public class MRSt {
 	private static final double MIN_E = 12, MAX_E = 16; // histogram bounds [MeV]
 	private static final double E_RESOLUTION = .09, T_RESOLUTION = 20e-3; // resolutions [MeV], [ns]
 	private static final int TRANSFER_MATRIX_TRIES = 10000; // the number of points to sample in each column of the transfer matrix
-	private static final double TRANSFER_FUNC_ERROR = 0;//0.02; // the error in the transfer function
+	private static final double TRANSFER_FUNC_ERROR = 0.00; // the error in the transfer function
 	
 	private static final Random RANDOM = new Random(0);
 	
@@ -524,8 +524,8 @@ public class MRSt {
 //				}
 //				penalty += 1e-12*params[0][j]*Math.log(params[0][j]/meanYield); // encourage entropy
 				penalty += Math.pow(params[3][j]/20, 2)/2; // gaussian prior on velocity
-				penalty += params[1][j]/10.0 - Math.log(params[1][j])/2.; // gamma prior on temp
-				penalty += params[4][j]/2.0; // exponential prior on areal density
+//				penalty += params[1][j]/10.0 - Math.log(params[1][j])/2.; // gamma prior on temp
+				penalty += params[4][j]/1.0; // exponential prior on areal density
 			}
 			
 			for (int j = 1; j < timeAxis.length; j ++) {
@@ -557,7 +557,7 @@ public class MRSt {
 				double Rp = (params[4][j-1] - params[4][j])/timeStep;
 				double R = (params[4][j-1] + params[4][j])/2;
 				if (Rp != 0)
-					penalty += (Rp*Rp)/R/500; // encourage a smooth rho-R
+					penalty += (Rp*Rp)/R/100; // encourage a smooth rho-R
 			}
 			
 			for (int j = 1; j < timeAxis.length-1; j ++) {

@@ -38,7 +38,7 @@ public class SpectrumGenerator {
 	 * @throws NumberFormatException 
 	 */
 	public static void main(String[] args) throws NumberFormatException, IOException {
-		for (String filename : new String[] {"failed", "marginal", "high", "og", "og with falling temp", "test"}) {
+		for (String filename : new String[] {"failed", "marginal", "high", "og", "og with falling temp"}) {
 			double[][] thing;
 			double[] eBins;
 			thing = CSV.read(new File("data/trajectories "+filename+".csv"), ',', 1);
