@@ -332,7 +332,7 @@ public class MRSt {
 		for (int i = 0; i < 6; i ++)
 			if (i != 4)
 				this.cosyCoefficients[i][4] *= timeResolutionModifier;
-		this.trueTransferMatrix = evaluateTransferMatrix;// evaluateTransferMatrix(); // now make up the actual transfer matrix
+		this.trueTransferMatrix = evaluateTransferMatrix();// evaluateTransferMatrix(); // now make up the actual transfer matrix
 		for (int i = 0; i < 4; i ++)
 			this.cosyCoefficients[i][0] /= energyResolutionModifier;
 		for (int i = 0; i < 6; i ++)
