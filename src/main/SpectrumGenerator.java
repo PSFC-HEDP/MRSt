@@ -66,6 +66,8 @@ public class SpectrumGenerator {
 			CSV.writeColumn(tBins, new File("data/time "+filename+".txt"));
 			CSV.write(spectrum, new File("data/spectrum "+filename+".txt"), '\t');
 		}
+		
+		System.out.println("done");
 	}
 
 }

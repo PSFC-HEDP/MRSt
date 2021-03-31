@@ -89,7 +89,7 @@ public class NumericalMethods {
 		if (λ < 20)
 			return poisson(λ, random.nextDouble());
 		else
-			return (int) Math.max(0., Math.round(normal(λ, Math.sqrt(λ), random)));
+			return (int) Math.round(Math.max(0., normal(λ, Math.sqrt(λ), random)));
 	}
 	
 	/**
@@ -712,7 +712,7 @@ public class NumericalMethods {
 	 * @return int in the range [0, bins.length-1)
 	 */
 	public static int bin(double value, double[] binEdges) {
-		return (int)((value - binEdges[0])/(binEdges[binEdges.length-1] - binEdges[0])*binEdges.length);
+		return (int)((value - binEdges[0])/(binEdges[binEdges.length-1] - binEdges[0])*(binEdges.length-1));
 	}
 	
 	/**
@@ -1146,9 +1146,9 @@ public class NumericalMethods {
 		public double evaluate(double x) {
 			int i; // we will linearly interpolate x from (X[i], X[i+1]) onto (Y[i], Y[i+1]).
 			if (x < X[0]) // if it's out of bounds, we will use the lowest value
-				return Y[0];
+				i = 0;
 			else if (x >= X[X.length-1]) // or highest value, depending on which is appropriate
-				return Y[X.length-1];
+				i = X.length-2;
 			else if (this.resolution > 0) // nonzero resolution means we can find i itself with linear interpolation
 				i = (int)((x - X[0])/(X[resolution] - X[0])*resolution); // linearly interpolate x from X to i
 			else { // otherwise, we'll need a binary search
