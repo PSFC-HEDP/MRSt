@@ -228,8 +228,8 @@ public class MRSt {
 	 * @param spectrumTimeBins
 	 */
 	private void instantiateTimeAxis(double[] spectrumTimeBins) {
-		double minT = 16.0;
-		double maxT = 16.5;
+		double minT = spectrumTimeBins[0] - 0.10;
+		double maxT = spectrumTimeBins[spectrumTimeBins.length-1] + 0.10;
 		this.timeBins = new double[(int) ((maxT - minT)/T_RESOLUTION + 1)];
 		for (int i = 0; i < timeBins.length; i ++)
 			this.timeBins[i] = minT + i*(maxT - minT)/(timeBins.length-1);
@@ -324,20 +324,20 @@ public class MRSt {
 		
 		this.rongTransferMatrix = evaluateTransferMatrix(); // use those to put the transfer matrix together
 		
-//		double energyResolutionModifier = 1 + (2*RANDOM.nextDouble() - 1)*TRANSFER_FUNC_ERROR;
-//		double timeResolutionModifier = 1 + (2*RANDOM.nextDouble() - 1)*TRANSFER_FUNC_ERROR;
-//		System.out.println("augmenting energy resolution by "+energyResolutionModifier+" and time resolution by "+timeResolutionModifier);
-//		for (int i = 0; i < 4; i ++)
-//			this.cosyCoefficients[i][0] *= energyResolutionModifier;
-//		for (int i = 0; i < 6; i ++)
-//			if (i != 4)
-//				this.cosyCoefficients[i][4] *= timeResolutionModifier;
-		this.trueTransferMatrix = evaluateTransferMatrix(); // now make up the actual transfer matrix
-//		for (int i = 0; i < 4; i ++)
-//			this.cosyCoefficients[i][0] /= energyResolutionModifier;
-//		for (int i = 0; i < 6; i ++)
-//			if (i != 4)
-//				this.cosyCoefficients[i][4] /= timeResolutionModifier;
+		double energyResolutionModifier = 1 + (2*RANDOM.nextDouble() - 1)*TRANSFER_FUNC_ERROR;
+		double timeResolutionModifier = 1 + (2*RANDOM.nextDouble() - 1)*TRANSFER_FUNC_ERROR;
+		System.out.println("augmenting energy resolution by "+energyResolutionModifier+" and time resolution by "+timeResolutionModifier);
+		for (int i = 0; i < 4; i ++)
+			this.cosyCoefficients[i][0] *= energyResolutionModifier;
+		for (int i = 0; i < 6; i ++)
+			if (i != 4)
+				this.cosyCoefficients[i][4] *= timeResolutionModifier;
+		this.trueTransferMatrix = evaluateTransferMatrix;// evaluateTransferMatrix(); // now make up the actual transfer matrix
+		for (int i = 0; i < 4; i ++)
+			this.cosyCoefficients[i][0] /= energyResolutionModifier;
+		for (int i = 0; i < 6; i ++)
+			if (i != 4)
+				this.cosyCoefficients[i][4] /= timeResolutionModifier;
 		
 		this.efficiency = new double[energyBins.length-1][timeBins.length-1];
 		for (int i = 0; i < energyBins.length-1; i ++)
@@ -522,9 +522,9 @@ public class MRSt {
 //								Math.log(teoSpectrum[i][j]/spectrumScale); // encourage entropy
 //				}
 //				penalty += 1e-12*params[0][j]*Math.log(params[0][j]/meanYield); // encourage entropy
-				penalty += Math.pow(params[3][j]/50, 2)/2; // gaussian prior on velocity
+				penalty += Math.pow(params[3][j]/20, 2)/2; // gaussian prior on velocity
 //				penalty += params[1][j]/10.0 - Math.log(params[1][j])/2.; // gamma prior on temp
-				penalty += params[4][j]/1.0; // exponential prior on areal density
+				penalty += params[4][j]/2.0; // exponential prior on areal density
 			}
 			
 			for (int j = 1; j < timeAxis.length; j ++) {
@@ -563,13 +563,13 @@ public class MRSt {
 		};
 		
 		if (logger != null) logger.log(Level.FINE, "...");
-		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, .1*precision, 0, timeAxis.length, true, true, false, false, false, false);
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, .1*precision, 0, timeAxis.length, true, true, false, false, false);
 		if (logger != null) logger.log(Level.FINE, "...");
-		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, .1*precision, 0, timeAxis.length, false, false, true, false, false, false);
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, .1*precision, 0, timeAxis.length, false, false, true, false, false);
 		if (logger != null) logger.log(Level.FINE, "...");
-		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, .1*precision, 0, timeAxis.length, false, false, false, false, true, true);
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, .1*precision, 0, timeAxis.length, false, false, false, false, true);
 		if (logger != null) logger.log(Level.FINE, "...");
-		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, .01*precision, 0, timeAxis.length, true, true, true, true, true, true);
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, .01*precision, 0, timeAxis.length, true, true, true, true, true);
 		
 		this.measurements = new Quantity[5][timeAxis.length]; // unpack the optimized vector
 		for (int k = 0; k < measurements.length; k ++) {

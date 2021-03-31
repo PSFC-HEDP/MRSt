@@ -51,7 +51,7 @@ public class SpectrumGenerator {
 			double[] zero = new double[thing.length];
 			for (int i = 0; i < thing.length; i ++) {
 				time[i] = thing[i][0];
-				Yn[i] = thing[i][1]*.1*1e6/1e-6/(14e6*1.6e-19)/1e15*1e-9;
+				Yn[i] = thing[i][1]*.1*1e6/1e-6/(14e6*1.6e-19)/1e15*1e-9; // convert from 0.1MJ/μs to 1e15n/ns
 				Ti[i] = thing[i][4];
 				ρR[i] = thing[i][3];
 				zero[i] = 0;

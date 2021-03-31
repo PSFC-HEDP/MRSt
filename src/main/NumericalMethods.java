@@ -76,7 +76,7 @@ public class NumericalMethods {
 		if (λ < 20)
 			return poisson(λ, Math.random());
 		else
-			return (int) Math.round(Math.max(0, normal(λ, Math.sqrt(λ))));
+			return (int) Math.max(0., Math.round(normal(λ, Math.sqrt(λ))));
 	}
 	
 	/**
@@ -89,7 +89,7 @@ public class NumericalMethods {
 		if (λ < 20)
 			return poisson(λ, random.nextDouble());
 		else
-			return (int) Math.round(Math.max(0., normal(λ, Math.sqrt(λ), random)));
+			return (int) Math.max(0., Math.round(normal(λ, Math.sqrt(λ), random)));
 	}
 	
 	/**

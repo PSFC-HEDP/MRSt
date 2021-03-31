@@ -3,11 +3,13 @@ import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
 import sys
 
-# import os
-# os.chdir('../..')
-# print(os.getcwd())
-# xlabel, ylabel, titleA, titleB = 'Energy', 'Count', 'Original neutron spectrum', 'Fitted neutron spectrum'
-xlabel, ylabel, titleA, titleB = sys.argv[1:]
+if len(sys.argv) <= 1:
+	import os
+	os.chdir('../..')
+	print(os.getcwd())
+	xlabel, ylabel, titleA, titleB = 'Energy', 'Count', 'Original neutron spectrum', 'Fitted neutron spectrum'
+else:
+	xlabel, ylabel, titleA, titleB = sys.argv[1:]
 
 X = np.genfromtxt('working/{}_x.csv'.format(titleA), delimiter=',')
 Y = np.genfromtxt('working/{}_y.csv'.format(titleA), delimiter=',')
@@ -35,7 +37,7 @@ def update(*args):
 	ax.plot(Y, Z[1][:, j], '--', label=titleB)
 	ax.legend()
 	if np.max([Z[0][:, j], Z[1][:, j]]) > 0:
-		ax.set_yscale('symlog', linthreshy=np.max([Z[0][:, j], Z[1][:, j]])/100, linscaley=1)
+		ax.set_yscale('symlog', linthresh=np.max([Z[0][:, j], Z[1][:, j]])/100, linscale=1)
 	ax.set_xlabel(ylabel)
 	ax.set_title("Slice comparison of {} & {}".format(titleA, titleB))
 slider.on_changed(update)

@@ -22,7 +22,10 @@ if answer != '-':
 		data = np.loadtxt(f'data/trajectories {answer}.csv', delimiter=',', skiprows=1) # get the true curves
 		XB = data[:,0]
 		YBs = [data[:,4], data[:,3], data[:,1], np.zeros(XB.shape)] # extract the relevant info from them
-		YBs[2] *= np.sum(YAs[2]*(XA[1] - XA[0]))/np.sum(YBs[2]*(XB[1] - XB[0])) # normalize the yield curves to account for any magnitude discrepancy
+		YBs[2] *= (0.1e6/1e-6)/(1e15*14.1e6*1.6e-19/1e-9)
+		while np.sum(YAs[2]*np.gradient(XA)) < np.sum(YBs[2]*(XB[1] - XB[0]))/3:
+			YBs[2] /= 10
+		# YBs[2] *= np.sum(YAs[2]*(XA[1] - XA[0]))/np.sum(YBs[2]*(XB[1] - XB[0])) # normalize the yield curves to account for any magnitude discrepancy
 	except IOError:
 		pass
 
