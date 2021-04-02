@@ -171,7 +171,7 @@ public class SpectrumViewer extends Application {
 					this.energyBins = CSV.readColumn(file);
 				}));
 		
-		rightPane.getChildren().add(chooseFileWidget("Time bin file:", stage, "time og.txt",
+		rightPane.getChildren().add(chooseFileWidget("Time bin file:", stage, "time og with falling temp.txt",
 				(file) -> {
 					this.timeBins = CSV.readColumn(file);
 				}));

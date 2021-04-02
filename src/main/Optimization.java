@@ -106,7 +106,7 @@ public class Optimization {
 				throw new IllegalStateException("How?! When?!");
 			if ((max - min)/Math.max(med, step0) < 1e-10) { // if this has become quite tight
 				if (Double.isNaN(func.apply(lowestPlace)))
-					throw new IllegalStateException("waaaa how did this happen "+lowestValue);
+					throw new IllegalStateException("waaaa how did this happen "+lowestPlace+" and "+lowestValue+" and "+med);
 				return lowestPlace;
 			}
 			med = Math.min(med, truMax); // enforce that it not go past its true maximum
@@ -134,8 +134,8 @@ public class Optimization {
 					med = (max + min)/2;
 				}
 				else if (med == truMax) {
-					if (Double.isNaN(func.apply(truMax)))
-						throw new IllegalStateException("But I already asked if f(med) was NaN! "+f);
+//					if (Double.isNaN(func.apply(truMax)))
+//						throw new IllegalStateException("But I already asked if f(med) was NaN! "+f);
 					return truMax; // this might be the best we can get
 				}
 				else {
@@ -145,9 +145,8 @@ public class Optimization {
 				continue;
 			}
 			
-			if (Double.isNaN(func.apply(med))) {
-				throw new IllegalArgumentException("What are you doing? I asked you if f was NaN!");
-			}
+//			if (Double.isNaN(func.apply(med)))
+//				throw new IllegalArgumentException("What are you doing? I asked you if f was NaN and you sed no!");
 			return med; // if both are met, we're done here
 		}
 	}

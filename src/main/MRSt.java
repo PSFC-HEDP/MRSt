@@ -522,9 +522,9 @@ public class MRSt {
 //								Math.log(teoSpectrum[i][j]/spectrumScale); // encourage entropy
 //				}
 //				penalty += 1e-12*params[0][j]*Math.log(params[0][j]/meanYield); // encourage entropy
-				penalty += Math.pow(params[3][j]/20, 2)/2; // gaussian prior on velocity
+				penalty += Math.pow(params[3][j]/50, 2)/2; // gaussian prior on velocity
 //				penalty += params[1][j]/10.0 - Math.log(params[1][j])/2.; // gamma prior on temp
-				penalty += params[4][j]/2.0; // exponential prior on areal density
+				penalty += params[4][j]/1.0; // exponential prior on areal density
 			}
 			
 			for (int j = 1; j < timeAxis.length; j ++) {
@@ -542,7 +542,7 @@ public class MRSt {
 				double Tp = (params[1][j-1] - params[1][j])/timeStep;
 				double T = (params[1][j-1] + params[1][j])/2;
 				if (Tp != 0)
-					penalty += (Tp*Tp)/T/1000; // encourage a smooth Ti
+					penalty += (Tp*Tp)/T/500; // encourage a smooth Ti
 			}
 			
 			for (int j = 1; j < timeAxis.length; j ++) {
@@ -666,14 +666,16 @@ public class MRSt {
 //				if (opt[5*i] > 0)
 //					covarianceMatrix[5*i][5*i] = Math.min(covarianceMatrix[5*i][5*i], Math.pow(opt[5*i], 2));
 //			}
-			for (int i = 0; i < timeAxis.length; i ++) { // this is kind of weird...
-				double σ2Max;
-				if (i-1 < 0 || (i+1 < timeAxis.length && opt[5*(i+1)] > opt[5*(i-1)]))
-					σ2Max = Math.pow(opt[5*i] - opt[5*(i+1)], 2);
-				else
-					σ2Max = Math.pow(opt[5*i] - opt[5*(i-1)], 2);
-				covarianceMatrix[5*i][5*i] = Math.min(covarianceMatrix[5*i][5*i], σ2Max); // but it helps the error bars deal with this particular nonlinearity
-			}
+//			for (int i = 1; i < timeAxis.length-1; i ++) { // this is kind of weird...
+////				double σ2Max;
+////				if (i-1 < 0 || (i+1 < timeAxis.length && opt[5*(i+1)] > opt[5*(i-1)]))
+////					σ2Max = Math.pow(opt[5*i] - opt[5*(i+1)], 2);
+////				else
+////					σ2Max = Math.pow(opt[5*i] - opt[5*(i-1)], 2);
+//				double σ2Max = Math.min(Math.pow(opt[5*i] - opt[5*(i+1)], 2),
+//						                Math.pow(opt[5*i] - opt[5*(i-1)], 2));
+//				covarianceMatrix[5*i][5*i] = Math.min(covarianceMatrix[5*i][5*i], σ2Max); // but it helps the error bars deal with this particular nonlinearity
+//			}
 			for (int i = 0; i < hessian.length; i ++) {
 				if ((i/5 < left || i/5 >= rite) && !Double.isFinite(covarianceMatrix[i][i]))
 					covarianceMatrix[i][i] = 0; // get rid of any NaNs if they're off screen anyway
