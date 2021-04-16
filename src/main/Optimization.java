@@ -853,10 +853,10 @@ public class Optimization {
 	 * @param F n×m desired image
 	 * @param D n×m measurement variance matrix
 	 * @param P nm×nm transfer matrix
-	 * @param tol the termination condition
+	 * @param alpha the smoothing
 	 * @return
 	 */
-	public static double[][] optimizeGelfgat(double[][] F, double[][] D, double[][] P, double tol) {
+	public static double[][] optimizeGelfgat(double[][] F, double[][] D, double[][] P, double alpha) {
 		if (F.length != D.length || F[0].length != D[0].length || P.length != P[0].length || P.length != D.length*D[0].length)
 			throw new IllegalArgumentException("I can't work with this; have you seen these dimensions‽ "+F.length+"×"+F[0].length+", "+D.length+"×"+D[0].length+", "+P.length+"×"+P[0].length+"!");
 		final int n = F.length, m = F[0].length;
@@ -868,7 +868,7 @@ public class Optimization {
 		double G;
 		
 		int iter = 0;
-		double L = Double.NEGATIVE_INFINITY, Lprev;
+		double score = Double.NEGATIVE_INFINITY, scorePrev;
 		do { // use Gelfgat et al.'s program to deconvolve the spectrum
 			double Σg = 0;
 			for (int i = 0; i < n; i ++)
@@ -923,21 +923,28 @@ public class Optimization {
 				for (int j = 0; j < m; j ++)
 					g[i][j] = Math.max(0, g[i][j] + h/2*δg[i][j]);
 			
-			Lprev = L;
-			L = 0;
+			scorePrev = score;
+			double L = 0;
 			for (int k = 0; k < n; k ++)
 				for (int l = 0; l < m; l ++)
 					L += -1/2.*Math.pow(F[k][l] - G*s[k][l], 2)/D[k][l];
+			double S = 0;
+			for (int i = 0; i < n; i ++)
+				for (int j = 0; j < m; j ++)
+					if (g[i][j] > 1e-100)
+						S += -g[i][j]*Math.log(g[i][j]);
+			score = L + alpha*S;
 			
 			iter ++;
-		} while (iter < 6 || (L - Lprev)/(n*m) > tol);
+		} while (iter < 6 || score > scorePrev);
 		
 		double[][] s = new double[n][m];
 		for (int i = 0; i < n; i ++)
 			for (int j = 0; j < m; j ++)
 				for (int k = 0; k < n; k ++)
 					for (int l = 0; l < m; l ++)
-						s[k][l] += P[m*k+l][m*i+j]*g[i][j];		double ΣFs = 0, Σss = 0;
+						s[k][l] += P[m*k+l][m*i+j]*g[i][j];
+		double ΣFs = 0, Σss = 0;
 		
 		for (int k = 0; k < n; k ++) {
 			for (int l = 0; l < m; l ++) {

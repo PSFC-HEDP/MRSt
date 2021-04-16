@@ -85,7 +85,7 @@ public class MRSt {
 	private static final int STOPPING_DISTANCE_RESOLUTION = 64;
 	private static final double MIN_E = 12, MAX_E = 16; // histogram bounds [MeV]
 	private static final double E_RESOLUTION = .09, T_RESOLUTION = 20e-3; // resolutions [MeV], [ns]
-	private static final int TRANSFER_MATRIX_TRIES = 10000; // the number of points to sample in each column of the transfer matrix
+	private static final int TRANSFER_MATRIX_TRIES = 1000; // the number of points to sample in each column of the transfer matrix
 	private static final double TRANSFER_FUNC_ERROR = 0.00; // the error in the transfer function
 	
 	private static final Random RANDOM = new Random(0);
@@ -319,25 +319,31 @@ public class MRSt {
 	 * @return {computation time, 0, Yn, err, BT, err, BW, err, skewness, err, kurtosis, err, peak compression, err, rho R (BT), err,
 	 * \< rho R \>, err, d(rho R)/dt, err, \<Ti\>, err, dTi/dt, err, \<vi\>, err, dvi/dt, err}
 	 */
+	@SuppressWarnings("unused")
 	public double[] respond(double[] energies, double[] times, double[][] spectrum, ErrorMode errorBars) {
 		this.instantiateTimeAxis(times); // first, create the detector time bins
 		
 		this.rongTransferMatrix = evaluateTransferMatrix(); // use those to put the transfer matrix together
 		
-		double energyResolutionModifier = 1 + (2*RANDOM.nextDouble() - 1)*TRANSFER_FUNC_ERROR;
-		double timeResolutionModifier = 1 + (2*RANDOM.nextDouble() - 1)*TRANSFER_FUNC_ERROR;
-		System.out.println("augmenting energy resolution by "+energyResolutionModifier+" and time resolution by "+timeResolutionModifier);
-		for (int i = 0; i < 4; i ++)
-			this.cosyCoefficients[i][0] *= energyResolutionModifier;
-		for (int i = 0; i < 6; i ++)
-			if (i != 4)
-				this.cosyCoefficients[i][4] *= timeResolutionModifier;
-		this.trueTransferMatrix = evaluateTransferMatrix();// evaluateTransferMatrix(); // now make up the actual transfer matrix
-		for (int i = 0; i < 4; i ++)
-			this.cosyCoefficients[i][0] /= energyResolutionModifier;
-		for (int i = 0; i < 6; i ++)
-			if (i != 4)
-				this.cosyCoefficients[i][4] /= timeResolutionModifier;
+		if (TRANSFER_FUNC_ERROR != 0) {
+			double energyResolutionModifier = 1 + (2*RANDOM.nextDouble() - 1)*TRANSFER_FUNC_ERROR;
+			double timeResolutionModifier = 1 + (2*RANDOM.nextDouble() - 1)*TRANSFER_FUNC_ERROR;
+			System.out.println("augmenting energy resolution by "+energyResolutionModifier+" and time resolution by "+timeResolutionModifier);
+			for (int i = 0; i < 4; i ++)
+				this.cosyCoefficients[i][0] *= energyResolutionModifier;
+			for (int i = 0; i < 6; i ++)
+				if (i != 4)
+					this.cosyCoefficients[i][4] *= timeResolutionModifier;
+			this.trueTransferMatrix = evaluateTransferMatrix();// evaluateTransferMatrix(); // now make up the actual transfer matrix
+			for (int i = 0; i < 4; i ++)
+				this.cosyCoefficients[i][0] /= energyResolutionModifier;
+			for (int i = 0; i < 6; i ++)
+				if (i != 4)
+					this.cosyCoefficients[i][4] /= timeResolutionModifier;
+		}
+		else {
+			this.trueTransferMatrix = this.rongTransferMatrix;
+		}
 		
 		this.efficiency = new double[energyBins.length-1][timeBins.length-1];
 		for (int i = 0; i < energyBins.length-1; i ++)
@@ -430,8 +436,7 @@ public class MRSt {
 		if (logger != null)  logger.info("beginning fit process.");
 		long startTime = System.currentTimeMillis();
 		
-		double gelf[][] = Optimization.optimizeGelfgat(F, D, this.rongTransferMatrix,
-				Math.max(1e-5, 1e4/NumericalMethods.sum(spectrum)));
+		double gelf[][] = Optimization.optimizeGelfgat(F, D, this.rongTransferMatrix, 1e5);
 		
 		double[] opt = new double[5*timeAxis.length]; // initial guess for the coming Powell fit
 		double[] yieldGuess = new double[timeAxis.length];
@@ -601,6 +606,7 @@ public class MRSt {
 		this.fitNeutronSpectrum = generateSpectrum( // and then interpret it
 				getNeutronYield(), getIonTemperature(), getElectronTemperature(),
 				getFlowVelocity(), getArealDensity(), energyBins, timeBins);
+//		this.fitNeutronSpectrum = gelf;
 		this.fitDeuteronSpectrum = this.response(energyBins, timeBins, fitNeutronSpectrum,
 				false, false);
 		
