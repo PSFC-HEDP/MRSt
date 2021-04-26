@@ -23,6 +23,8 @@
  */
 package main;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.Locale;
 import java.util.Random;
 import java.util.function.Function;
@@ -487,8 +489,11 @@ public class MRSt {
 			rite ++;
 		
 //		double spectrumScale = NumericalMethods.sum(gelf)/(timeBins.length-1)/(energyBins.length-1); // the characteristic magnitude of the neutron spectrum bins
+		double[] smoothingRapper = {100};
 		
 		Function<double[], Double> logPosterior = (double[] x) -> {
+			final double smoothing = smoothingRapper[0];
+			
 			double[][] params = new double[5][timeAxis.length];
 			for (int k = 0; k < params.length; k ++) // first unpack the state vector
 				for (int i = 0; i < params[k].length; i ++)
@@ -538,8 +543,8 @@ public class MRSt {
 				if (j <= bangIndex) Yp *= -1;
 				if (Y > 0) {
 					double z = Yp/Y*1.;
-					if (z < 0) penalty += .05*Math.exp(z);
-					else       penalty += .05*(1 + z + z*z/2.); // encourage a monotonically increasing yield before BT
+					if (z < 0) penalty += smoothing/20*Math.exp(z);
+					else       penalty += smoothing/20*(1 + z + z*z/2.); // encourage a monotonically increasing yield before BT
 				}
 			}
 			
@@ -547,20 +552,20 @@ public class MRSt {
 				double Tp = (params[1][j-1] - params[1][j])/timeStep;
 				double T = (params[1][j-1] + params[1][j])/2;
 				if (Tp != 0)
-					penalty += (Tp*Tp)/T/500; // encourage a smooth Ti
+					penalty += smoothing/2000*(Tp*Tp)/T; // encourage a smooth Ti
 			}
 			
 			for (int j = 1; j < timeAxis.length; j ++) {
 				double Rp = (params[4][j-1] - params[4][j])/timeStep;
 				double R = (params[4][j-1] + params[4][j])/2;
 				if (Rp != 0)
-					penalty += (Rp*Rp)/R/100; // encourage a smooth rho-R
+					penalty += smoothing/100*(Rp*Rp)/R; // encourage a smooth rho-R
 			}
 			
 			for (int j = 1; j < timeAxis.length-1; j ++) {
 				double Vpp = (params[3][j-1] - 2*params[3][j] + params[3][j+1])/
 						Math.pow(timeStep, 2);
-				penalty += Math.pow(Vpp/2e5, 2)/2; // encourage a smooth ion velocity
+				penalty += smoothing/1e11*(Vpp*Vpp); // encourage a smooth ion velocity
 			}
 			
 //			System.out.println(penalty+" + "+error);
@@ -568,13 +573,13 @@ public class MRSt {
 		};
 		
 		if (logger != null) logger.log(Level.FINE, "...");
-		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, .1*precision, 0, timeAxis.length, true, true, false, false, false);
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 10.*precision, 0, timeAxis.length, true, true, true, true, true);
+		smoothingRapper[0] = 10;
 		if (logger != null) logger.log(Level.FINE, "...");
-		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, .1*precision, 0, timeAxis.length, false, false, true, false, false);
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 10.*precision, 0, timeAxis.length, true, true, true, true, true);
+		smoothingRapper[0] = 1;
 		if (logger != null) logger.log(Level.FINE, "...");
-		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, .1*precision, 0, timeAxis.length, false, false, false, false, true);
-		if (logger != null) logger.log(Level.FINE, "...");
-		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, .01*precision, 0, timeAxis.length, true, true, true, true, true);
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, .1*precision, 0, timeAxis.length, true, true, true, true, true);
 		
 		this.measurements = new Quantity[5][timeAxis.length]; // unpack the optimized vector
 		for (int k = 0; k < measurements.length; k ++) {
@@ -587,7 +592,7 @@ public class MRSt {
 		
 //		double[][] actual;
 //		try {
-//			actual = CSV.read(new File("data/Yn-rR-Ti_150327_16p26 - Yn-rR-Ti_150327_16p26.csv"), ',', 1);
+//			actual = CSV.read(new File("data/trajectories failed.csv"), ',', 1);
 //		} catch (NumberFormatException e) {
 //			actual = null;
 //		} catch (IOException e) {
@@ -597,10 +602,10 @@ public class MRSt {
 //		for (int i = 0; i < timeAxis.length; i ++) {
 //			this.timeAxis[i] = actual[i][0];
 //			this.measurements[0][i] = new Quantity(actual[i][1], 5*timeAxis.length);
-//			this.measurements[1][i] = new Quantity(actual[i][2], 5*timeAxis.length);
+//			this.measurements[1][i] = new Quantity(actual[i][4], 5*timeAxis.length);
 //			this.measurements[2][i] = new Quantity(0, 5*timeAxis.length);
 //			this.measurements[3][i] = new Quantity(0, 5*timeAxis.length);
-//			this.measurements[4][i] = new Quantity(actual[i][4] + actual[i][5], 5*timeAxis.length);
+//			this.measurements[4][i] = new Quantity(actual[i][3], 5*timeAxis.length);
 //		}
 		
 		this.fitNeutronSpectrum = generateSpectrum( // and then interpret it

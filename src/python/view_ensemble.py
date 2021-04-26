@@ -38,7 +38,7 @@ MARGIN = dict(bottom=.10, top=.90, left=.11, right=.99, wspace=.41, hspace=.05)
 
 if len(sys.argv) <= 1:
 	# FILENAME = '../../working/ensemble with Linux adjustments and strong smoothing.csv'
-	FILENAME = '../../working/ensemble_4_10_5_2_1000_2021-03-20.csv'
+	FILENAME = '../../working/ensemble_4_10_5_2_1200_2021-04-16.csv'
 else:
 	FILENAME = '../../working/'+sys.argv[1]
 BIN_WIDTH = 0.3 # in bels
@@ -66,9 +66,9 @@ Y_LABELS = [
 	# ("dTi/dt at BT (keV/(100ps))", -2.5, 2.3, 6.3, 1.9, False),
 	# ("d^2Ti/dt^2 at BT (keV/ns^2)", -2200, -500, 1200, 400, False),#("dTi/dt at stagnation (keV/(100ps))", -20, 30.20, 40, 1.9, False),
 	# ("d^2V/dt^2/V at BT (1/ns^2)", -60, 24.18, 110, 50, False),
-	("ρR at BT (g/cm^2)", 0.48, 0.675, 0.92, 0, True),
-	("Ti at BT (keV)", 5, 10.65, 13, 0, False),
-	("Stagnation - BT (ps)", -100, -60, 100, 0, False)
+	("ρR at BT (g/cm^2)", 0.48, 0.886329, 0.92, 0, True),
+	("Ti at BT (keV)", 5, 4.82550 , 13, 0, False),
+	("Stagnation - BT (ps)", -100, 34.7735 , 100, 0, False)
 
 ]
 

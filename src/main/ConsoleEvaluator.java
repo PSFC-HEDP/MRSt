@@ -64,6 +64,9 @@ public class ConsoleEvaluator {
 		double apertureWidth = Double.parseDouble(args[2])*1e-3; // aperture width in mm
 		double apertureHeight = Double.parseDouble(args[3])*1e-3; // aperture height in mm
 		int numYields = Integer.parseInt(args[4]); // number of datums to do
+		String implosionName = "og";
+		if (args.length > 5)
+			implosionName = args[5];
 		
 		String filename = String.format("ensemble_%.0f_%.0f_%.0f_%.0f_%d_%tF", foilRadius/1e-4, foilThickness/1e-5, apertureWidth/1e-3, apertureHeight/1e-2, numYields, System.currentTimeMillis());
 		
@@ -108,9 +111,9 @@ public class ConsoleEvaluator {
 			double[] eBins = null, tBins = null;
 			double[][] spec = null;
 			try {
-				eBins = CSV.readColumn(new File("data/Energy bins.txt"));
-				tBins = CSV.readColumn(new File("data/nsp_150327_16p26_time - copia.txt"));
-				spec = CSV.read(new File("data/nsp_150327_16p26.txt"), '\t');
+				eBins = CSV.readColumn(new File("data/energy.txt"));
+				tBins = CSV.readColumn(new File("data/time "+implosionName+".txt"));
+				spec = CSV.read(new File("data/spectrum "+implosionName+".txt"), '\t');
 				if (spec.length != eBins.length-1 || spec[0].length != tBins.length-1) {
 					System.out.println("interpreting a weird spectrum file...");
 					spec = MRSt.interpretSpectrumFile(tBins, eBins, spec);
