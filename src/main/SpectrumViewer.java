@@ -70,7 +70,8 @@ public class SpectrumViewer extends Application {
 	private static final int SPACING_2 = 4;
 	
 	private Spinner<Double> foilDistance;
-	private Spinner<Double> foilRadius;
+	private Spinner<Double> foilWidth;
+	private Spinner<Double> foilHeight;
 	private Spinner<Double> foilThickness;
 	private Spinner<Double> apertureDistance;
 	private Spinner<Double> apertureWidth;
@@ -102,56 +103,55 @@ public class SpectrumViewer extends Application {
 		int row = 0;
 		
 		this.foilDistance = new Spinner<Double>(0.5, 10.0, 3.0, 0.1);
-		foilDistance.setEditable(true);
 		leftPane.add(new Label("Foil distance"), 0, row);
 		leftPane.add(foilDistance, 1, row);
 		leftPane.add(new Label("mm"), 2, row);
 		row ++;
 		
-		this.foilRadius = new Spinner<Double>(0.1, 1.0, 0.4, 0.01); // TODO maybe throw a warning if the radius >~ the distance
-		foilRadius.setEditable(true);
-		leftPane.add(new Label("Foil radius"), 0, row);
-		leftPane.add(foilRadius, 1, row);
+		this.foilWidth = new Spinner<Double>(0.1, 2.0, 0.8, 0.01); // TODO maybe throw a warning if the radius >~ the distance
+		leftPane.add(new Label("Foil width"), 0, row);
+		leftPane.add(foilWidth, 1, row);
+		leftPane.add(new Label("mm"), 2, row);
+		row ++;
+		
+		this.foilHeight = new Spinner<Double>(0.1, 2.0, 0.8, 0.01); // TODO maybe throw a warning if the radius >~ the distance
+		leftPane.add(new Label("Foil height"), 0, row);
+		leftPane.add(foilHeight, 1, row);
 		leftPane.add(new Label("mm"), 2, row);
 		row ++;
 		
 		this.foilThickness = new Spinner<Double>(5., 500., 100., 5.);
-		foilThickness.setEditable(true);
 		leftPane.add(new Label("Foil thickness"), 0, row);
 		leftPane.add(foilThickness, 1, row);
 		leftPane.add(new Label("μm"), 2, row);
 		row ++;
 		
-		this.apertureDistance = new Spinner<Double>(1.0, 10.0, 6.0, 0.5);
-		apertureDistance.setEditable(true);
+		this.apertureDistance = new Spinner<Double>(0.01, 10.0, 6.0, 0.1);
 		leftPane.add(new Label("Aper. distance"), 0, row);
 		leftPane.add(apertureDistance, 1, row);
 		leftPane.add(new Label("m"), 2, row);
 		row ++;
 		
-		this.apertureWidth = new Spinner<Double>(1.0, 50.0, 5.0, 1.0);
-		apertureWidth.setEditable(true);
+		this.apertureWidth = new Spinner<Double>(0.1, 50.0, 5.0, 1.0);
 		leftPane.add(new Label("Aper. width"), 0, row);
 		leftPane.add(apertureWidth, 1, row);
 		leftPane.add(new Label("mm"), 2, row);
 		row ++;
 		
-		this.apertureHeight = new Spinner<Double>(1.0, 50.0, 20.0, 1.0);
-		apertureHeight.setEditable(true);
+		this.apertureHeight = new Spinner<Double>(0.1, 50.0, 20.0, 1.0);
 		leftPane.add(new Label("Aper. height"), 0, row);
 		leftPane.add(apertureHeight, 1, row);
 		leftPane.add(new Label("mm"), 2, row);
 		row ++;
 		
 		this.focalPlaneTilt = new Spinner<Double>(0.0, 89.9, 66.586, 5.0);
-		focalPlaneTilt.setEditable(true);
 		leftPane.add(new Label("F. plane angle"), 0, row);
 		leftPane.add(focalPlaneTilt, 1, row);
 		leftPane.add(new Label("°"), 2, row);
 		row ++;
 		
 		this.order = new ChoiceBox<Integer>(FXCollections.observableArrayList(1, 2, 3));
-		order.setValue(3); // XXX when this changes it should reload the cosy map
+		order.setValue(3); // TODO when this changes it should reload the cosy map
 		leftPane.add(new Label("Order"), 0, row);
 		leftPane.add(order, 1, row);
 		row ++;
@@ -235,7 +235,8 @@ public class SpectrumViewer extends Application {
 						mc = new MRSt(
 								ION,
 								foilDistance.getValue()*1e-3,
-								foilRadius.getValue()*1e-3,
+								foilWidth.getValue()*1e-3,
+								foilHeight.getValue()*1e-3,
 								foilThickness.getValue()*1e-6,
 								stoppingPowerData,
 								apertureDistance.getValue()*1e0,
@@ -249,6 +250,9 @@ public class SpectrumViewer extends Application {
 								focalPlaneTilt.getValue(),
 								.1,
 								logger); // make the simulation
+						
+//						double[] res = mc.computeResolution(14.);
+//						System.out.println(String.format("Energy res: %.2f keV\nTime res: %.2f ps", res[0], res[1]));
 						
 						mc.respond(
 								eBins,

@@ -285,6 +285,34 @@ public class NumericalMethods {
 	}
 	
 	/**
+	 * find the full-width at half-maximum of a distribucion. if it is very noisy, this will
+	 * underestimate the width.
+	 * @param x
+	 * @param y
+	 * @return
+	 */
+	public static double fwhm(double[] x, double[] y) {
+		int max = argmax(y);
+		double xR = Double.POSITIVE_INFINITY;
+		for (int i = max + 1; i < y.length; i ++) {
+			if (y[i] < y[max]/2.) {
+				double c = (y[max]/2. - y[i])/(y[i-1] - y[i]);
+				xR = (c*x[i+1] + x[i] + (1-c)*x[i-1])/2.;
+				break;
+			}
+		}
+		double xL = Double.NEGATIVE_INFINITY;
+		for (int i = max; i >= 1; i --) {
+			if (y[i-1] < y[max]/2.) {
+				double c = (y[max]/2. - y[i])/(y[i-1] - y[i]);
+				xL = (c*x[i+1] + x[i] + (1-c)*x[i-1])/2.;
+				break;
+			}
+		}
+		return xR - xL;
+	}
+	
+	/**
 	 * compute the standard deviation of the histogram
 	 * @param x the bin edges
 	 * @param y the number in each bin
@@ -341,27 +369,6 @@ public class NumericalMethods {
 	
 	public static double mean(double[] arr) {
 		return sum(arr)/arr.length;
-	}
-	
-	public static double fwhm(double[] x, double[] y) {
-		int max = argmax(y);
-		double xR = Double.POSITIVE_INFINITY;
-		for (int i = max + 1; i < y.length; i ++) {
-			if (y[i] < y[max]/2.) {
-				double c = (y[max]/2. - y[i])/(y[i-1] - y[i]);
-				xR = (c*x[i+1] + x[i] + (1-c)*x[i-1])/2.;
-				break;
-			}
-		}
-		double xL = Double.NEGATIVE_INFINITY;
-		for (int i = max; i >= 1; i --) {
-			if (y[i-1] < y[max]/2.) {
-				double c = (y[max]/2. - y[i])/(y[i-1] - y[i]);
-				xL = (c*x[i+1] + x[i] + (1-c)*x[i-1])/2.;
-				break;
-			}
-		}
-		return xR - xL;
 	}
 	
 	public static double[] minus(double[] x) {

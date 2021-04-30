@@ -88,7 +88,8 @@ public class ConsoleEvaluator {
 			mc = new MRSt(
 					Particle.D,
 					3e-3,
-					foilRadius,
+					2*foilRadius,
+					2*foilRadius,
 					foilThickness,
 					CSV.read(new File("data/stopping_power_deuterons.csv"), ','),
 					6e0,

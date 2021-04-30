@@ -39,6 +39,7 @@ public class Spinner<T> extends javafx.scene.control.Spinner<T> {
 				this.commitValue(); //was that so hard?
 		});
 		this.setPrefWidth(100);
+		this.setEditable(true);
 	}
 	
 }

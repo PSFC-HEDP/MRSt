@@ -60,7 +60,8 @@ public class ConfigurationPlotter {
 					mc = new MRSt(
 							Particle.D,
 							3e-3,
-							rFoil,
+							2*rFoil,
+							2*rFoil,
 							tFoil,
 							CSV.read(new File("data/stopping_power_deuterons.csv"), ','),
 							6e0,

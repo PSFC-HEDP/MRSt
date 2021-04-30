@@ -37,8 +37,8 @@ MARGIN = dict(bottom=.10, top=.90, left=.11, right=.99, wspace=.41, hspace=.05)
 
 
 if len(sys.argv) <= 1:
-	# FILENAME = '../../working/ensemble with Linux adjustments and strong smoothing.csv'
-	FILENAME = '../../working/ensemble_4_10_5_2_1200_2021-04-16.csv'
+	FILENAME = '../../working/ensemble-solenoid.csv'
+	# FILENAME = '../../working/ensemble_4_9_4_2_1000_2021-04-12.csv'
 else:
 	FILENAME = '../../working/'+sys.argv[1]
 BIN_WIDTH = 0.3 # in bels
@@ -49,12 +49,12 @@ X_LABEL = "Yield"
 Y_LABELS = [
 	# (None, 0, 0, 0, 0, False),
 	# ("Total yield", 2e14, 4.36508e17, 9e17, 5e-2, True),
-	# ("Bang time (ns)", 16.23, 16.258, 16.29, 1e-2, False),
-	# ("Burn width (ps)", 53, 67.7, 82, 7, False),
+	("Bang time (ns)", 16.23, 16.258, 16.29, 1e-2, False),
+	("Burn width (ps)", 53, 67.7, 82, 7, False),
 	# ("Burn skewness", -1.6, -.698, -0.1, 3e-1, False),
 	# ("Burn kurtosis", -0.5, 4.7, 10.5, 3, False),
-	# ("dρR/dt at BT (g/cm^2/(100ps))", -1.2, -1.040, -.65, .060, False),
-	# ("dTi/dt at BT (keV/(100ps))", -2.3, 2.3, 6.3, 1.9, False),
+	("dρR/dt at BT (g/cm^2/(100ps))", -1.2, -1.040, -.65, .060, False),
+	("dTi/dt at BT (keV/(100ps))", -2.3, 2.3, 6.3, 1.9, False),
 	# ("Burn-average vi (km/s)", -15.2, 0, 15.2, 20, False), ("dvi/dt at BT (km/s/(100ps))", -110, 0, 110, 8, False),
 	# ("Bang time (ns)", 16.344, 16.2596, 16.386, 1e-2, False), ("Burn width (ps)", 53, 66.16, 82, 7, False),
 	# ("Burn skewness", -1.8, -.7690, -0.4, 3e-1, False),
@@ -66,10 +66,12 @@ Y_LABELS = [
 	# ("dTi/dt at BT (keV/(100ps))", -2.5, 2.3, 6.3, 1.9, False),
 	# ("d^2Ti/dt^2 at BT (keV/ns^2)", -2200, -500, 1200, 400, False),#("dTi/dt at stagnation (keV/(100ps))", -20, 30.20, 40, 1.9, False),
 	# ("d^2V/dt^2/V at BT (1/ns^2)", -60, 24.18, 110, 50, False),
-	("ρR at BT (g/cm^2)", 0.48, 0.886329, 0.92, 0, True),
-	("Ti at BT (keV)", 5, 4.82550 , 13, 0, False),
-	("Stagnation - BT (ps)", -100, 34.7735 , 100, 0, False)
-
+	# ("ρR at BT (g/cm^2)", 0.78, 0.961111, 1.22, 0, True),
+	# ("Ti at BT (keV)", 5, 7.45, 11, 0, False),#7.63848, 11, 0, False),
+	# ("Stagnation - BT (ps)", -100, -51.4696 , 100, 0, False)
+	# ("ρR at BT (g/cm^2)", 0.48, 0.886329, 0.92, 0, True),
+	# ("Ti at BT (keV)", 5, 4.82550 , 13, 0, False),
+	# ("Stagnation - BT (ps)", -100, 34.7735 , 100, 0, False)
 ]
 
 
@@ -95,7 +97,12 @@ def rolling_average(y, n):
 	])
 
 
-simulations = pd.read_csv(FILENAME, na_values=["Infinity"])
+try:
+	simulations = pd.read_csv(FILENAME, na_values=["Infinity"])
+except FileNotFoundError:
+	print("Ese archivo no existe.")
+	quit()
+
 simulations = simulations[simulations["Yield factor"] != 0]
 simulations["Yield"] = simulations["Yield factor"]*4.7838e17
 for parameter in simulations:
@@ -175,7 +182,7 @@ for i, (axis, y_min, y_true, y_max, presis, percent) in enumerate(Y_LABELS): # i
 	ax.scatter(x[order], y[order], s=1, zorder=2, label="Based on fit to synthetic data")
 	# ax.plot(x[order], μ + σ, 'C3-', zorder=1, label="1σ variation")
 	# ax.plot(x[order], μ - σ, 'C3-', zorder=1)
-	if y_min > 0 and y_max/y_min >= 10:
+	if y_min > 0 and y_max/y_min > 10:
 		ax.set_yscale('log')
 	ax.set_ylim(y_min, y_max)
 	ax.set_ylabel(text_wrap(axis.replace("^2", "²")))
@@ -242,10 +249,11 @@ if INCLUDE_ERRORS:
 			ax.plot(bin_centers, stds, 'C0-', label="Standard deviation from actuality")
 			ax.plot(bin_centers, np.full(bin_centers.shape, presis), 'C1--', label="Required accuracy")
 			ax.plot(bin_centers, errs/(y_factor*y_true), 'C3--', label="Reported error bar size")
-		ax.set_yscale('log')
+		if np.max(errs)/np.max(errs) > 10:
+			ax.set_yscale('log')
+			ax.set_ylim(presis*3.2e-2, presis*5)
 		if 'ield' in X_LABEL:
 			ax.set_xscale('log')
-		ax.set_ylim(presis*3.2e-2, presis*5)
 		if not percent:
 			if "(" in axis:
 				ax.set_ylabel(text_wrap(axis[:axis.index("(")].replace(" at BT", "").replace("^2", "²") + "error " + axis[axis.index("("):]))

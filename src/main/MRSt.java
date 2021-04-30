@@ -23,8 +23,6 @@
  */
 package main;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.Locale;
 import java.util.Random;
 import java.util.function.Function;
@@ -93,6 +91,8 @@ public class MRSt {
 	private static final Random RANDOM = new Random(0);
 	
 	private final double foilDistance; // z coordinate of midplane of foil [m]
+	private final double foilWidth; // extent of foil in dispersion direccion [m]
+	private final double foilHeight; // extent of foil in nondispersion direccion [m]
 	private final double foilThickness; // thickness of foil [m]
 	private final double apertureDistance; // distance from TCC to aperture [m]
 	private final double apertureWidth; // horizontal dimension of aperture [m]
@@ -149,13 +149,16 @@ public class MRSt {
 	 * @param precision 
 	 */
 	public MRSt(
-			Particle ion, double foilDistance, double foilRadius, double foilThickness,
+			Particle ion,
+			double foilDistance, double foilWidth, double foilHeight, double foilThickness,
 			double[][] stoppingPowerData,
 			double apertureDistance, double apertureWidth, double apertureHeight,
 			double minimumEnergy, double maximumEnergy, double referenceEnergy,
 			double[][] cosyCoefficients, int[][] cosyExponents,
 			double focalTilt, double precision, Logger logger) {
 		this.foilDistance = foilDistance;
+		this.foilWidth = foilWidth;
+		this.foilHeight = foilHeight;
 		this.foilThickness = foilThickness;
 		this.apertureDistance = apertureDistance;
 		this.apertureWidth = apertureWidth;
@@ -177,8 +180,7 @@ public class MRSt {
 		double A = ion.mass/Particle.N.mass;
 		this.energyFactor = 4*A/Math.pow(A + 1, 2);
 		
-		double foilMaxAngle = Math.atan(foilRadius/foilDistance);
-		this.probHitsFoil = (1 - Math.cos(foilMaxAngle))/2;
+		this.probHitsFoil = foilWidth*foilHeight/(4*Math.PI*foilDistance*foilDistance);
 		
 		double[] dxdE = new double[stoppingPowerData.length]; // integrate the stopping power to get stopping distance
 		double[] E = new double[stoppingPowerData.length];
@@ -193,19 +195,6 @@ public class MRSt {
 		this.energyBins = new double[(int) ((MAX_E - MIN_E)/E_RESOLUTION + 1)];
 		for (int i = 0; i < energyBins.length; i ++)
 			this.energyBins[i] = (MIN_E + i*(MAX_E - MIN_E)/(energyBins.length-1));
-		
-//		double[][] actual;
-//		try {
-//			actual = CSV.read(new File("data/Yn-rR-Ti_150327_16p26 - Yn-rR-Ti_150327_16p26.csv"), ',', 1);
-//		} catch (NumberFormatException e) {
-//			actual = null;
-//		} catch (IOException e) {
-//			actual = null;
-//		}
-//		this.timeBins = new double[actual.length+1];
-//		for (int i = 0; i < timeBins.length-1; i ++)
-//			this.timeBins[i] = actual[i][0] - (actual[1][0] - actual[0][0])/2.;
-//		this.timeBins[timeBins.length-1] = actual[actual.length-1][0] + (actual[1][0] - actual[0][0])/2.;
 		
 		this.energyAxis = new double[energyBins.length-1];
 		for (int i = 0; i < energyBins.length-1; i ++)
@@ -230,16 +219,29 @@ public class MRSt {
 	 * @param spectrumTimeBins
 	 */
 	private void instantiateTimeAxis(double[] spectrumTimeBins) {
-		double minT = spectrumTimeBins[0] - 0.10;
-		double maxT = spectrumTimeBins[spectrumTimeBins.length-1] + 0.10;
+		double minT = spectrumTimeBins[0] - T_BUFFER;
+		double maxT = spectrumTimeBins[spectrumTimeBins.length-1] + T_BUFFER;
 		this.timeBins = new double[(int) ((maxT - minT)/T_RESOLUTION + 1)];
 		for (int i = 0; i < timeBins.length; i ++)
 			this.timeBins[i] = minT + i*(maxT - minT)/(timeBins.length-1);
+		
+//		double[][] actual;
+//		try {
+//			actual = CSV.read(new File("data/trajectories og with falling temp.csv"), ',', 1);
+//		} catch (NumberFormatException e) {
+//			actual = null;
+//		} catch (IOException e) {
+//			actual = null;
+//		}
+//		this.timeBins = new double[actual.length+1];
+//		for (int i = 0; i < timeBins.length-1; i ++)
+//			this.timeBins[i] = actual[i][0] - (actual[1][0] - actual[0][0])/2.;
+//		this.timeBins[timeBins.length-1] = actual[actual.length-1][0] + (actual[1][0] - actual[0][0])/2.;
+		
 		this.timeStep = timeBins[1] - timeBins[0];
 		this.timeAxis = new double[timeBins.length-1];
 		for (int i = 0; i < timeBins.length-1; i ++)
 			this.timeAxis[i] = (this.timeBins[i] + this.timeBins[i+1])/2;
-	
 	}
 
 	/**
@@ -309,7 +311,38 @@ public class MRSt {
 		
 		return matrix;
 	}
-
+	
+	/**
+	 * compute the time and energy resolution (FWHM) for particles at a given energy.
+	 * @param referenceEnergy the energy of the central ray [MeV]
+	 * @return {energy resolution [keV], time resolution [ps]}
+	 */
+	public double[] computeResolution(double referenceEnergy) {
+		instantiateTimeAxis(new double[] {-1e-3, 1e-3});
+		double[] energyDist = new double[energyAxis.length];
+		double[] timeDist = new double[timeAxis.length];
+		double[][] transferMatrix = evaluateTransferMatrix();
+		
+		int iRef = NumericalMethods.bin(referenceEnergy, energyBins);
+		int jRef = timeAxis.length/2;
+		
+		for (int i = 0; i < energyAxis.length; i ++) {
+			for (int j = 0; j < timeAxis.length; j ++) {
+				energyDist[i] += transferMatrix[(timeBins.length-1)*i + j][(timeBins.length-1)*iRef + jRef];
+				timeDist[j] += transferMatrix[(timeBins.length-1)*i + j][(timeBins.length-1)*iRef + jRef];
+			}
+		}
+		
+//		System.out.println(Arrays.toString(energyAxis));
+//		System.out.println(Arrays.toString(energyDist));
+//		System.out.println(Arrays.toString(timeAxis));
+//		System.out.println(Arrays.toString(timeDist));
+		
+		double energyResolution = NumericalMethods.fwhm(energyAxis, energyDist);
+		double timeResolution = NumericalMethods.fwhm(timeAxis, timeDist);
+		return new double[] { energyResolution/1e-3, timeResolution/1e-3};
+	}
+	
 	/**
 	 * compute the total response to an implosion with the given neutron spectrum and save and
 	 * analyze it.
@@ -607,6 +640,7 @@ public class MRSt {
 //			this.measurements[3][i] = new Quantity(0, 5*timeAxis.length);
 //			this.measurements[4][i] = new Quantity(actual[i][3], 5*timeAxis.length);
 //		}
+//		errorBars = ErrorMode.NONE;
 		
 		this.fitNeutronSpectrum = generateSpectrum( // and then interpret it
 				getNeutronYield(), getIonTemperature(), getElectronTemperature(),
@@ -837,11 +871,10 @@ public class MRSt {
 	 * @return { x, y, z } [m]
 	 */
 	private double[] chooseCollisionPosition() {
-		double θF = Math.acos(1 - 2*RANDOM.nextDouble()*probHitsFoil);
-		double rF = foilDistance*Math.tan(θF); // NOTE: original code assumes uniform distribution within foil; I account for nonzero solid angle subtended at TCC.
-		double φF = RANDOM.nextDouble()*2*Math.PI;
-		double zF = foilDistance + (2*RANDOM.nextDouble()-1)*foilThickness/2; // assume foil is thin, so every z coordinate is equally likely
-		return new double[] { rF*Math.cos(φF), rF*Math.sin(φF), zF };
+		double xF = foilWidth/2*(2*RANDOM.nextDouble()-1);
+		double yF = foilHeight/2*(2*RANDOM.nextDouble()-1);
+		double zF = foilDistance + foilThickness/2*(2*RANDOM.nextDouble()-1); // assume foil is thin, so every z coordinate is equally likely
+		return new double[] { xF, yF, zF };
 	}
 	
 	/**
