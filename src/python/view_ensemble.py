@@ -37,24 +37,24 @@ MARGIN = dict(bottom=.10, top=.90, left=.11, right=.99, wspace=.41, hspace=.05)
 
 
 if len(sys.argv) <= 1:
-	FILENAME = '../../working/ensemble-solenoid.csv'
-	# FILENAME = '../../working/ensemble_4_9_4_2_1000_2021-04-12.csv'
+	# FILENAME = '../../working/ensemble-solenoid.csv'
+	FILENAME = '../../working/ensemble_3_9_4_2_1000_2021-04-30.csv'
 else:
 	FILENAME = '../../working/'+sys.argv[1]
 BIN_WIDTH = 0.3 # in bels
-REFERENCE_YIELD = 1e16
+REFERENCE_YIELD = 1.51e16
 
 X_LABEL = "Yield"
 
 Y_LABELS = [
 	# (None, 0, 0, 0, 0, False),
 	# ("Total yield", 2e14, 4.36508e17, 9e17, 5e-2, True),
-	("Bang time (ns)", 16.23, 16.258, 16.29, 1e-2, False),
-	("Burn width (ps)", 53, 67.7, 82, 7, False),
+	# ("Bang time (ns)", 16.23, 16.258, 16.29, 1e-2, False),
+	# ("Burn width (ps)", 53, 67.7, 82, 7, False),
 	# ("Burn skewness", -1.6, -.698, -0.1, 3e-1, False),
 	# ("Burn kurtosis", -0.5, 4.7, 10.5, 3, False),
-	("dρR/dt at BT (g/cm^2/(100ps))", -1.2, -1.040, -.65, .060, False),
-	("dTi/dt at BT (keV/(100ps))", -2.3, 2.3, 6.3, 1.9, False),
+	# ("dρR/dt at BT (g/cm^2/(100ps))", -1.2, -1.040, -.65, .060, False),
+	# ("dTi/dt at BT (keV/(100ps))", -2.3, 2.3, 6.3, 1.9, False),
 	# ("Burn-average vi (km/s)", -15.2, 0, 15.2, 20, False), ("dvi/dt at BT (km/s/(100ps))", -110, 0, 110, 8, False),
 	# ("Bang time (ns)", 16.344, 16.2596, 16.386, 1e-2, False), ("Burn width (ps)", 53, 66.16, 82, 7, False),
 	# ("Burn skewness", -1.8, -.7690, -0.4, 3e-1, False),
@@ -66,9 +66,9 @@ Y_LABELS = [
 	# ("dTi/dt at BT (keV/(100ps))", -2.5, 2.3, 6.3, 1.9, False),
 	# ("d^2Ti/dt^2 at BT (keV/ns^2)", -2200, -500, 1200, 400, False),#("dTi/dt at stagnation (keV/(100ps))", -20, 30.20, 40, 1.9, False),
 	# ("d^2V/dt^2/V at BT (1/ns^2)", -60, 24.18, 110, 50, False),
-	# ("ρR at BT (g/cm^2)", 0.78, 0.961111, 1.22, 0, True),
-	# ("Ti at BT (keV)", 5, 7.45, 11, 0, False),#7.63848, 11, 0, False),
-	# ("Stagnation - BT (ps)", -100, -51.4696 , 100, 0, False)
+	("ρR at BT (g/cm^2)", 0.78, 0.961111, 1.22, 0, True),
+	("Ti at BT (keV)", 5, 7.45, 11, 0, False),#7.63848, 11, 0, False),
+	("Stagnation - BT (ps)", -100, -51.4696 , 100, 0, False)
 	# ("ρR at BT (g/cm^2)", 0.48, 0.886329, 0.92, 0, True),
 	# ("Ti at BT (keV)", 5, 4.82550 , 13, 0, False),
 	# ("Stagnation - BT (ps)", -100, 34.7735 , 100, 0, False)

@@ -84,6 +84,7 @@ public class MRSt {
 	
 	private static final int STOPPING_DISTANCE_RESOLUTION = 64;
 	private static final double MIN_E = 12, MAX_E = 16; // histogram bounds [MeV]
+	private static final double T_BUFFER = 0.10; // the amount of time to add to either side [ns]
 	private static final double E_RESOLUTION = .09, T_RESOLUTION = 20e-3; // resolutions [MeV], [ns]
 	private static final int TRANSFER_MATRIX_TRIES = 1000; // the number of points to sample in each column of the transfer matrix
 	private static final double TRANSFER_FUNC_ERROR = 0.00; // the error in the transfer function
