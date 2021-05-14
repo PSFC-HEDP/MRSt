@@ -23,6 +23,8 @@
  */
 package main;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.Locale;
 import java.util.Random;
 import java.util.function.Function;
@@ -84,7 +86,7 @@ public class MRSt {
 	
 	private static final int STOPPING_DISTANCE_RESOLUTION = 64;
 	private static final double MIN_E = 12, MAX_E = 16; // histogram bounds [MeV]
-	private static final double T_BUFFER = 0.10; // the amount of time to add to either side [ns]
+	private static final double T_BUFFER = 0.10; // empty space to simulate on each side [ns]
 	private static final double E_RESOLUTION = .09, T_RESOLUTION = 20e-3; // resolutions [MeV], [ns]
 	private static final int TRANSFER_MATRIX_TRIES = 1000; // the number of points to sample in each column of the transfer matrix
 	private static final double TRANSFER_FUNC_ERROR = 0.00; // the error in the transfer function
@@ -461,7 +463,7 @@ public class MRSt {
 			return null;
 		}
 		else {
-			logger.log(Level.INFO, String.format("There were %.0f deuterons detected.", NumericalMethods.sum(spectrum)));
+			logger.log(Level.INFO, String.format("There were %.1g deuterons detected.", NumericalMethods.sum(spectrum)));
 		}
 		
 		double[][] D = new double[energyBins.length-1][timeBins.length-1];
@@ -523,7 +525,7 @@ public class MRSt {
 			rite ++;
 		
 //		double spectrumScale = NumericalMethods.sum(gelf)/(timeBins.length-1)/(energyBins.length-1); // the characteristic magnitude of the neutron spectrum bins
-		double[] smoothingRapper = {100};
+		double[] smoothingRapper = new double[1];
 		
 		Function<double[], Double> logPosterior = (double[] x) -> {
 			final double smoothing = smoothingRapper[0];
@@ -593,7 +595,7 @@ public class MRSt {
 				double Rp = (params[4][j-1] - params[4][j])/timeStep;
 				double R = (params[4][j-1] + params[4][j])/2;
 				if (Rp != 0)
-					penalty += smoothing/100*(Rp*Rp)/R; // encourage a smooth rho-R
+					penalty += smoothing/200*(Rp*Rp)/R; // encourage a smooth rho-R
 			}
 			
 			for (int j = 1; j < timeAxis.length-1; j ++) {
@@ -606,14 +608,21 @@ public class MRSt {
 			return penalty + error;
 		};
 		
-		if (logger != null) logger.log(Level.FINE, "...");
-		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 10.*precision, 0, timeAxis.length, true, true, true, true, true);
+		smoothingRapper[0] = 1000;
+		if (logger != null) logger.log(Level.FINE, "Performing preliminary fit pass...");
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 100.*precision, 0, timeAxis.length);
+		smoothingRapper[0] = 100;
+		if (logger != null) logger.log(Level.FINE, "Performing ruff fit pass...");
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 10.*precision, 0, timeAxis.length);
 		smoothingRapper[0] = 10;
-		if (logger != null) logger.log(Level.FINE, "...");
-		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 10.*precision, 0, timeAxis.length, true, true, true, true, true);
+		if (logger != null) logger.log(Level.FINE, "Performing medium fit pass...");
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 1.*precision, 0, timeAxis.length);
+		smoothingRapper[0] = 3;
+		if (logger != null) logger.log(Level.FINE, "Performing careful fit pass...");
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, .1*precision, 0, timeAxis.length);
 		smoothingRapper[0] = 1;
-		if (logger != null) logger.log(Level.FINE, "...");
-		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, .1*precision, 0, timeAxis.length, true, true, true, true, true);
+		if (logger != null) logger.log(Level.FINE, "Performing final fit pass...");
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, .001*precision, 0, timeAxis.length);
 		
 		this.measurements = new Quantity[5][timeAxis.length]; // unpack the optimized vector
 		for (int k = 0; k < measurements.length; k ++) {
@@ -626,7 +635,7 @@ public class MRSt {
 		
 //		double[][] actual;
 //		try {
-//			actual = CSV.read(new File("data/trajectories failed.csv"), ',', 1);
+//			actual = CSV.read(new File("data/trajectories og with falling temp.csv"), ',', 1);
 //		} catch (NumberFormatException e) {
 //			actual = null;
 //		} catch (IOException e) {
