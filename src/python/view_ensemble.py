@@ -16,8 +16,8 @@ plt.rcParams.update({'font.family': 'sans', 'font.size': 12})
 # MARGIN = dict(bottom=.06, top=.94, left=.06, right=.99, wspace=.42, hspace=.05)
 INCLUDE_ERRORS = True
 COLUMNS = 1
-SIZE = (9, 5)
-MARGIN = dict(bottom=.10, top=.90, left=.11, right=.99, wspace=.41, hspace=.05)
+SIZE = (8, 5)
+MARGIN = dict(bottom=.10, top=.90, left=.13, right=.99, wspace=.35, hspace=.05)
 # INCLUDE_ERRORS = False
 # COLUMNS = 2
 # SIZE = (7.5, 9.0)
@@ -38,7 +38,7 @@ MARGIN = dict(bottom=.10, top=.90, left=.11, right=.99, wspace=.41, hspace=.05)
 
 if len(sys.argv) <= 1:
 	# FILENAME = '../../working/ensemble-solenoid.csv'
-	FILENAME = '../../working/ensemble_3_9_4_2_1000_2021-04-30.csv'
+	FILENAME = '../../working/ensemble_4_9_5_2_2000_2021-05-17.csv'
 else:
 	FILENAME = '../../working/'+sys.argv[1]
 BIN_WIDTH = 0.3 # in bels
@@ -66,12 +66,9 @@ Y_LABELS = [
 	# ("dTi/dt at BT (keV/(100ps))", -2.5, 2.3, 6.3, 1.9, False),
 	# ("d^2Ti/dt^2 at BT (keV/ns^2)", -2200, -500, 1200, 400, False),#("dTi/dt at stagnation (keV/(100ps))", -20, 30.20, 40, 1.9, False),
 	# ("d^2V/dt^2/V at BT (1/ns^2)", -60, 24.18, 110, 50, False),
-	("ρR at BT (g/cm^2)", 0.78, 0.961111, 1.22, 0, True),
-	("Ti at BT (keV)", 5, 7.45, 11, 0, False),#7.63848, 11, 0, False),
-	("Stagnation - BT (ps)", -100, -51.4696 , 100, 0, False)
-	# ("ρR at BT (g/cm^2)", 0.48, 0.886329, 0.92, 0, True),
-	# ("Ti at BT (keV)", 5, 4.82550 , 13, 0, False),
-	# ("Stagnation - BT (ps)", -100, 34.7735 , 100, 0, False)
+	("Ti at BT (keV)", 5, 7.29, 11, 0, False),#7.63848, 11, 0, False),
+	("ρR at BT (g/cm^2)", 0.78, 1.03, 1.22, 0, False),
+	("Stagnation - BT (ps)", -100, -58.1 , 100, 0, False)
 ]
 
 
@@ -243,11 +240,11 @@ if INCLUDE_ERRORS:
 		y_factor = np.interp(bin_centers, x[order], y_factor[order])
 		if not percent:
 			ax.plot(bin_centers, stds, 'C0-', label="Standard deviation from actuality")
-			ax.plot(bin_centers, y_factor*presis, 'C1--', label="Required accuracy")
+			# ax.plot(bin_centers, y_factor*presis, 'C1--', label="Required accuracy")
 			ax.plot(bin_centers, errs, 'C3--', label="Reported error bar size")
 		else:
 			ax.plot(bin_centers, stds, 'C0-', label="Standard deviation from actuality")
-			ax.plot(bin_centers, np.full(bin_centers.shape, presis), 'C1--', label="Required accuracy")
+			# ax.plot(bin_centers, np.full(bin_centers.shape, presis), 'C1--', label="Required accuracy")
 			ax.plot(bin_centers, errs/(y_factor*y_true), 'C3--', label="Reported error bar size")
 		if np.max(errs)/np.max(errs) > 10:
 			ax.set_yscale('log')

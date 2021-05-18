@@ -120,7 +120,7 @@ public class SpectrumViewer extends Application {
 		leftPane.add(new Label("mm"), 2, row);
 		row ++;
 		
-		this.foilThickness = new Spinner<Double>(5., 500., 100., 5.);
+		this.foilThickness = new Spinner<Double>(5., 500., 90., 5.);
 		leftPane.add(new Label("Foil thickness"), 0, row);
 		leftPane.add(foilThickness, 1, row);
 		leftPane.add(new Label("μm"), 2, row);
