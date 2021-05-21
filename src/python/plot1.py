@@ -1,12 +1,14 @@
 import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
 import sys
+matplotlib.rc('font', size=18)
 
 if len(sys.argv) <= 1:
 	import os
 	os.chdir('../..')
 	print(os.getcwd())
-	xlabel, ylabels, title, answer, n = 'Time (ns)', 'Ti (keV)\nρR (g/cm^2)\nYn (10^15/ns)', 'data', 'og', 3
+	xlabel, ylabels, title, answer, n = 'Time (ns)', 'Ti (keV)\nρR (g/cm^2)\nYn (10^15/ns)', 'data', 'marginal', 3
 else:
 	xlabel, ylabels, title, answer, n = sys.argv[1:]
 
@@ -45,7 +47,7 @@ for i in range(n):
 
 	rainge = {'Y':(0,None), 'T':(0,10), 'ρ':(0,1.5), 'V':(-100,100), 'a':(-1, 1)}[ylabels[i][0]]
 	YAs[i][np.isnan(ΔAs[i])] = np.nan
-	plots.append(axes[i].plot(XA, YAs[i], label=ylabels[i], color=f'C{i}')[0])
+	plots.append(axes[i].plot(XA, YAs[i], '-o', label=ylabels[i], color=f'C{i}')[0])
 	if True:     axes[i].plot(XB, YBs[i], '--', color=f'C{i}')[0]
 	axes[i].fill_between(XA, YAs[i] - ΔAs[i], YAs[i] + ΔAs[i], color='C'+str(i), alpha=0.3)
 	axes[i].set_ylabel(ylabels[i])

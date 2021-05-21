@@ -38,11 +38,11 @@ MARGIN = dict(bottom=.10, top=.90, left=.13, right=.99, wspace=.35, hspace=.05)
 
 if len(sys.argv) <= 1:
 	# FILENAME = '../../working/ensemble-solenoid.csv'
-	FILENAME = '../../working/ensemble_4_9_5_2_2000_2021-05-17.csv'
+	FILENAME = '../../working/ensemble_4_9_5_2_2000_2021-05-21.csv'
 else:
 	FILENAME = '../../working/'+sys.argv[1]
 BIN_WIDTH = 0.3 # in bels
-REFERENCE_YIELD = 1.51e16
+REFERENCE_YIELD = 1e16
 
 X_LABEL = "Yield"
 
@@ -59,16 +59,16 @@ Y_LABELS = [
 	# ("Bang time (ns)", 16.344, 16.2596, 16.386, 1e-2, False), ("Burn width (ps)", 53, 66.16, 82, 7, False),
 	# ("Burn skewness", -1.8, -.7690, -0.4, 3e-1, False),
 	# ("Burn-average ρR (g/cm^2)", 0.78, .9959, 1.22, 7e-2, True),
+	("ρR at BT (mg/cm^2)", 780, 1024, 1220, 0, False),
 	# ("ρR at stagnation (g/cm^2)", 0.9, 1.39, 1.7, 0, False),
 	# ("Burn-average Ti (keV)", 5.4, 7.144, 8.6, 7e-2, True),
+	("Ti at BT (keV)", 5.7, 7.32, 8.8, 0, False),#7.63848, 11, 0, False),
 	# ("Peak Ti (keV)", 5, 8.073, 13, 0, False),	#("Energy confinement time (ps)", 0, 114.8, 200, 0, False),
 	# ("dTi/dt at BT (keV/(100ps))", 1.5, 2.3, 12, 1.9, False),
 	# ("dTi/dt at BT (keV/(100ps))", -2.5, 2.3, 6.3, 1.9, False),
 	# ("d^2Ti/dt^2 at BT (keV/ns^2)", -2200, -500, 1200, 400, False),#("dTi/dt at stagnation (keV/(100ps))", -20, 30.20, 40, 1.9, False),
 	# ("d^2V/dt^2/V at BT (1/ns^2)", -60, 24.18, 110, 50, False),
-	("Ti at BT (keV)", 5, 7.29, 11, 0, False),#7.63848, 11, 0, False),
-	("ρR at BT (g/cm^2)", 0.78, 1.03, 1.22, 0, False),
-	("Stagnation - BT (ps)", -100, -58.1 , 100, 0, False)
+	("Stagnation - BT (ps)", -160, -55.5 , 40, 0, False)
 ]
 
 
@@ -249,6 +249,8 @@ if INCLUDE_ERRORS:
 		if np.max(errs)/np.max(errs) > 10:
 			ax.set_yscale('log')
 			ax.set_ylim(presis*3.2e-2, presis*5)
+		else:
+			ax.set_ylim(0, None)
 		if 'ield' in X_LABEL:
 			ax.set_xscale('log')
 		if not percent:
@@ -260,7 +262,7 @@ if INCLUDE_ERRORS:
 			ax.set_ylabel(text_wrap(re.sub(r'(\([^)]+\))?$', '', axis) + " error"))
 
 config = '-'+FILENAME[23:36] if len(FILENAME) > 23 else ''
-fig.savefig('../../working/mrst{}.eps'.format(config))
-fig.savefig('../../working/mrst{}.png'.format(config))
+fig.savefig('../../working/mrst{}.eps'.format(config), dpi=300)
+fig.savefig('../../working/mrst{}.png'.format(config), dpi=300)
 
 plt.show()
