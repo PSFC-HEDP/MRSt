@@ -296,16 +296,14 @@ public class NumericalMethods {
 		double xR = Double.POSITIVE_INFINITY;
 		for (int i = max + 1; i < y.length; i ++) {
 			if (y[i] < y[max]/2.) {
-				double c = (y[max]/2. - y[i])/(y[i-1] - y[i]);
-				xR = (c*x[i+1] + x[i] + (1-c)*x[i-1])/2.;
+				xR = interp(y[max]/2., y[i-1], y[i], (x[i-1]/x[i])/2., (x[i]+x[i+1])/2.);
 				break;
 			}
 		}
 		double xL = Double.NEGATIVE_INFINITY;
 		for (int i = max; i >= 1; i --) {
 			if (y[i-1] < y[max]/2.) {
-				double c = (y[max]/2. - y[i])/(y[i-1] - y[i]);
-				xL = (c*x[i+1] + x[i] + (1-c)*x[i-1])/2.;
+				xR = interp(y[max]/2., y[i-1], y[i], (x[i-1]/x[i])/2., (x[i]+x[i+1])/2.);
 				break;
 			}
 		}
@@ -575,6 +573,18 @@ public class NumericalMethods {
 		return (i0+1-i)*x[i0] + (i-i0)*x[i0+1];
 	}
 	
+	/** interpolate a value onto a line
+	 * @param x
+	 * @param x1
+	 * @param x2
+	 * @param y1
+	 * @param y2
+	 * @return
+	 */
+	public static double interp(double x, double x1, double x2, double y1, double y2) {
+		return y1 + (x - x1)/(x2 - x1)*(y2 - y1);
+	}
+	
 	/**
 	 * take the floating-point index of an array using linear interpolation.
 	 * @param x the array of values
@@ -698,17 +708,86 @@ public class NumericalMethods {
 	}
 	
 	/**
-	 * find the finite difference derivative. for best results, x should be evenly spaced.
+	 * interpolate a derivative at a point.  for best results, x should be evenly spaced.
 	 * @param x the x values
 	 * @param y the corresponding y values
 	 * @param x the time at which to computer it
-	 * @param Δx the time interval over which to compute it
 	 * @return the slope dy/dx at each point
 	 */
-	public static Quantity derivative(double[] x, Quantity[] y, Quantity x0, double Δx) {
+	public static Quantity derivative(double[] x, Quantity[] y, Quantity x0) {
 		if (x.length != y.length)
 			throw new IllegalArgumentException("Array lengths do not correspond.");
-		return interp(x0.plus(Δx/2.), x, y).minus(interp(x0 .minus(Δx/2.), x, y)).over(Δx);
+		return interp(x0, x, derivative(x, y));
+	}
+	
+	/**
+	 * interpolate a second derivative at a point.  for best results, x should be evenly spaced.
+	 * @param x the x values
+	 * @param y the corresponding y values
+	 * @param x the time at which to computer it
+	 * @return the slope dy/dx at each point
+	 */
+	public static Quantity secondDerivative(double[] x, Quantity[] y, Quantity x0) {
+		if (x.length != y.length)
+			throw new IllegalArgumentException("Array lengths do not correspond.");
+		return interp(x0, x, secondDerivative(x, y));
+	}
+	
+	/**
+	 * fit to a parabola and find the nth derivative.  x must be evenly spaced.
+	 * @param x
+	 * @param y
+	 * @param x0
+	 * @param Δx
+	 * @return
+	 */
+	public static Quantity derivative(double[] x, Quantity[] y, Quantity x0, double Δx, int n) {
+		double dx = x[1] - x[0];
+		Quantity[] weights = new Quantity[x.length];
+		double weightsSum = 0;
+		for (int i = 0; i < x.length; i ++) {
+			if (x[i] <= x0.minus(Δx/2 + dx/2).value)
+				weights[i] = new Quantity(0, x0.getN());
+			else if (x[i] <= x0.minus(Δx/2 - dx/2).value)
+				weights[i] = x0.minus(Δx/2 + dx/2).minus(x0).over(-dx);
+			else if (x[i] <= x0.plus(Δx/2 - dx/2).value)
+				weights[i] = new Quantity(1, x0.getN());
+			else if (x[i] <= x0.plus(Δx/2 + dx/2).value)
+				weights[i] = x0.plus(Δx/2 + dx/2).minus(x0).over(dx);
+			else
+				weights[i] = new Quantity(0, x0.getN());
+			weightsSum += weights[i].value;
+		}
+		for (Quantity weight : weights)
+			System.out.print(weight.value+", ");
+		System.out.println();
+		
+		double[] xMoments = new double[5];
+		Quantity[] yMoments = new Quantity[3];
+		for (int j = 0; j < 5; j ++)
+				yMoments[j] = new Quantity(0, x0.getN());
+		for (int i = 0; i < x.length; i ++) {
+			for (int j = 0; j < 5; j ++)
+				xMoments[j] = xMoments[j] +
+						weights[i].value * Math.pow(x[i], j) / weightsSum;
+			for (int j = 0; j < 3; j ++)
+				yMoments[j] = yMoments[j].plus(
+						weights[i].times(y[i]).times(Math.pow(x[i], j))).over(weightsSum);
+		}
+		
+		if (n == 1) {
+			return yMoments[0].times(xMoments[0]).minus(yMoments[1]).over(xMoments[1]*xMoments[1] - xMoments[2]);
+		}
+		if (n == 2) {
+			double[][] mat = new double[3][3];
+			for (int i = 0; i < 3; i ++)
+				for (int j = 0; j < 3; j ++)
+					mat[i][j] = xMoments[2 + i - j];
+			double[][] matInv = matinv(mat);
+			return yMoments[0].times(matInv[0][0]).plus(yMoments[1].times(matInv[0][1])).plus(yMoments[2].times(matInv[0][2]));
+		}
+		else
+			throw new IllegalArgumentException("I don't do that derivative.");
 	}
 	
 	/**
