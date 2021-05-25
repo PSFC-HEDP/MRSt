@@ -749,22 +749,19 @@ public class NumericalMethods {
 			if (x[i] <= x0.minus(Δx/2 + dx/2).value)
 				weights[i] = new Quantity(0, x0.getN());
 			else if (x[i] <= x0.minus(Δx/2 - dx/2).value)
-				weights[i] = x0.minus(Δx/2 + dx/2).minus(x0).over(-dx);
+				weights[i] = x0.minus(Δx/2 + dx/2).minus(x[i]).over(-dx);
 			else if (x[i] <= x0.plus(Δx/2 - dx/2).value)
 				weights[i] = new Quantity(1, x0.getN());
 			else if (x[i] <= x0.plus(Δx/2 + dx/2).value)
-				weights[i] = x0.plus(Δx/2 + dx/2).minus(x0).over(dx);
+				weights[i] = x0.plus(Δx/2 + dx/2).minus(x[i]).over(dx);
 			else
 				weights[i] = new Quantity(0, x0.getN());
 			weightsSum += weights[i].value;
 		}
-		for (Quantity weight : weights)
-			System.out.print(weight.value+", ");
-		System.out.println();
 		
 		double[] xMoments = new double[5];
 		Quantity[] yMoments = new Quantity[3];
-		for (int j = 0; j < 5; j ++)
+		for (int j = 0; j < 3; j ++)
 				yMoments[j] = new Quantity(0, x0.getN());
 		for (int i = 0; i < x.length; i ++) {
 			for (int j = 0; j < 5; j ++)
