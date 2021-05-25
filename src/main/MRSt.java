@@ -84,7 +84,7 @@ public class MRSt {
 	private static final double MIN_E = 12, MAX_E = 16; // histogram bounds [MeV]
 	private static final double T_BUFFER = 0.10; // empty space to simulate on each side [ns]
 	private static final double E_RESOLUTION = .09, T_RESOLUTION = 40e-3; // resolutions [MeV], [ns]
-	private static final int TRANSFER_MATRIX_TRIES = 1000; // the number of points to sample in each column of the transfer matrix
+	private static final int TRANSFER_MATRIX_TRIES = 10000; // the number of points to sample in each column of the transfer matrix
 	private static final double TRANSFER_FUNC_ERROR = 0.00; // the error in the transfer function
 	
 	private static final Random RANDOM = new Random(0);
@@ -787,15 +787,15 @@ public class MRSt {
 				NumericalMethods.average(measurements[4], measurements[0]),
 				NumericalMethods.quadInterp(measurements[4], iPC),
 				NumericalMethods.quadInterp(measurements[4], iBT),
-				NumericalMethods.derivative(timeAxis, measurements[4], bangTime),
+				NumericalMethods.derivative(timeAxis, measurements[4], bangTime, .12, 1),
 				NumericalMethods.derivative(timeAxis, V, bangTime, .12, 2).over(NumericalMethods.interp(V, iBT)),
 				NumericalMethods.average(measurements[1], measurements[0]),
 				NumericalMethods.quadInterp(measurements[1], iTPeak),
 				NumericalMethods.quadInterp(measurements[1], iBT),
-				NumericalMethods.derivative(timeAxis, measurements[1], bangTime),
+				NumericalMethods.derivative(timeAxis, measurements[1], bangTime, .12, 1),
 				NumericalMethods.derivative(timeAxis, measurements[1], bangTime, .12, 2),
 				NumericalMethods.average(measurements[3], measurements[0]),
-				NumericalMethods.derivative(timeAxis, measurements[3], bangTime),
+				NumericalMethods.derivative(timeAxis, measurements[3], bangTime, .12, 1),
 		}; // collect the figures of merit
 		
 		if (logger != null) {

@@ -708,32 +708,6 @@ public class NumericalMethods {
 	}
 	
 	/**
-	 * interpolate a derivative at a point.  for best results, x should be evenly spaced.
-	 * @param x the x values
-	 * @param y the corresponding y values
-	 * @param x the time at which to computer it
-	 * @return the slope dy/dx at each point
-	 */
-	public static Quantity derivative(double[] x, Quantity[] y, Quantity x0) {
-		if (x.length != y.length)
-			throw new IllegalArgumentException("Array lengths do not correspond.");
-		return interp(x0, x, derivative(x, y));
-	}
-	
-	/**
-	 * interpolate a second derivative at a point.  for best results, x should be evenly spaced.
-	 * @param x the x values
-	 * @param y the corresponding y values
-	 * @param x the time at which to computer it
-	 * @return the slope dy/dx at each point
-	 */
-	public static Quantity secondDerivative(double[] x, Quantity[] y, Quantity x0) {
-		if (x.length != y.length)
-			throw new IllegalArgumentException("Array lengths do not correspond.");
-		return interp(x0, x, secondDerivative(x, y));
-	}
-	
-	/**
 	 * fit to a parabola and find the nth derivative.  x must be evenly spaced.
 	 * @param x
 	 * @param y
@@ -744,7 +718,6 @@ public class NumericalMethods {
 	public static Quantity derivative(double[] x, Quantity[] y, Quantity x0, double Δx, int n) {
 		double dx = x[1] - x[0];
 		Quantity[] weights = new Quantity[x.length];
-		double weightsSum = 0;
 		for (int i = 0; i < x.length; i ++) {
 			if (x[i] <= x0.minus(Δx/2 + dx/2).value)
 				weights[i] = new Quantity(0, x0.getN());
@@ -756,7 +729,6 @@ public class NumericalMethods {
 				weights[i] = x0.plus(Δx/2 + dx/2).minus(x[i]).over(dx);
 			else
 				weights[i] = new Quantity(0, x0.getN());
-			weightsSum += weights[i].value;
 		}
 		
 		double[] xMoments = new double[5];
@@ -766,14 +738,15 @@ public class NumericalMethods {
 		for (int i = 0; i < x.length; i ++) {
 			for (int j = 0; j < 5; j ++)
 				xMoments[j] = xMoments[j] +
-						weights[i].value * Math.pow(x[i], j) / weightsSum;
+						weights[i].value * Math.pow(x[i], j);
 			for (int j = 0; j < 3; j ++)
 				yMoments[j] = yMoments[j].plus(
-						weights[i].times(y[i]).times(Math.pow(x[i], j))).over(weightsSum);
+						weights[i].times(y[i]).times(Math.pow(x[i], j)));
 		}
 		
 		if (n == 1) {
-			return yMoments[0].times(xMoments[0]).minus(yMoments[1]).over(xMoments[1]*xMoments[1] - xMoments[2]);
+			return yMoments[0].times(xMoments[1]).minus(yMoments[1].times(xMoments[0])).over(
+					xMoments[1]*xMoments[1] - xMoments[2]*xMoments[0]);
 		}
 		if (n == 2) {
 			double[][] mat = new double[3][3];
@@ -781,7 +754,9 @@ public class NumericalMethods {
 				for (int j = 0; j < 3; j ++)
 					mat[i][j] = xMoments[2 + i - j];
 			double[][] matInv = matinv(mat);
-			return yMoments[0].times(matInv[0][0]).plus(yMoments[1].times(matInv[0][1])).plus(yMoments[2].times(matInv[0][2]));
+			return yMoments[0].times(matInv[0][0]).plus(
+					yMoments[1].times(matInv[0][1])).plus(
+					yMoments[2].times(matInv[0][2])).times(2);
 		}
 		else
 			throw new IllegalArgumentException("I don't do that derivative.");
