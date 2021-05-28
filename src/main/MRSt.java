@@ -483,43 +483,49 @@ public class MRSt {
 		final int left = NumericalMethods.firstLocalMin(yieldGess);
 		final int rite = NumericalMethods.lastLocalMin(yieldGess) + 1;
 		
-		double[] opt = new double[5*(rite - left)];
+		double[] opt = new double[4*(rite - left)];
 		double[] dimensionScale = new double[opt.length];
 		double[] lowerBound = new double[opt.length];
 		double[] upperBound = new double[opt.length];
 		for (int j = 0; j < rite - left; j ++) {
 			yieldGess[left+j] = Math.max(yieldGess[left+j], 1/this.efficiency(14e6));
 			double scaledYieldGess = yieldGess[left+j]/timeStep/1e15;
-			double[] gesses = {          scaledYieldGess,  4,  4,    0, 1 }; //inicial gess
-			double[] scales = {      0.5*scaledYieldGess, 10, 10,  200, 1 }; // rough ranges of these variables
-			double[] lowers = {                       0.,  0,  0, -250, 0 }; // lower bounds
-			double[] uppers = { Double.POSITIVE_INFINITY, 20, 20,  250, 4 }; // upper bounds
+			double[] gesses = {          scaledYieldGess,  4,    0, 1 }; //inicial gess
+			double[] scales = {      0.5*scaledYieldGess, 10,  200, 1 }; // rough ranges of these variables
+			double[] lowers = {                       0.,  0, -250, 0 }; // lower bounds
+			double[] uppers = { Double.POSITIVE_INFINITY, 20,  250, 4 }; // upper bounds
 			for (int k = 0; k < scales.length; k ++) {
-				opt[5*j+k] = gesses[k];
-				dimensionScale[5*j+k] = scales[k];
-				lowerBound[5*j+k] = lowers[k];
-				upperBound[5*j+k] = uppers[k];
+				opt[4*j+k] = gesses[k];
+				dimensionScale[4*j+k] = scales[k];
+				lowerBound[4*j+k] = lowers[k];
+				upperBound[4*j+k] = uppers[k];
 			}
 		}
 		
 		double[] smoothingRapper = new double[1];
+		double[] baselineRapper = new double[1];
+		
+		double[] electronTemperature = new double[timeAxis.length];
+		for (int j = 0; j < timeAxis.length; j ++)
+			electronTemperature[j] = 3;
 		
 		Function<double[], Double> logPosterior = (double[] x) -> {
 			final double smoothing = smoothingRapper[0];
+			final double baseline = baselineRapper[0];
 			
-			double[][] params = new double[5][timeAxis.length];
+			double[][] params = new double[4][timeAxis.length];
 			for (int j = 0; j < rite - left; j ++) {
 				for (int k = 0; k < params.length; k ++) {
-					params[k][left+j] = x[5*j+k]; // first unpack the state vector
+					params[k][left+j] = x[4*j+k]; // first unpack the state vector
 					
-					if (params[k][left+j] < lowerBound[5*j+k] ||
-							params[k][left+j] > upperBound[5*j+k]) // check for illegal (prior = 0) values
+					if (params[k][left+j] < lowerBound[4*j+k] ||
+							params[k][left+j] > upperBound[4*j+k]) // check for illegal (prior = 0) values
 						return Double.POSITIVE_INFINITY;
 				}
 			}
 			
 			double[][] teoSpectrum = generateSpectrum(
-					params[0], params[1], params[2], params[3], params[4],
+					params[0], params[1], electronTemperature, params[2], params[3],
 					energyBins, timeBins); // generate the neutron spectrum based on those
 			double[][] fitSpectrum = this.response(
 					energyBins, timeBins, teoSpectrum, false, false); // blur it according to the transfer matrix
@@ -538,11 +544,11 @@ public class MRSt {
 				}
 			}
 			
-			double penalty = 0; // negative log of prior (ignoring global normalization)
+			double penalty = baseline; // negative log of prior (ignoring global normalization)
 			for (int j = left; j < rite; j ++) {
-				penalty += Math.pow(params[3][j]/50, 2)/2; // gaussian prior on velocity
+				penalty += Math.pow(params[2][j]/50, 2)/2; // gaussian prior on velocity
 //				penalty += params[1][j]/10.0 - Math.log(params[1][j])/2.; // gamma prior on temp
-				penalty += params[4][j]/2.0; // exponential prior on areal density
+				penalty += params[3][j]/2.0; // exponential prior on areal density
 			}
 			
 			for (int j = left + 1; j < rite; j ++) {
@@ -556,29 +562,27 @@ public class MRSt {
 				}
 			}
 			
-			for (int j = left + 1; j < rite - 1; j ++) {
-				double Tpp = (params[1][j-1] - 2*params[1][j] + params[1][j+1])/
-						Math.pow(timeStep, 2);
-				double T = (params[1][j-1] + 2*params[1][j] + params[1][j+1])/4;
-				if (Tpp != 0)
-					penalty += smoothing*5e-6*Math.pow(Tpp/T, 2); // encourage a smooth Ti
+			for (int k = 1; k <= 3; k += 2) {
+				for (int j = left; j < rite - 3; j ++) {
+					double Tpp = (params[k][j] - 3*params[k][j+1] + 3*params[k][j+2] - params[k][j+3])/
+							Math.pow(timeStep, 3);
+					double T = (params[k][j] + params[k][j+1] + params[k][j+2] + params[k][j+3])/4;
+					if (Tpp != 0)
+						penalty += smoothing*1e-9*Math.pow(Tpp/T, 2); // encourage a smooth Ti and rR
+				}
 			}
 			
 			for (int j = left + 1; j < rite - 1; j ++) {
-				double Rpp = (params[4][j-1] - 2*params[4][j] + params[4][j+1])/
-						Math.pow(timeStep, 2);
-				double R = (params[4][j-1] + 2*params[4][j] + params[4][j+1])/4;
-				if (Rpp != 0)
-					penalty += smoothing*5e-6*Math.pow(Rpp/R, 2); // encourage a smooth rho-R
-			}
-			
-			for (int j = left + 1; j < rite - 1; j ++) {
-				double Vpp = (params[3][j-1] - 2*params[3][j] + params[3][j+1])/
-						Math.pow(timeStep, 2);
-				penalty += smoothing*5e-6*Math.pow(Vpp/50, 2); // encourage a smooth ion velocity
+				double Vpp = (params[2][j-1] - 2*params[2][j] + params[2][j+1])/
+						Math.pow(timeStep, 3);
+				penalty += smoothing*2e-6*Math.pow(Vpp/50, 2); // encourage a smooth ion velocity
 			}
 			
 //			System.out.println(penalty+" + "+error);
+			if (baseline == 0) { // the first time this function is called
+				baselineRapper[0] = -(penalty + error); // save its value as the baseline
+				return 0.0;
+			}
 			return penalty + error;
 		};
 		
@@ -595,13 +599,13 @@ public class MRSt {
 		if (logger != null) logger.log(Level.FINE, "Performing final fit pass...");
 		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, .001*precision);
 		
-		this.measurements = new Quantity[5][timeAxis.length]; // unpack the optimized vector
+		this.measurements = new Quantity[4][timeAxis.length]; // unpack the optimized vector
 		for (int j = 0; j < timeAxis.length; j ++) {
 			if (j >= left && j < rite) {
 				for (int k = 0; k < measurements.length; k ++) {
 					double[] grad = new double[opt.length];
-					grad[5*(j-left)+k] = 1;
-					measurements[k][j] = new Quantity(opt[5*(j-left)+k], grad);
+					grad[4*(j-left)+k] = 1;
+					measurements[k][j] = new Quantity(opt[4*(j-left)+k], grad);
 				}
 			}
 			else {
@@ -612,7 +616,7 @@ public class MRSt {
 		}
 		
 		this.fitNeutronSpectrum = generateSpectrum( // and then interpret it
-				getNeutronYield(), getIonTemperature(), getElectronTemperature(),
+				getNeutronYield(), getIonTemperature(), electronTemperature,
 				getFlowVelocity(), getArealDensity(), energyBins, timeBins);
 		this.fitDeuteronSpectrum = this.response(energyBins, timeBins, fitNeutronSpectrum,
 				false, false);
@@ -682,13 +686,12 @@ public class MRSt {
 		else if (errorBars == ErrorMode.STATISTICS) {
 			covarianceMatrix = new double[opt.length][opt.length];
 			for (int j = 0; j < rite - left; j ++) {
-				double statistics = 1 + opt[5*j+0]*timeStep*1e15*this.efficiency(14e6); // total deuteron yield from this neutron time bin
-				double dsStatistics = 1 + opt[5*j+0]*timeStep*1e15*this.efficiency(14e6)*opt[5*j+4]/21.;
-				covarianceMatrix[5*j+0][5*j+0] = Math.pow(opt[5*j+0], 2)/statistics;
-				covarianceMatrix[5*j+1][5*j+1] = Math.pow(opt[5*j+1], 2)*2/(statistics - 1);
-				covarianceMatrix[5*j+2][5*j+2] = 10;
-				covarianceMatrix[5*j+3][5*j+3] = .4034*14*opt[5*j+1]/1e3/statistics/Math.pow(.54e-3, 2);
-				covarianceMatrix[5*j+4][5*j+4] = Math.pow(opt[5*j+4], 2)/dsStatistics;
+				double statistics = 1 + opt[4*j+0]*timeStep*1e15*this.efficiency(14e6); // total deuteron yield from this neutron time bin
+				double dsStatistics = 1 + opt[4*j+0]*timeStep*1e15*this.efficiency(14e6)*opt[4*j+3]/21.;
+				covarianceMatrix[4*j+0][4*j+0] = Math.pow(opt[4*j+0], 2)/statistics;
+				covarianceMatrix[4*j+1][4*j+1] = Math.pow(opt[4*j+1], 2)*2/(statistics - 1);
+				covarianceMatrix[4*j+2][4*j+2] = .4034*14*opt[4*j+1]/1e3/statistics/Math.pow(.54e-3, 2);
+				covarianceMatrix[4*j+3][4*j+3] = Math.pow(opt[4*j+3], 2)/dsStatistics;
 			}
 		}
 		else {
@@ -700,11 +703,11 @@ public class MRSt {
 			logger.info(String.format(Locale.US, "completed in %.2f minutes.",
 					(endTime - startTime)/60000.));
 		
-		Quantity[] V = new Quantity[measurements[4].length]; // this is not really volume; it is (ρR)^(-2/3)
+		Quantity[] V = new Quantity[measurements[3].length]; // this is not really volume; it is (ρR)^(-2/3)
 		for (int j = 0; j < V.length; j ++)
-			V[j] = measurements[4][j].pow(-1.5);
+			V[j] = measurements[3][j].pow(-1.5);
 		
-		Quantity iPC = NumericalMethods.quadargmax(left, rite, measurements[4]); // index of max compression
+		Quantity iPC = NumericalMethods.quadargmax(left, rite, measurements[3]); // index of max compression
 		Quantity peakCompress = NumericalMethods.interp(timeAxis, iPC); // time of max compression
 		Quantity iTPeak = NumericalMethods.quadargmax(left, rite, measurements[1]);
 		Quantity[] moments = new Quantity[5];
@@ -716,18 +719,18 @@ public class MRSt {
 				moments[0].times(timeStep), bangTime,
 				moments[2].sqrt().times(2.355), moments[3], moments[4],
 				peakCompress.minus(bangTime),
-				NumericalMethods.average(measurements[4], measurements[0], left, rite),
-				NumericalMethods.quadInterp(measurements[4], iPC),
-				NumericalMethods.quadInterp(measurements[4], iBT),
-				NumericalMethods.derivative(timeAxis, measurements[4], bangTime, .1, 1),
+				NumericalMethods.average(measurements[3], measurements[0], left, rite),
+				NumericalMethods.quadInterp(measurements[3], iPC),
+				NumericalMethods.quadInterp(measurements[3], iBT),
+				NumericalMethods.derivative(timeAxis, measurements[3], bangTime, .1, 1),
 				NumericalMethods.derivative(timeAxis, V, bangTime, .1, 2).over(NumericalMethods.interp(V, iBT)),
 				NumericalMethods.average(measurements[1], measurements[0], left, rite),
 				NumericalMethods.quadInterp(measurements[1], iTPeak),
 				NumericalMethods.quadInterp(measurements[1], iBT),
 				NumericalMethods.derivative(timeAxis, measurements[1], bangTime, .1, 1),
 				NumericalMethods.derivative(timeAxis, measurements[1], bangTime, .1, 2),
-				NumericalMethods.average(measurements[3], measurements[0], left, rite),
-				NumericalMethods.derivative(timeAxis, measurements[3], bangTime, .1, 1),
+				NumericalMethods.average(measurements[2], measurements[0], left, rite),
+				NumericalMethods.derivative(timeAxis, measurements[2], bangTime, .1, 1),
 		}; // collect the figures of merit
 		
 		if (logger != null) {
@@ -1067,28 +1070,28 @@ public class MRSt {
 		return NumericalMethods.stds(this.measurements[1], this.covarianceMatrix);
 	}
 	
-	/**
-	 * get the electron temperature mean values in [keV]
-	 * @return
-	 */
-	public double[] getElectronTemperature() {
-		return NumericalMethods.modes(this.measurements[2]);
-	}
-	
-	/**
-	 * get the electron temperature error bars in [keV]
-	 * @return
-	 */
-	public double[] getElectronTemperatureError() {
-		return NumericalMethods.stds(this.measurements[2], this.covarianceMatrix);
-	}
+//	/**
+//	 * get the electron temperature mean values in [keV]
+//	 * @return
+//	 */
+//	public double[] getElectronTemperature() {
+//		return NumericalMethods.modes(this.measurements[2]);
+//	}
+//	
+//	/**
+//	 * get the electron temperature error bars in [keV]
+//	 * @return
+//	 */
+//	public double[] getElectronTemperatureError() {
+//		return NumericalMethods.stds(this.measurements[2], this.covarianceMatrix);
+//	}
 	
 	/**
 	 * get the bulk flow mean values in [km/s]
 	 * @return
 	 */
 	public double[] getFlowVelocity() {
-		return NumericalMethods.modes(this.measurements[3]);
+		return NumericalMethods.modes(this.measurements[2]);
 	}
 	
 	/**
@@ -1096,7 +1099,7 @@ public class MRSt {
 	 * @return
 	 */
 	public double[] getFlowVelocityError() {
-		return NumericalMethods.stds(this.measurements[3], this.covarianceMatrix);
+		return NumericalMethods.stds(this.measurements[2], this.covarianceMatrix);
 	}
 	
 	/**
@@ -1104,7 +1107,7 @@ public class MRSt {
 	 * @return
 	 */
 	public double[] getArealDensity() {
-		return NumericalMethods.modes(this.measurements[4]);
+		return NumericalMethods.modes(this.measurements[3]);
 	}
 	
 	/**
@@ -1112,7 +1115,7 @@ public class MRSt {
 	 * @return
 	 */
 	public double[] getArealDensityError() {
-		return NumericalMethods.stds(this.measurements[4], this.covarianceMatrix);
+		return NumericalMethods.stds(this.measurements[3], this.covarianceMatrix);
 	}
 	
 	

@@ -161,18 +161,16 @@ public class ConsoleEvaluator {
 						for (int i = 4; i < results[T+numThreads*k].length; i ++)
 							results[T+numThreads*k][i] = Double.NaN;
 					
-					if ((k+1)%10 == 0) {
-//						while (!isAvailable(new File("working/"+filename+".csv"))) {}
+					if (T == 0 && (k+1)%5 == 0)
 						save(results, filename, logger);
-					}
 				}
 			});
 			threads[t].start();
 		}
 		
-		for (int t = 0; t < numThreads; t ++)
+		for (int t = 0; t < numThreads; t ++) // wait for all threads to finish
 			while (threads[t].isAlive()) {}
-		save(results, filename, logger);
+		save(results, filename, logger); // and then, finally, save the result
 	}
 	
 	private static void save(double[][] results, String filename, Logger logger) {
