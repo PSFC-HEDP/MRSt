@@ -30,6 +30,7 @@ import java.util.logging.FileHandler;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
 import main.CSV.COSYMapping;
 import main.MRSt.ErrorMode;
 
@@ -67,98 +68,119 @@ public class ConsoleEvaluator {
 		String implosionName = "og";
 		if (args.length > 5)
 			implosionName = args[5];
+		int numThreads = Math.min(10, Runtime.getRuntime().availableProcessors());
 		
 		String filename = String.format("ensemble_%.0f_%.0f_%.0f_%.0f_%d_%tF", foilRadius/1e-4, foilThickness/1e-5, apertureWidth/1e-3, apertureHeight/1e-2, numYields, System.currentTimeMillis());
 		
+		System.setProperty("java.util.logging.SimpleFormatter.format",
+				"%1$tF %1$tT | %4$-7s | %5$s%6$s%n");
 		Logger logger = Logger.getLogger("main");
 		logger.setUseParentHandlers(false);
 		logger.setLevel(Level.ALL);
 		Handler consoleHandler = new ConsoleHandler();
-		consoleHandler.setLevel(Level.FINER);
+		consoleHandler.setLevel(Level.FINE);
 		logger.addHandler(consoleHandler);
 		Handler logfileHandler = new FileHandler("working/"+filename+".log");
 		logger.addHandler(logfileHandler);
-		logger.log(Level.INFO, "beginning "+numYields+" evaluations");
+		logger.log(Level.INFO, "beginning "+numYields+" evaluations on "+numThreads+" cores");
 		
-		MRSt mc = null;
-		try {
-			COSYMapping map = CSV.readCosyCoefficients(new File("data/MRSt_IRF_FP tilted_final.txt"), 3);
-			double[][] cosyCoefficients = map.coefficients;
-			int[][] cosyExponents = map.exponents;
-			mc = new MRSt(
-					Particle.D,
-					3e-3,
-					2*foilRadius,
-					2*foilRadius,
-					foilThickness,
-					CSV.read(new File("data/stopping_power_deuterons.csv"), ','),
-					6e0,
-					apertureWidth,
-					apertureHeight,
-					COSY_MINIMUM_ENERGY,
-					COSY_MAXIMUM_ENERGY,
-					COSY_REFERENCE_ENERGY,
-					cosyCoefficients,
-					cosyExponents,
-					68,
-					.1,
-					logger); // make the simulation
-		} catch (Exception e) {
-			logger.log(Level.SEVERE, e.getMessage(), e);
-		}
-		
+		Thread[] threads = new Thread[numThreads];
 		double[][] results = new double[numYields][MRSt.HEADERS_WITH_ERRORS.length];
-		for (int k = 0; k < numYields; k ++) {
-			double[] eBins = null, tBins = null;
-			double[][] spec = null;
-			try {
-				eBins = CSV.readColumn(new File("data/energy.txt"));
-				tBins = CSV.readColumn(new File("data/time "+implosionName+".txt"));
-				spec = CSV.read(new File("data/spectrum "+implosionName+".txt"), '\t');
-				if (spec.length != eBins.length-1 || spec[0].length != tBins.length-1) {
-					System.out.println("interpreting a weird spectrum file...");
-					spec = MRSt.interpretSpectrumFile(tBins, eBins, spec);
-				}
-			} catch (ArrayIndexOutOfBoundsException | NumberFormatException e) {
-				logger.log(Level.SEVERE, e.getMessage(), e);
-			} catch (IOException e) {
-				logger.log(Level.SEVERE, e.getMessage(), e);
-			}
-			
-			double yield = Math.pow(10, -3.*Math.random());
-			MRSt.modifySpectrum(tBins, eBins, spec, yield, 1, 1, 0);
-			
-			logger.log(Level.INFO, String.format("Yn = %f (%d/%d)", yield, k, numYields));
-			
-			double[] result;
-			try {
-				result = mc.respond(
-						eBins,
-						tBins,
-						spec,
-						ErrorMode.HESSIAN); // and run it many times!
-			} catch (Exception e) {
-				logger.log(Level.SEVERE, e.getMessage(), e);
-				result = null;
-			}
-			results[k][0] = yield;
-			results[k][1] = 1;
-			results[k][2] = 1;
-			results[k][3] = 0;
-			if (result != null)
-				System.arraycopy(result, 0, results[k], 4, result.length);
-			else
-				for (int i = 4; i < results[k].length; i ++)
-					results[k][i] = Double.NaN;
-			
-			if ((k+1)%5 == 0 || k+1 == numYields) {
+		for (int t = 0; t < numThreads; t ++) {
+			final int T = t;
+			final String finalImplosionName = implosionName;
+			threads[t] = new Thread(() -> {
+				MRSt mc = null;
 				try {
-					CSV.write(results, new File("working/"+filename+".csv"), ',', MRSt.HEADERS_WITH_ERRORS);
-					logger.log(Level.INFO, "Saved ensemble results to working/"+filename+".csv");
-				} catch (IOException e) {
+					COSYMapping map = CSV.readCosyCoefficients(new File("data/MRSt_IRF_FP tilted_final.txt"), 3);
+					double[][] cosyCoefficients = map.coefficients;
+					int[][] cosyExponents = map.exponents;
+					mc = new MRSt(
+							Particle.D,
+							3e-3,
+							2*foilRadius,
+							2*foilRadius,
+							foilThickness,
+							CSV.read(new File("data/stopping_power_deuterons.csv"), ','),
+							6e0,
+							apertureWidth,
+							apertureHeight,
+							COSY_MINIMUM_ENERGY,
+							COSY_MAXIMUM_ENERGY,
+							COSY_REFERENCE_ENERGY,
+							cosyCoefficients,
+							cosyExponents,
+							68,
+							.1,
+							logger); // make the simulation
+				} catch (Exception e) {
 					logger.log(Level.SEVERE, e.getMessage(), e);
 				}
-			}
+				
+				for (int k = 0; k < numYields/numThreads; k ++) {
+					double[] eBins = null, tBins = null;
+					double[][] spec = null;
+					try {
+						eBins = CSV.readColumn(new File("data/energy.txt"));
+						tBins = CSV.readColumn(new File("data/time "+finalImplosionName+".txt"));
+						spec = CSV.read(new File("data/spectrum "+finalImplosionName+".txt"), '\t');
+						if (spec.length != eBins.length-1 || spec[0].length != tBins.length-1) {
+							System.out.println("interpreting a weird spectrum file...");
+							spec = MRSt.interpretSpectrumFile(tBins, eBins, spec);
+						}
+					} catch (ArrayIndexOutOfBoundsException | NumberFormatException e) {
+						logger.log(Level.SEVERE, e.getMessage(), e);
+					} catch (IOException e) {
+						logger.log(Level.SEVERE, e.getMessage(), e);
+					}
+					
+					double yield = Math.pow(10, -3.*Math.random());
+					MRSt.modifySpectrum(tBins, eBins, spec, yield, 1, 1, 0);
+					
+					logger.log(Level.INFO, String.format("Yn = %f (%d/%d)", yield,
+							T+numThreads*k, numYields));
+					
+					double[] result;
+					try {
+						result = mc.respond(
+								eBins,
+								tBins,
+								spec,
+								ErrorMode.HESSIAN); // and run it many times!
+					} catch (Exception e) {
+						logger.log(Level.SEVERE, e.getMessage(), e);
+						result = null;
+					}
+					results[T+numThreads*k][0] = yield;
+					results[T+numThreads*k][1] = 1;
+					results[T+numThreads*k][2] = 1;
+					results[T+numThreads*k][3] = 0;
+					if (result != null)
+						System.arraycopy(result, 0, results[T+numThreads*k], 4, result.length);
+					else
+						for (int i = 4; i < results[T+numThreads*k].length; i ++)
+							results[T+numThreads*k][i] = Double.NaN;
+					
+					if ((k+1)%10 == 0) {
+//						while (!isAvailable(new File("working/"+filename+".csv"))) {}
+						save(results, filename, logger);
+					}
+				}
+			});
+			threads[t].start();
+		}
+		
+		for (int t = 0; t < numThreads; t ++)
+			while (threads[t].isAlive()) {}
+		save(results, filename, logger);
+	}
+	
+	private static void save(double[][] results, String filename, Logger logger) {
+		try {
+			CSV.write(results, new File("working/"+filename+".csv"), ',', MRSt.HEADERS_WITH_ERRORS);
+			logger.log(Level.INFO, "Saved ensemble results to working/"+filename+".csv");
+		} catch (IOException e) {
+			logger.log(Level.SEVERE, e.getMessage(), e);
 		}
 	}
 }

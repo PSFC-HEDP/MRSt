@@ -297,6 +297,8 @@ public class SpectrumViewer extends Application {
 		console.setEditable(false);
 		console.setPrefWidth(400);
 		console.setFont(Font.font("Monospace"));
+		System.setProperty("java.util.logging.SimpleFormatter.format",
+				"%1$tF %1$tT | %4$-7s | %5$s%6$s%n");
 		logger = Logger.getLogger("main");
 		logger.setLevel(Level.ALL);
 		StreamHandler consoleHandler = new StreamHandler() {

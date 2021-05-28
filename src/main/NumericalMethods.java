@@ -70,18 +70,6 @@ public class NumericalMethods {
 	/**
 	 * draw a number from a Poisson distribution.
 	 * @param λ expectation value
-	 * @return the number
-	 */
-	public static int poisson(double λ) {
-		if (λ < 20)
-			return poisson(λ, Math.random());
-		else
-			return (int) Math.max(0., Math.round(normal(λ, Math.sqrt(λ))));
-	}
-	
-	/**
-	 * draw a number from a Poisson distribution.
-	 * @param λ expectation value
 	 * @param random the rng to use
 	 * @return the number
 	 */
@@ -275,9 +263,22 @@ public class NumericalMethods {
 	 * @param f the weights
 	 */
 	public static Quantity average(Quantity[] y, Quantity[] f) {
+		return average(y, f, 0, y.length);
+	}
+	
+	/**
+	 * compute the averaged value in the given interval
+	 * @param y the values
+	 * @param f the weights
+	 * @param left the starting index (inclusive)
+	 * @param rite the ending index (exclusive)
+	 */
+	public static Quantity average(Quantity[] y, Quantity[] f, int left, int rite) {
+		if (y.length != f.length)
+			throw new IllegalArgumentException("The array lengths don't match.");
 		Quantity p0 = new Quantity(0, y[0].getN());
 		Quantity p1 = new Quantity(0, y[0].getN());
-		for (int i = 0; i < y.length; i ++) {
+		for (int i = left; i < rite; i ++) {
 			p0 = p0.plus(f[i]);
 			p1 = p1.plus(f[i].times(y[i]));
 		}
@@ -287,23 +288,25 @@ public class NumericalMethods {
 	/**
 	 * find the full-width at half-maximum of a distribucion. if it is very noisy, this will
 	 * underestimate the width.
-	 * @param x
-	 * @param y
-	 * @return
+	 * @param x the bin edges
+	 * @param y the number in each bin
+	 * @return the full-width at half-maximum
 	 */
 	public static double fwhm(double[] x, double[] y) {
+		if (x.length != y.length)
+			throw new IllegalArgumentException("the inputs must have the same length.");
 		int max = argmax(y);
 		double xR = Double.POSITIVE_INFINITY;
-		for (int i = max + 1; i < y.length; i ++) {
+		for (int i = max + 1; i < x.length; i ++) {
 			if (y[i] < y[max]/2.) {
-				xR = interp(y[max]/2., y[i-1], y[i], (x[i-1]/x[i])/2., (x[i]+x[i+1])/2.);
+				xR = interp(y[max]/2., y[i-1], y[i], x[i-1], x[i]);
 				break;
 			}
 		}
 		double xL = Double.NEGATIVE_INFINITY;
 		for (int i = max; i >= 1; i --) {
 			if (y[i-1] < y[max]/2.) {
-				xR = interp(y[max]/2., y[i-1], y[i], (x[i-1]/x[i])/2., (x[i]+x[i+1])/2.);
+				xL = interp(y[max]/2., y[i-1], y[i], x[i-1], x[i]);
 				break;
 			}
 		}
@@ -334,18 +337,15 @@ public class NumericalMethods {
 	
 	/**
 	 * do a standard deviation of a not histogram. it's just a list of numbers.
-	 * @param x
-	 * @param y
-	 * @param a
-	 * @param b
-	 * @return
+	 * @param x the array of points
+	 * @return the standard deviation
 	 */
 	public static double std(double[] x) {
 		double mean = 0;
 		double meanSqr = 0;
-		for (int i = 0; i < x.length; i ++) {
-			mean += x[i]/x.length;
-			meanSqr += Math.pow(x[i], 2)/x.length;
+		for (double v: x) {
+			mean += v/x.length;
+			meanSqr += Math.pow(v, 2)/x.length;
 		}
 		return Math.sqrt(meanSqr - Math.pow(mean, 2));
 	}
@@ -390,7 +390,33 @@ public class NumericalMethods {
 		return s;
 	}
 	
-
+	public static int lastIndexBefore(double level, double[] v, int start) {
+		int l = start;
+		while (l-1 >= 0 && v[l-1] > level)
+			l --;
+		return l;
+	}
+	
+	public static int firstIndexAfter(double level, double[] v, int start) {
+		int r = start;
+		while (r < v.length && v[r] > level)
+			r ++;
+		return r;
+	}
+	
+	public static int firstLocalMin(double[] v) {
+		for (int i = 0; i < v.length-1; i ++)
+			if (v[i] < v[i+1])
+				return i;
+		return v.length-1;
+	}
+	
+	public static int lastLocalMin(double[] v) {
+		for (int i = v.length-1; i >= 1; i --)
+			if (v[i] < v[i-1])
+				return i;
+		return 0;
+	}
 	
 	public static double max(double[] arr) {
 		double max = Double.NEGATIVE_INFINITY;
@@ -730,18 +756,23 @@ public class NumericalMethods {
 			else
 				weights[i] = new Quantity(0, x0.getN());
 		}
+//		for (int i = 0; i < x.length; i ++)
+//			System.out.print(weights[i].value+", ");
+//		System.out.println();
 		
 		double[] xMoments = new double[5];
 		Quantity[] yMoments = new Quantity[3];
 		for (int j = 0; j < 3; j ++)
 				yMoments[j] = new Quantity(0, x0.getN());
 		for (int i = 0; i < x.length; i ++) {
-			for (int j = 0; j < 5; j ++)
-				xMoments[j] = xMoments[j] +
-						weights[i].value * Math.pow(x[i], j);
-			for (int j = 0; j < 3; j ++)
-				yMoments[j] = yMoments[j].plus(
-						weights[i].times(y[i]).times(Math.pow(x[i], j)));
+			if (weights[i].value > 0) {
+				for (int j = 0; j < 5; j ++)
+					xMoments[j] = xMoments[j] +
+							weights[i].value * Math.pow(x[i], j);
+				for (int j = 0; j < 3; j ++)
+					yMoments[j] = yMoments[j].plus(
+							weights[i].times(y[i]).times(Math.pow(x[i], j)));
+			}
 		}
 		
 		if (n == 1) {
@@ -885,8 +916,8 @@ public class NumericalMethods {
 	/**
 	 * multiply a vector by a matrix
 	 * @param A matrix
-	 * @param u vector
-	 * @return A.u vector
+	 * @param v vector
+	 * @return A.v vector
 	 */
 	public static double[] matmul(double[][] A, double[] v) {
 		if (A[0].length != v.length)
@@ -1322,13 +1353,16 @@ public class NumericalMethods {
 		}
 
 		public Quantity(double value, Vector gradient) {
-			if (Double.isNaN(value))
-				throw new IllegalArgumentException("I did not account for this!");
 			this.value = value;
 			this.gradient = gradient;
 		}
 		
 		public double variance(double[][] covariance) {
+			if (this.getN() == 0)
+				return 0;
+			if (covariance.length != this.getN() || covariance[0].length != this.getN())
+				throw new IllegalArgumentException("this covariance matrix doesn't go with this Quantity");
+			
 			double variance = this.gradient.dot(new Matrix(covariance).times(this.gradient));
 			if (variance < 0) { // if it doesn't work
 				double[][] newCovariance = new double[covariance.length][covariance.length];
@@ -1403,7 +1437,7 @@ public class NumericalMethods {
 		}
 		
 		/**
-		 * @return the number of variable dimensions in which this exists
+		 * @return the number of variables upon which this depends
 		 */
 		public int getN() {
 			return this.gradient.getN();
@@ -1484,16 +1518,23 @@ public class NumericalMethods {
 	
 	
 	public static final void main(String[] args) {
-		double[][] cov = {{1, 0}, {0, 1}};
-		Quantity x = new Quantity(5, new double[] {1, 0});
-		Quantity y = new Quantity(12, new double[] {0, 1});
-		System.out.println(x.toString(cov));
-		System.out.println(y.toString(cov));
-		System.out.println(x.plus(y).toString(cov));
-		System.out.println(x.minus(y).toString(cov));
-		System.out.println(x.times(y).toString(cov));
-		System.out.println(x.over(y).toString(cov));
-		System.out.println(x.mod(4).toString(cov));
+//		double[][] cov = {{1, 0}, {0, 1}};
+//		Quantity x = new Quantity(5, new double[] {1, 0});
+//		Quantity y = new Quantity(12, new double[] {0, 1});
+//		System.out.println(x.toString(cov));
+//		System.out.println(y.toString(cov));
+//		System.out.println(x.plus(y).toString(cov));
+//		System.out.println(x.minus(y).toString(cov));
+//		System.out.println(x.times(y).toString(cov));
+//		System.out.println(x.over(y).toString(cov));
+//		System.out.println(x.mod(4).toString(cov));
+		
+		double[] x = {16.0285625, 16.0706875, 16.112812500000004, 16.154937500000003, 16.1970625, 16.2391875, 16.281312500000006, 16.323437500000004, 16.365562500000003, 16.4076875, 16.449812500000007, 16.491937500000006};
+		double[] y = {5.044624988888928, 5.017746597737263, 4.590236474732343, 4.886261360749693, 5.626151250994318, 6.979323530404109, 7.509403411786665, 5.7455277194631185, 5.164237249241998, 4.849883756305413, 5.0232564634417525, 5.0496969617639165, };
+		Quantity[] Y = new Quantity[y.length];
+		for (int i = 0; i < y.length; i ++)
+			Y[i] = new Quantity(y[i], 0);
+		System.out.println(derivative(x, Y, new Quantity(16.249, 0), .12, 2).value);
 	}
 	
 }

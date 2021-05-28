@@ -74,16 +74,16 @@ public class MRSt {
 					15.0, 15.5, 16.0, 16.5, 17.0, 17.5, 18.0, 18.5, 19.0, 19.5, 19.85},
 			new double[] {1.62E-06, 4.87E-06, 3.71E-05, 8.85E-05, 0.00024044, 0.0019635, 0.016034, 0.097, 0.17674, 0.21588, 0.21588,
 					0.17674, 0.071859, 0.019584, 0.0056109, 0.00169, 0.00046811, 0.00014583, 4.26E-05, 1.28E-05, 3.68E-06, 1.62E-06}); // [1/MeV]
-	private static final DiscreteFunction DOWN_SCATTER_SPECTRUM = new DiscreteFunction(	
-			new double[] {11.50, 11.75, 12.00, 12.25, 12.50, 12.75, 13.00, 13.25,	
-					13.50, 13.75, 14.00, 14.25, 14.50},	
+	private static final DiscreteFunction DOWN_SCATTER_SPECTRUM = new DiscreteFunction(
+			new double[] {11.50, 11.75, 12.00, 12.25, 12.50, 12.75, 13.00, 13.25,
+					13.50, 13.75, 14.00, 14.25, 14.50},
 			new double[] {0.026877796, 0.029223872, 0.030997082, 0.033544329, 0.035526223, 0.038301112, 0.040480957, 0.043125867,
 					0.045434499, 0.048972573, 0.05105225, 0, 0}, 12); // [1/MeV/(g/cm^2)]
 	
 	private static final int STOPPING_DISTANCE_RESOLUTION = 64;
 	private static final double MIN_E = 12, MAX_E = 16; // histogram bounds [MeV]
-	private static final double T_BUFFER = 0.10; // empty space to simulate on each side [ns]
-	private static final double E_RESOLUTION = .09, T_RESOLUTION = 40e-3; // resolutions [MeV], [ns]
+	private static final int BUFFER = 4; // empty pixels to include simulate on each side [ns]
+	private static final double E_BIN = .09, T_BIN = 20e-3; // resolutions [MeV], [ns]
 	private static final int TRANSFER_MATRIX_TRIES = 10000; // the number of points to sample in each column of the transfer matrix
 	private static final double TRANSFER_FUNC_ERROR = 0.00; // the error in the transfer function
 	
@@ -191,7 +191,7 @@ public class MRSt {
 		this.distanceVsEnergy = distanceVsEnergyRaw.indexed(STOPPING_DISTANCE_RESOLUTION); // m(J)
 		this.energyVsDistance = distanceVsEnergyRaw.inv().indexed(STOPPING_DISTANCE_RESOLUTION); // J(m)
 		
-		this.energyBins = new double[(int) ((MAX_E - MIN_E)/E_RESOLUTION + 1)];
+		this.energyBins = new double[(int) ((MAX_E - MIN_E)/E_BIN + 1)];
 		for (int i = 0; i < energyBins.length; i ++)
 			this.energyBins[i] = (MIN_E + i*(MAX_E - MIN_E)/(energyBins.length-1));
 		
@@ -218,9 +218,9 @@ public class MRSt {
 	 * @param spectrumTimeBins
 	 */
 	private void instantiateTimeAxis(double[] spectrumTimeBins) {
-		double minT = spectrumTimeBins[0] - T_BUFFER;
-		double maxT = spectrumTimeBins[spectrumTimeBins.length-1] + T_BUFFER;
-		this.timeBins = new double[(int) ((maxT - minT)/T_RESOLUTION + 1)];
+		double minT = spectrumTimeBins[0] - BUFFER*T_BIN;
+		double maxT = spectrumTimeBins[spectrumTimeBins.length-1] + BUFFER*T_BIN;
+		this.timeBins = new double[(int) ((maxT - minT)/T_BIN + 1)];
 		for (int i = 0; i < timeBins.length; i ++)
 			this.timeBins[i] = minT + i*(maxT - minT)/(timeBins.length-1);
 		
@@ -284,7 +284,7 @@ public class MRSt {
 				if (Double.isNaN(et[0]))	continue; // sometimes, they won't hit the CsI cathode. That's fine.
 				
 				double energyO = et[0]/1e6, timeO = et[1]/ns; // then convert to the same units as the bins
-//				e = energy/1e6; t = time/1e-9;
+//				energyO = energyI/1e6; timeO = timeI/ns;
 				int eBin = NumericalMethods.bin(energyO, energyBins);
 				int tBin = NumericalMethods.bin(timeO, timeBins);
 				if (eBin >= 0 && eBin < energyBins.length-1 && tBin >= 0 && tBin < timeBins.length-1) // if it falls in detectable bounds
@@ -472,69 +472,51 @@ public class MRSt {
 		
 		double gelf[][] = Optimization.optimizeGelfgat(F, D, this.rongTransferMatrix, 1e5);
 		
-		double[] opt = new double[5*timeAxis.length]; // initial guess for the coming Powell fit
-		double[] yieldGuess = new double[timeAxis.length];
+		double[] yieldGess = new double[timeAxis.length];
 		for (int j = 0; j < timeAxis.length; j ++) {
-			double Δt = timeBins[j+1] - timeBins[j];
-			double[] exp = new double[energyBins.length-1];
+			yieldGess[j] = 0;
 			for (int i = 3; i < energyBins.length-1; i ++) // I'm not sure why the bottom few rows are so unusable
-				exp[i] = gelf[i][j]/Δt;
-			
-			double[] fit = Optimization.minimizeNelderMead((x) -> {
-				if (x[0] < 0)  return Double.POSITIVE_INFINITY;
-				if (x[1] < .5 || x[1] > 18) return Double.POSITIVE_INFINITY;
-				if (x[2] < .5 || x[2] > 18) return Double.POSITIVE_INFINITY;
-				if (Math.abs(x[3]) > 200)   return Double.POSITIVE_INFINITY;
-				if (x[4] < 0 || x[4] > 3)   return Double.POSITIVE_INFINITY;
-				double[] teo = generateSpectrum(x[0], x[1], x[2], x[3], x[4], energyBins);
-				double error = 0;
-				for (int i = 3; i < energyBins.length-1; i ++)
-					error += Math.pow(teo[i] - exp[i], 2)/teo[i] + Math.log(teo[i]);
-				return error;
-			}, new double[] {Math.max(1e-15, NumericalMethods.sum(exp)/1e15), 4, 4, 50, 1}, 1e-8);
-			
-			System.arraycopy(fit, 0, opt, 5*j, 5);
-			yieldGuess[j] = fit[0];
+				yieldGess[j] += gelf[i][j];
 		}
 		
-		int bangIndex = NumericalMethods.argmax(yieldGuess);
-		double meanYield = NumericalMethods.mean(yieldGuess);
-		double[] dimensionScale = new double[5*timeAxis.length];
-		double[] lowerBound = new double[5*timeAxis.length];
-		double[] upperBound = new double[5*timeAxis.length];
-		for (int j = 0; j < timeAxis.length; j ++) {
-			double[] scales = { Math.max(yieldGuess[j]/2., meanYield), 10, 10,  200, 1 }; // rough ranges of these variables
-			double[] lowers = {                                     0,  0,  0, -250, 0 }; // lower bounds
-			double[] uppers = {              Double.POSITIVE_INFINITY, 20, 20,  250, 4 }; // upper bounds
+		final int bangIndex = NumericalMethods.argmax(yieldGess); // approximate BT locacion
+		final int left = NumericalMethods.firstLocalMin(yieldGess);
+		final int rite = NumericalMethods.lastLocalMin(yieldGess) + 1;
+		
+		double[] opt = new double[5*(rite - left)];
+		double[] dimensionScale = new double[opt.length];
+		double[] lowerBound = new double[opt.length];
+		double[] upperBound = new double[opt.length];
+		for (int j = 0; j < rite - left; j ++) {
+			yieldGess[left+j] = Math.max(yieldGess[left+j], 1/this.efficiency(14e6));
+			double scaledYieldGess = yieldGess[left+j]/timeStep/1e15;
+			double[] gesses = {          scaledYieldGess,  4,  4,    0, 1 }; //inicial gess
+			double[] scales = {      0.5*scaledYieldGess, 10, 10,  200, 1 }; // rough ranges of these variables
+			double[] lowers = {                       0.,  0,  0, -250, 0 }; // lower bounds
+			double[] uppers = { Double.POSITIVE_INFINITY, 20, 20,  250, 4 }; // upper bounds
 			for (int k = 0; k < scales.length; k ++) {
+				opt[5*j+k] = gesses[k];
 				dimensionScale[5*j+k] = scales[k];
 				lowerBound[5*j+k] = lowers[k];
 				upperBound[5*j+k] = uppers[k];
 			}
 		}
 		
-		int left = bangIndex; // bounds of data about which we actually care
-		while (left-1 >= 0 && opt[5*(left-1)] > opt[5*bangIndex]/1e3)
-			left --;
-		int rite = bangIndex;
-		while (rite < timeAxis.length && opt[5*(rite)] > opt[5*bangIndex]/1e3)
-			rite ++;
-		
-//		double spectrumScale = NumericalMethods.sum(gelf)/(timeBins.length-1)/(energyBins.length-1); // the characteristic magnitude of the neutron spectrum bins
 		double[] smoothingRapper = new double[1];
 		
 		Function<double[], Double> logPosterior = (double[] x) -> {
 			final double smoothing = smoothingRapper[0];
 			
 			double[][] params = new double[5][timeAxis.length];
-			for (int k = 0; k < params.length; k ++) // first unpack the state vector
-				for (int i = 0; i < params[k].length; i ++)
-					params[k][i] = x[5*i+k];
-			
-			for (int j = 0; j < timeAxis.length; j ++) // check for illegal (prior = 0) values
-				for (int k = 0; k < 5; k ++)
-					if (params[k][j] < lowerBound[5*j+k] || params[k][j] > upperBound[5*j+k])
+			for (int j = 0; j < rite - left; j ++) {
+				for (int k = 0; k < params.length; k ++) {
+					params[k][left+j] = x[5*j+k]; // first unpack the state vector
+					
+					if (params[k][left+j] < lowerBound[5*j+k] ||
+							params[k][left+j] > upperBound[5*j+k]) // check for illegal (prior = 0) values
 						return Double.POSITIVE_INFINITY;
+				}
+			}
 			
 			double[][] teoSpectrum = generateSpectrum(
 					params[0], params[1], params[2], params[3], params[4],
@@ -557,19 +539,13 @@ public class MRSt {
 			}
 			
 			double penalty = 0; // negative log of prior (ignoring global normalization)
-			for (int j = 0; j < spectrum[0].length; j ++) {
-//				for (int i = 0; i < spectrum.length; i ++) {
-//					if (teoSpectrum[i][j] > 1e-20)
-//						penalty += 1e-6*efficiency[i][j]*teoSpectrum[i][j]*
-//								Math.log(teoSpectrum[i][j]/spectrumScale); // encourage entropy
-//				}
-//				penalty += 1e-12*params[0][j]*Math.log(params[0][j]/meanYield); // encourage entropy
+			for (int j = left; j < rite; j ++) {
 				penalty += Math.pow(params[3][j]/50, 2)/2; // gaussian prior on velocity
 //				penalty += params[1][j]/10.0 - Math.log(params[1][j])/2.; // gamma prior on temp
 				penalty += params[4][j]/2.0; // exponential prior on areal density
 			}
 			
-			for (int j = 1; j < timeAxis.length; j ++) {
+			for (int j = left + 1; j < rite; j ++) {
 				double Y = (params[0][j] + params[0][j-1])/2;
 				double Yp = (params[0][j] - params[0][j-1])/timeStep;
 				if (j <= bangIndex) Yp *= -1;
@@ -580,78 +556,64 @@ public class MRSt {
 				}
 			}
 			
-			for (int j = 1; j < timeAxis.length; j ++) {
-				double Tp = (params[1][j-1] - params[1][j])/timeStep;
-				double T = (params[1][j-1] + params[1][j])/2;
-				if (Tp != 0)
-					penalty += smoothing/2000*(Tp*Tp)/T; // encourage a smooth Ti
+			for (int j = left + 1; j < rite - 1; j ++) {
+				double Tpp = (params[1][j-1] - 2*params[1][j] + params[1][j+1])/
+						Math.pow(timeStep, 2);
+				double T = (params[1][j-1] + 2*params[1][j] + params[1][j+1])/4;
+				if (Tpp != 0)
+					penalty += smoothing*5e-6*Math.pow(Tpp/T, 2); // encourage a smooth Ti
 			}
 			
-			for (int j = 1; j < timeAxis.length; j ++) {
-				double Rp = (params[4][j-1] - params[4][j])/timeStep;
-				double R = (params[4][j-1] + params[4][j])/2;
-				if (Rp != 0)
-					penalty += smoothing/100*(Rp*Rp)/R; // encourage a smooth rho-R
+			for (int j = left + 1; j < rite - 1; j ++) {
+				double Rpp = (params[4][j-1] - 2*params[4][j] + params[4][j+1])/
+						Math.pow(timeStep, 2);
+				double R = (params[4][j-1] + 2*params[4][j] + params[4][j+1])/4;
+				if (Rpp != 0)
+					penalty += smoothing*5e-6*Math.pow(Rpp/R, 2); // encourage a smooth rho-R
 			}
 			
-			for (int j = 1; j < timeAxis.length-1; j ++) {
+			for (int j = left + 1; j < rite - 1; j ++) {
 				double Vpp = (params[3][j-1] - 2*params[3][j] + params[3][j+1])/
 						Math.pow(timeStep, 2);
-				penalty += smoothing/1e11*(Vpp*Vpp); // encourage a smooth ion velocity
+				penalty += smoothing*5e-6*Math.pow(Vpp/50, 2); // encourage a smooth ion velocity
 			}
 			
 //			System.out.println(penalty+" + "+error);
 			return penalty + error;
 		};
 		
-		smoothingRapper[0] = 1000;
-		if (logger != null) logger.log(Level.FINE, "Performing preliminary fit pass...");
-		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 100.*precision, 0, timeAxis.length);
 		smoothingRapper[0] = 100;
 		if (logger != null) logger.log(Level.FINE, "Performing ruff fit pass...");
-		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 10.*precision, 0, timeAxis.length);
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 10.*precision);
 		smoothingRapper[0] = 10;
 		if (logger != null) logger.log(Level.FINE, "Performing medium fit pass...");
-		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 1.*precision, 0, timeAxis.length);
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, 1.*precision);
 		smoothingRapper[0] = 3;
 		if (logger != null) logger.log(Level.FINE, "Performing careful fit pass...");
-		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, .1*precision, 0, timeAxis.length);
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, .1*precision);
 		smoothingRapper[0] = 1;
 		if (logger != null) logger.log(Level.FINE, "Performing final fit pass...");
-		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, .001*precision, 0, timeAxis.length);
+		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, .001*precision);
 		
 		this.measurements = new Quantity[5][timeAxis.length]; // unpack the optimized vector
-		for (int k = 0; k < measurements.length; k ++) {
-			for (int j = 0; j < timeAxis.length; j ++) {
-				double[] grad = new double[5*timeAxis.length];
-				grad[5*j+k] = 1;
-				measurements[k][j] = new Quantity(opt[5*j+k], grad);
+		for (int j = 0; j < timeAxis.length; j ++) {
+			if (j >= left && j < rite) {
+				for (int k = 0; k < measurements.length; k ++) {
+					double[] grad = new double[opt.length];
+					grad[5*(j-left)+k] = 1;
+					measurements[k][j] = new Quantity(opt[5*(j-left)+k], grad);
+				}
+			}
+			else {
+				measurements[0][j] = new Quantity(0, opt.length);
+				for (int k = 1; k < measurements.length; k ++)
+					measurements[k][j] = new Quantity(Double.NaN, opt.length);
 			}
 		}
-		
-//		double[][] actual;
-//		try {
-//			actual = CSV.read(new File("data/trajectories og with falling temp.csv"), ',', 1);
-//		} catch (NumberFormatException e) {
-//			actual = null;
-//		} catch (IOException e) {
-//			actual = null;
-//		}
-//		this.measurements = new Quantity[5][timeAxis.length]; // read the actual values
-//		for (int i = 0; i < timeAxis.length; i ++) {
-//			this.timeAxis[i] = actual[i][0];
-//			this.measurements[0][i] = new Quantity(actual[i][1], 5*timeAxis.length);
-//			this.measurements[1][i] = new Quantity(actual[i][4], 5*timeAxis.length);
-//			this.measurements[2][i] = new Quantity(0, 5*timeAxis.length);
-//			this.measurements[3][i] = new Quantity(0, 5*timeAxis.length);
-//			this.measurements[4][i] = new Quantity(actual[i][3], 5*timeAxis.length);
-//		}
-//		errorBars = ErrorMode.NONE;
 		
 		this.fitNeutronSpectrum = generateSpectrum( // and then interpret it
 				getNeutronYield(), getIonTemperature(), getElectronTemperature(),
 				getFlowVelocity(), getArealDensity(), energyBins, timeBins);
-//		this.fitNeutronSpectrum = gelf;
 		this.fitDeuteronSpectrum = this.response(energyBins, timeBins, fitNeutronSpectrum,
 				false, false);
 		
@@ -661,14 +623,14 @@ public class MRSt {
 		if (errorBars == ErrorMode.HESSIAN) {
 			if (logger != null) logger.log(Level.INFO, "calculating error bars.");
 			double c = logPosterior.apply(opt); // start by getting the actual value
-			double[] step = new double[5*timeAxis.length]; // and the values in all basis directions
+			double[] step = new double[opt.length]; // and the values in all basis directions
 			for (int i = 0; i < step.length; i ++) {
 				double dxi = dimensionScale[i]*1e-4;
 				opt[i] += dxi;
 				step[i] = logPosterior.apply(opt);
 				opt[i] -= dxi;
 			}
-			double[][] hessian = new double[5*timeAxis.length][5*timeAxis.length]; // then go for the second derivatives
+			double[][] hessian = new double[opt.length][opt.length]; // then go for the second derivatives
 			for (int i = 0; i < hessian.length; i ++) {
 				double dxi = dimensionScale[i]*1e-4;
 				double r = step[i];
@@ -682,20 +644,17 @@ public class MRSt {
 				}
 				else {
 					hessian[i][i] = (r - 2*c + l)/(dxi*dxi); // otherwise approximate it as gaussian
-					if (i >= 5*left && i < 5*rite) {
-						for (int j = i+1; j < 5*rite; j ++) { // and get some diagonal terms (only checking relevant ones)
-							double dxj = dimensionScale[j]*1e-4;
-							double u = step[j];
-							opt[j] += dxj;
-							opt[i] += dxi;
-							double ur = logPosterior.apply(opt);
-							opt[i] -= dxi;
-							opt[j] -= dxj;
-							hessian[i][j] = hessian[j][i] = (ur - u - r + c)/(dxi*dxj);
-						}
+					for (int j = 0; j < opt.length; j ++) { // and get some diagonal terms
+						double dxj = dimensionScale[j]*1e-4;
+						double u = step[j];
+						opt[j] += dxj;
+						opt[i] += dxi;
+						double ur = logPosterior.apply(opt);
+						opt[i] -= dxi;
+						opt[j] -= dxj;
+						hessian[i][j] = hessian[j][i] = (ur - u - r + c)/(dxi*dxj);
 					}
 				}
-//				System.out.println(new Matrix(hessian).g)
 			}
 			for (int i = 0; i < hessian.length; i ++) {
 				if (hessian[i][i] < 0)
@@ -713,24 +672,6 @@ public class MRSt {
 				if (covarianceMatrix[i][i] < 1/hessian[i][i]) // these are all approximations, and sometimes they violate the properties of positive semidefiniteness
 					covarianceMatrix[i][i] = 1/hessian[i][i]; // do what you must to make it work
 			}
-//			for (int i = 0; i < timeAxis.length; i ++) { // we know these will never be negative
-//				if (opt[5*i] > 0)
-//					covarianceMatrix[5*i][5*i] = Math.min(covarianceMatrix[5*i][5*i], Math.pow(opt[5*i], 2));
-//			}
-//			for (int i = 1; i < timeAxis.length-1; i ++) { // this is kind of weird...
-////				double σ2Max;
-////				if (i-1 < 0 || (i+1 < timeAxis.length && opt[5*(i+1)] > opt[5*(i-1)]))
-////					σ2Max = Math.pow(opt[5*i] - opt[5*(i+1)], 2);
-////				else
-////					σ2Max = Math.pow(opt[5*i] - opt[5*(i-1)], 2);
-//				double σ2Max = Math.min(Math.pow(opt[5*i] - opt[5*(i+1)], 2),
-//						                Math.pow(opt[5*i] - opt[5*(i-1)], 2));
-//				covarianceMatrix[5*i][5*i] = Math.min(covarianceMatrix[5*i][5*i], σ2Max); // but it helps the error bars deal with this particular nonlinearity
-//			}
-			for (int i = 0; i < hessian.length; i ++) {
-				if ((i/5 < left || i/5 >= rite) && !Double.isFinite(covarianceMatrix[i][i]))
-					covarianceMatrix[i][i] = 0; // get rid of any NaNs if they're off screen anyway
-			}
 			for (int i = 0; i < hessian.length; i ++) {
 				for (int j = i+1; j < hessian.length; j ++) {
 					if (Math.abs(covarianceMatrix[i][j]) > Math.sqrt(covarianceMatrix[i][i]*covarianceMatrix[j][j]))
@@ -739,8 +680,8 @@ public class MRSt {
 			}
 		}
 		else if (errorBars == ErrorMode.STATISTICS) {
-			covarianceMatrix = new double[5*timeAxis.length][5*timeAxis.length];
-			for (int j = 0; j < timeAxis.length; j ++) {
+			covarianceMatrix = new double[opt.length][opt.length];
+			for (int j = 0; j < rite - left; j ++) {
 				double statistics = 1 + opt[5*j+0]*timeStep*1e15*this.efficiency(14e6); // total deuteron yield from this neutron time bin
 				double dsStatistics = 1 + opt[5*j+0]*timeStep*1e15*this.efficiency(14e6)*opt[5*j+4]/21.;
 				covarianceMatrix[5*j+0][5*j+0] = Math.pow(opt[5*j+0], 2)/statistics;
@@ -751,7 +692,7 @@ public class MRSt {
 			}
 		}
 		else {
-			covarianceMatrix = new double[5*timeAxis.length][5*timeAxis.length];
+			covarianceMatrix = new double[opt.length][opt.length];
 		}
 		
 		long endTime = System.currentTimeMillis();
@@ -759,18 +700,9 @@ public class MRSt {
 			logger.info(String.format(Locale.US, "completed in %.2f minutes.",
 					(endTime - startTime)/60000.));
 		
-//		for (int j = 0; j < fitNeutronSpectrum[0].length; j ++) {
-//			double ds = 0, prim = 0;
-//			for (int i = 0; i < fitNeutronSpectrum.length; i ++) {
-//				if (energyBins[i] < 13)  ds += fitNeutronSpectrum[i][j];
-//				else                     prim += fitNeutronSpectrum[i][j];
-//			}
-//			System.out.println(ds/prim);
-//		}
-		
 		Quantity[] V = new Quantity[measurements[4].length]; // this is not really volume; it is (ρR)^(-2/3)
-		for (int i = 0; i < V.length; i ++)
-			V[i] = measurements[4][i].pow(-1.5);
+		for (int j = 0; j < V.length; j ++)
+			V[j] = measurements[4][j].pow(-1.5);
 		
 		Quantity iPC = NumericalMethods.quadargmax(left, rite, measurements[4]); // index of max compression
 		Quantity peakCompress = NumericalMethods.interp(timeAxis, iPC); // time of max compression
@@ -784,18 +716,18 @@ public class MRSt {
 				moments[0].times(timeStep), bangTime,
 				moments[2].sqrt().times(2.355), moments[3], moments[4],
 				peakCompress.minus(bangTime),
-				NumericalMethods.average(measurements[4], measurements[0]),
+				NumericalMethods.average(measurements[4], measurements[0], left, rite),
 				NumericalMethods.quadInterp(measurements[4], iPC),
 				NumericalMethods.quadInterp(measurements[4], iBT),
-				NumericalMethods.derivative(timeAxis, measurements[4], bangTime, .12, 1),
-				NumericalMethods.derivative(timeAxis, V, bangTime, .12, 2).over(NumericalMethods.interp(V, iBT)),
-				NumericalMethods.average(measurements[1], measurements[0]),
+				NumericalMethods.derivative(timeAxis, measurements[4], bangTime, .1, 1),
+				NumericalMethods.derivative(timeAxis, V, bangTime, .1, 2).over(NumericalMethods.interp(V, iBT)),
+				NumericalMethods.average(measurements[1], measurements[0], left, rite),
 				NumericalMethods.quadInterp(measurements[1], iTPeak),
 				NumericalMethods.quadInterp(measurements[1], iBT),
-				NumericalMethods.derivative(timeAxis, measurements[1], bangTime, .12, 1),
-				NumericalMethods.derivative(timeAxis, measurements[1], bangTime, .12, 2),
-				NumericalMethods.average(measurements[3], measurements[0]),
-				NumericalMethods.derivative(timeAxis, measurements[3], bangTime, .12, 1),
+				NumericalMethods.derivative(timeAxis, measurements[1], bangTime, .1, 1),
+				NumericalMethods.derivative(timeAxis, measurements[1], bangTime, .1, 2),
+				NumericalMethods.average(measurements[3], measurements[0], left, rite),
+				NumericalMethods.derivative(timeAxis, measurements[3], bangTime, .1, 1),
 		}; // collect the figures of merit
 		
 		if (logger != null) {
@@ -808,7 +740,7 @@ public class MRSt {
 			logger.info(String.format("Burn-averaged \u03C1R:  %s g/cm^2", res[7].toString(covarianceMatrix)));
 			logger.info(String.format("\u03C1R at peak:        %s g/cm^2", res[8].toString(covarianceMatrix)));
 			logger.info(String.format("\u03C1R at BT:          %s g/cm^2", res[9].toString(covarianceMatrix)));
-			logger.info(String.format("d\u03C1R/dt at BT:      %s mg/cm^2/(100 ps)", res[10].over(1e-2).toString(covarianceMatrix)));
+			logger.info(String.format("d\u03C1R/dt at BT:      %s g/cm^2/(100 ps)", res[10].over(1e1).toString(covarianceMatrix)));
 			logger.info(String.format("d^2V/dt^2/V at BT: %s 1/ns^2", res[11].toString(covarianceMatrix)));
 			logger.info(String.format("Burn-averaged Ti:  %s keV", res[12].toString(covarianceMatrix)));
 			logger.info(String.format("Ti at peak:        %s keV", res[13].toString(covarianceMatrix)));
@@ -977,22 +909,18 @@ public class MRSt {
 	 * @param guess the initial guess
 	 * @param scale the scale lengths of the variables
 	 * @param threshold the termination condition threshold
-	 * @param left the leftmost time index to optimize (inclusive)
-	 * @param rite the rightmost time index to optimize (exclusive)
 	 * @param activeDimensions
 	 * @return
 	 */
 	private double[] optimize(Function<double[], Double> func, double[] totalGuess,
-			double[] totalScale, double[] totalLower, double[] totalUpper, double threshold, int left, int rite,
+			double[] totalScale, double[] totalLower, double[] totalUpper, double threshold,
 			boolean... activeDimensions) {
 		if (totalGuess.length != totalScale.length)
 			throw new IllegalArgumentException("Scale and guess must have the same length");
 		
 		final boolean[] active = new boolean[totalScale.length];
 		for (int i = 0; i < active.length; i ++) { // expand the selected dimensions into a full array
-			if (i < 6*left || i >= 6*rite)
-				active[i] = false;
-			else if (activeDimensions.length == 0)
+			if (activeDimensions.length == 0)
 				active[i] = true;
 			else
 				active[i] = activeDimensions[i%activeDimensions.length];
