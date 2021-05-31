@@ -13,11 +13,11 @@ if len(sys.argv) <= 1:
 else:
 	xlabel, ylabel, titleA, titleB = sys.argv[1:]
 
-X = np.genfromtxt('working/{}_x.csv'.format(titleA), delimiter=',')
-Y = np.genfromtxt('working/{}_y.csv'.format(titleA), delimiter=',')
+X = np.genfromtxt('output/{}_x.csv'.format(titleA), delimiter=',')
+Y = np.genfromtxt('output/{}_y.csv'.format(titleA), delimiter=',')
 Z = (
-	np.genfromtxt('working/{}_z.csv'.format(titleA), delimiter=','),
-	np.genfromtxt('working/{}_z.csv'.format(titleB), delimiter=','),
+	np.genfromtxt('output/{}_z.csv'.format(titleA), delimiter=','),
+	np.genfromtxt('output/{}_z.csv'.format(titleB), delimiter=','),
 )
 
 if 'euteron' in titleA:

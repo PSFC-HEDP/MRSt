@@ -23,13 +23,6 @@
  */
 package main;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.logging.Level;
-import java.util.logging.LogRecord;
-import java.util.logging.Logger;
-import java.util.logging.StreamHandler;
-
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -52,6 +45,13 @@ import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import main.CSV.COSYMapping;
 import main.MRSt.ErrorMode;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
+import java.util.logging.StreamHandler;
 
 
 /**
@@ -341,7 +341,7 @@ public class ConfigurationEvaluator extends Application {
 	 * @return
 	 */
 	private static Region chooseFileWidget(String title, Stage stage, String initialFilename,
-			Callback action) {
+	                                       Callback action) {
 		Label label = new Label();
 		Button button = new Button("Chose file…");
 		FileChooser fileChooser = new FileChooser();

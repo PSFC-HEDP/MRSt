@@ -39,10 +39,10 @@ MARGIN = dict(bottom=.10, top=.90, left=.13, right=.99, wspace=.35, hspace=.05)
 
 
 if len(sys.argv) <= 1:
-	# FILENAME = '../../working/ensemble-solenoid.csv'
-	FILENAME = '../../working/ensemble_4_9_5_2_1500_2021-05-28.csv'
+	# FILENAME = '../../output/ensemble-solenoid.csv'
+	FILENAME = '../../output/ensemble_4_9_5_2_1500_2021-05-28.csv'
 else:
-	FILENAME = '../../working/'+sys.argv[1]
+	FILENAME = '../../output/'+sys.argv[1]
 BIN_WIDTH = 0.3 # in bels
 REFERENCE_YIELD = 1e16
 
@@ -265,7 +265,7 @@ if INCLUDE_ERRORS:
 			ax.set_ylabel(text_wrap(re.sub(r'(\([^)]+\))?$', '', axis) + " error"))
 
 config = '-'+FILENAME[23:36] if len(FILENAME) > 23 else ''
-fig.savefig('../../working/mrst{}.eps'.format(config), dpi=300)
-fig.savefig('../../working/mrst{}.png'.format(config), dpi=300)
+fig.savefig('../../output/mrst{}.eps'.format(config), dpi=300)
+fig.savefig('../../output/mrst{}.png'.format(config), dpi=300)
 
 plt.show()

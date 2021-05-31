@@ -930,7 +930,6 @@ public class NumericalMethods {
 	}
 	/**
 	 * copied from https://www.sanfoundry.com/java-program-find-inverse-matrix/
-	 * @param a
 	 * @return
 	 */
 	public static double[][] matinv(double[][] arr) {
@@ -1517,24 +1516,16 @@ public class NumericalMethods {
 	}
 	
 	
-	public static final void main(String[] args) {
-//		double[][] cov = {{1, 0}, {0, 1}};
-//		Quantity x = new Quantity(5, new double[] {1, 0});
-//		Quantity y = new Quantity(12, new double[] {0, 1});
-//		System.out.println(x.toString(cov));
-//		System.out.println(y.toString(cov));
-//		System.out.println(x.plus(y).toString(cov));
-//		System.out.println(x.minus(y).toString(cov));
-//		System.out.println(x.times(y).toString(cov));
-//		System.out.println(x.over(y).toString(cov));
-//		System.out.println(x.mod(4).toString(cov));
-		
-		double[] x = {16.0285625, 16.0706875, 16.112812500000004, 16.154937500000003, 16.1970625, 16.2391875, 16.281312500000006, 16.323437500000004, 16.365562500000003, 16.4076875, 16.449812500000007, 16.491937500000006};
-		double[] y = {5.044624988888928, 5.017746597737263, 4.590236474732343, 4.886261360749693, 5.626151250994318, 6.979323530404109, 7.509403411786665, 5.7455277194631185, 5.164237249241998, 4.849883756305413, 5.0232564634417525, 5.0496969617639165, };
-		Quantity[] Y = new Quantity[y.length];
-		for (int i = 0; i < y.length; i ++)
-			Y[i] = new Quantity(y[i], 0);
-		System.out.println(derivative(x, Y, new Quantity(16.249, 0), .12, 2).value);
+	public static void main(String[] args) {
+		double[][] cov = {{1, 0}, {0, 1}};
+		Quantity x = new Quantity(5, new double[] {1, 0});
+		Quantity y = new Quantity(12, new double[] {0, 1});
+		System.out.println(x.toString(cov));
+		System.out.println(y.toString(cov));
+		System.out.println(x.plus(y).toString(cov));
+		System.out.println(x.minus(y).toString(cov));
+		System.out.println(x.times(y).toString(cov));
+		System.out.println(x.over(y).toString(cov));
+		System.out.println(x.mod(4).toString(cov));
 	}
-	
 }

@@ -80,7 +80,7 @@ public class ConsoleEvaluator {
 		Handler consoleHandler = new ConsoleHandler();
 		consoleHandler.setLevel(Level.FINE);
 		logger.addHandler(consoleHandler);
-		Handler logfileHandler = new FileHandler("working/"+filename+".log");
+		Handler logfileHandler = new FileHandler("output/"+filename+".log");
 		logger.addHandler(logfileHandler);
 		logger.log(Level.INFO, "beginning "+numYields+" evaluations on "+numThreads+" cores");
 		
@@ -92,7 +92,7 @@ public class ConsoleEvaluator {
 			threads[t] = new Thread(() -> {
 				MRSt mc = null;
 				try {
-					COSYMapping map = CSV.readCosyCoefficients(new File("data/MRSt_IRF_FP tilted_final.txt"), 3);
+					COSYMapping map = CSV.readCosyCoefficients(new File("input/MRSt_IRF_FP tilted_final.txt"), 3);
 					double[][] cosyCoefficients = map.coefficients;
 					int[][] cosyExponents = map.exponents;
 					mc = new MRSt(
@@ -101,7 +101,7 @@ public class ConsoleEvaluator {
 							2*foilRadius,
 							2*foilRadius,
 							foilThickness,
-							CSV.read(new File("data/stopping_power_deuterons.csv"), ','),
+							CSV.read(new File("input/stopping_power_deuterons.csv"), ','),
 							6e0,
 							apertureWidth,
 							apertureHeight,
@@ -121,9 +121,9 @@ public class ConsoleEvaluator {
 					double[] eBins = null, tBins = null;
 					double[][] spec = null;
 					try {
-						eBins = CSV.readColumn(new File("data/energy.txt"));
-						tBins = CSV.readColumn(new File("data/time "+finalImplosionName+".txt"));
-						spec = CSV.read(new File("data/spectrum "+finalImplosionName+".txt"), '\t');
+						eBins = CSV.readColumn(new File("input/energy.txt"));
+						tBins = CSV.readColumn(new File("input/time "+finalImplosionName+".txt"));
+						spec = CSV.read(new File("input/spectrum "+finalImplosionName+".txt"), '\t');
 						if (spec.length != eBins.length-1 || spec[0].length != tBins.length-1) {
 							System.out.println("interpreting a weird spectrum file...");
 							spec = MRSt.interpretSpectrumFile(tBins, eBins, spec);
@@ -175,8 +175,8 @@ public class ConsoleEvaluator {
 	
 	private static void save(double[][] results, String filename, Logger logger) {
 		try {
-			CSV.write(results, new File("working/"+filename+".csv"), ',', MRSt.HEADERS_WITH_ERRORS);
-			logger.log(Level.INFO, "Saved ensemble results to working/"+filename+".csv");
+			CSV.write(results, new File("output/"+filename+".csv"), ',', MRSt.HEADERS_WITH_ERRORS);
+			logger.log(Level.INFO, "Saved ensemble results to output/"+filename+".csv");
 		} catch (IOException e) {
 			logger.log(Level.SEVERE, e.getMessage(), e);
 		}

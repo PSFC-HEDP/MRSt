@@ -61,7 +61,7 @@ import main.MRSt.ErrorMode;
 public class SpectrumViewer extends Application {
 	
 	private static final Particle ION = Particle.D;
-	private static final File STOPPING_POWER_FILE = new File("data/stopping_power_deuterons.csv");
+	private static final File STOPPING_POWER_FILE = new File("input/stopping_power_deuterons.csv");
 	private static final double COSY_MINIMUM_ENERGY = 10.7e6;
 	private static final double COSY_MAXIMUM_ENERGY = 14.2e6;
 	private static final double COSY_REFERENCE_ENERGY = 12.45e6;
@@ -330,10 +330,10 @@ public class SpectrumViewer extends Application {
 	 */
 	private static void plotHeatmap(double[] x, double[] y, double[][] z,
 			String xLabel, String yLabel, String title) throws IOException {
-		new File("working/").mkdir();
-		CSV.writeColumn(x, new File(String.format("working/%s_x.csv", title)));
-		CSV.writeColumn(y, new File(String.format("working/%s_y.csv", title)));
-		CSV.write(z, new File(String.format("working/%s_z.csv", title)), ',');
+		new File("output/").mkdir();
+		CSV.writeColumn(x, new File(String.format("output/%s_x.csv", title)));
+		CSV.writeColumn(y, new File(String.format("output/%s_y.csv", title)));
+		CSV.write(z, new File(String.format("output/%s_z.csv", title)), ',');
 		ProcessBuilder plotPB = new ProcessBuilder("python", "src/python/plot2.py",
 				xLabel, yLabel, title);
 		plotPB.start();
@@ -358,11 +358,11 @@ public class SpectrumViewer extends Application {
 			yLabels[i] = (String) yDatums[3*i+2];
 		}
 		
-		new File("working/").mkdir();
-		CSV.writeColumn(x, new File(String.format("working/%s_x.csv", "data")));
+		new File("output/").mkdir();
+		CSV.writeColumn(x, new File(String.format("output/%s_x.csv", "data")));
 		for (int i = 0; i < ys.length; i ++) {
-			CSV.writeColumn(ys[i], new File(String.format("working/%s_y_%d.csv", "Data", i)));
-			CSV.writeColumn(Δs[i], new File(String.format("working/%s_err_%d.csv", "Data", i)));
+			CSV.writeColumn(ys[i], new File(String.format("output/%s_y_%d.csv", "Data", i)));
+			CSV.writeColumn(Δs[i], new File(String.format("output/%s_err_%d.csv", "Data", i)));
 		}
 		ProcessBuilder plotPB = new ProcessBuilder("python", "src/python/plot1.py",
 				xLabel, String.join("\n", yLabels), "data", name, Integer.toString(ys.length));
@@ -376,11 +376,11 @@ public class SpectrumViewer extends Application {
 	 */
 	private static void compareHeatmap(double[] x, double[] y, double[][] z0, double[][] z1,
 			String xLabel, String yLabel, String title0, String title1) throws IOException {
-		new File("working/").mkdir();
-		CSV.writeColumn(x, new File(String.format("working/%s_x.csv", title0)));
-		CSV.writeColumn(y, new File(String.format("working/%s_y.csv", title0)));
-		CSV.write(z0, new File(String.format("working/%s_z.csv", title0)), ',');
-		CSV.write(z1, new File(String.format("working/%s_z.csv", title1)), ',');
+		new File("output/").mkdir();
+		CSV.writeColumn(x, new File(String.format("output/%s_x.csv", title0)));
+		CSV.writeColumn(y, new File(String.format("output/%s_y.csv", title0)));
+		CSV.write(z0, new File(String.format("output/%s_z.csv", title0)), ',');
+		CSV.write(z1, new File(String.format("output/%s_z.csv", title1)), ',');
 		ProcessBuilder plotPB = new ProcessBuilder("python", "src/python/compare2.py",
 				xLabel, yLabel, title0, title1);
 		plotPB.start();
@@ -402,7 +402,7 @@ public class SpectrumViewer extends Application {
 		Button button = new Button("Chose file…");
 		FileChooser fileChooser = new FileChooser();
 		fileChooser.setTitle("Load "+title);
-		fileChooser.setInitialDirectory(new File("data/"));
+		fileChooser.setInitialDirectory(new File("input/"));
 		fileChooser.getExtensionFilters().addAll(
 				new FileChooser.ExtensionFilter("Data files", "*.csv", "*.tsv", "*.txt"),
 				new FileChooser.ExtensionFilter("All files", "*.*"));
@@ -426,7 +426,7 @@ public class SpectrumViewer extends Application {
 		output.setAlignment(Pos.CENTER_LEFT);
 		label.setText(initialFilename);
 		try {
-			action.process(new File("data/"+initialFilename));
+			action.process(new File("input/"+initialFilename));
 		} catch (IOException e) {
 			label.setText("No file chosen");
 		} catch (Exception e) {

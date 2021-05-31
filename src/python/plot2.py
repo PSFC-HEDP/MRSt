@@ -11,9 +11,9 @@ else:
 	os.chdir('../..')
 	xlabel, ylabel, title = 'Time (ns)', 'Energy (MeV)', 'Original neutron spectrum'
 
-X = np.genfromtxt('working/{}_x.csv'.format(title), delimiter=',')
-Y = np.genfromtxt('working/{}_y.csv'.format(title), delimiter=',')
-Z = np.genfromtxt('working/{}_z.csv'.format(title), delimiter=',')
+X = np.genfromtxt('output/{}_x.csv'.format(title), delimiter=',')
+Y = np.genfromtxt('output/{}_y.csv'.format(title), delimiter=',')
+Z = np.genfromtxt('output/{}_z.csv'.format(title), delimiter=',')
 
 if 'euteron' in title:
 	Y *= 8/9

@@ -226,7 +226,7 @@ public class MRSt {
 		
 //		double[][] actual;
 //		try {
-//			actual = CSV.read(new File("data/trajectories og with falling temp.csv"), ',', 1);
+//			actual = CSV.read(new File("input/trajectories og with falling temp.csv"), ',', 1);
 //		} catch (NumberFormatException e) {
 //			actual = null;
 //		} catch (IOException e) {

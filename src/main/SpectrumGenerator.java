@@ -41,8 +41,8 @@ public class SpectrumGenerator {
 		for (String filename : new String[] {"failed", "marginal", "high", "og", "og with falling temp"}) {
 			double[][] thing;
 			double[] eBins;
-			thing = CSV.read(new File("data/trajectories "+filename+".csv"), ',', 1);
-			eBins = CSV.readColumn(new File("data/energy.txt"));
+			thing = CSV.read(new File("input/trajectories "+filename+".csv"), ',', 1);
+			eBins = CSV.readColumn(new File("input/energy.txt"));
 			
 			double[] time = new double[thing.length];
 			double[] ρR = new double[thing.length];
@@ -63,8 +63,8 @@ public class SpectrumGenerator {
 			tBins[time.length] = (3*time[time.length-1] - time[time.length-2])/2.;
 			double[][] spectrum = MRSt.generateSpectrum(Yn, Ti, zero, zero, ρR, eBins, tBins);
 			
-			CSV.writeColumn(tBins, new File("data/time "+filename+".txt"));
-			CSV.write(spectrum, new File("data/spectrum "+filename+".txt"), '\t');
+			CSV.writeColumn(tBins, new File("input/time "+filename+".txt"));
+			CSV.write(spectrum, new File("input/spectrum "+filename+".txt"), '\t');
 		}
 		
 		System.out.println("done");

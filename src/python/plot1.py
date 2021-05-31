@@ -15,13 +15,13 @@ else:
 ylabels = ylabels.split('\n')
 n = int(n)
 
-XA = np.loadtxt(f'working/{title}_x.csv', delimiter=',')
-YAs = [np.loadtxt(f'working/{title}_y_{i}.csv', delimiter=',') for i in range(n)]
-ΔAs = [np.loadtxt(f'working/{title}_err_{i}.csv', delimiter=',') for i in range(n)]
+XA = np.loadtxt(f'output/{title}_x.csv', delimiter=',')
+YAs = [np.loadtxt(f'output/{title}_y_{i}.csv', delimiter=',') for i in range(n)]
+ΔAs = [np.loadtxt(f'output/{title}_err_{i}.csv', delimiter=',') for i in range(n)]
 
 if answer != '-':
 	try:
-		data = np.loadtxt(f'data/trajectories {answer}.csv', delimiter=',', skiprows=1) # get the true curves
+		data = np.loadtxt(f'input/trajectories {answer}.csv', delimiter=',', skiprows=1) # get the true curves
 		XB = data[:,0]
 		YBs = [data[:,4], data[:,3], data[:,1], np.zeros(XB.shape)] # extract the relevant info from them
 		YBs[2] *= (0.1e6/1e-6)/(1e15*14.1e6*1.6e-19/1e-9)
