@@ -599,13 +599,8 @@ public class NumericalMethods {
 		return (i0+1-i)*x[i0] + (i-i0)*x[i0+1];
 	}
 	
-	/** interpolate a value onto a line
-	 * @param x
-	 * @param x1
-	 * @param x2
-	 * @param y1
-	 * @param y2
-	 * @return
+	/**
+	 * interpolate a value onto a line
 	 */
 	public static double interp(double x, double x1, double x2, double y1, double y2) {
 		return y1 + (x - x1)/(x2 - x1)*(y2 - y1);
@@ -880,10 +875,6 @@ public class NumericalMethods {
 	
 	/**
 	 * a simple convenience method to avoid excessive if statements
-	 * @param arr
-	 * @param i
-	 * @param j
-	 * @param val
 	 */
 	private static void addIfInBounds(double[][] arr, int i, int j, double val) {
 		if (i >= 0 && i < arr.length)
@@ -973,12 +964,10 @@ public class NumericalMethods {
 	/**
 	 * Method to carry out the partial-pivoting Gaussian
 	 * elimination. Here index[] stores pivoting order.
-	 * @param a
-	 * @param index
 	 */
-	private static void gaussian(double a[][], int index[]) {
+	private static void gaussian(double[][] a, int[] index) {
 		int n = index.length;
-		double c[] = new double[n];
+		double[] c = new double[n];
 
 		// Initialize the index
 		for (int i = 0; i < n; ++i)

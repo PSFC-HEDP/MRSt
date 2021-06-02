@@ -157,8 +157,6 @@ public class Optimization {
 	 * scale.
 	 * @param func the function to minimize
 	 * @param x0 the initial guess of the minimizing parameter vector
-	 * @param scale an array of the same size as x0 giving the general length scale of its
-	 * derivatives, to kick off the simplex.
 	 * @param tol the relative tolerance for error
 	 * @return the x vector that minimizes f(x)
 	 */
@@ -224,18 +222,15 @@ public class Optimization {
 				if (fxE < fxR) {
 					x[iWorst] = xE;
 					fx[iWorst] = fxE;
-					continue;
 				}
 				else {
 					x[iWorst] = xR;
 					fx[iWorst] = fxR;
-					continue;
 				}
 			}
 			else if (fxR < fx[iNext]) { // if this is better than the second worst
 				x[iWorst] = xR;
 				fx[iWorst] = fxR;
-				continue;
 			}
 			else if (fxR < fx[iWorst]) { // if this has just a little bit of redeeming quality
 				Matrix xS = xC.plus(xR.minus(xC).times(ρ));
@@ -244,7 +239,6 @@ public class Optimization {
 				if (fxS <= fxR) {
 					x[iWorst] = xS;
 					fx[iWorst] = fxS;
-					continue;
 				}
 				else {
 					for (int i = 0; i < x.length; i ++) {
@@ -253,7 +247,6 @@ public class Optimization {
 							fx[i] = f.apply(x[i]);
 						}
 					}
-					continue;
 				}
 			}
 			else {
@@ -263,7 +256,6 @@ public class Optimization {
 				if (fxS < fx[iWorst]) {
 					x[iWorst] = xS;
 					fx[iWorst] = fxS;
-					continue;
 				}
 				else {
 					for (int i = 0; i < x.length; i ++) {
@@ -272,7 +264,6 @@ public class Optimization {
 							fx[i] = f.apply(x[i]);
 						}
 					}
-					continue;
 				}
 			}
 		}
@@ -408,6 +399,7 @@ public class Optimization {
 	 *   of Electrical Engineering and Computer Science.</i> Technical Report NAM-08.
 	 * @param func the function to minimize
 	 * @param x0 the initial guess of the minimizing parameter vector
+	 * @param scale the approximate scale at which the funccion should vary with each variable
 	 * @param lower the lowest allowable values of each of the elements of x
 	 * @param upper the greatest allowable values of each of the elements of x
 	 * @param relTol the relative tolerance for error (set to 0 to use only absolute)
@@ -415,14 +407,18 @@ public class Optimization {
 	 * @return the vector x that minimizes f(x)
 	 */
 	public static double[] minimizeLBFGSB(
-			Function<double[], Double> func, double[] x0, double[] lower, double[] upper,
+			Function<double[], Double> func, double[] x0, double[] scale, double[] lower, double[] upper,
 			double relTol, double absTol) {
-		final double ds = 1e-8;
+		if (x0.length != scale.length)
+			throw new IllegalArgumentException("the scale must be the same size as the other dimensional things!");
+
+		final double ds = 1e-5;
 		Function<double[], double[]> gradient = (x) -> { // finite difference gradient:
 			double y0 = func.apply(x);
 			double[] dydx = new double[x.length];
 			for (int i = 0; i < x.length; i ++) { // compute each dimension individually
-				double dx = (x[i] + ds >= upper[i]) ? -ds : ds; // chose a direction to avoid the bounds
+				double dx = scale[i]*ds;
+				if (x[i] + dx >= upper[i]) dx = -dx; // chose a direction to avoid the bounds
 				x[i] += dx; // perturb
 				dydx[i] = (func.apply(x) - y0)/dx; // measure
 				x[i] -= dx; // unperturb
@@ -430,21 +426,17 @@ public class Optimization {
 			return dydx;
 		};
 		BiFunction<double[], double[], Double> linGradient = (x, v) -> { // finite difference linear gradient:
-			double vMag = 0; // this requires taking v's magnitude (to maintain the finite difference)
-			for (int i = 0; i < v.length; i ++)
-				vMag += v[i]*v[i];
-			vMag = Math.sqrt(vMag);
 			double y0 = func.apply(x);
 			double dx = ds; // the step direction must have the same sign for all components now
 			for (int i = 0; i < x.length; i ++)
-				if (x[i] + v[i]/vMag*dx > upper[i] || x[i] + v[i]/vMag*dx < lower[i])
-					dx *= -1; // but we can still flip it if one of the components is near a bound
+				if (x[i] + v[i]*dx > upper[i] || x[i] + v[i]*dx < lower[i])
+					dx = -dx; // but we can still flip it if one of the components is near a bound
 			for (int i = 0; i < x.length; i ++)
-				x[i] += v[i]/vMag*dx; // do all the dimensionless perturbations
+				x[i] += v[i]*dx; // do all the dimensionless perturbations
 			double dydx = (func.apply(x) - y0)/dx; // measure
 			for (int i = 0; i < x.length; i ++)
-				x[i] -= v[i]/vMag*dx; // then put them all back
-			return dydx*vMag; // remember to scale by vMag since this is a dot product
+				x[i] -= v[i]*dx; // then put them all back
+			return dydx; // the result is v-dot-grady
 		};
 		return minimizeLBFGSB(func, gradient, linGradient, x0, lower, upper, relTol, absTol);
 	}
@@ -457,7 +449,7 @@ public class Optimization {
 	 *   algorithm for bound constrained optimization." <i>Northwestern University Department
 	 *   of Electrical Engineering and Computer Science.</i> Technical Report NAM-08.
 	 * @param func the function to minimize
-	 * @param the gradient of that function
+	 * @param grad the gradient of that function
 	 * @param x0 the initial guess of the minimizing parameter vector
 	 * @param lower the lowest allowable values of each of the elements of x
 	 * @param upper the greatest allowable values of each of the elements of x
@@ -544,9 +536,8 @@ public class Optimization {
 				}
 				Matrix Lk = new Matrix(m, m);
 				for (int i = 0; i < m; i ++)
-					for (int j = 0; j < m; j ++)
-						if (i > j)
-							Lk.set(i, j, sHist.get(i).dot(yHist.get(j)));
+					for (int j = 0; j < i; j ++)
+						Lk.set(i, j, sHist.get(i).dot(yHist.get(j)));
 				Matrix Mkinv = new Matrix(2*m, 2*m);
 				for (int i = 0; i < m; i ++) {
 					Mkinv.set(i, i, -Dk.get(i, i));
@@ -612,9 +603,6 @@ public class Optimization {
 					Matrix wb = Wk.getRow(b);
 					c = c.plus(p.times(Δt));
 					d.set(b, 0, 0);
-					told = t;
-					b = breakpointOrder.pop();
-					t = breakpoints[b];
 					dfdt = dfdt + Δt*d2fdt2 + gb*gb + θ*gb*zb - gb*wb.dot(Mk.times(c));
 					d2fdt2 = d2fdt2 - θ*gb*gb - 2*gb*wb.dot(Mk.times(p)) - gb*gb*wb.dot(Mk.times(wb));
 					if (d2fdt2 < 0) {
@@ -622,6 +610,9 @@ public class Optimization {
 						d2fdt2 *= -1;
 					}
 					p = p.plus(wb.times(gb));
+					told = t;
+					b = breakpointOrder.pop();
+					t = breakpoints[b];
 					Δt = t - told;
 					Δtmin = (d2fdt2 != 0) ? -dfdt/d2fdt2 : (dfdt > 0) ? 0 : Δt;
 				}
@@ -854,7 +845,6 @@ public class Optimization {
 	 * @param D n×m measurement variance matrix
 	 * @param P nm×nm transfer matrix
 	 * @param alpha the smoothing
-	 * @return
 	 */
 	public static double[][] optimizeGelfgat(double[][] F, double[][] D, double[][] P, double alpha) {
 		if (F.length != D.length || F[0].length != D[0].length || P.length != P[0].length || P.length != D.length*D[0].length)
@@ -878,12 +868,7 @@ public class Optimization {
 				for (int j = 0; j < m; j ++)
 					g[i][j] /= Σg; // renormalize g to account for roundoff
 			
-			double[][] s = new double[n][m];
-			for (int i = 0; i < n; i ++)
-				for (int j = 0; j < m; j ++)
-					for (int k = 0; k < n; k ++)
-						for (int l = 0; l < m; l ++)
-							s[k][l] += P[m*k+l][m*i+j]*g[i][j];
+			double[][] s = gelfgatConvolve(P, g);
 			
 			double ΣFs = 0, Σss = 0;
 			for (int k = 0; k < n; k ++) {
@@ -901,12 +886,7 @@ public class Optimization {
 						for (int l = 0; l < m; l ++)
 							δg[i][j] += g[i][j] * P[m*k+l][m*i+j]*(F[k][l] - G*s[k][l])/D[k][l];
 			
-			double[][] δs = new double[n][m];
-			for (int i = 0; i < n; i ++)
-				for (int j = 0; j < m; j ++)
-					for (int k = 0; k < n; k ++)
-						for (int l = 0; l < m; l ++)
-							δs[k][l] += P[m*k+l][m*i+j]*δg[i][j];
+			double[][] δs = gelfgatConvolve(P, δg);
 			
 			double Fδ = 0, Ss = 0, Sδ = 0, Dδ = 0;
 			for (int k = 0; k < n; k ++) {
@@ -938,12 +918,7 @@ public class Optimization {
 			iter ++;
 		} while (iter < 6 || score > scorePrev);
 		
-		double[][] s = new double[n][m];
-		for (int i = 0; i < n; i ++)
-			for (int j = 0; j < m; j ++)
-				for (int k = 0; k < n; k ++)
-					for (int l = 0; l < m; l ++)
-						s[k][l] += P[m*k+l][m*i+j]*g[i][j];
+		double[][] s = gelfgatConvolve(P, g);
 		double ΣFs = 0, Σss = 0;
 		
 		for (int k = 0; k < n; k ++) {
@@ -959,6 +934,18 @@ public class Optimization {
 			for (int j = 0; j < m; j ++)
 				source[i][j] = G*g[i][j];
 		return source; // finally, return the answer
+	}
+
+
+	private static double[][] gelfgatConvolve(double[][] P, double[][] g) {
+		int n = g.length, m = g[0].length;
+		double[][] s = new double[n][m];
+		for (int i = 0; i < n; i ++)
+			for (int j = 0; j < m; j ++)
+				for (int k = 0; k < n; k ++)
+					for (int l = 0; l < m; l ++)
+						s[k][l] += P[m*k+l][m*i+j]*g[i][j];
+		return s;
 	}
 	
 	
@@ -1004,8 +991,8 @@ public class Optimization {
 		}
 		
 		/**
-		 * Multiply this Matrix by a scalar.
-		 * @param a - The factor
+		 * Multiply this Matrix by an other matrix.
+		 * @param that the other matrix
 		 * @return the product
 		 */
 		public Matrix times(Matrix that) {
@@ -1124,8 +1111,6 @@ public class Optimization {
 		
 		/**
 		 * Extract a single scalar value.
-		 * @param i
-		 * @param j
 		 * @return the value this_{i,j}
 		 */
 		public double get(int i, int j) {
@@ -1134,8 +1119,6 @@ public class Optimization {
 		
 		/**
 		 * Extract a single row as a column vector.
-		 * @param i
-		 * @param j
 		 * @return the value this_{i,j}
 		 */
 		public Matrix getRow(int i) {
@@ -1147,9 +1130,6 @@ public class Optimization {
 		
 		/**
 		 * Set a single scalar value.
-		 * @param i
-		 * @param j
-		 * @param a
 		 */
 		public void set(int i, int j, double a) {
 			this.values[i][j] = a;
@@ -1168,15 +1148,15 @@ public class Optimization {
 		}
 		
 		public String toString() {
-			String str = "Matrix("+this.getN()+", "+this.getM()+", [\n";
+			StringBuilder str = new StringBuilder("Matrix(" + this.getN() + ", " + this.getM() + ", [\n");
 			for (int i = 0; i < this.getN(); i ++) {
-				str += "  [";
+				str.append("  [");
 				for (int j = 0; j < this.getM(); j ++)
 					if (Math.abs(this.get(i, j)) >= 10000 || Math.abs(this.get(i, j)) < 0.1)
-						str += String.format("%10.3e, ", this.get(i, j));
+						str.append(String.format("%10.3e, ", this.get(i, j)));
 					else
-						str += String.format("% 10.4f, ", this.get(i, j));
-				str += "],\n";
+						str.append(String.format("% 10.4f, ", this.get(i, j)));
+				str.append("],\n");
 			}
 			return str + "])";
 		}
@@ -1185,14 +1165,12 @@ public class Optimization {
 	
 	/**
 	 * copied from https://www.sanfoundry.com/java-program-find-inverse-matrix/
-	 * @param a
-	 * @return
 	 */
-	private static double[][] invert(double a[][]) {
+	private static double[][] invert(double[][] a) {
 		int n = a.length;
-		double x[][] = new double[n][n];
-		double b[][] = new double[n][n];
-		int index[] = new int[n];
+		double[][] x = new double[n][n];
+		double[][] b = new double[n][n];
+		int[] index = new int[n];
 		for (int i = 0; i < n; ++i)
 			b[i][i] = 1;
 
@@ -1222,12 +1200,10 @@ public class Optimization {
 	/**
 	 * Method to carry out the partial-pivoting Gaussian
 	 * elimination. Here index[] stores pivoting order.
-	 * @param a
-	 * @param index
 	 */
-	private static void gaussian(double a[][], int index[]) {
+	private static void gaussian(double[][] a, int[] index) {
 		int n = index.length;
-		double c[] = new double[n];
+		double[] c = new double[n];
 
 		// Initialize the index
 		for (int i = 0; i < n; ++i)

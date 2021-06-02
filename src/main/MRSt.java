@@ -83,7 +83,7 @@ public class MRSt {
 	private static final int STOPPING_DISTANCE_RESOLUTION = 64;
 	private static final double MIN_E = 12, MAX_E = 16; // histogram bounds [MeV]
 	private static final int BUFFER = 4; // empty pixels to include simulate on each side [ns]
-	private static final double E_BIN = .09, T_BIN = 20e-3; // resolutions [MeV], [ns]
+	private static final double E_BIN = .09, T_BIN = 30e-3; // resolutions [MeV], [ns]
 	private static final int TRANSFER_MATRIX_TRIES = 10000; // the number of points to sample in each column of the transfer matrix
 	private static final double TRANSFER_FUNC_ERROR = 0.00; // the error in the transfer function
 	
@@ -115,7 +115,6 @@ public class MRSt {
 	private double[] timeBins; // endpoints of time bins for inferred spectrum [ns]
 	private double[][] rongTransferMatrix; // the full nmx2nm believed transfer matrix plus smoothing rows
 	private double[][] trueTransferMatrix; // the full nmx2nm actual transfer matrix plus smoothing rows
-	private double[][] efficiency; // the fraction of neutrons in this bin that will be detected
 	private double[][] deuteronSpectrum; // time-corrected deuteron counts
 	private double[][] fitNeutronSpectrum; // backward-fit neutron counts
 	private double[][] fitDeuteronSpectrum; // backward-fit deuteron counts (this should be similar to deuteronSpectrum)
@@ -132,7 +131,8 @@ public class MRSt {
 	 * perform some preliminary calculations for the provided configuration.
 	 * @param ion either Particle.P or Particle.D
 	 * @param foilDistance the distance from TCC to the foil [m]
-	 * @param foilRadius the radius of the foil [m]
+	 * @param foilWidth the total width of the foil [m]
+	 * @param foilHeight the total hite of the foil [m]
 	 * @param foilThickness the thickness of the foil [m]
 	 * @param stoppingPowerData a double[][] containing two columns and n rows. the zeroth column is
 	 * the reference values of E in [keV] and the last column is the corresponding values of
@@ -143,9 +143,10 @@ public class MRSt {
 	 * @param minimumEnergy the lowest energy to bother simulating [eV]
 	 * @param maximumEnergy the hiest energy to bother simulating [eV]
 	 * @param referenceEnergy expected ion energy used in COSY calculation [eV]
-	 * @param cosyCoefficients
+	 * @param cosyCoefficients the COSY coefficient matrix
+	 * @param cosyExponents the corresponding COSY power lists
 	 * @param focalTilt angle of the focal plane (0 means untilted) [deg]
-	 * @param precision 
+	 * @param precision a number that modifies how hard it tries to fully converge
 	 */
 	public MRSt(
 			Particle ion,
@@ -378,8 +379,9 @@ public class MRSt {
 		else {
 			this.trueTransferMatrix = this.rongTransferMatrix;
 		}
-		
-		this.efficiency = new double[energyBins.length-1][timeBins.length-1];
+
+		// the fraction of neutrons in this bin that will be detected
+		double[][] efficiency = new double[energyBins.length - 1][timeBins.length - 1];
 		for (int i = 0; i < energyBins.length-1; i ++)
 			for (int j = 0; j < timeBins.length-1; j ++)
 				for (int k = 0; k < energyBins.length-1; k ++)
@@ -400,8 +402,8 @@ public class MRSt {
 	 * compute the total response to an implosion with the given neutron spectrum using the
 	 * precomputed transfer matrix. account for electrostatic time correction, but not for any
 	 * analysis.
-	 * @param energies the edges of the energy bins [MeV]
-	 * @param times the edges of the time bins [ns]
+	 * @param inEBins the edges of the energy bins [MeV]
+	 * @param inTBins the edges of the time bins [ns]
 	 * @param inSpectrum the neutron counts in each bin
 	 * @param stochastic whether to add noise to mimic real data
 	 * @param actual whether to use the true response function or what we believe to be the response function
@@ -470,7 +472,7 @@ public class MRSt {
 		if (logger != null)  logger.info("beginning fit process.");
 		long startTime = System.currentTimeMillis();
 		
-		double gelf[][] = Optimization.optimizeGelfgat(F, D, this.rongTransferMatrix, 1e5);
+		double[][] gelf = Optimization.optimizeGelfgat(F, D, this.rongTransferMatrix, 1e5);
 		
 		double[] yieldGess = new double[timeAxis.length];
 		for (int j = 0; j < timeAxis.length; j ++) {
@@ -564,11 +566,11 @@ public class MRSt {
 			
 			for (int k = 1; k <= 3; k += 2) {
 				for (int j = left; j < rite - 3; j ++) {
-					double Tpp = (params[k][j] - 3*params[k][j+1] + 3*params[k][j+2] - params[k][j+3])/
+					double Ψpp = (params[k][j] - 3*params[k][j+1] + 3*params[k][j+2] - params[k][j+3])/
 							Math.pow(timeStep, 3);
-					double T = (params[k][j] + params[k][j+1] + params[k][j+2] + params[k][j+3])/4;
-					if (Tpp != 0)
-						penalty += smoothing*1e-9*Math.pow(Tpp/T, 2); // encourage a smooth Ti and rR
+					double Ψ = (params[k][j] + params[k][j+1] + params[k][j+2] + params[k][j+3])/4;
+					if (Ψpp != 0)
+						penalty += smoothing*1e-10*Math.pow(Ψpp/Ψ, 2); // encourage a smooth Ti and ρR
 				}
 			}
 			
@@ -907,13 +909,13 @@ public class MRSt {
 	
 	/**
 	 * optimize certain elements of the input vector to maximize this function output.
-	 * this routine is bizarely convoluted, but if I don't do all of this it doesn't converge completely, and I don't understand why.
+	 * this routine is bizarrely convoluted, but if I don't do all of this it doesn't converge completely, and I don't
+	 * understand why.
 	 * @param func the objective function to optimize
-	 * @param guess the initial guess
-	 * @param scale the scale lengths of the variables
+	 * @param totalGuess the initial guess
+	 * @param totalScale the scale lengths of the variables
 	 * @param threshold the termination condition threshold
-	 * @param activeDimensions
-	 * @return
+	 * @param activeDimensions which components of the state vector are allowed to be changed
 	 */
 	private double[] optimize(Function<double[], Double> func, double[] totalGuess,
 			double[] totalScale, double[] totalLower, double[] totalUpper, double threshold,
@@ -964,6 +966,7 @@ public class MRSt {
 					return func.apply(totalParams);
 				},
 				activeGuess,
+				activeScale,
 				activeLower,
 				activeUpper,
 				0, threshold*1e-2);
@@ -1221,8 +1224,8 @@ public class MRSt {
 	 * convert a time-cumulative spectrum, as read from an input file, into an array of counts.
 	 * also, edit energies to make it bin edges. this will remove the last row of energies.
 	 * given that the last row is over 29 MeV, I think that's fine.
-	 * @param timeAxis the time bin boundaries [ns]
-	 * @param energyAxis the energy bin midpoints [MeV]
+	 * @param times the time bin boundaries [ns]
+	 * @param energies the energy bin midpoints [MeV]
 	 * @param spectrum array of the neutron spectrum integrated in time [#/MeV]
 	 * @return spectrum array of the neutron spectrum [#]
 	 */

@@ -40,7 +40,7 @@ MARGIN = dict(bottom=.10, top=.90, left=.13, right=.99, wspace=.35, hspace=.05)
 
 if len(sys.argv) <= 1:
 	# FILENAME = '../../output/ensemble-solenoid.csv'
-	FILENAME = '../../output/ensemble_4_9_5_2_1500_2021-05-28.csv'
+	FILENAME = '../../output/ensemble_4_9_5_2_1500_2021-06-01.csv'
 else:
 	FILENAME = '../../output/'+sys.argv[1]
 BIN_WIDTH = 0.3 # in bels
