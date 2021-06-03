@@ -354,7 +354,6 @@ public class MRSt {
 	 * @return {computation time, 0, Yn, err, BT, err, BW, err, skewness, err, kurtosis, err, peak compression, err, rho R (BT), err,
 	 * \< rho R \>, err, d(rho R)/dt, err, \<Ti\>, err, dTi/dt, err, \<vi\>, err, dvi/dt, err}
 	 */
-	@SuppressWarnings("unused")
 	public double[] respond(double[] energies, double[] times, double[][] spectrum, ErrorMode errorBars) {
 		this.instantiateTimeAxis(times); // first, create the detector time bins
 		
@@ -380,14 +379,6 @@ public class MRSt {
 			this.trueTransferMatrix = this.rongTransferMatrix;
 		}
 
-		// the fraction of neutrons in this bin that will be detected
-		double[][] efficiency = new double[energyBins.length - 1][timeBins.length - 1];
-		for (int i = 0; i < energyBins.length-1; i ++)
-			for (int j = 0; j < timeBins.length-1; j ++)
-				for (int k = 0; k < energyBins.length-1; k ++)
-					for (int l = 0; l < timeBins.length-1; l ++)
-						efficiency[i][j] += this.trueTransferMatrix[(timeBins.length-1)*k+l][(timeBins.length-1)*i+j];
-		
 		this.deuteronSpectrum = this.response(energies, times, spectrum, true, true);
 		Quantity[] values = analyze(deuteronSpectrum, errorBars);
 		double[] output = new double[2*values.length];
@@ -453,9 +444,7 @@ public class MRSt {
 	private Quantity[] analyze(double[][] spectrum, ErrorMode errorBars) {
 		if (spectrum.length != energyBins.length-1 || spectrum[0].length != timeBins.length-1)
 			throw new IllegalArgumentException("These dimensions are wrong.");
-		
-		double[][] F = spectrum;
-		
+
 		if (NumericalMethods.max(spectrum) == 0) {
 			if (logger != null) logger.log(Level.SEVERE, "There were no deuterons detected.");
 			return null;
@@ -472,7 +461,7 @@ public class MRSt {
 		if (logger != null)  logger.info("beginning fit process.");
 		long startTime = System.currentTimeMillis();
 		
-		double[][] gelf = Optimization.optimizeGelfgat(F, D, this.rongTransferMatrix, 1e5);
+		double[][] gelf = Optimization.optimizeGelfgat(spectrum, D, this.rongTransferMatrix, 1e5);
 		
 		double[] yieldGess = new double[timeAxis.length];
 		for (int j = 0; j < timeAxis.length; j ++) {
@@ -570,7 +559,7 @@ public class MRSt {
 							Math.pow(timeStep, 3);
 					double Ψ = (params[k][j] + params[k][j+1] + params[k][j+2] + params[k][j+3])/4;
 					if (Ψpp != 0)
-						penalty += smoothing*1e-10*Math.pow(Ψpp/Ψ, 2); // encourage a smooth Ti and ρR
+						penalty += smoothing*5e-10*Math.pow(Ψpp/Ψ, 2); // encourage a smooth Ti and ρR
 				}
 			}
 			
@@ -724,15 +713,15 @@ public class MRSt {
 				NumericalMethods.average(measurements[3], measurements[0], left, rite),
 				NumericalMethods.quadInterp(measurements[3], iPC),
 				NumericalMethods.quadInterp(measurements[3], iBT),
-				NumericalMethods.derivative(timeAxis, measurements[3], bangTime, .1, 1),
-				NumericalMethods.derivative(timeAxis, V, bangTime, .1, 2).over(NumericalMethods.interp(V, iBT)),
+				NumericalMethods.derivative(timeAxis, measurements[3], bangTime, .12, 1),
+				NumericalMethods.derivative(timeAxis, V, bangTime, .12, 2).over(NumericalMethods.quadInterp(V, iBT)),
 				NumericalMethods.average(measurements[1], measurements[0], left, rite),
 				NumericalMethods.quadInterp(measurements[1], iTPeak),
 				NumericalMethods.quadInterp(measurements[1], iBT),
-				NumericalMethods.derivative(timeAxis, measurements[1], bangTime, .1, 1),
-				NumericalMethods.derivative(timeAxis, measurements[1], bangTime, .1, 2),
+				NumericalMethods.derivative(timeAxis, measurements[1], bangTime, .12, 1),
+				NumericalMethods.derivative(timeAxis, measurements[1], bangTime, .12, 2),
 				NumericalMethods.average(measurements[2], measurements[0], left, rite),
-				NumericalMethods.derivative(timeAxis, measurements[2], bangTime, .1, 1),
+				NumericalMethods.derivative(timeAxis, measurements[2], bangTime, .12, 1),
 		}; // collect the figures of merit
 		
 		if (logger != null) {

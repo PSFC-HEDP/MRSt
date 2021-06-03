@@ -49,7 +49,7 @@ public class CSV {
 	 * @throws IOException if file cannot be found or permission is denied
 	 * @throws NumberFormatException if elements are not parsable as doubles
 	 */
-	public static final double[][] read(File file, char delimiter)
+	public static double[][] read(File file, char delimiter)
 			throws NumberFormatException, IOException {
 		return read(file, delimiter, 0);
 	}
@@ -65,12 +65,10 @@ public class CSV {
 	 * @throws IOException if file cannot be found or permission is denied
 	 * @throws NumberFormatException if elements are not parsable as doubles
 	 */
-	public static final double[][] read(File file, char delimiter, int headerRows)
+	public static double[][] read(File file, char delimiter, int headerRows)
 			throws NumberFormatException, IOException {
-		BufferedReader in = null;
 		List<double[]> list;
-		try {
-			in = new BufferedReader(new FileReader(file));
+		try (BufferedReader in = new BufferedReader(new FileReader(file))) {
 			list = new ArrayList<double[]>();
 			String line;
 			for (int i = 0; i < headerRows; i ++)
@@ -79,16 +77,12 @@ public class CSV {
 				line = line.trim();
 				if (line.isEmpty())
 					break;
-				String[] elements = line.split("\\s*"+delimiter+"\\s*");
+				String[] elements = line.split("\\s*" + delimiter + "\\s*");
 				double[] row = new double[elements.length];
-				for (int j = 0; j < elements.length; j ++)
+				for (int j = 0; j < elements.length; j++)
 					row[j] = Double.parseDouble(elements[j]);
 				list.add(row);
 			}
-		} finally {
-			try {
-				in.close();
-			} catch (NullPointerException e) {}
 		}
 		return list.toArray(new double[0][]);
 	}
@@ -102,7 +96,7 @@ public class CSV {
 	 * @throws IOException if file cannot be found or permission is denied
 	 * @throws NumberFormatException if elements are not parsable as doubles
 	 */
-	public static final double[] readColumn(File file)
+	public static double[] readColumn(File file)
 			throws NumberFormatException, IOException {
 		return readColumn(file, '\n', 0);
 	}
@@ -116,7 +110,7 @@ public class CSV {
 	 * @throws IOException if file cannot be found or permission is denied
 	 * @throws NumberFormatException if elements are not parsable as doubles
 	 */
-	public static final double[] readColumn(File file, char delimiter, int j)
+	public static double[] readColumn(File file, char delimiter, int j)
 			throws NumberFormatException, IOException {
 		double[][] table = read(file, delimiter);
 		double[] out = new double[table.length];
@@ -134,13 +128,11 @@ public class CSV {
 	 * @throws IOException if file cannot be found or permission is denied
 	 * @throws NumberFormatException if elements are not parsable as doubles
 	 */
-	public static final COSYMapping readCosyCoefficients(File file, int maxOrder)
+	public static COSYMapping readCosyCoefficients(File file, int maxOrder)
 			throws NumberFormatException, IOException {
-		BufferedReader in = null;
 		List<double[]> coefList;
 		List<int[]> expList;
-		try {
-			in = new BufferedReader(new FileReader(file)); // start by reading it like a CSV
+		try (BufferedReader in = new BufferedReader(new FileReader(file))) { // start by reading it like a CSV
 			coefList = new ArrayList<double[]>();
 			expList = new ArrayList<int[]>();
 			String line;
@@ -159,10 +151,6 @@ public class CSV {
 					bloc[i] = Integer.parseInt(String.valueOf(line.charAt(row.length*14+1 + i)));
 				expList.add(bloc);
 			}
-		} finally {
-			try {
-				in.close();
-			} catch (NullPointerException e) {}
 		}
 		return new COSYMapping(coefList.toArray(new double[0][]), expList.toArray(new int[0][]));
 	}
@@ -174,7 +162,7 @@ public class CSV {
 	 * @param delimiter the delimiter character, usually ','
 	 * @throws IOException if the file cannot be found or permission is denied
 	 */
-	public static final void write(double[][] data, File file, char delimiter)
+	public static void write(double[][] data, File file, char delimiter)
 			throws IOException {
 		write(data, file, delimiter, null);
 	}
@@ -187,33 +175,27 @@ public class CSV {
 	 * @param header the list of strings to put on top
 	 * @throws IOException if the file cannot be found or permission is denied
 	 */
-	public static final void write(double[][] data, File file, char delimiter, String[] header)
+	public static void write(double[][] data, File file, char delimiter, String[] header)
 			throws IOException {
-		BufferedWriter out = null;
-		try {
-			out = new BufferedWriter(new FileWriter(file));
+		try (BufferedWriter out = new BufferedWriter(new FileWriter(file))) {
 			if (header != null) {
-				for (int j = 0; j < header.length; j ++) {
+				for (int j = 0; j < header.length; j++) {
 					out.append(header[j]);
-					if (j < header.length-1)
+					if (j < header.length - 1)
 						out.append(delimiter);
 					else
 						out.newLine();
 				}
 			}
-			for (int i = 0; i < data.length; i ++) {
-				for (int j = 0; j < data[i].length; j ++) {
-					out.append(Double.toString(data[i][j]));
-					if (j < data[i].length-1)
+			for (double[] datum: data) {
+				for (int j = 0; j < datum.length; j++) {
+					out.append(Double.toString(datum[j]));
+					if (j < datum.length - 1)
 						out.append(delimiter);
 					else
 						out.newLine();
 				}
 			}
-		} finally {
-			try {
-				out.close();
-			} catch (NullPointerException e) {}
 		}
 	}
 	
@@ -223,7 +205,7 @@ public class CSV {
 	 * @param file the file at which to save
 	 * @throws IOException if the file cannot be found or permission is denied
 	 */
-	public static final void writeColumn(double[] data, File file) throws IOException {
+	public static void writeColumn(double[] data, File file) throws IOException {
 		double[][] columnVector = new double[data.length][1];
 		for (int i = 0; i < data.length; i ++)
 			columnVector[i][0] = data[i];

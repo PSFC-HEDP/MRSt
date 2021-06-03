@@ -31,7 +31,7 @@ if answer != '-':
 	except IOError:
 		pass
 
-fig, host_ax = plt.subplots(figsize=(8,5))
+fig, host_ax = plt.subplots(figsize=(9,5))
 fig.subplots_adjust(right=1 - (0.12*(n-1)))
 axes = [host_ax]
 plots = []
@@ -48,7 +48,7 @@ for i in range(n):
 	rainge = {'Y':(0,None), 'T':(0,10), 'ρ':(0,1.5), 'V':(-100,100), 'a':(-1, 1)}[ylabels[i][0]]
 	YAs[i][np.isnan(ΔAs[i])] = np.nan
 	plots.append(axes[i].plot(XA, YAs[i], '-o', label=ylabels[i], color=f'C{i}')[0])
-	if True:     axes[i].plot(XB, YBs[i], '--', color=f'C{i}')[0]
+	axes[i].plot(XB, YBs[i], '--', color=f'C{i}')[0]
 	axes[i].fill_between(XA, YAs[i] - ΔAs[i], YAs[i] + ΔAs[i], color='C'+str(i), alpha=0.3)
 	axes[i].set_ylabel(ylabels[i])
 	axes[i].set_ylim(*rainge)
@@ -62,7 +62,7 @@ for i in range(n):
 axes[0].set_xlabel(xlabel)
 axes[0].set_xlim(*lims)
 
-axes[0].legend(plots, [p.get_label() for p in plots])
+# axes[0].legend(plots, [p.get_label() for p in plots])
 
 plt.tight_layout()
 

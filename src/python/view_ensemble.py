@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import re
 import sys
-plt.rcParams.update({'font.family': 'sans', 'font.size': 12})
+plt.rcParams.update({'font.family': 'sans', 'font.size': 11})
 # plt.rcParams.update({'font.family': 'serif', 'font.size': 12})
 import warnings
 warnings.filterwarnings("ignore")
@@ -12,14 +12,14 @@ warnings.filterwarnings("ignore")
 # COLUMNS = 3
 # SIZE = (12, 3.5)
 # MARGIN = dict(bottom=.15, top=.97, left=.07, right=.99, wspace=.40, hspace=.05)
-# INCLUDE_ERRORS = True
-# COLUMNS = 2
-# SIZE = (16, 7)
-# MARGIN = dict(bottom=.07, top=.93, left=.06, right=.99, wspace=.42, hspace=.05)
 INCLUDE_ERRORS = True
-COLUMNS = 1
-SIZE = (8, 5)
-MARGIN = dict(bottom=.10, top=.90, left=.13, right=.99, wspace=.35, hspace=.05)
+COLUMNS = 2
+SIZE = (16, 7.5)
+MARGIN = dict(bottom=.07, top=.93, left=.06, right=.99, wspace=.35, hspace=.05)
+# INCLUDE_ERRORS = True
+# COLUMNS = 1
+# SIZE = (8, 5)
+# MARGIN = dict(bottom=.10, top=.90, left=.13, right=.99, wspace=.35, hspace=.05)
 # INCLUDE_ERRORS = False
 # COLUMNS = 2
 # SIZE = (7.5, 9.0)
@@ -30,7 +30,7 @@ MARGIN = dict(bottom=.10, top=.90, left=.13, right=.99, wspace=.35, hspace=.05)
 # MARGIN = dict(bottom=.11, top=.89, left=.13, right=.99, wspace=.30, hspace=.05)
 # INCLUDE_ERRORS = False
 # COLUMNS = 1
-# SIZE = (5, 7)
+# SIZE = (4.5, 6)
 # MARGIN = dict(bottom=.08, top=.92, left=.19, right=.99, wspace=.25, hspace=.05)
 # INCLUDE_ERRORS = False
 # COLUMNS = 1
@@ -40,7 +40,7 @@ MARGIN = dict(bottom=.10, top=.90, left=.13, right=.99, wspace=.35, hspace=.05)
 
 if len(sys.argv) <= 1:
 	# FILENAME = '../../output/ensemble-solenoid.csv'
-	FILENAME = '../../output/ensemble_4_9_5_2_1500_2021-06-01.csv'
+	FILENAME = '../../output/ensemble_4_9_5_2_1501_2021-06-01.csv'
 else:
 	FILENAME = '../../output/'+sys.argv[1]
 BIN_WIDTH = 0.3 # in bels
@@ -51,24 +51,24 @@ X_LABEL = "Yield"
 Y_LABELS = [
 	# (None, 0, 0, 0, 0, False),
 	# ("Total yield", 2e14, 4.36508e17, 9e17, 5e-2, True),
-	# ("Bang time (ns)", 16.248, 16.2544, 16.262, 0, False),#1e-2, False),
+	# ("Bang time (ns)", 16.243, 16.2583, 16.272, 1e-2, False),#1e-2, False),
 	# ("Burn width (ps)", 53, 67.7, 82, 7, False),
 	# ("Burn skewness", -1.6, -.698, -0.1, 3e-1, False),
 	# ("Burn kurtosis", -0.5, 4.7, 10.5, 3, False),
-	("ρR at BT (g/cm^2)", .880, .977, 1.220, 0, False),
-	# ("Burn-average ρR (g/cm^2)", 0.78, .9959, 1.22, 7e-2, True),
-	# ("dρR/dt at BT (g/cm^2/100ps)", -0.9, -.78, -.35, .060, False),
-	("Ti at BT (keV)", 5.7, 7.43, 8.3, 0, False),#7.63848, 11, 0, False),
-	# ("Burn-average Ti (keV)", 5.4, 7.144, 8.6, 7e-2, True),
-	# ("dTi/dt at BT (keV/100ps)", -2.3, 2.08, 6.3, 1.9, False),
-	# ("Bang time (ns)", 16.238, 16.2544, 16.272, 1e-2, False), ("Burn width (ps)", 56, 73.06, 87, 7, False),
-	# ("Burn skewness", -1.3, -.546, 0.1, 3e-1, False), ("Burn kurtosis", -0.5, 4.08, 10.5, 3, False),
-	# ("Burn-average vi (km/s)", -15.2, 0, 15.2, 20, False), ("dvi/dt at BT (km/s/100ps)", -110, 0, 110, 8, False),
+	("ρR at BT (g/cm^2)", .71, .988, 1.29, 7e-2, True),
+	("Ti at BT (keV)", 5.25, 7.32, 9.75, 5e-2, True),#7.63848, 11, 0, False),
+	("Burn-average ρR (g/cm^2)", 0.71, .999, 1.29, 7e-2, True),
+	("Burn-average Ti (keV)", 5.25, 7.103, 9.75, 5e-2, True),
+	("dρR/dt at BT (g/cm^2/100ps)", -1.15, -.887, -.45, .060, False),
+	("dTi/dt at BT (keV/100ps)", -2.3, 1.928, 6.3, 1.9, False),
+	("Bang time (ns)", 16.243, 16.2583, 16.272, 1e-2, False), ("Burn width (ps)", 56, 71.3, 87, 7, False),
+	("Burn skewness", -1.3, -.590, 0.1, 3e-1, False), ("Burn kurtosis", -0.5, 4.52, 10.5, 3, False),
+	# ("Burn-average vi (km/s)", -15.2, 0, 15.2, 20, False), ("dvi/dt at BT (km/s/100ps)", -25, 0, 25, 8, False),
 	# ("ρR at stagnation (g/cm^2)", 0.9, 1.39, 1.7, 0, False),
 	# ("Peak Ti (keV)", 5, 8.073, 13, 0, False),	#("Energy confinement time (ps)", 0, 114.8, 200, 0, False),
-	# ("dTi/dt at BT (keV/(100ps))", -2.5, 2.1, 6.3, 1.9, False),
-	# ("d^2Ti/dt^2 at BT (keV/ns^2)", -2200, -400, 1200, 400, False),#("dTi/dt at stagnation (keV/(100ps))", -20, 30.20, 40, 1.9, False),
-	("d^2V/dt^2/V at BT (1/ns^2)", -60, 616, 1100, 50, False),
+	# ("dTi/dt at BT (keV/100ps)", -2.3, 2.08, 6.3, 1.9, False),
+	# ("d^2Ti/dt^2 at BT (keV/ns^2)", -2200, -400, 1700, 400, False),#("dTi/dt at stagnation (keV/(100ps))", -20, 30.20, 40, 1.9, False),
+	# ("d^2V/dt^2/V at BT (1/ns^2)", -700, 509, 2300, 50, False),#616
 	# ("Stagnation - BT (ps)", -160, -55.5 , 40, 0, False)
 ]
 
@@ -100,8 +100,21 @@ def smooth_average(y, bessel_correction=False):
 	valid = np.isfinite(y)
 	output = y[:]
 	output[valid] = rolling_average(
-		rolling_average(y[valid], n=min((np.sum(valid)-1)//2, 72), bessel_correction=bessel_correction), 6)
+		rolling_average(
+			y[valid],
+			n=min((np.sum(valid)-1)//2, 72),
+			bessel_correction=bessel_correction),
+		n=min((np.sum(valid)-1)//2, 72))
+	output[~valid] = (output[np.roll(~valid, 1)] + output[np.roll(~valid, -1)])/2
 	return output
+
+def symlog(x):
+	x0 = np.median(x)
+	return np.where(x > x0, x0*(np.log(x/x0) + 1), x)
+
+def symexp(y):
+	y0 = np.median(y)
+	return np.where(y > y0, y0*np.exp(y/y0 - 1), x)
 
 
 try:
@@ -186,8 +199,8 @@ for i, (axis, y_min, y_true, y_max, presis, percent) in enumerate(Y_LABELS): # i
 			y_factor[order]*y_true*(1 - presis), y_factor[order]*y_true*(1 + presis), color='#F7DFC8')
 	ax.plot(x[order], y_factor[order]*y_true, 'C1-', zorder=1, label="Based on original data")
 	ax.scatter(x[order], y[order], s=1, zorder=2, label="Based on fit to synthetic data")
-	ax.plot(x[order], μ + σ, 'C3-', zorder=1, label="1σ variation")
-	ax.plot(x[order], μ - σ, 'C3-', zorder=1)
+	# ax.plot(x[order], μ + σ, 'C3-', zorder=1, label="1σ variation")
+	# ax.plot(x[order], μ - σ, 'C3-', zorder=1)
 	if y_min > 0 and y_max/y_min > 10:
 		ax.set_yscale('log')
 	ax.set_ylim(y_min, y_max)
@@ -227,14 +240,16 @@ if INCLUDE_ERRORS:
 		elif 'yield' in axis:  y_factor = simulations["Yield factor"].values
 		else:                  y_factor = np.ones(len(simulations.index))
 
+		if percent:
+			presis *= y_factor[order]*y_true
 		# if presis <= 1e-2 and "(n" in axis:
 		# 	axis = axis.replace("(n", "(p")
 		# 	presis *= 1e3
 		# 	y_true *= 1e3
 
 		dy = y - y_factor*y_true
-		if percent:
-			dy /= y_factor*y_true
+		# if percent:
+		# 	dy /= y_factor*y_true
 		error_at_yield = np.sqrt(np.mean(np.square(dy[np.absolute(np.log10(x/REFERENCE_YIELD)) <= 0.15])))
 		number_at_yield = np.sum(np.absolute(np.log10(x/REFERENCE_YIELD)) <= 0.15)
 		print(f"{axis} error:    {error_at_yield} ± {error_at_yield*np.sqrt(2/number_at_yield)}")
@@ -247,22 +262,19 @@ if INCLUDE_ERRORS:
 			ax.plot(x[order], errs, 'C3--', label="Reported error bar size")
 		else:
 			ax.plot(x[order], stds, 'C0-', label="Standard deviation from actuality")
-			ax.plot(x[order], np.full(bin_centers.shape, presis), 'C1--', label="Required accuracy")
-			ax.plot(x[order], errs/(y_factor[order]*y_true), 'C3--', label="Reported error bar size")
+			ax.plot(x[order], np.full(order.shape, presis), 'C1--', label="Required accuracy")
+			ax.plot(x[order], errs, 'C3--', label="Reported error bar size")
 		# if np.max(errs)/np.max(errs) > 10:
 		ax.set_yscale('log')
-		ax.set_ylim(presis*3.2e-2, presis*5)
+		ax.set_ylim(np.min(presis)*3.2e-2, np.max(presis)*5)
 		# else:
 		# 	ax.set_ylim(0, None)
 		if 'ield' in X_LABEL:
 			ax.set_xscale('log')
-		if not percent:
-			if "(" in axis:
-				ax.set_ylabel(text_wrap(axis[:axis.index("(")].replace(" at BT", "").replace("^2", "²") + "error " + axis[axis.index("("):]))
-			else:
-				ax.set_ylabel(text_wrap(axis+" error"))
+		if "(" in axis:
+			ax.set_ylabel(text_wrap(axis[:axis.index("(")].replace(" at BT", "").replace("^2", "²") + "error " + axis[axis.index("("):]))
 		else:
-			ax.set_ylabel(text_wrap(re.sub(r'(\([^)]+\))?$', '', axis) + " error"))
+			ax.set_ylabel(text_wrap(axis+" error"))
 
 config = '-'+FILENAME[23:36] if len(FILENAME) > 23 else ''
 fig.savefig('../../output/mrst{}.eps'.format(config), dpi=300)

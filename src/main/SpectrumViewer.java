@@ -93,8 +93,6 @@ public class SpectrumViewer extends Application {
 	
 	/**
 	 * build the GUI and display it.
-	 * @throws IOException 
-	 * @throws NumberFormatException 
 	 */
 	public void start(Stage stage) throws NumberFormatException, IOException {
 		GridPane leftPane = new GridPane();
@@ -162,8 +160,7 @@ public class SpectrumViewer extends Application {
 					this.cosyCoefficients = map.coefficients;
 					this.cosyExponents = map.exponents;
 				}), 0, row, 3, 1);
-		row ++;
-		
+
 		VBox rightPane = new VBox(SPACING_1);
 		
 		rightPane.getChildren().add(chooseFileWidget("Energy bin file:", stage, "energy.txt",
@@ -267,16 +264,16 @@ public class SpectrumViewer extends Application {
 					double[][] smallSpec = NumericalMethods.downsample(tBins, eBins, spec, mc.getTimeBins(), mc.getEnergyBins());
 					try { // send the data to python for plotting
 						plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), smallSpec,
-								"Time (ns)", "Energy (MeV)", "Original neutron spectrum");
+						            "Original neutron spectrum");
 						plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getCorrectedSpectrum(),
-								"Time (ns)", "Energy (MeV)", "Synthetic deuteron spectrum");
+						            "Synthetic deuteron spectrum");
 						plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getInferredSpectrum(),
-								"Time (ns)", "Energy (MeV)", "Fitted neutron spectrum");
+						            "Fitted neutron spectrum");
 						plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getFittedSpectrum(),
-								"Time (ns)", "Energy (MeV)", "Fitted deuteron spectrum");
+						            "Fitted deuteron spectrum");
 						plotLines(spectrumName,
-								mc.getTimeAxis(), "Time (ns)",
-								mc.getIonTemperature(), mc.getIonTemperatureError(), "Ti (keV)",
+								mc.getTimeAxis(),
+								  mc.getIonTemperature(), mc.getIonTemperatureError(), "Ti (keV)",
 								mc.getArealDensity(), mc.getArealDensityError(), "ρR (g/cm^2)",
 								mc.getNeutronYield(), mc.getNeutronYieldError(), "Yn (10^15/ns)"
 //								mc.getFlowVelocity(), mc.getFlowVelocityError(), "Vi cosθ (μm/ns)"
@@ -329,13 +326,13 @@ public class SpectrumViewer extends Application {
 	 * @throws IOException if there's an issue talking to disc
 	 */
 	private static void plotHeatmap(double[] x, double[] y, double[][] z,
-			String xLabel, String yLabel, String title) throws IOException {
+	                                String title) throws IOException {
 		new File("output/").mkdir();
 		CSV.writeColumn(x, new File(String.format("output/%s_x.csv", title)));
 		CSV.writeColumn(y, new File(String.format("output/%s_y.csv", title)));
 		CSV.write(z, new File(String.format("output/%s_z.csv", title)), ',');
 		ProcessBuilder plotPB = new ProcessBuilder("python", "src/python/plot2.py",
-				xLabel, yLabel, title);
+		                                           "Time (ns)", "Energy (MeV)", title);
 		plotPB.start();
 	}
 	
@@ -343,12 +340,11 @@ public class SpectrumViewer extends Application {
 	/**
 	 * send 1D data to a Python script for plotting in MatPlotLib
 	 * @param x the data for the x axis
-	 * @param xLabel the label for the x axis
 	 * @param yDatums {data for the y axis, error bar width for the y axis, label for that data,
 	 *   ...}
 	 * @throws IOException if there's an issue talking to disk
 	 */
-	private static void plotLines(String name, double[] x, String xLabel, Object... yDatums) throws IOException {
+	private static void plotLines(String name, double[] x, Object... yDatums) throws IOException {
 		double[][] ys = new double[yDatums.length/3][];
 		double[][] Δs = new double[yDatums.length/3][];
 		String[] yLabels = new String[yDatums.length/3];
@@ -365,7 +361,8 @@ public class SpectrumViewer extends Application {
 			CSV.writeColumn(Δs[i], new File(String.format("output/%s_err_%d.csv", "Data", i)));
 		}
 		ProcessBuilder plotPB = new ProcessBuilder("python", "src/python/plot1.py",
-				xLabel, String.join("\n", yLabels), "data", name, Integer.toString(ys.length));
+		                                           "Time (ns)", String.join("\n", yLabels),
+		                                           "data", name, Integer.toString(ys.length));
 		plotPB.start();
 	}
 	

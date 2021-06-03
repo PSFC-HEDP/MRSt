@@ -34,6 +34,9 @@
       <option name="CHECK_FOR_FILES_CONTAINING_BOM" value="true" />
     </inspection_tool>
     <inspection_tool class="OnDemandImport" enabled="true" level="WARNING" enabled_by_default="true" />
+    <inspection_tool class="PointlessArithmeticExpression" enabled="false" level="WARNING" enabled_by_default="false">
+      <option name="m_ignoreExpressionsContainingConstants" value="true" />
+    </inspection_tool>
     <inspection_tool class="SamePackageImport" enabled="true" level="WARNING" enabled_by_default="true" />
     <inspection_tool class="SuspiciousNameCombination" enabled="true" level="WARNING" enabled_by_default="true">
       <group names="width,left,right" />
