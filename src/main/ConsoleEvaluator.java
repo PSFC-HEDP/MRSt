@@ -32,7 +32,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import main.CSV.COSYMapping;
-import main.MRSt.ErrorMode;
+import main.Analysis.ErrorMode;
 
 
 /**
@@ -47,16 +47,16 @@ public class ConsoleEvaluator {
 	private static final double COSY_REFERENCE_ENERGY = 12.45e6;
 	
 	
-	public static final void main(String[] args) throws SecurityException, IOException {
-		for (int i = 0; i < MRSt.HEADERS.length; i ++) {
+	public static void main(String[] args) throws SecurityException, IOException {
+		for (int i = 0; i < Analysis.HEADERS.length; i ++) {
 			if (i < 4)
-				MRSt.HEADERS_WITH_ERRORS[i] = MRSt.HEADERS[i];
+				Analysis.HEADERS_WITH_ERRORS[i] = Analysis.HEADERS[i];
 			else {
-				MRSt.HEADERS_WITH_ERRORS[2*(i-4)+4] = MRSt.HEADERS[i];
-				int locationOfTheWordQuoteErrorUnquote = MRSt.HEADERS[i].indexOf('(') - 1;
+				Analysis.HEADERS_WITH_ERRORS[2*(i-4)+4] = Analysis.HEADERS[i];
+				int locationOfTheWordQuoteErrorUnquote = Analysis.HEADERS[i].indexOf('(') - 1;
 				if (locationOfTheWordQuoteErrorUnquote == -2)
-					locationOfTheWordQuoteErrorUnquote = MRSt.HEADERS[i].length();
-				MRSt.HEADERS_WITH_ERRORS[2*(i-4)+5] = MRSt.HEADERS[i] + " error";
+					locationOfTheWordQuoteErrorUnquote = Analysis.HEADERS[i].length();
+				Analysis.HEADERS_WITH_ERRORS[2*(i-4)+5] = Analysis.HEADERS[i] + " error";
 			}
 		}
 
@@ -85,17 +85,17 @@ public class ConsoleEvaluator {
 		logger.log(Level.INFO, "beginning "+numYields+" evaluations on "+numThreads+" cores");
 		
 		Thread[] threads = new Thread[numThreads];
-		double[][] results = new double[numYields][MRSt.HEADERS_WITH_ERRORS.length];
+		double[][] results = new double[numYields][Analysis.HEADERS_WITH_ERRORS.length];
 		for (int t = 0; t < numThreads; t ++) {
 			final int T = t;
 			final String finalImplosionName = implosionName;
 			threads[t] = new Thread(() -> {
-				MRSt mc = null;
+				Analysis mc = null;
 				try {
 					COSYMapping map = CSV.readCosyCoefficients(new File("input/MRSt_IRF_FP tilted_final.txt"), 3);
 					double[][] cosyCoefficients = map.coefficients;
 					int[][] cosyExponents = map.exponents;
-					mc = new MRSt(
+					mc = new Analysis(
 							Particle.D,
 							3e-3,
 							2*foilRadius,
@@ -126,7 +126,7 @@ public class ConsoleEvaluator {
 						spec = CSV.read(new File("input/spectrum "+finalImplosionName+".txt"), '\t');
 						if (spec.length != eBins.length-1 || spec[0].length != tBins.length-1) {
 							System.out.println("interpreting a weird spectrum file...");
-							spec = MRSt.interpretSpectrumFile(tBins, eBins, spec);
+							spec = Analysis.interpretSpectrumFile(tBins, eBins, spec);
 						}
 					} catch (ArrayIndexOutOfBoundsException | NumberFormatException e) {
 						logger.log(Level.SEVERE, e.getMessage(), e);
@@ -135,14 +135,14 @@ public class ConsoleEvaluator {
 					}
 					
 					double yield = Math.pow(10, -3.*Math.random());
-					MRSt.modifySpectrum(tBins, eBins, spec, yield, 1, 1, 0);
+					Analysis.modifySpectrum(tBins, eBins, spec, yield, 1, 1, 0);
 					
 					logger.log(Level.INFO, String.format("Yn = %f (%d/%d)", yield,
 							T+numThreads*k, numYields));
 					
 					double[] result;
 					try {
-						result = mc.respond(
+						result = mc.respondAndAnalyze(
 								eBins,
 								tBins,
 								spec,
@@ -175,7 +175,7 @@ public class ConsoleEvaluator {
 	
 	private static void save(double[][] results, String filename, Logger logger) {
 		try {
-			CSV.write(results, new File("output/"+filename+".csv"), ',', MRSt.HEADERS_WITH_ERRORS);
+			CSV.write(results, new File("output/"+filename+".csv"), ',', Analysis.HEADERS_WITH_ERRORS);
 			logger.log(Level.INFO, "Saved ensemble results to output/"+filename+".csv");
 		} catch (IOException e) {
 			logger.log(Level.SEVERE, e.getMessage(), e);

@@ -44,7 +44,7 @@ import javafx.scene.text.Font;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import main.CSV.COSYMapping;
-import main.MRSt.ErrorMode;
+import main.Analysis.ErrorMode;
 
 import java.io.File;
 import java.io.IOException;
@@ -204,9 +204,9 @@ public class ConfigurationEvaluator extends Application {
 				logger.severe("Please select a COSY map file.");
 			else {
 				new Thread(() -> {
-					MRSt mc = null;
+					Analysis mc = null;
 					try {
-						mc = new MRSt(
+						mc = new Analysis(
 								ION,
 								foilDistance.getValue()*1e-3,
 								foilWidth.getValue()*1e-3,
@@ -228,7 +228,7 @@ public class ConfigurationEvaluator extends Application {
 						logger.log(Level.SEVERE, e.getMessage(), e);
 					}
 					
-					double[][] results = new double[NUM_YIELDS][MRSt.HEADERS_WITH_ERRORS.length];
+					double[][] results = new double[NUM_YIELDS][Analysis.HEADERS_WITH_ERRORS.length];
 					for (int k = 0; k < NUM_YIELDS; k ++) {
 						double[] eBins = null, tBins = null;
 						double[][] spec = null;
@@ -238,7 +238,7 @@ public class ConfigurationEvaluator extends Application {
 							spec = CSV.read(new File("data/spectrum og with falling temp.txt"), '\t');
 							if (spec.length != eBins.length-1 || spec[0].length != tBins.length-1) {
 								logger.info("interpreting a weird spectrum file...");
-								spec = MRSt.interpretSpectrumFile(tBins, eBins, spec);
+								spec = Analysis.interpretSpectrumFile(tBins, eBins, spec);
 							}
 						} catch (ArrayIndexOutOfBoundsException | NumberFormatException e) {
 							logger.log(Level.SEVERE, e.getMessage(), e);
@@ -250,7 +250,7 @@ public class ConfigurationEvaluator extends Application {
 						double temp =  (variations[1].isSelected()) ? Math.exp(2*Math.random() - 1) : 1; // roll the dies on the spectrum modifications
 						double downS = (variations[2].isSelected()) ? Math.exp(2*Math.random() - 1) : 1;
 						double flow =  (variations[3].isSelected()) ? 200*Math.random()*(2*Math.random() - 1) : 0;
-						MRSt.modifySpectrum(tBins, eBins, spec, yield, temp, downS, flow);
+						Analysis.modifySpectrum(tBins, eBins, spec, yield, temp, downS, flow);
 						
 						ErrorMode errorBars = this.errorBars.isSelected() ?
 								ErrorMode.HESSIAN :
@@ -260,7 +260,7 @@ public class ConfigurationEvaluator extends Application {
 						
 						double[] result;
 						try {
-							result = mc.respond(
+							result = mc.respondAndAnalyze(
 									eBins,
 									tBins,
 									spec,
@@ -282,7 +282,7 @@ public class ConfigurationEvaluator extends Application {
 						if (k%6 == 5 || k == NUM_YIELDS - 1) {
 							try {
 								CSV.write(results, new File("working/"+saveFile.getText()), ',',
-										MRSt.HEADERS_WITH_ERRORS);
+								          Analysis.HEADERS_WITH_ERRORS);
 							} catch (IOException e) {
 								logger.log(Level.SEVERE, e.getMessage(), e);
 							}

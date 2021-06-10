@@ -50,7 +50,7 @@ import javafx.scene.text.Font;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import main.CSV.COSYMapping;
-import main.MRSt.ErrorMode;
+import main.Analysis.ErrorMode;
 
 
 /**
@@ -216,20 +216,20 @@ public class SpectrumViewer extends Application {
 						tBins = timeBins.clone();
 						if (spectrum.length != eBins.length-1 || spectrum[0].length != tBins.length-1) {
 							logger.info("interpreting weird spectrum file");
-							spec = MRSt.interpretSpectrumFile(tBins, eBins, spectrum); // deal with the necessary differentiation etc
+							spec = Analysis.interpretSpectrumFile(tBins, eBins, spectrum); // deal with the necessary differentiation etc
 						}
 						else
 							spec = deepClone(spectrum);
-						MRSt.modifySpectrum(tBins, eBins, spec, yieldFactor.getValue()/100., 1, 1, 0);
+						Analysis.modifySpectrum(tBins, eBins, spec, yieldFactor.getValue()/100., 1, 1, 0);
 					} catch (ArrayIndexOutOfBoundsException e) {
 						logger.severe("Invalid input spectrum file.");
 						return;
 					}
 					
 					logger.log(Level.INFO, "running fit on spectrum with yield factor = "+yieldFactor.getValue()/100);
-					MRSt mc = null;
+					Analysis mc = null;
 					try {
-						mc = new MRSt(
+						mc = new Analysis(
 								ION,
 								foilDistance.getValue()*1e-3,
 								foilWidth.getValue()*1e-3,
@@ -251,7 +251,7 @@ public class SpectrumViewer extends Application {
 //						double[] res = mc.computeResolution(14.);
 //						System.out.println(String.format("Energy res: %.2f keV\nTime res: %.2f ps", res[0], res[1]));
 						
-						mc.respond(
+						mc.respondAndAnalyze(
 								eBins,
 								tBins,
 								spec,

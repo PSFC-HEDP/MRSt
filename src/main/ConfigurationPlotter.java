@@ -26,7 +26,7 @@ package main;
 import java.io.File;
 import java.io.IOException;
 import main.CSV.COSYMapping;
-import main.MRSt.ErrorMode;
+import main.Analysis.ErrorMode;
 
 /**
  * @author Justin Kunimune
@@ -53,11 +53,11 @@ public class ConfigurationPlotter {
 			for (double tFoil = 25e-6; tFoil < 110e-6; tFoil += 15e-6) {
 				for (double wAperture = 1.0e-3; wAperture < 5.1e-3; wAperture += 1.0e-3) {
 //					System.out.println("setting up simulatin");
-					MRSt mc = null;
+					Analysis mc = null;
 					COSYMapping map = CSV.readCosyCoefficients(new File("data/MRSt_IRF_FP tilted_final.txt"), 3);
 					double[][] cosyCoefficients = map.coefficients;
 					int[][] cosyExponents = map.exponents;
-					mc = new MRSt(
+					mc = new Analysis(
 							Particle.D,
 							3e-3,
 							2*rFoil,
@@ -77,26 +77,10 @@ public class ConfigurationPlotter {
 							null); // make the simulation
 					
 //					System.out.println("kalkula emablia");
-					double[] E = new double[RESOLUTION+1], fE = new double[RESOLUTION]; // do this to get the resolutions
-					for (int i = 0; i <= RESOLUTION; i ++)
-						E[i] = 13.0e6 + 2.e6*i/RESOLUTION;
-					
-					double[] T = new double[RESOLUTION+1], fT = new double[RESOLUTION];
-					for (int i = 0; i <= RESOLUTION; i ++)
-						T[i] = -100e-12 + 200e-12*i/RESOLUTION;
-					
-					for (int i = 0; i < RESOLUTION*NUM_PARTICLES; i ++) {
-						double[] et = mc.simulate(14e6, 0);
-						int e = (int)((et[0] - E[0])/(E[1] - E[0]));
-						int t = (int)((et[1] - T[0])/(T[1] - T[0]));
-						if (e >= 0 && e < RESOLUTION)
-							fE[e] += 1;
-						if (t >= 0 && t < RESOLUTION)
-							fT[t] += 1;
-					}
-					
-					double timeRes = NumericalMethods.fwhm(T, fT)/1e-12; // [ps]
-					double energyRes = NumericalMethods.fwhm(E, fE)/1e3; // [keV]
+
+					double[] resolutions = mc.computeResolution(14);
+					double timeRes = resolutions[1]; // [ps]
+					double energyRes = resolutions[0]; // [keV]
 					
 //					System.out.println("kalkula veria");
 					double[] errs = new double[MEASUREMENTS.length];
@@ -107,14 +91,14 @@ public class ConfigurationPlotter {
 					spec = CSV.read(new File("data/nsp_150327_16p26.txt"), '\t');
 					if (spec.length != eBins.length-1 || spec[0].length != tBins.length-1) {
 						System.out.println("interpreting a weird spectrum file...");
-						spec = MRSt.interpretSpectrumFile(tBins, eBins, spec);
+						spec = Analysis.interpretSpectrumFile(tBins, eBins, spec);
 					}
 					
 					for (int i = 0; i < NUM_RUNS; i ++) {
 						double[] result = null;
 						while (result == null) {
 							try {
-								result =mc.respond(
+								result =mc.respondAndAnalyze(
 															eBins,
 															tBins,
 															spec,
@@ -132,7 +116,7 @@ public class ConfigurationPlotter {
 					}
 					
 					System.out.printf("[%g, %g, %g, %g, %g, %g, %g, %g, %g, %g],\n",
-							rFoil, tFoil, wAperture, 20e-3, energyRes, timeRes, mc.efficiency(14e6), errs[0], errs[1], errs[2]);
+							rFoil, tFoil, wAperture, 20e-3, energyRes, timeRes, mc.efficiency(), errs[0], errs[1], errs[2]);
 				}
 			}
 		}
