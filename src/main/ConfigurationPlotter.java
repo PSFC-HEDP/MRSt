@@ -91,7 +91,7 @@ public class ConfigurationPlotter {
 					spec = CSV.read(new File("data/nsp_150327_16p26.txt"), '\t');
 					if (spec.length != eBins.length-1 || spec[0].length != tBins.length-1) {
 						System.out.println("interpreting a weird spectrum file...");
-						spec = Analysis.interpretSpectrumFile(tBins, eBins, spec);
+						spec = SpectrumGenerator.interpretSpectrumFile(tBins, eBins, spec);
 					}
 					
 					for (int i = 0; i < NUM_RUNS; i ++) {

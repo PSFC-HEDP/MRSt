@@ -32,7 +32,36 @@ import java.util.Random;
  * @author Justin Kunimune
  */
 public class NumericalMethods {
-	
+
+	/**
+	 * draw a boolean from a Bernoulli distribution.
+	 * @param p the probability of true
+	 * @return the number
+	 */
+	public static boolean bernoulli(double p) {
+		return bernoulli(p, Math.random());
+	}
+
+	/**
+	 * draw a boolean from a Bernoulli distribution.
+	 * @param p the probability of true
+	 * @param random the rng to use
+	 * @return the number
+	 */
+	public static boolean bernoulli(double p, Random random) {
+		return bernoulli(p, random.nextDouble());
+	}
+
+	/**
+	 * draw a boolean from a Bernoulli distribution using the given random number.
+	 * @param p the probability of true
+	 * @param u a number randomly distributed in [0, 1)
+	 * @return the number
+	 */
+	private static boolean bernoulli(double p, double u) {
+		return u < p;
+	}
+
 	/**
 	 * draw a number from a Gaussian distribution.
 	 * @param μ mean
@@ -42,7 +71,7 @@ public class NumericalMethods {
 	public static double normal(double μ, double σ) {
 		return normal(μ, σ, Math.random(), Math.random());
 	}
-	
+
 	/**
 	 * draw a number from a Gaussian distribution.
 	 * @param μ mean
@@ -53,11 +82,13 @@ public class NumericalMethods {
 	public static double normal(double μ, double σ, Random random) {
 		return normal(μ, σ, random.nextDouble(), random.nextDouble());
 	}
-	
+
 	/**
-	 * draw a number from a Gaussian distribution.
+	 * draw a number from a Gaussian distribution using the given random numbers.
 	 * @param μ mean
 	 * @param σ standard deviation
+	 * @param u1 a number randomly distributed in [0, 1)
+	 * @param u2 a number randomly distributed in [0, 1)
 	 * @return the number
 	 */
 	private static double normal(double μ, double σ, double u1, double u2) {
@@ -66,10 +97,22 @@ public class NumericalMethods {
 		double z = Math.sqrt(-2*Math.log(u1))*Math.cos(2*Math.PI*u2);
 		return σ*z + μ;
 	}
-	
+
 	/**
 	 * draw a number from a Poisson distribution.
-	 * @param λ expectation value
+	 * @param λ expected number
+	 * @return the number
+	 */
+	public static int poisson(double λ) {
+		if (λ < 20)
+			return poisson(λ, Math.random());
+		else
+			return (int) Math.max(0., Math.round(normal(λ, Math.sqrt(λ))));
+	}
+
+	/**
+	 * draw a number from a Poisson distribution.
+	 * @param λ expected number
 	 * @param random the rng to use
 	 * @return the number
 	 */
@@ -79,10 +122,11 @@ public class NumericalMethods {
 		else
 			return (int) Math.max(0., Math.round(normal(λ, Math.sqrt(λ), random)));
 	}
-	
+
 	/**
-	 * draw a number from a Poisson distribution.
-	 * @param λ expectation value
+	 * draw a number from a Poisson distribution using the given random number.
+	 * @param λ expected number
+	 * @param u a number randomly distributed in [0, 1)
 	 * @return the number
 	 */
 	private static int poisson(double λ, double u) {
@@ -100,6 +144,35 @@ public class NumericalMethods {
 		else { // use Gaussian approximation for high expectations
 			throw new IllegalArgumentException("You should use a Gaussian approximation for high expectations, but I can't do that with this poisson(double, double) call");
 		}
+	}
+
+	/**
+	 * draw a number from an exponential distribution.
+	 * @param λ mean
+	 * @return the number
+	 */
+	public static double exponential(double λ) {
+		return exponential(λ, Math.random());
+	}
+
+	/**
+	 * draw a number from an exponential distribution.
+	 * @param λ mean
+	 * @param random the rng to use
+	 * @return the number
+	 */
+	public static double exponential(double λ, Random random) {
+		return exponential(λ, random.nextDouble());
+	}
+
+	/**
+	 * draw a number from an exponential distribution using the given random number.
+	 * @param λ mean
+	 * @param u a number randomly distributed in [0, 1)
+	 * @return the number
+	 */
+	private static double exponential(double λ, double u) {
+		return -λ*Math.log(1-u);
 	}
 	
 	public static double[] unimode(double[] x, double[] params) {
@@ -791,12 +864,11 @@ public class NumericalMethods {
 	/**
 	 * return the index of the pair of bin edges in an evenly spaced array that contains
 	 * the value
-	 * @param value
-	 * @param binEdges
-	 * @return int in the range [0, bins.length-1)
+	 * @return int in the range [0, bins.length-1), or -1 if it's out of range
 	 */
 	public static int bin(double value, double[] binEdges) {
-		return (int)((value - binEdges[0])/(binEdges[binEdges.length-1] - binEdges[0])*(binEdges.length-1));
+		int bin = (int)((value - binEdges[0])/(binEdges[binEdges.length-1] - binEdges[0])*(binEdges.length-1));
+		return (bin >= 0 && bin < binEdges.length-1) ? bin : -1;
 	}
 	
 	/**
@@ -1142,7 +1214,6 @@ public class NumericalMethods {
 		else
 			throw new IllegalArgumentException("I don't know Legendre polynomials that high.");
 	}
-
 
 	/**
 	 * a discrete representation of an unknown function, capable of evaluating in log time.

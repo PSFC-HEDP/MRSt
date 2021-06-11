@@ -29,7 +29,7 @@ if answer != '-':
 			YBs[2] /= 10
 		# YBs[2] *= np.sum(YAs[2]*(XA[1] - XA[0]))/np.sum(YBs[2]*(XB[1] - XB[0])) # normalize the yield curves to account for any magnitude discrepancy
 	except IOError:
-		pass
+		XB, YBs = None, None
 
 fig, host_ax = plt.subplots(figsize=(9,5))
 fig.subplots_adjust(right=1 - (0.12*(n-1)))
@@ -45,10 +45,17 @@ for i in range(n):
 		for sp in axes[i].spines.values(): sp.set_visible(False)
 		axes[i].spines['right'].set_visible(True)
 
-	rainge = {'Y':(0,None), 'T':(0,10), 'ρ':(0,1.5), 'V':(-100,100), 'a':(-1, 1)}[ylabels[i][0]]
+	rainge = {
+		'Y':(0,None),
+		'T':(0,10),
+		'ρ':(0,1.5),
+		'V':(-100,100),
+		'a':(-1, 1)
+	}.get(ylabels[i][0], (None, None))
 	YAs[i][np.isnan(ΔAs[i])] = np.nan
 	plots.append(axes[i].plot(XA, YAs[i], '-o', label=ylabels[i], color=f'C{i}')[0])
-	axes[i].plot(XB, YBs[i], '--', color=f'C{i}')[0]
+	if XB is not None:
+		axes[i].plot(XB, YBs[i], '--', color=f'C{i}')[0]
 	axes[i].fill_between(XA, YAs[i] - ΔAs[i], YAs[i] + ΔAs[i], color='C'+str(i), alpha=0.3)
 	axes[i].set_ylabel(ylabels[i])
 	axes[i].set_ylim(*rainge)
@@ -58,9 +65,8 @@ for i in range(n):
 		lims = np.min(XA[YAs[i]/Ymax >= 1e-3]), np.max(XA[YAs[i]/Ymax >= 1e-3])
 		if not all(np.isfinite(lims)):
 			lims = XA[0], XA[-1]
-
+		axes[0].set_xlim(*lims)
 axes[0].set_xlabel(xlabel)
-axes[0].set_xlim(*lims)
 
 # axes[0].legend(plots, [p.get_label() for p in plots])
 

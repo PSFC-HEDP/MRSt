@@ -61,7 +61,6 @@ import main.Analysis.ErrorMode;
 public class SpectrumViewer extends Application {
 	
 	private static final Particle ION = Particle.D;
-	private static final File STOPPING_POWER_FILE = new File("input/stopping_power_deuterons.csv");
 	private static final double COSY_MINIMUM_ENERGY = 10.7e6;
 	private static final double COSY_MAXIMUM_ENERGY = 14.2e6;
 	private static final double COSY_REFERENCE_ENERGY = 12.45e6;
@@ -216,11 +215,11 @@ public class SpectrumViewer extends Application {
 						tBins = timeBins.clone();
 						if (spectrum.length != eBins.length-1 || spectrum[0].length != tBins.length-1) {
 							logger.info("interpreting weird spectrum file");
-							spec = Analysis.interpretSpectrumFile(tBins, eBins, spectrum); // deal with the necessary differentiation etc
+							spec = SpectrumGenerator.interpretSpectrumFile(tBins, eBins, spectrum); // deal with the necessary differentiation etc
 						}
 						else
 							spec = deepClone(spectrum);
-						Analysis.modifySpectrum(tBins, eBins, spec, yieldFactor.getValue()/100., 1, 1, 0);
+						SpectrumGenerator.modifySpectrum(tBins, eBins, spec, yieldFactor.getValue()/100., 1, 1, 0);
 					} catch (ArrayIndexOutOfBoundsException e) {
 						logger.severe("Invalid input spectrum file.");
 						return;
@@ -340,8 +339,8 @@ public class SpectrumViewer extends Application {
 	/**
 	 * send 1D data to a Python script for plotting in MatPlotLib
 	 * @param x the data for the x axis
-	 * @param yDatums {data for the y axis, error bar width for the y axis, label for that data,
-	 *   ...}
+	 * @param yDatums {data for the y axis, error bar width for the y axis, label
+	 *                for that data, ...}
 	 * @throws IOException if there's an issue talking to disk
 	 */
 	private static void plotLines(String name, double[] x, Object... yDatums) throws IOException {

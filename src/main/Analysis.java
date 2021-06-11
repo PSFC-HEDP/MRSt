@@ -97,9 +97,6 @@ public class Analysis {
 	 * @param foilWidth the total width of the foil [m]
 	 * @param foilHeight the total hite of the foil [m]
 	 * @param foilThickness the thickness of the foil [m]
-	 * @param stoppingPowerData a double[][] containing two columns and n rows. the zeroth column in
-	 *                          the reference values of E in [keV] and the last column is the corresponding values of
-	 *                          dE/dx in [keV/μm].
 	 * @param apertureDistance the distance from TCC to the aperture [m]
 	 * @param apertureWidth the width of the aperture [m]
 	 * @param apertureHeight the hite of the aperture [m]
@@ -114,7 +111,6 @@ public class Analysis {
 	public Analysis(
 			Particle ion,
 			double foilDistance, double foilWidth, double foilHeight, double foilThickness,
-			double[][] stoppingPowerData,
 			double apertureDistance, double apertureWidth, double apertureHeight,
 			double minimumEnergy, double maximumEnergy, double referenceEnergy,
 			double[][] cosyCoefficients, int[][] cosyExponents,
@@ -123,7 +119,7 @@ public class Analysis {
 
 		this.ionOptics = new IonOptics(
 				ion, foilDistance, foilWidth, foilHeight, foilThickness,
-				stoppingPowerData, apertureDistance, apertureWidth,
+				apertureDistance, apertureWidth,
 				apertureHeight, minimumEnergy, maximumEnergy, referenceEnergy,
 				cosyCoefficients, cosyExponents, focalTilt);
 

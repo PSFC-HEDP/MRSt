@@ -238,7 +238,7 @@ public class ConfigurationEvaluator extends Application {
 							spec = CSV.read(new File("data/spectrum og with falling temp.txt"), '\t');
 							if (spec.length != eBins.length-1 || spec[0].length != tBins.length-1) {
 								logger.info("interpreting a weird spectrum file...");
-								spec = Analysis.interpretSpectrumFile(tBins, eBins, spec);
+								spec = SpectrumGenerator.interpretSpectrumFile(tBins, eBins, spec);
 							}
 						} catch (ArrayIndexOutOfBoundsException | NumberFormatException e) {
 							logger.log(Level.SEVERE, e.getMessage(), e);
@@ -250,7 +250,7 @@ public class ConfigurationEvaluator extends Application {
 						double temp =  (variations[1].isSelected()) ? Math.exp(2*Math.random() - 1) : 1; // roll the dies on the spectrum modifications
 						double downS = (variations[2].isSelected()) ? Math.exp(2*Math.random() - 1) : 1;
 						double flow =  (variations[3].isSelected()) ? 200*Math.random()*(2*Math.random() - 1) : 0;
-						Analysis.modifySpectrum(tBins, eBins, spec, yield, temp, downS, flow);
+						SpectrumGenerator.modifySpectrum(tBins, eBins, spec, yield, temp, downS, flow);
 						
 						ErrorMode errorBars = this.errorBars.isSelected() ?
 								ErrorMode.HESSIAN :

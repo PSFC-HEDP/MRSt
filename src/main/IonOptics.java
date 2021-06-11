@@ -23,6 +23,8 @@
  */
 package main;
 
+import java.io.File;
+
 /**
  * A class to handle all of the deuteron physics, from their birth in the foil to
  * their collision with the detector plane.
@@ -32,6 +34,7 @@ public class IonOptics {
 	private static final double MIN_E = 12, MAX_E = 16;
 	private static final int TIME_CORRECTION_RESOLUTION = 20;
 	private static final int STOPPING_DISTANCE_RESOLUTION = 64;
+	private static final File STOPPING_POWER_FILE = new File("input/stopping_power_deuterons_CD.csv");
 
 	private static final int x = 0, y = 1, z = 2;
 

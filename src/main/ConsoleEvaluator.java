@@ -101,7 +101,7 @@ public class ConsoleEvaluator {
 							2*foilRadius,
 							2*foilRadius,
 							foilThickness,
-							CSV.read(new File("input/stopping_power_deuterons.csv"), ','),
+							CSV.read(new File("input/stopping_power_deuterons_CD.csv"), ','),
 							6e0,
 							apertureWidth,
 							apertureHeight,
@@ -126,7 +126,7 @@ public class ConsoleEvaluator {
 						spec = CSV.read(new File("input/spectrum "+finalImplosionName+".txt"), '\t');
 						if (spec.length != eBins.length-1 || spec[0].length != tBins.length-1) {
 							System.out.println("interpreting a weird spectrum file...");
-							spec = Analysis.interpretSpectrumFile(tBins, eBins, spec);
+							spec = SpectrumGenerator.interpretSpectrumFile(tBins, eBins, spec);
 						}
 					} catch (ArrayIndexOutOfBoundsException | NumberFormatException e) {
 						logger.log(Level.SEVERE, e.getMessage(), e);
@@ -135,7 +135,7 @@ public class ConsoleEvaluator {
 					}
 					
 					double yield = Math.pow(10, -3.*Math.random());
-					Analysis.modifySpectrum(tBins, eBins, spec, yield, 1, 1, 0);
+					SpectrumGenerator.modifySpectrum(tBins, eBins, spec, yield, 1, 1, 0);
 					
 					logger.log(Level.INFO, String.format("Yn = %f (%d/%d)", yield,
 							T+numThreads*k, numYields));
