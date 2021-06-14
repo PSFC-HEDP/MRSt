@@ -867,10 +867,24 @@ public class NumericalMethods {
 	 * @return int in the range [0, bins.length-1), or -1 if it's out of range
 	 */
 	public static int bin(double value, double[] binEdges) {
+		if (Double.isNaN(value))
+			return -1;
 		int bin = (int)((value - binEdges[0])/(binEdges[binEdges.length-1] - binEdges[0])*(binEdges.length-1));
 		return (bin >= 0 && bin < binEdges.length-1) ? bin : -1;
 	}
 	
+
+	public static double[] collum(double[][] matrix, int collumIndex) {
+		double[] collum = new double[matrix.length];
+		for (int i = 0; i < matrix.length; i ++) {
+			if (collumIndex >= matrix[i].length)
+				throw new IllegalArgumentException("the given matrix does not have enuff collums");
+			collum[i] = matrix[i][collumIndex];
+		}
+		return collum;
+	}
+
+
 	/**
 	 * coerce x into the range [min, max]
 	 * @param min inclusive minimum
@@ -944,6 +958,27 @@ public class NumericalMethods {
 			y1[i] = s.interpolate((float) x1[i]);
 		return y1;
 	}
+
+	/**
+	 * do a Runge-Kutta 4-5 integral to get the final value of y after some interval
+	 * @param f dy/dt as a function of y
+	 * @param Δt the amount of time to let y ject
+	 * @param y0 the inicial value of y
+	 * @param numSteps the number of steps to use
+	 * @return the final value of y
+	 */
+	public static double odeSolve(DiscreteFunction f, double Δt, double y0, int numSteps) {
+		final double dt = Δt/numSteps;
+		double y = y0;
+		for (int i = 0; i < numSteps; i ++) {
+			double k1 = f.evaluate(y);
+			double k2 = f.evaluate(y + k1/2.*dt);
+			double k3 = f.evaluate(y + k2/2.*dt);
+			double k4 = f.evaluate(y + k3*dt);
+			y = y + (k1 + 2*k2 + 2*k3 + k4)/6.*dt;
+		}
+		return y;
+	}
 	
 	/**
 	 * a simple convenience method to avoid excessive if statements
@@ -991,6 +1026,7 @@ public class NumericalMethods {
 				u[i] += A[i][j]*v[j];
 		return u;
 	}
+
 	/**
 	 * copied from https://www.sanfoundry.com/java-program-find-inverse-matrix/
 	 * @return
@@ -1222,73 +1258,87 @@ public class NumericalMethods {
 	 */
 	public static class DiscreteFunction {
 		
-		private final int resolution; // either the number of equal intervals in the x array, or 0 to indicate unequal intervals
-		private double[] X, Y;
-		
+		private final boolean equal; // whether the x index is equally spaced
+		private final boolean log; // whether to use log interpolation instead of linear
+		private final double[] X;
+		private final double[] Y;
+
 		/**
-		 * instantiate a new function given raw data. x must monotonically increase, or the
-		 * evaluation method won't work.
+		 * instantiate a new function given x and y data in columns. x must
+		 * monotonically increase, or the evaluation technique won't work.
+		 * @param data array of {x, y}
+		 */
+		public DiscreteFunction(double[][] data) {
+			this(data, false);
+		}
+
+		/**
+		 * instantiate a new function given x and y data in columns. x must
+		 * monotonically increase, or the evaluation technique won't work.
+		 * @param data array of {x, y}
+		 * @param equal whether the x values are all equally spaced
+		 */
+		public DiscreteFunction(double[][] data, boolean equal) {
+			this(data, equal, false);
+		}
+
+		/**
+		 * instantiate a new function given x and y data in columns. x must
+		 * monotonically increase, or the evaluation technique won't work.
+		 * @param data array of {x, y}
+		 * @param equal whether the x values are all equally spaced
+		 * @param log whether to use log interpolation instead of linear
+		 */
+		public DiscreteFunction(double[][] data, boolean equal, boolean log) {
+			this(collum(data, 0), collum(data, 1));
+		}
+
+		/**
+		 * instantiate a new function given raw data. x must monotonically
+		 * increase, or the evaluation technique won't work.
 		 * @param x the x values
 		 * @param y the corresponding y values
 		 */
 		public DiscreteFunction(double[] x, double[] y) {
-			if (x.length != y.length)
-				throw new IllegalArgumentException("datum lengths must match");
-			for (int i = 1; i < x.length; i ++)
-				if (x[i] < x[i-1])
-					throw new IllegalArgumentException("x must be monotonically increasing.");
-			this.X = x;
-			this.Y = y;
-			this.resolution = 0;
+			this(x, y, false);
 		}
-		
+
 		/**
-		 * instantiate a new function given x and y data in columns, and assuming x values are
-		 * all equally spaced
-		 * @param data array of {x, y}
-		 * @param resolution the number of x intervals
-		 */
-		public DiscreteFunction(double[][] data, int resolution) {
-			if (resolution != data.length-1)
-				throw new IllegalArgumentException("this resolution is a lie");
-			for (int i = 1; i < data.length; i ++)
-				if (data[i][0] < data[i-1][0])
-					throw new IllegalArgumentException("x must be monotonically increasing.");
-			
-			this.X = new double[data.length];
-			this.Y = new double[data.length];
-			for (int i = 0; i < data.length; i ++) {
-				X[i] = data[i][0];
-				Y[i] = data[i][1];
-			}
-			this.resolution = resolution;
-		}
-		
-		/**
-		 * instantiate a new function give x data and y data, and assuming x values are all
-		 * equally spaced.
-		 * @param x the x values had better be properly spaced, because I don't have a good way
-		 * to check.
+		 * instantiate a new function given raw data. x must monotonically
+		 * increase, or the evaluation method won't work.
+		 * @param x the x values
 		 * @param y the corresponding y values
-		 * @param resolution the number of x intervals
+		 * @param equal whether the x values are all equally spaced
 		 */
-		public DiscreteFunction(double[] x, double[] y, int resolution) {
+		public DiscreteFunction(double[] x, double[] y, boolean equal) {
+			this(x, y, equal, false);
+		}
+
+		/**
+		 * instantiate a new function given raw data. x must monotonically
+		 * increase, or the evaluation method won't work.
+		 * @param x the x values
+		 * @param y the corresponding y values
+		 * @param equal whether the x values are all equally spaced
+		 * @param log whether to use log interpolation instead of linear
+		 */
+		public DiscreteFunction(double[] x, double[] y, boolean equal, boolean log) {
 			if (x.length != y.length)
 				throw new IllegalArgumentException("datums lengths must match");
-			if (resolution != x.length-1)
-				throw new IllegalArgumentException("this resolution is a lie");
 			for (int i = 1; i < x.length; i ++)
 				if (x[i] < x[i-1])
 					throw new IllegalArgumentException("x must be monotonically increasing.");
+
 			this.X = x;
 			this.Y = y;
-			this.resolution = resolution;
+			this.equal = equal;
+			this.log = log;
 		}
 
 		/**
 		 * it's a function. evaluate it. if this function's x values are equally spaced, this
 		 * can be run in O(1) time. otherwise, it will take O(log(n)).
-		 * @param x
+		 * @param x the x value at which to find f
 		 * @return f(x)
 		 */
 		public double evaluate(double x) {
@@ -1297,8 +1347,8 @@ public class NumericalMethods {
 				i = 0;
 			else if (x >= X[X.length-1]) // or highest value, depending on which is appropriate
 				i = X.length-2;
-			else if (this.resolution > 0) // nonzero resolution means we can find i itself with linear interpolation
-				i = (int)((x - X[0])/(X[resolution] - X[0])*resolution); // linearly interpolate x from X to i
+			else if (equal) // nonzero resolution means we can find i itself with linear interpolation
+				i = (int)((x - X[0])/(X[X.length-1] - X[0])*(X.length-1)); // linearly interpolate x from X to i
 			else { // otherwise, we'll need a binary search
 				int min = 0, max = X.length; // you know about binary searches, right?
 				i = (min + max)/2;
@@ -1310,13 +1360,16 @@ public class NumericalMethods {
 					i = (min + max)/2;
 				}
 			}
-			return (x - X[i])/(X[i+1] - X[i])*(Y[i+1] - Y[i]) + Y[i]; // linearly interpolate x from X[i] to Y[i]
+			if (log)
+				return Y[i]*Math.exp(Math.log(x/X[i])/Math.log(X[i+1]/X[i])*Math.log(Y[i+1]/Y[i]));
+			else
+				return Y[i] + (x - X[i]) / (X[i+1] - X[i]) * (Y[i+1] - Y[i]); // linearly interpolate x from X[i] to Y[i]
 		}
 		
 		/**
 		 * it's a function. evaluate it. if this function's x values are equally spaced, this
 		 * can be run in O(1) time. otherwise, it will take O(log(n)).
-		 * @param x
+		 * @param x the x value at which to find f and f's gradient
 		 * @return f(x)
 		 */
 		public Quantity evaluate(Quantity x) {
@@ -1325,8 +1378,8 @@ public class NumericalMethods {
 				i = 0;
 			else if (x.value > X[X.length-1]) // or highest values, depending on which is appropriate
 				i = X.length-2;
-			else if (this.resolution > 0) // nonzero resolution means we can find i itself with linear interpolation
-				i = (int)((x.value - X[0])/(X[resolution] - X[0])*resolution); // linearly interpolate x from X to i
+			else if (equal) // nonzero resolution means we can find i itself with linear interpolation
+				i = (int)((x.value - X[0])/(X[X.length-1] - X[0])*(X.length-1)); // linearly interpolate x from X to i
 			else { // otherwise, we'll need a binary search
 				int min = 0, max = X.length; // you know about binary searches, right?
 				i = (min + max)/2;
@@ -1338,7 +1391,10 @@ public class NumericalMethods {
 					i = (min + max)/2;
 				}
 			}
-			return x.minus(X[i]).times((Y[i+1] - Y[i])/(X[i+1] - X[i])).plus(Y[i]); // linearly interpolate x from X[i] to Y[i]
+			if (log)
+				return x.over(X[i]).log().times(Math.log(Y[i+1]/Y[i])/Math.log(X[i+1]/X[i])).exp().times(Y[i]);
+			else
+				return x.minus(X[i]).times((Y[i+1] - Y[i])/(X[i+1] - X[i])).plus(Y[i]); // linearly interpolate x from X[i] to Y[i]
 		}
 		
 		/**
@@ -1363,9 +1419,10 @@ public class NumericalMethods {
 			for (int i = 1; i < X.length; i ++) {
 				yOut[i] = yOut[i-1] + (Y[i-1] + Y[i])/2*(X[i] - X[i-1]); // solve for subsequent points using a trapezoid rule
 			}
-			return new DiscreteFunction(X, yOut); // NOTE: original code constructs a spline and then integrates that with RK45; I use piecewise lines and integrate exactly
+			return new DiscreteFunction(X, yOut, this.equal, this.log);
 		}
-		
+
+
 		/**
 		 * return a copy of this that can be evaluated in O(1) time. some information will be
 		 * lost depending on resolution.
@@ -1379,17 +1436,17 @@ public class NumericalMethods {
 				xOut[i] = (double)i/resolution*(X[X.length-1] - X[0]) + X[0]; // first, linearly create the x on which we are to get solutions
 				yOut[i] = this.evaluate(xOut[i]); // then get the y values
 			}
-			
-			return new DiscreteFunction(xOut, yOut, resolution);
+
+			return new DiscreteFunction(xOut, yOut, true, this.log);
 		}
-		
+
 		@Override
 		public String toString() {
-			String s = "np.array([";
+			StringBuilder s = new StringBuilder("np.array([");
 			for (int i = 0; i < X.length; i ++)
-				s += String.format(Locale.US, "[%g,%g],", X[i], Y[i]);
-			s += "])";
-			return s;
+				s.append(String.format(Locale.US, "[%g,%g],", X[i], Y[i]));
+			s.append("])");
+			return s.toString();
 		}
 	}
 	
@@ -1483,7 +1540,17 @@ public class NumericalMethods {
 		public Quantity sqrt() {
 			return this.pow(1/2.);
 		}
-		
+
+		public Quantity exp() {
+			return new Quantity(Math.exp(this.value),
+			                    this.gradient.times(Math.exp(this.value)));
+		}
+
+		public Quantity log() {
+			return new Quantity(Math.log(this.value),
+			                    this.gradient.times(1/this.value));
+		}
+
 		public Quantity abs() {
 			if (this.value < 0)
 				return this.times(-1);

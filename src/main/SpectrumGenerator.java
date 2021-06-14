@@ -41,7 +41,7 @@ public class SpectrumGenerator {
 			new double[] {11.50, 11.75, 12.00, 12.25, 12.50, 12.75, 13.00, 13.25,
 					13.50, 13.75, 14.00, 14.25, 14.50},
 			new double[] {0.026877796, 0.029223872, 0.030997082, 0.033544329, 0.035526223, 0.038301112, 0.040480957, 0.043125867,
-					0.045434499, 0.048972573, 0.05105225, 0, 0}, 12); // [1/MeV/(g/cm^2)]
+					0.045434499, 0.048972573, 0.05105225, 0, 0}, true); // [1/MeV/(g/cm^2)]
 
 	/**
 	 * generate a time-averaged spectrum based on some parameters that are taken to be constant.

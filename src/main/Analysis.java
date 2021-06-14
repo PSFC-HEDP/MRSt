@@ -23,6 +23,7 @@
  */
 package main;
 
+import java.io.IOException;
 import java.util.Locale;
 import java.util.Random;
 import java.util.function.Function;
@@ -38,7 +39,6 @@ import org.apache.commons.math3.optim.nonlinear.scalar.ObjectiveFunction;
 import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.MultiDirectionalSimplex;
 import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.PowellOptimizer;
 
-import main.NumericalMethods.DiscreteFunction;
 import main.NumericalMethods.Quantity;
 
 /**
@@ -107,6 +107,8 @@ public class Analysis {
 	 * @param cosyExponents the corresponding COSY power lists
 	 * @param focalTilt angle of the focal plane (0 means untilted) [deg]
 	 * @param precision a number that modifies how hard it tries to fully converge
+	 * @throws IOException if one or more of the stopping power tables cannot be
+	 *                     accessd for any reason
 	 */
 	public Analysis(
 			Particle ion,
@@ -115,7 +117,7 @@ public class Analysis {
 			double minimumEnergy, double maximumEnergy, double referenceEnergy,
 			double[][] cosyCoefficients, int[][] cosyExponents,
 			double focalTilt,
-			double precision, Logger logger) {
+			double precision, Logger logger) throws IOException {
 
 		this.ionOptics = new IonOptics(
 				ion, foilDistance, foilWidth, foilHeight, foilThickness,

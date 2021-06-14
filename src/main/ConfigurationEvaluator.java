@@ -87,7 +87,6 @@ public class ConfigurationEvaluator extends Application {
 	private CheckBox errorBars;
 	private TextField saveFile;
 	
-	private double[][] stoppingPowerData;
 	private double[][] cosyCoefficients;
 	private int[][] cosyExponents;
 	private Logger logger;
@@ -175,9 +174,7 @@ public class ConfigurationEvaluator extends Application {
 		row ++;
 		
 		VBox rightPane = new VBox(SPACING_1);
-		
-		this.stoppingPowerData = CSV.read(STOPPING_POWER_FILE, ',');
-		
+
 		this.variations = new CheckBox[4];
 		this.variations[0] = new CheckBox("Vary yield");
 		this.variations[1] = new CheckBox("Vary temperature");
@@ -212,7 +209,6 @@ public class ConfigurationEvaluator extends Application {
 								foilWidth.getValue()*1e-3,
 								foilHeight.getValue()*1e-3,
 								foilThickness.getValue()*1e-6,
-								stoppingPowerData,
 								apertureDistance.getValue()*1e0,
 								apertureWidth.getValue()*1e-3,
 								apertureHeight.getValue()*1e-3,
@@ -240,9 +236,7 @@ public class ConfigurationEvaluator extends Application {
 								logger.info("interpreting a weird spectrum file...");
 								spec = SpectrumGenerator.interpretSpectrumFile(tBins, eBins, spec);
 							}
-						} catch (ArrayIndexOutOfBoundsException | NumberFormatException e) {
-							logger.log(Level.SEVERE, e.getMessage(), e);
-						} catch (IOException e) {
+						} catch (ArrayIndexOutOfBoundsException | NumberFormatException | IOException e) {
 							logger.log(Level.SEVERE, e.getMessage(), e);
 						}
 						

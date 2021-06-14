@@ -32,40 +32,72 @@ import java.util.Arrays;
  */
 public class Detector {
 
-	public static double BIAS = 2e3; // [V]
-	public static double LENGTH = 1; // [m]
-	public static double THICKNESS = 1e3; // [m]
-	public static double DILATION = 20;
-	public static double OPEN_AREA_RATIO = 60e-2;
-	public static double AVERAGE_GAIN = 10;
+	public static final double BIAS = 1e3; // [V]
+	public static final double MESH_LENGTH = .001; // [m]
+	public static final double DRIFT_LENGTH = 1; // [m]
+	public static final double SUBSTRATE_THICKNESS = 100; // [μm]
+	public static final double PHOTOCATHODE_THICKNESS = 0.1; // [μm]
+	public static final double DILATION = 20;
+	public static final double OPEN_AREA_RATIO = .60;
+	public static final double AVERAGE_GAIN = 1e4;
 	private static final int RESOLUTION = 36;
 	private static final int INTEGRATION_RESOLUTION = 100;
 
 	/**
 	 * simulate n deuterons striking the CsI cathode and get a list of the times
 	 * at which its child electrons enter the oscilliscope.
-	 * @param energy the energy of the deuteron beam in eV
+	 * @param energy the energy of the deuteron beam in MeV
 	 * @return {the gain of each particle as it hits the detector,
 	 *          the time at which the particle hits the detector}
 	 */
 	private static double[][] generateDetectionEvents(int n, double energy) {
-		double[] intEnergy = new double[INTEGRATION_RESOLUTION]; // TODO: get stopping power data for CsI
+		double[][] stoppingSi;
+		double[][] stoppingCsI;
+		try {
+			stoppingSi = CSV.read(new File("input/stopping_power_deuterons_Si.csv"), ',');
+			stoppingCsI = CSV.read(new File("input/stopping_power_deuterons_CsI.csv"), ',');
+		} catch (IOException e) {
+			stoppingSi = new double[8][2];
+			stoppingCsI = new double[8][2];
+			e.printStackTrace();
+		}
+		NumericalMethods.DiscreteFunction dEdxSi = new NumericalMethods.DiscreteFunction(stoppingSi, false, true); // [keV -> keV/μm]
+		NumericalMethods.DiscreteFunction dEdxCsI = new NumericalMethods.DiscreteFunction(stoppingCsI, false, true); // [keV -> keV/μm]
+		double E = NumericalMethods.odeSolve( // integrate the deuteron thru the substrate
+				dEdxSi,
+				-SUBSTRATE_THICKNESS,
+				energy*1e3,
+				INTEGRATION_RESOLUTION); // [keV]
+		double step = PHOTOCATHODE_THICKNESS/INTEGRATION_RESOLUTION; // [μm]
+		double P0 = .70;
+		double ɛ = 40e-3; // work function [keV]
+		double L = 90e-4; // [μm]
+		double electronPerDeuteron = 0;
+		for (int i = 0; i <= INTEGRATION_RESOLUTION; i ++) { // then do a fancier integral to get the number of deuterons generated in the substrate
+			double x = ((double)i/INTEGRATION_RESOLUTION - 1)*PHOTOCATHODE_THICKNESS; // [μm]
+			double dEdx = dEdxCsI.evaluate(E);
+			double dx = (i == 0 || i == INTEGRATION_RESOLUTION) ? step/2 : step;
+			electronPerDeuteron += 1/ɛ*dEdx*P0*Math.exp(x/L)*dx;
+			E -= dEdx*step; // I'm using a first-order method here, but it should be fine because the total change in energy across the photocathode is quite small
+		}
 
-		double electronPerDeuteron = 1.8;
 		final Particle e = Particle.E;
 		int numberAtCathode = (int)Math.round(NumericalMethods.poisson(
-				n*electronPerDeuteron)); // TODO: calculate energy-dependent mean
+				n*electronPerDeuteron));
 		double[] energyDistribution = new double[numberAtCathode]; // [J]
 		for (int i = 0; i < numberAtCathode; i ++)
 			energyDistribution[i] = NumericalMethods.exponential(-0.5*e.charge) + NumericalMethods.exponential(-0.5*e.charge); // TODO: get the actual distribution from Henke (1981)
 
 		double[] timeDistribution = new double[numberAtCathode]; // [s]
-		double g = -BIAS/LENGTH*e.charge/e.mass; // [m/s^2]
+		double g = -BIAS/MESH_LENGTH*e.charge/e.mass; // [m/s^2]
 		for (int i = 0; i < numberAtCathode; i ++) {
 			double a = g/2;
 			double b = Math.sqrt(2*energyDistribution[i]/e.mass); // TODO: is this energy distribucion monodireccional?
-			double c = -LENGTH;
-			timeDistribution[i] = DILATION*1e9*(-b + Math.sqrt(b*b - 4*a*c))/(2*a);
+			double c = -MESH_LENGTH;
+			timeDistribution[i] = (-b + Math.sqrt(b*b - 4*a*c))/(2*a);
+			double vDrift = 2*a*timeDistribution[i] + b;
+			timeDistribution[i] += DRIFT_LENGTH/vDrift;
+			timeDistribution[i] *= DILATION*1e9; // dilate and convert to ns
 		}
 
 		double[] gain = new double[numberAtCathode];
@@ -102,12 +134,13 @@ public class Detector {
 		                                           "Time (ns)", String.join("\n", yLabels),
 		                                           "data", name, Integer.toString(ys.length));
 		Process p = plotPB.start();
-		System.out.println(p.waitFor());
+		System.out.println("finishd plotting with exit code "+p.waitFor());
 	}
 
 
 	public static void main(String[] args) throws IOException, InterruptedException {
-		double[][] result = generateDetectionEvents(10000, 12.5);
+		int n = 10000;
+		double[][] result = generateDetectionEvents(n, 12.5);
 		double[] gains = result[0];
 		double[] times = result[1];
 
@@ -116,7 +149,7 @@ public class Detector {
 		double[] dist = new double[RESOLUTION];
 		double[] errors = new double[RESOLUTION];
 		for (int i = 0; i < bins.length; i ++)
-			bins[i] = 1420 + 100.*i/RESOLUTION;
+			bins[i] = 1065 + 4.*i/RESOLUTION;
 		for (int i = 0; i < axis.length; i ++)
 			axis[i] = (bins[i] + bins[i+1])/2;
 		for (int i = 0; i < times.length; i ++) {
@@ -124,6 +157,8 @@ public class Detector {
 			if ((bin = NumericalMethods.bin(times[i], axis)) >= 0)
 				dist[bin] += gains[i];
 		}
+		System.out.println("Signal amplification: "+(NumericalMethods.sum(dist)/AVERAGE_GAIN/n));
+		System.out.println("Effective time resolution degradation: "+(NumericalMethods.fwhm(axis, dist)/DILATION*1e3)+" ps");
 		plotLines("Energy histogram", axis, dist, errors, "Electrons");
 	}
 }

@@ -23,7 +23,10 @@
  */
 package main;
 
+import main.NumericalMethods.DiscreteFunction;
+
 import java.io.File;
+import java.io.IOException;
 
 /**
  * A class to handle all of the deuteron physics, from their birth in the foil to
@@ -34,7 +37,7 @@ public class IonOptics {
 	private static final double MIN_E = 12, MAX_E = 16;
 	private static final int TIME_CORRECTION_RESOLUTION = 20;
 	private static final int STOPPING_DISTANCE_RESOLUTION = 64;
-	private static final File STOPPING_POWER_FILE = new File("input/stopping_power_deuterons_CD.csv");
+	private static final String STOPPING_POWER_FILENAME = "input/stopping_power_%ss_CD.csv";
 
 	private static final int x = 0, y = 1, z = 2;
 
@@ -66,14 +69,18 @@ public class IonOptics {
 	private final NumericalMethods.DiscreteFunction energyVsPosition; // map between location on detector and energy going into lens
 
 
+	/**
+	 * put together the ion optic simulacion
+	 * @throws IOException if it can't find the stopping power file
+	 * @throws NumberFormatException if the stopping power file accepts bribes
+	 */
 	public IonOptics(
 			Particle ion,
 			double foilDistance, double foilWidth, double foilHeight, double foilThickness,
-	        double[][] stoppingPowerData,
 	        double apertureDistance, double apertureWidth, double apertureHeight,
 	        double minimumEnergy, double maximumEnergy, double referenceEnergy,
 	        double[][] cosyCoefficients, int[][] cosyExponents,
-	        double focalTilt) {
+	        double focalTilt) throws IOException {
 
 		this.foilDistance = foilDistance;
 		this.foilWidth = foilWidth;
@@ -100,13 +107,14 @@ public class IonOptics {
 
 		this.probHitsFoil = foilWidth*foilHeight/(4*Math.PI*foilDistance*foilDistance);
 
-		double[] dxdE = new double[stoppingPowerData.length]; // integrate the stopping power to get stopping distance
-		double[] E = new double[stoppingPowerData.length];
-		for (int i = 0; i < stoppingPowerData.length; i ++) {
-			dxdE[i] = 1/(stoppingPowerData[i][1]*keV/μm); // converting from [keV/μm]
-			E[i] = stoppingPowerData[i][0]*keV; // and from [keV]
+		double[][] stoppingData = CSV.read(
+				new File(String.format(STOPPING_POWER_FILENAME, ion.name())),
+				',');
+		for (int i = 0; i < stoppingData.length; i ++) {
+			stoppingData[i][1] = 1/(stoppingData[i][1]*keV/μm); // converting from [keV/μm]
+			stoppingData[i][0] = stoppingData[i][0]*keV; // and from [keV]
 		}
-		NumericalMethods.DiscreteFunction distanceVsEnergyRaw = new NumericalMethods.DiscreteFunction(E, dxdE).antiderivative();
+		DiscreteFunction distanceVsEnergyRaw = new DiscreteFunction(stoppingData, true).antiderivative(); // integrate the stopping power to get stopping distance
 		this.distanceVsEnergy = distanceVsEnergyRaw.indexed(STOPPING_DISTANCE_RESOLUTION); // m(J)
 		this.energyVsDistance = distanceVsEnergyRaw.inv().indexed(STOPPING_DISTANCE_RESOLUTION); // J(m)
 
@@ -132,8 +140,7 @@ public class IonOptics {
 		double n = 0.08e2; // I'm not sure what units this has or whence it came
 		double dσdΩ = 4.3228e3/Math.sqrt(energy) - 0.6523; // same with these ones
 		double dΩ = apertureWidth*apertureHeight / Math.pow(apertureDistance - foilDistance, 2);
-		double l = foilThickness; // assume the foil is thin so we don't have to worry about multiple collisions
-		return probHitsFoil * n*dσdΩ*dΩ*foilThickness;
+		return probHitsFoil * n*dσdΩ*dΩ*foilThickness; // assume the foil is thin so we don't have to worry about multiple collisions
 	}
 
 	/**

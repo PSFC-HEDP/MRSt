@@ -43,11 +43,6 @@ public class ConfigurationPlotter {
 	private static final double COSY_REFERENCE_ENERGY = 12.45e6;
 	
 	
-	/**
-	 * @param args
-	 * @throws IOException 
-	 * @throws NumberFormatException 
-	 */
 	public static void main(String[] args) throws NumberFormatException, IOException {
 		for (double rFoil = 200e-6; rFoil < 201e-6; rFoil += 100e-6) {
 			for (double tFoil = 25e-6; tFoil < 110e-6; tFoil += 15e-6) {
@@ -63,7 +58,6 @@ public class ConfigurationPlotter {
 							2*rFoil,
 							2*rFoil,
 							tFoil,
-							CSV.read(new File("data/stopping_power_deuterons.csv"), ','),
 							6e0,
 							wAperture,
 							20e-3,

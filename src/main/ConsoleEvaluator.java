@@ -101,7 +101,6 @@ public class ConsoleEvaluator {
 							2*foilRadius,
 							2*foilRadius,
 							foilThickness,
-							CSV.read(new File("input/stopping_power_deuterons_CD.csv"), ','),
 							6e0,
 							apertureWidth,
 							apertureHeight,

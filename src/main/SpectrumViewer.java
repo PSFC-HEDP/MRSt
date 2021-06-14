@@ -180,9 +180,7 @@ public class SpectrumViewer extends Application {
 					else
 						this.spectrumName = "-";
 				}));
-		
-		this.stoppingPowerData = CSV.read(STOPPING_POWER_FILE, ',');
-		
+
 		this.yieldFactor = new Spinner<Double>(1e-2, 1e+6, 100, 10);
 		yieldFactor.setEditable(true);
 		GridPane container = new GridPane();
@@ -234,7 +232,6 @@ public class SpectrumViewer extends Application {
 								foilWidth.getValue()*1e-3,
 								foilHeight.getValue()*1e-3,
 								foilThickness.getValue()*1e-6,
-								stoppingPowerData,
 								apertureDistance.getValue()*1e0,
 								apertureWidth.getValue()*1e-3,
 								apertureHeight.getValue()*1e-3,
