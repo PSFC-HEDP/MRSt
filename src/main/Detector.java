@@ -23,6 +23,8 @@
  */
 package main;
 
+import main.NumericalMethods.DiscreteFunction;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
@@ -42,6 +44,7 @@ public class Detector {
 	public static final double AVERAGE_GAIN = 1e4;
 	private static final int RESOLUTION = 36;
 	private static final int INTEGRATION_RESOLUTION = 100;
+	private static final int DISTRIBUTION_RESOLUTION = 100;
 
 	/**
 	 * simulate n deuterons striking the CsI cathode and get a list of the times
@@ -50,7 +53,8 @@ public class Detector {
 	 * @return {the gain of each particle as it hits the detector,
 	 *          the time at which the particle hits the detector}
 	 */
-	private static double[][] generateDetectionEvents(int n, double energy) {
+	private static double[][] generateDetectionEvents(int numberOfDeuterons,
+	                                                  double energy) throws IOException {
 		double[][] stoppingSi;
 		double[][] stoppingCsI;
 		try {
@@ -61,8 +65,8 @@ public class Detector {
 			stoppingCsI = new double[8][2];
 			e.printStackTrace();
 		}
-		NumericalMethods.DiscreteFunction dEdxSi = new NumericalMethods.DiscreteFunction(stoppingSi, false, true); // [keV -> keV/μm]
-		NumericalMethods.DiscreteFunction dEdxCsI = new NumericalMethods.DiscreteFunction(stoppingCsI, false, true); // [keV -> keV/μm]
+		DiscreteFunction dEdxSi = new DiscreteFunction(stoppingSi, false, true); // [keV] -> [keV/μm]
+		DiscreteFunction dEdxCsI = new DiscreteFunction(stoppingCsI, false, true); // [keV] -> [keV/μm]
 		double E = NumericalMethods.odeSolve( // integrate the deuteron thru the substrate
 				dEdxSi,
 				-SUBSTRATE_THICKNESS,
@@ -81,18 +85,27 @@ public class Detector {
 			E -= dEdx*step; // I'm using a first-order method here, but it should be fine because the total change in energy across the photocathode is quite small
 		}
 
+		double[][] henkeData = CSV.read(new File("input/henke_electron_data.csv"), ',');
+		DiscreteFunction pdf = new DiscreteFunction(henkeData); // [eV] -> [1/eV]
+		DiscreteFunction cdf = pdf.antiderivative(); // [eV] -> []
+		DiscreteFunction idf = cdf.inv(); // [] -> [eV]
+
 		final Particle e = Particle.E;
-		int numberAtCathode = (int)Math.round(NumericalMethods.poisson(
-				n*electronPerDeuteron));
-		double[] energyDistribution = new double[numberAtCathode]; // [J]
-		for (int i = 0; i < numberAtCathode; i ++)
-			energyDistribution[i] = NumericalMethods.exponential(-0.5*e.charge) + NumericalMethods.exponential(-0.5*e.charge); // TODO: get the actual distribution from Henke (1981)
+		int numberAtCathode = NumericalMethods.poisson(
+				numberOfDeuterons*electronPerDeuteron);
+		double[] velocityDistribution = new double[numberAtCathode]; // [J]
+		for (int i = 0; i < numberAtCathode; i ++) {
+			double totalElectronEnergy = idf.evaluate(Math.random()*idf.maxDatum()); // [eV]
+			double axialElectronEnergy = Math.random()*totalElectronEnergy; // [eV]
+			velocityDistribution[i] = Math.sqrt(
+					2*axialElectronEnergy*(-e.charge/e.mass)); // [m/s]
+		}
 
 		double[] timeDistribution = new double[numberAtCathode]; // [s]
 		double g = -BIAS/MESH_LENGTH*e.charge/e.mass; // [m/s^2]
 		for (int i = 0; i < numberAtCathode; i ++) {
 			double a = g/2;
-			double b = Math.sqrt(2*energyDistribution[i]/e.mass); // TODO: is this energy distribucion monodireccional?
+			double b = velocityDistribution[i];
 			double c = -MESH_LENGTH;
 			timeDistribution[i] = (-b + Math.sqrt(b*b - 4*a*c))/(2*a);
 			double vDrift = 2*a*timeDistribution[i] + b;

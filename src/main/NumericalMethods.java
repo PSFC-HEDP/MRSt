@@ -175,12 +175,6 @@ public class NumericalMethods {
 		return -λ*Math.log(1-u);
 	}
 	
-	public static double[] unimode(double[] x, double[] params) {
-		if (params.length != 7)
-			throw new IllegalArgumentException("Number of params must be 7");
-		return unimode(x, params[0], params[1], params[2], params[3], params[4], params[5], params[6]);
-	}
-	
 	/**
 	 * generate a generic unimodal distribution with a handful of parameters with which to play.
 	 * it will be the linear combination of an erf stepping from yL to yR with a generalized
@@ -1438,6 +1432,20 @@ public class NumericalMethods {
 			}
 
 			return new DiscreteFunction(xOut, yOut, true, this.log);
+		}
+
+		/**
+		 * @return the least x value for which this is not an extrapolation.
+		 */
+		public double minDatum() {
+			return this.X[0];
+		}
+
+		/**
+		 * @return the greatest value for which this is not an extrapolation.
+		 */
+		public double maxDatum() {
+			return this.X[this.X.length-1];
 		}
 
 		@Override
