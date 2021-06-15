@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package main;
+package physics;
 
 import java.io.IOException;
 import java.util.Locale;
@@ -30,6 +30,7 @@ import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import app.SpectrumGenerator;
 import org.apache.commons.math3.optim.InitialGuess;
 import org.apache.commons.math3.optim.MaxEval;
 import org.apache.commons.math3.optim.MaxIter;
@@ -39,7 +40,12 @@ import org.apache.commons.math3.optim.nonlinear.scalar.ObjectiveFunction;
 import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.MultiDirectionalSimplex;
 import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.PowellOptimizer;
 
-import main.NumericalMethods.Quantity;
+import physics.Particle;
+import util.NumericalMethods;
+import util.NumericalMethods.Quantity;
+import physics.Detector;
+import physics.IonOptics;
+import util.Optimization;
 
 /**
  * the class where all the math is.

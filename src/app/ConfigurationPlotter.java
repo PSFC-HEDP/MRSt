@@ -21,12 +21,16 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package main;
+package app;
 
 import java.io.File;
 import java.io.IOException;
-import main.CSV.COSYMapping;
-import main.Analysis.ErrorMode;
+
+import physics.Analysis;
+import physics.Particle;
+import util.CSV;
+import util.CSV.COSYMapping;
+import physics.Analysis.ErrorMode;
 
 /**
  * @author Justin Kunimune

@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package main;
+package app;
 
 import java.io.File;
 import java.io.IOException;
@@ -49,8 +49,14 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
-import main.CSV.COSYMapping;
-import main.Analysis.ErrorMode;
+import physics.Analysis;
+import physics.Particle;
+import util.CSV;
+import util.CSV.COSYMapping;
+import physics.Analysis.ErrorMode;
+import util.NumericalMethods;
+import util.PythonPlot;
+import util.Spinner;
 
 
 /**
@@ -255,7 +261,7 @@ public class SpectrumViewer extends Application {
 					double[][] smallSpec = NumericalMethods.downsample(tBins, eBins, spec, mc.getTimeBins(), mc.getEnergyBins());
 					try { // send the data to python for plotting
 						PythonPlot.plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), smallSpec,
-						            "Original neutron spectrum");
+						                       "Original neutron spectrum");
 						PythonPlot.plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getCorrectedSpectrum(),
 						            "Synthetic deuteron spectrum");
 						PythonPlot.plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getInferredSpectrum(),
@@ -287,7 +293,7 @@ public class SpectrumViewer extends Application {
 		console.setFont(Font.font("Monospace"));
 		System.setProperty("java.util.logging.SimpleFormatter.format",
 				"%1$tF %1$tT | %4$-7s | %5$s%6$s%n");
-		logger = Logger.getLogger("main");
+		logger = Logger.getLogger("app");
 		logger.setLevel(Level.ALL);
 		StreamHandler consoleHandler = new StreamHandler() {
 			public void publish(LogRecord record) {

@@ -21,9 +21,11 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package main;
+package physics;
 
-import main.NumericalMethods.DiscreteFunction;
+import util.NumericalMethods;
+import util.NumericalMethods.DiscreteFunction;
+import util.CSV;
 
 import java.io.File;
 import java.io.IOException;
@@ -122,7 +124,7 @@ public class IonOptics {
 		this.probHitsFoil = foilWidth*foilHeight/(4*Math.PI*foilDistance*foilDistance);
 
 		double[][] stoppingData = CSV.read(
-				new File(String.format(STOPPING_POWER_FILENAME, ion.name())),
+				new File(String.format(STOPPING_POWER_FILENAME, ion.name)),
 				',');
 		for (int i = 0; i < stoppingData.length; i ++) {
 			stoppingData[i][1] = 1/(stoppingData[i][1]*keV/μm); // converting from [keV/μm]
@@ -140,7 +142,7 @@ public class IonOptics {
 			double[] r = computeFocusedPosition(new double[] {0,0,0}, v, 0);
 			detectorPosition[i] = r[x]/Math.cos(focalPlaneAngle);
 		}
-		this.energyVsPosition = new NumericalMethods.DiscreteFunction(calibEnergies, detectorPosition).inv()
+		this.energyVsPosition = new DiscreteFunction(calibEnergies, detectorPosition).inv()
 				.indexed(TIME_CORRECTION_RESOLUTION); // J(m)
 	}
 

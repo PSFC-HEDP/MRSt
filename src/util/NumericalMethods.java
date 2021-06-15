@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package main;
+package util;
 
 import java.util.Locale;
 import java.util.Random;
@@ -932,27 +932,6 @@ public class NumericalMethods {
 		return zO;
 	}
 	
-	/**
-	 * interpolate y0 from x0 to x1 using a 3rd order spline
-	 * @param x1 the desired interpolation points
-	 * @param x0 the locations of the spline points
-	 * @param y0 the values at the spline points
-	 * @return y1 the values at the interpolation points
-	 */
-	public static double[] spline(double[] x1, double[] x0, double[] y0) {
-		float[] x = new float[x0.length];
-		float[] y = new float[y0.length];
-		for (int i = 0; i < x0.length; i ++) {
-			x[i] = (float) x0[i];
-			y[i] = (float) y0[i];
-		}
-		Spline s = Spline.createSpline(x, y);
-		double[] y1 = new double[x1.length];
-		for (int i = 0; i < x1.length; i ++)
-			y1[i] = s.interpolate((float) x1[i]);
-		return y1;
-	}
-
 	/**
 	 * do a Runge-Kutta 4-5 integral to get the final value of y after some interval
 	 * @param f dy/dt as a function of y

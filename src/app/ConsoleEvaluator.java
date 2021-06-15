@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package main;
+package app;
 
 import java.io.File;
 import java.io.IOException;
@@ -31,8 +31,11 @@ import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import main.CSV.COSYMapping;
-import main.Analysis.ErrorMode;
+import physics.Analysis;
+import physics.Particle;
+import util.CSV;
+import util.CSV.COSYMapping;
+import physics.Analysis.ErrorMode;
 
 
 /**
@@ -65,7 +68,7 @@ public class ConsoleEvaluator {
 		
 		System.setProperty("java.util.logging.SimpleFormatter.format",
 				"%1$tF %1$tT | %4$-7s | %5$s%6$s%n");
-		Logger logger = Logger.getLogger("main");
+		Logger logger = Logger.getLogger("app");
 		logger.setUseParentHandlers(false);
 		logger.setLevel(Level.ALL);
 		Handler consoleHandler = new ConsoleHandler();

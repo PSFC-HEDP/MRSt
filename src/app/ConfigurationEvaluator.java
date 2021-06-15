@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package main;
+package app;
 
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -43,8 +43,12 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
-import main.CSV.COSYMapping;
-import main.Analysis.ErrorMode;
+import physics.Analysis;
+import physics.Particle;
+import util.CSV;
+import util.CSV.COSYMapping;
+import physics.Analysis.ErrorMode;
+import util.Spinner;
 
 import java.io.File;
 import java.io.IOException;
@@ -294,7 +298,7 @@ public class ConfigurationEvaluator extends Application {
 		console.setFont(Font.font("Monospace"));
 		System.setProperty("java.util.logging.SimpleFormatter.format",
 				"%1$tF %1$tT | %4$-7s | %5$s%6$s%n");
-		logger = Logger.getLogger("main");
+		logger = Logger.getLogger("app");
 		logger.setLevel(Level.ALL);
 		StreamHandler consoleHandler = new StreamHandler() {
 			public void publish(LogRecord record) {

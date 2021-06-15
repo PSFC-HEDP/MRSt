@@ -21,13 +21,15 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package main;
+package physics;
 
-import main.NumericalMethods.DiscreteFunction;
+import util.NumericalMethods;
+import util.NumericalMethods.DiscreteFunction;
+import util.PythonPlot;
+import util.CSV;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
 
 /**
  * A class to handle the detector modelling
@@ -108,10 +110,10 @@ public class Detector {
 	private double[][] generateDetectionEvents(int numberOfDeuterons,
 	                                           double energy) throws IOException {
 		double E = NumericalMethods.odeSolve( // integrate the deuteron thru the substrate
-				stoppingSi,
-				-substrateThickness,
-				energy*1e3,
-				INTEGRATION_RESOLUTION); // [keV]
+		                                      stoppingSi,
+		                                      -substrateThickness,
+		                                      energy*1e3,
+		                                      INTEGRATION_RESOLUTION); // [keV]
 		double step = photocathodeThickness/INTEGRATION_RESOLUTION; // [μm]
 		double electronPerDeuteron = 0;
 		for (int i = 0; i <= INTEGRATION_RESOLUTION; i ++) { // then do a fancier integral to get the number of deuterons generated in the substrate

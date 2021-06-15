@@ -21,7 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package main;
+package app;
+
+import util.CSV;
+import util.NumericalMethods;
 
 import java.io.File;
 import java.io.IOException;
