@@ -64,13 +64,24 @@ public class Analysis {
 
 	private static final double ns = 1e-9;
 
-	private static final double MIN_E = 12, MAX_E = 16; // histogram bounds [MeV]
+	private static final double MIN_E = 12, MAX_E = 16, REF_E = 14; // histogram bounds [MeV]
 	private static final int BUFFER = 4; // empty pixels to include simulate on each side [ns]
 	private static final double E_BIN = .09, T_BIN = 30e-3; // resolutions [MeV], [ns]
+
+	private static final double SUBSTRATE_THICKNESS = 100; // [μm]
+	private static final double PHOTOCATHODE_THICKNESS = .1; // [μm]
+	private static final double PDDT_BIAS = 1e3; // [V]
+	private static final double MESH_LENGTH = 1e-3; // [m]
+	private static final double DRIFT_LENGTH = 1e0; // [m]
+	private static final double TIME_DILATION = 20;
+	private static final double MCT_POROSITY = .70;
+	private static final double MCT_GAIN = 1e4;
+
 	private static final int TRANSFER_MATRIX_TRIES = 10000; // the number of points to sample in each column of the transfer matrix
 	private static final double TRANSFER_FUNC_ERROR = 0.00; // the error in the transfer function
 
 	private final IonOptics ionOptics; // the ion optic system
+	private final Detector detector; // the detector system
 
 	private final double precision; // factor by which to ease the convergence conditions
 
@@ -100,9 +111,6 @@ public class Analysis {
 	 * @param apertureDistance the distance from TCC to the aperture [m]
 	 * @param apertureWidth the width of the aperture [m]
 	 * @param apertureHeight the hite of the aperture [m]
-	 * @param minimumEnergy the lowest energy to bother simulating [eV]
-	 * @param maximumEnergy the hiest energy to bother simulating [eV]
-	 * @param referenceEnergy expected ion energy used in COSY calculation [eV]
 	 * @param cosyCoefficients the COSY coefficient matrix
 	 * @param cosyExponents the corresponding COSY power lists
 	 * @param focalTilt angle of the focal plane (0 means untilted) [deg]
@@ -114,16 +122,19 @@ public class Analysis {
 			Particle ion,
 			double foilDistance, double foilWidth, double foilHeight, double foilThickness,
 			double apertureDistance, double apertureWidth, double apertureHeight,
-			double minimumEnergy, double maximumEnergy, double referenceEnergy,
 			double[][] cosyCoefficients, int[][] cosyExponents,
 			double focalTilt,
 			double precision, Logger logger) throws IOException {
 
 		this.ionOptics = new IonOptics(
 				ion, foilDistance, foilWidth, foilHeight, foilThickness,
-				apertureDistance, apertureWidth,
-				apertureHeight, minimumEnergy, maximumEnergy, referenceEnergy,
+				apertureDistance, apertureWidth, apertureHeight,
+				MIN_E, MAX_E, REF_E,
 				cosyCoefficients, cosyExponents, focalTilt);
+		this.detector = new Detector(
+				ion, SUBSTRATE_THICKNESS, PHOTOCATHODE_THICKNESS,
+				PDDT_BIAS, MESH_LENGTH, DRIFT_LENGTH,
+				TIME_DILATION, MCT_POROSITY, MCT_GAIN, 100);
 
 		this.precision = precision;
 

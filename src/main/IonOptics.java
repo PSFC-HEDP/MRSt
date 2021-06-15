@@ -64,13 +64,27 @@ public class IonOptics {
 	private final double energyFactor; // conversion factor between neutron and ion energies []
 	private final double probHitsFoil; // probability that the neutron goes through the foil
 
-	private final NumericalMethods.DiscreteFunction distanceVsEnergy; // stopping distance info
-	private final NumericalMethods.DiscreteFunction energyVsDistance; // inverse stopping distance info
-	private final NumericalMethods.DiscreteFunction energyVsPosition; // map between location on detector and energy going into lens
+	private final DiscreteFunction distanceVsEnergy; // stopping distance info
+	private final DiscreteFunction energyVsDistance; // inverse stopping distance info
+	private final DiscreteFunction energyVsPosition; // map between location on detector and energy going into lens
 
 
 	/**
 	 * put together the ion optic simulacion
+	 * @param ion either Particle.P or Particle.D
+	 * @param foilDistance the distance from TCC to the foil [m]
+	 * @param foilWidth the total width of the foil [m]
+	 * @param foilHeight the total hite of the foil [m]
+	 * @param foilThickness the thickness of the foil [m]
+	 * @param apertureDistance the distance from TCC to the aperture [m]
+	 * @param apertureWidth the width of the aperture [m]
+	 * @param apertureHeight the hite of the aperture [m]
+	 * @param minimumEnergy the loest neutron energy to bother simulating [MeV]
+	 * @param maximumEnergy the hiest neutron energy to bother simulating [MeV]
+	 * @param referenceEnergy central neutron energy used in COSY calculation [MeV]
+	 * @param cosyCoefficients the COSY coefficient matrix
+	 * @param cosyExponents the corresponding COSY power lists
+	 * @param focalTilt angle of the focal plane (0 means untilted) [deg]
 	 * @throws IOException if it can't find the stopping power file
 	 * @throws NumberFormatException if the stopping power file accepts bribes
 	 */
@@ -82,6 +96,10 @@ public class IonOptics {
 	        double[][] cosyCoefficients, int[][] cosyExponents,
 	        double focalTilt) throws IOException {
 
+		this.ion = ion;
+		double A = ion.mass/Particle.N.mass;
+		this.energyFactor = 4*A/Math.pow(A + 1, 2);
+
 		this.foilDistance = foilDistance;
 		this.foilWidth = foilWidth;
 		this.foilHeight = foilHeight;
@@ -89,9 +107,9 @@ public class IonOptics {
 		this.apertureDistance = apertureDistance;
 		this.apertureWidth = apertureWidth;
 		this.apertureHeight = apertureHeight;
-		this.cosyKmin = minimumEnergy*eV;
-		this.cosyKmax = maximumEnergy*eV;
-		this.cosyK0 = referenceEnergy*eV; // save this in a more useful unit
+		this.cosyKmin = energyFactor*minimumEnergy*MeV;
+		this.cosyKmax = energyFactor*maximumEnergy*MeV;
+		this.cosyK0 = energyFactor*referenceEnergy*MeV; // save this in a more useful unit
 		this.cosyV0 = Math.sqrt(2*cosyK0/ion.mass); // and get the corresponding speed
 		double γ = Math.pow(1 - Math.pow(cosyV0/SPEED_OF_LIGHT, 2), -1/2.);
 		double L = (1 + γ)/γ*2*cosyCoefficients[5][4]; // here's a fun shortcut to estimating the length of the lens: first order analysis
@@ -100,10 +118,6 @@ public class IonOptics {
 		this.focalPlaneAngle = Math.toRadians(focalTilt);
 		this.cosyCoefficients = cosyCoefficients;
 		this.cosyExponents = cosyExponents;
-		this.ion = ion;
-
-		double A = ion.mass/Particle.N.mass;
-		this.energyFactor = 4*A/Math.pow(A + 1, 2);
 
 		this.probHitsFoil = foilWidth*foilHeight/(4*Math.PI*foilDistance*foilDistance);
 

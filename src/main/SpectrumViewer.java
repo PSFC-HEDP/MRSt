@@ -61,9 +61,6 @@ import main.Analysis.ErrorMode;
 public class SpectrumViewer extends Application {
 	
 	private static final Particle ION = Particle.D;
-	private static final double COSY_MINIMUM_ENERGY = 10.7e6;
-	private static final double COSY_MAXIMUM_ENERGY = 14.2e6;
-	private static final double COSY_REFERENCE_ENERGY = 12.45e6;
 	private static final int SPACING_0 = 16;
 	private static final int SPACING_1 = 10;
 	private static final int SPACING_2 = 4;
@@ -224,7 +221,7 @@ public class SpectrumViewer extends Application {
 					}
 					
 					logger.log(Level.INFO, "running fit on spectrum with yield factor = "+yieldFactor.getValue()/100);
-					Analysis mc = null;
+					Analysis mc;
 					try {
 						mc = new Analysis(
 								ION,
@@ -235,9 +232,6 @@ public class SpectrumViewer extends Application {
 								apertureDistance.getValue()*1e0,
 								apertureWidth.getValue()*1e-3,
 								apertureHeight.getValue()*1e-3,
-								COSY_MINIMUM_ENERGY,
-								COSY_MAXIMUM_ENERGY,
-								COSY_REFERENCE_ENERGY,
 								cosyCoefficients,
 								cosyExponents,
 								focalPlaneTilt.getValue(),
@@ -255,28 +249,29 @@ public class SpectrumViewer extends Application {
 						
 					} catch (Exception e) {
 						logger.log(Level.SEVERE, e.getMessage(), e);
+						return;
 					}
 					
 					double[][] smallSpec = NumericalMethods.downsample(tBins, eBins, spec, mc.getTimeBins(), mc.getEnergyBins());
 					try { // send the data to python for plotting
-						plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), smallSpec,
+						PythonPlot.plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), smallSpec,
 						            "Original neutron spectrum");
-						plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getCorrectedSpectrum(),
+						PythonPlot.plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getCorrectedSpectrum(),
 						            "Synthetic deuteron spectrum");
-						plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getInferredSpectrum(),
+						PythonPlot.plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getInferredSpectrum(),
 						            "Fitted neutron spectrum");
-						plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getFittedSpectrum(),
+						PythonPlot.plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getFittedSpectrum(),
 						            "Fitted deuteron spectrum");
-						plotLines(spectrumName,
+						PythonPlot.plotLines(spectrumName,
 								mc.getTimeAxis(),
 								  mc.getIonTemperature(), mc.getIonTemperatureError(), "Ti (keV)",
 								mc.getArealDensity(), mc.getArealDensityError(), "ρR (g/cm^2)",
 								mc.getNeutronYield(), mc.getNeutronYieldError(), "Yn (10^15/ns)"
 //								mc.getFlowVelocity(), mc.getFlowVelocityError(), "Vi cosθ (μm/ns)"
 						);
-						compareHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getCorrectedSpectrum(), mc.getFittedSpectrum(),
+						PythonPlot.compareHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getCorrectedSpectrum(), mc.getFittedSpectrum(),
 								"Time", "Energy (MeV)", "Synthetic deuteron spectrum", "Fitted deuteron spectrum");
-						compareHeatmap(mc.getTimeBins(), mc.getEnergyBins(), smallSpec, mc.getInferredSpectrum(),
+						PythonPlot.compareHeatmap(mc.getTimeBins(), mc.getEnergyBins(), smallSpec, mc.getInferredSpectrum(),
 								"Time", "Energy (MeV)", "Original neutron spectrum", "Fitted neutron spectrum");
 					} catch (IOException e) {
 						logger.log(Level.SEVERE, "Could not access plotting scripts and/or plots", e);
@@ -318,76 +313,12 @@ public class SpectrumViewer extends Application {
 	
 	
 	/**
-	 * send 2D data to a Python script for plotting in MatPlotLib
-	 * @throws IOException if there's an issue talking to disc
-	 */
-	private static void plotHeatmap(double[] x, double[] y, double[][] z,
-	                                String title) throws IOException {
-		new File("output/").mkdir();
-		CSV.writeColumn(x, new File(String.format("output/%s_x.csv", title)));
-		CSV.writeColumn(y, new File(String.format("output/%s_y.csv", title)));
-		CSV.write(z, new File(String.format("output/%s_z.csv", title)), ',');
-		ProcessBuilder plotPB = new ProcessBuilder("python", "src/python/plot2.py",
-		                                           "Time (ns)", "Energy (MeV)", title);
-		plotPB.start();
-	}
-	
-	
-	/**
-	 * send 1D data to a Python script for plotting in MatPlotLib
-	 * @param x the data for the x axis
-	 * @param yDatums {data for the y axis, error bar width for the y axis, label
-	 *                for that data, ...}
-	 * @throws IOException if there's an issue talking to disk
-	 */
-	private static void plotLines(String name, double[] x, Object... yDatums) throws IOException {
-		double[][] ys = new double[yDatums.length/3][];
-		double[][] Δs = new double[yDatums.length/3][];
-		String[] yLabels = new String[yDatums.length/3];
-		for (int i = 0; i < yDatums.length/3; i ++) {
-			ys[i] = (double[]) yDatums[3*i];
-			Δs[i] = (double[]) yDatums[3*i+1];
-			yLabels[i] = (String) yDatums[3*i+2];
-		}
-		
-		new File("output/").mkdir();
-		CSV.writeColumn(x, new File(String.format("output/%s_x.csv", "data")));
-		for (int i = 0; i < ys.length; i ++) {
-			CSV.writeColumn(ys[i], new File(String.format("output/%s_y_%d.csv", "Data", i)));
-			CSV.writeColumn(Δs[i], new File(String.format("output/%s_err_%d.csv", "Data", i)));
-		}
-		ProcessBuilder plotPB = new ProcessBuilder("python", "src/python/plot1.py",
-		                                           "Time (ns)", String.join("\n", yLabels),
-		                                           "data", name, Integer.toString(ys.length));
-		plotPB.start();
-	}
-	
-	
-	/**
-	 * send 1D data to a Python script for plotting in MatPlotLib
-	 * @throws IOException if there's an issue talking to disk
-	 */
-	private static void compareHeatmap(double[] x, double[] y, double[][] z0, double[][] z1,
-			String xLabel, String yLabel, String title0, String title1) throws IOException {
-		new File("output/").mkdir();
-		CSV.writeColumn(x, new File(String.format("output/%s_x.csv", title0)));
-		CSV.writeColumn(y, new File(String.format("output/%s_y.csv", title0)));
-		CSV.write(z0, new File(String.format("output/%s_z.csv", title0)), ',');
-		CSV.write(z1, new File(String.format("output/%s_z.csv", title1)), ',');
-		ProcessBuilder plotPB = new ProcessBuilder("python", "src/python/compare2.py",
-				xLabel, yLabel, title0, title1);
-		plotPB.start();
-	}
-	
-	
-	/**
 	 * create a consistent-looking file selection thingy with a button and label, and bind it
 	 * to the given File.
 	 * @param title the title of the window
-	 * @param stage
 	 * @param initialFilename the filename of the file that it will try to load initially
 	 * @param action the action to take with the file once it's chosen
-	 * @return
+	 * @return the button and label of the file picker
 	 */
 	private static Region chooseFileWidget(String title, Stage stage, String initialFilename,
 			Callback action) {
@@ -443,10 +374,7 @@ public class SpectrumViewer extends Application {
 		void process(File file) throws IOException;
 	}
 	
-	
-	/**
-	 * @param args
-	 */
+
 	public static void main(String[] args) {
 		launch(args);
 	}

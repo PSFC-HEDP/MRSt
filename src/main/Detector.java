@@ -34,17 +34,69 @@ import java.util.Arrays;
  */
 public class Detector {
 
-	public static final double BIAS = 1e3; // [V]
-	public static final double MESH_LENGTH = .001; // [m]
-	public static final double DRIFT_LENGTH = 1; // [m]
-	public static final double SUBSTRATE_THICKNESS = 100; // [μm]
-	public static final double PHOTOCATHODE_THICKNESS = 0.1; // [μm]
-	public static final double DILATION = 20;
-	public static final double OPEN_AREA_RATIO = .60;
-	public static final double AVERAGE_GAIN = 1e4;
-	private static final int RESOLUTION = 36;
+	private static final String SUBSTRATE_STOPPING_FILENAME = "input/stopping_power_%ss_Si.csv";
+	private static final String PHOTOCATHODE_STOPPING_FILENAME = "input/stopping_power_%ss_CsI.csv";
+
+	private static final double ESCAPE_LENGTH = 90e-4; // escape length of electrons in CsI [μm]
+	private static final double ESCAPE_PROB = .70; // probability of an edge electron's escape
+	private static final double WORK_FUNC = 40e-3; // work function [keV]
+
 	private static final int INTEGRATION_RESOLUTION = 100;
-	private static final int DISTRIBUTION_RESOLUTION = 100;
+
+	private final double substrateThickness; // [μm]
+	private final double photocathodeThickness; // [μm]
+	private final double bias; // [V]
+	private final double meshLength; // [m]
+	private final double driftLength; // [m]
+	private final double dilation;
+	private final double openAreaRatio;
+	private final double averageGain;
+
+	private final DiscreteFunction stoppingSi;
+	private final DiscreteFunction stoppingCsI;
+
+
+	/**
+	 * put together the photocathode/PDDT simulacion
+	 * @param ion either Particle.P or Particle.D
+	 * @param substrateThickness the thickness of the silicon layer that supports
+	 *                           the photocathode [μm]
+	 * @param photocathodeThickness the thickness of the CsI photocathode [μm]
+	 * @param bias the mean strength of the accelerating electric field [V]
+	 * @param meshLength the distance across which the SE are accelerated [m]
+	 * @param driftLength the length of the the PDDT [m]
+	 * @param dilation the factor by which the signal is time-dilated
+	 * @param openAreaRatio the fraccion of the MCT that is open
+	 * @param averageGain the average number of electrons an MCT cascade produces
+	 * @throws IOException if it can't find the stopping power file
+	 */
+	public Detector(Particle ion,
+	                double substrateThickness,
+	                double photocathodeThickness,
+	                double bias,
+	                double meshLength, double driftLength,
+	                double dilation,
+	                double openAreaRatio, double averageGain,
+	                int integrationResolution) throws IOException {
+
+		this.bias = bias;
+		this.meshLength = meshLength;
+		this.driftLength = driftLength;
+		this.substrateThickness = substrateThickness;
+		this.photocathodeThickness = photocathodeThickness;
+		this.dilation = dilation;
+		this.openAreaRatio = openAreaRatio;
+		this.averageGain = averageGain;
+
+		double[][] stoppingDataSi = CSV.read(
+				new File(String.format(SUBSTRATE_STOPPING_FILENAME, ion.name)),
+				',');
+		stoppingSi = new DiscreteFunction(stoppingDataSi, false, true); // [keV] -> [keV/μm]
+		double[][] stoppingDataCsI = CSV.read(
+				new File(String.format(PHOTOCATHODE_STOPPING_FILENAME, ion.name)),
+				',');
+		stoppingCsI = new DiscreteFunction(stoppingDataCsI, false, true); // [keV] -> [keV/μm]
+	}
 
 	/**
 	 * simulate n deuterons striking the CsI cathode and get a list of the times
@@ -53,35 +105,20 @@ public class Detector {
 	 * @return {the gain of each particle as it hits the detector,
 	 *          the time at which the particle hits the detector}
 	 */
-	private static double[][] generateDetectionEvents(int numberOfDeuterons,
-	                                                  double energy) throws IOException {
-		double[][] stoppingSi;
-		double[][] stoppingCsI;
-		try {
-			stoppingSi = CSV.read(new File("input/stopping_power_deuterons_Si.csv"), ',');
-			stoppingCsI = CSV.read(new File("input/stopping_power_deuterons_CsI.csv"), ',');
-		} catch (IOException e) {
-			stoppingSi = new double[8][2];
-			stoppingCsI = new double[8][2];
-			e.printStackTrace();
-		}
-		DiscreteFunction dEdxSi = new DiscreteFunction(stoppingSi, false, true); // [keV] -> [keV/μm]
-		DiscreteFunction dEdxCsI = new DiscreteFunction(stoppingCsI, false, true); // [keV] -> [keV/μm]
+	private double[][] generateDetectionEvents(int numberOfDeuterons,
+	                                           double energy) throws IOException {
 		double E = NumericalMethods.odeSolve( // integrate the deuteron thru the substrate
-				dEdxSi,
-				-SUBSTRATE_THICKNESS,
+				stoppingSi,
+				-substrateThickness,
 				energy*1e3,
 				INTEGRATION_RESOLUTION); // [keV]
-		double step = PHOTOCATHODE_THICKNESS/INTEGRATION_RESOLUTION; // [μm]
-		double P0 = .70;
-		double ɛ = 40e-3; // work function [keV]
-		double L = 90e-4; // [μm]
+		double step = photocathodeThickness/INTEGRATION_RESOLUTION; // [μm]
 		double electronPerDeuteron = 0;
 		for (int i = 0; i <= INTEGRATION_RESOLUTION; i ++) { // then do a fancier integral to get the number of deuterons generated in the substrate
-			double x = ((double)i/INTEGRATION_RESOLUTION - 1)*PHOTOCATHODE_THICKNESS; // [μm]
-			double dEdx = dEdxCsI.evaluate(E);
+			double x = ((double)i/INTEGRATION_RESOLUTION - 1)*photocathodeThickness; // [μm]
+			double dEdx = stoppingCsI.evaluate(E);
 			double dx = (i == 0 || i == INTEGRATION_RESOLUTION) ? step/2 : step;
-			electronPerDeuteron += 1/ɛ*dEdx*P0*Math.exp(x/L)*dx;
+			electronPerDeuteron += 1/WORK_FUNC*dEdx*ESCAPE_PROB*Math.exp(x/ESCAPE_LENGTH)*dx;
 			E -= dEdx*step; // I'm using a first-order method here, but it should be fine because the total change in energy across the photocathode is quite small
 		}
 
@@ -95,83 +132,73 @@ public class Detector {
 				numberOfDeuterons*electronPerDeuteron);
 		double[] velocityDistribution = new double[numberAtCathode]; // [J]
 		for (int i = 0; i < numberAtCathode; i ++) {
-			double totalElectronEnergy = idf.evaluate(Math.random()*idf.maxDatum()); // [eV]
-			double axialElectronEnergy = Math.random()*totalElectronEnergy; // [eV]
-			velocityDistribution[i] = Math.sqrt(
-					2*axialElectronEnergy*(-e.charge/e.mass)); // [m/s]
+			double totalElectronEnergy = idf.evaluate(Math.random()*idf.maxDatum()); // kinetick energy [eV]
+			velocityDistribution[i] = Math.random()*Math.sqrt(
+					2*totalElectronEnergy*(-e.charge/e.mass)); // axial velocity [m/s]
 		}
 
 		double[] timeDistribution = new double[numberAtCathode]; // [s]
-		double g = -BIAS/MESH_LENGTH*e.charge/e.mass; // [m/s^2]
+		double g = -bias/meshLength*e.charge/e.mass; // [m/s^2]
 		for (int i = 0; i < numberAtCathode; i ++) {
 			double a = g/2;
 			double b = velocityDistribution[i];
-			double c = -MESH_LENGTH;
-			timeDistribution[i] = (-b + Math.sqrt(b*b - 4*a*c))/(2*a);
-			double vDrift = 2*a*timeDistribution[i] + b;
-			timeDistribution[i] += DRIFT_LENGTH/vDrift;
-			timeDistribution[i] *= DILATION*1e9; // dilate and convert to ns
+			double c = -meshLength;
+			double meshTime = (-b + Math.sqrt(b*b - 4*a*c))/(2*a);
+			double driftSpeed = 2*a*meshTime + b;
+			timeDistribution[i] = (
+					meshTime + driftLength/driftSpeed)*1e9; // [ns]
 		}
 
 		double[] gain = new double[numberAtCathode];
 		for (int i = 0; i < numberAtCathode; i ++)
-			gain[i] = NumericalMethods.bernoulli(OPEN_AREA_RATIO) ? 1 + (int)NumericalMethods.exponential(AVERAGE_GAIN) : 0;
+			gain[i] = NumericalMethods.bernoulli(openAreaRatio) ? 1 + (int)NumericalMethods.exponential(averageGain) : 0;
 
 		return new double[][] {gain, timeDistribution};
 	}
 
 	/**
-	 * send 1D data to a Python script for plotting in MatPlotLib
-	 * @param x the data for the x axis
-	 * @param yDatums {data for the y axis, error bar width for the y axis, label for that data,
-	 *   ...}
-	 * @throws IOException if there's an issue talking to disk
+	 * @return the time it takes for an electron with no inicial energy to reach
+	 * the MCT, ignoring dilation [ns]
 	 */
-	private static void plotLines(String name, double[] x, Object... yDatums) throws IOException, InterruptedException {
-		double[][] ys = new double[yDatums.length/3][];
-		double[][] Δs = new double[yDatums.length/3][];
-		String[] yLabels = new String[yDatums.length/3];
-		for (int i = 0; i < yDatums.length/3; i ++) {
-			ys[i] = (double[]) yDatums[3*i];
-			Δs[i] = (double[]) yDatums[3*i + 1];
-			yLabels[i] = (String) yDatums[3*i + 2];
-		}
-
-		new File("output/").mkdir();
-		CSV.writeColumn(x, new File(String.format("output/%s_x.csv", "data")));
-		for (int i = 0; i < ys.length; i ++) {
-			CSV.writeColumn(ys[i], new File(String.format("output/%s_y_%d.csv", "Data", i)));
-			CSV.writeColumn(Δs[i], new File(String.format("output/%s_err_%d.csv", "Data", i)));
-		}
-		ProcessBuilder plotPB = new ProcessBuilder("python", "src/python/plot1.py",
-		                                           "Time (ns)", String.join("\n", yLabels),
-		                                           "data", name, Integer.toString(ys.length));
-		Process p = plotPB.start();
-		System.out.println("finishd plotting with exit code "+p.waitFor());
+	public double maxTime() {
+		double driftSpeed = Math.sqrt(-2*bias*Particle.E.charge/Particle.E.mass); // [m/s]
+		return (2*this.meshLength + this.driftLength)/driftSpeed*1e9;
 	}
 
 
-	public static void main(String[] args) throws IOException, InterruptedException {
+	public static void main(String[] args) throws IOException {
+		int res = 100;
 		int n = 10000;
-		double[][] result = generateDetectionEvents(n, 12.5);
-		double[] gains = result[0];
-		double[] times = result[1];
+		double[] tBounds = {-50, 5};
+		Detector detector = new Detector(
+				Particle.D, 100, 0.1, 1e3,
+				1e-3, 1e0, 20, .60,
+				1e4, 100);
 
-		double[] bins = new double[RESOLUTION + 1];
-		double[] axis = new double[RESOLUTION];
-		double[] dist = new double[RESOLUTION];
-		double[] errors = new double[RESOLUTION];
-		for (int i = 0; i < bins.length; i ++)
-			bins[i] = 1065 + 4.*i/RESOLUTION;
-		for (int i = 0; i < axis.length; i ++)
-			axis[i] = (bins[i] + bins[i+1])/2;
-		for (int i = 0; i < times.length; i ++) {
-			int bin;
-			if ((bin = NumericalMethods.bin(times[i], axis)) >= 0)
-				dist[bin] += gains[i];
+		for (double energy = 11; energy < 15; energy += 1.5) {
+			double[][] result = detector.generateDetectionEvents(n, energy);
+			double[] gains = result[0];
+			double[] times = result[1];
+
+			double[] bins = new double[res + 1];
+			double[] axis = new double[res];
+			double[] dist = new double[res];
+			double[] errors = new double[res];
+			for (int i = 0; i < bins.length; i++)
+				bins[i] = tBounds[0] + (tBounds[1] - tBounds[0])*i/res;
+			for (int i = 0; i < axis.length; i++)
+				axis[i] = (bins[i] + bins[i + 1])/2;
+			for (int i = 0; i < times.length; i++) {
+				double adjustedTime = (times[i] - detector.maxTime())/1e-3;
+				int bin;
+				if ((bin = NumericalMethods.bin(adjustedTime, axis)) >= 0)
+					dist[bin] += gains[i];
+			}
+			System.out.println("Energy: " + energy);
+			System.out.println("Signal amplification: " + (NumericalMethods.sum(dist)/detector.averageGain/n));
+			System.out.println("Effective time resolution degradation: " + NumericalMethods.fwhm(axis, dist) + " ps");
+			if (energy == 12.5)
+				PythonPlot.plotLines("Energy histogram", axis, dist, errors, "Electrons");
 		}
-		System.out.println("Signal amplification: "+(NumericalMethods.sum(dist)/AVERAGE_GAIN/n));
-		System.out.println("Effective time resolution degradation: "+(NumericalMethods.fwhm(axis, dist)/DILATION*1e3)+" ps");
-		plotLines("Energy histogram", axis, dist, errors, "Electrons");
 	}
 }

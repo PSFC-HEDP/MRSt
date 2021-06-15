@@ -41,21 +41,12 @@ import main.Analysis.ErrorMode;
  * @author Justin Kunimune
  */
 public class ConsoleEvaluator {
-	
-	private static final double COSY_MINIMUM_ENERGY = 10.7e6;
-	private static final double COSY_MAXIMUM_ENERGY = 14.2e6;
-	private static final double COSY_REFERENCE_ENERGY = 12.45e6;
-	
-	
 	public static void main(String[] args) throws SecurityException, IOException {
 		for (int i = 0; i < Analysis.HEADERS.length; i ++) {
 			if (i < 4)
 				Analysis.HEADERS_WITH_ERRORS[i] = Analysis.HEADERS[i];
 			else {
 				Analysis.HEADERS_WITH_ERRORS[2*(i-4)+4] = Analysis.HEADERS[i];
-				int locationOfTheWordQuoteErrorUnquote = Analysis.HEADERS[i].indexOf('(') - 1;
-				if (locationOfTheWordQuoteErrorUnquote == -2)
-					locationOfTheWordQuoteErrorUnquote = Analysis.HEADERS[i].length();
 				Analysis.HEADERS_WITH_ERRORS[2*(i-4)+5] = Analysis.HEADERS[i] + " error";
 			}
 		}
@@ -104,9 +95,6 @@ public class ConsoleEvaluator {
 							6e0,
 							apertureWidth,
 							apertureHeight,
-							COSY_MINIMUM_ENERGY,
-							COSY_MAXIMUM_ENERGY,
-							COSY_REFERENCE_ENERGY,
 							cosyCoefficients,
 							cosyExponents,
 							68,

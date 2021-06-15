@@ -36,11 +36,6 @@ public class ConfigurationPlotter {
 	private static final int[] MEASUREMENTS = {6, 22, 24}; // indices for burn width, vi, and dTdt
 	private static final double[] TARGETS = {.066711, 67.33, 1.83};
 	private static final int NUM_RUNS = 4;
-	private static final int NUM_PARTICLES = 10000;
-	private static final int RESOLUTION = 100;
-	private static final double COSY_MINIMUM_ENERGY = 10.7e6;
-	private static final double COSY_MAXIMUM_ENERGY = 14.2e6;
-	private static final double COSY_REFERENCE_ENERGY = 12.45e6;
 	
 	
 	public static void main(String[] args) throws NumberFormatException, IOException {
@@ -48,11 +43,10 @@ public class ConfigurationPlotter {
 			for (double tFoil = 25e-6; tFoil < 110e-6; tFoil += 15e-6) {
 				for (double wAperture = 1.0e-3; wAperture < 5.1e-3; wAperture += 1.0e-3) {
 //					System.out.println("setting up simulatin");
-					Analysis mc = null;
 					COSYMapping map = CSV.readCosyCoefficients(new File("data/MRSt_IRF_FP tilted_final.txt"), 3);
 					double[][] cosyCoefficients = map.coefficients;
 					int[][] cosyExponents = map.exponents;
-					mc = new Analysis(
+					Analysis mc = new Analysis(
 							Particle.D,
 							3e-3,
 							2*rFoil,
@@ -61,9 +55,6 @@ public class ConfigurationPlotter {
 							6e0,
 							wAperture,
 							20e-3,
-							COSY_MINIMUM_ENERGY,
-							COSY_MAXIMUM_ENERGY,
-							COSY_REFERENCE_ENERGY,
 							cosyCoefficients,
 							cosyExponents,
 							68,
@@ -78,11 +69,9 @@ public class ConfigurationPlotter {
 					
 //					System.out.println("kalkula veria");
 					double[] errs = new double[MEASUREMENTS.length];
-					double[] eBins = null, tBins = null;
-					double[][] spec = null;
-					eBins = CSV.readColumn(new File("data/Energy bins.txt"));
-					tBins = CSV.readColumn(new File("data/nsp_150327_16p26_time - copia.txt"));
-					spec = CSV.read(new File("data/nsp_150327_16p26.txt"), '\t');
+					double[] eBins = CSV.readColumn(new File("data/Energy bins.txt"));
+					double[] tBins = CSV.readColumn(new File("data/nsp_150327_16p26_time - copia.txt"));
+					double[][] spec = CSV.read(new File("data/nsp_150327_16p26.txt"), '\t');
 					if (spec.length != eBins.length-1 || spec[0].length != tBins.length-1) {
 						System.out.println("interpreting a weird spectrum file...");
 						spec = SpectrumGenerator.interpretSpectrumFile(tBins, eBins, spec);

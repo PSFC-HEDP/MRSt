@@ -62,10 +62,6 @@ import java.util.logging.StreamHandler;
 public class ConfigurationEvaluator extends Application {
 	
 	private static final Particle ION = Particle.D;
-	private static final File STOPPING_POWER_FILE = new File("data/stopping_power_deuterons.csv");
-	private static final double COSY_MINIMUM_ENERGY = 10.7e6;
-	private static final double COSY_MAXIMUM_ENERGY = 14.2e6;
-	private static final double COSY_REFERENCE_ENERGY = 12.45e6;
 	
 	private static final int SPACING_0 = 16;
 	private static final int SPACING_1 = 10;
@@ -212,12 +208,10 @@ public class ConfigurationEvaluator extends Application {
 								apertureDistance.getValue()*1e0,
 								apertureWidth.getValue()*1e-3,
 								apertureHeight.getValue()*1e-3,
-								COSY_MINIMUM_ENERGY,
-								COSY_MAXIMUM_ENERGY,
-								COSY_REFERENCE_ENERGY,
 								cosyCoefficients,
 								cosyExponents,
 								focalPlaneTilt.getValue(),
+
 								1,
 								logger); // make the simulation
 					} catch (Exception e) {
