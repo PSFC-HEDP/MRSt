@@ -55,7 +55,7 @@ public class PythonPlot {
 	 *                for that data, ...}
 	 * @throws IOException if there's an issue talking to disk
 	 */
-	public static void plotLines(String name, double[] x, Object... yDatums) throws IOException {
+	public static void plotLines(String name, double[] x, String xLabel, Object... yDatums) throws IOException {
 		double[][] ys = new double[yDatums.length/3][];
 		double[][] Δs = new double[yDatums.length/3][];
 		String[] yLabels = new String[yDatums.length/3];
@@ -72,7 +72,7 @@ public class PythonPlot {
 			CSV.writeColumn(Δs[i], new File(String.format("output/%s_err_%d.csv", "Data", i)));
 		}
 		ProcessBuilder plotPB = new ProcessBuilder("python", "src/python/plot1.py",
-		                                           "Time (ns)", String.join("\n", yLabels),
+		                                           xLabel, String.join("\n", yLabels),
 		                                           "data", name, Integer.toString(ys.length));
 		plotPB.start();
 	}

@@ -68,8 +68,6 @@ public class Analysis {
 
 	public static final Random RANDOM = new Random(0);
 
-	private static final double ns = 1e-9;
-
 	private static final double MIN_E = 12, MAX_E = 16, REF_E = 14; // histogram bounds [MeV]
 	private static final int BUFFER = 4; // empty pixels to include simulate on each side [ns]
 	private static final double E_BIN = .09, T_BIN = 30e-3; // resolutions [MeV], [ns]
@@ -83,7 +81,6 @@ public class Analysis {
 	private static final double MCT_POROSITY = .70;
 	private static final double MCT_GAIN = 1e4;
 
-	private static final int TRANSFER_MATRIX_TRIES = 10000; // the number of points to sample in each column of the transfer matrix
 	private static final double TRANSFER_FUNC_ERROR = 0.00; // the error in the transfer function
 
 	private final IonOptics ionOptics; // the ion optic system
@@ -93,8 +90,6 @@ public class Analysis {
 
 	private final double[] energyBins; // endpoints of E bins for inferred spectrum [MeV]
 	private double[] timeBins; // endpoints of time bins for inferred spectrum [ns]
-	private double[][] rongTransferMatrix; // the full nmx2nm believed transfer matrix plus smoothing rows
-	private double[][] trueTransferMatrix; // the full nmx2nm actual transfer matrix plus smoothing rows
 	private double[][] deuteronSpectrum; // time-corrected deuteron counts
 	private double[][] fitNeutronSpectrum; // backward-fit neutron counts
 	private double[][] fitDeuteronSpectrum; // backward-fit deuteron counts (this should be similar to deuteronSpectrum)
@@ -142,6 +137,13 @@ public class Analysis {
 				PDDT_BIAS, MESH_LENGTH, DRIFT_LENGTH,
 				TIME_DILATION, MCT_POROSITY, MCT_GAIN, 100);
 
+		if (logger != null)  logger.info("beginning Monte Carlo computation.");
+		long startTime = System.currentTimeMillis();
+		long endTime = System.currentTimeMillis();
+		if (logger != null)
+			logger.info(String.format(Locale.US, "completed in %.2f minutes.",
+			                          (endTime - startTime)/60000.));
+
 		this.precision = precision;
 
 		this.energyBins = new double[(int) ((MAX_E - MIN_E)/E_BIN + 1)];
@@ -187,88 +189,12 @@ public class Analysis {
 	}
 
 	/**
-	 * determine the response of the MRSt to neutrons at particular energies. also tack on some
-	 * finite difference laplacian roughness measures.
-	 * @return the matrix that multiplies from a real neutron spectrum to a measured deuteron
-	 *   spectrum concatenate with roughness, both flattened out.
-	 */
-	public double[][] evaluateTransferMatrix() {
-		if (logger != null)  logger.info("beginning Monte Carlo computation.");
-		int simulationCount = 0;
-		long startTime = System.currentTimeMillis();
-		
-		int n = (energyBins.length-1)*(timeBins.length-1);
-		double[][] matrix = new double[n][n];
-		int j0 = timeBins.length/2; // time symmetry means we only need to evaluate at one time
-		for (int i = 0; i < energyBins.length-1; i ++) { // sweep through all energies
-			double energy0 = energyBins[i]*1e6, energy1 = energyBins[i+1]*1e6; // [eV]
-			double time0 = timeBins[j0]*ns, time1 = timeBins[j0+1]*ns; // [s]
-			double weight = this.ionOptics.efficiency((energy0 + energy1)/2)/TRANSFER_MATRIX_TRIES;
-			for (int k = 0; k < TRANSFER_MATRIX_TRIES; k ++) {
-				double energyI = energy0 + RANDOM.nextDouble()*(energy1 - energy0); // randomly choose values from the bin
-				double timeI = time0 + RANDOM.nextDouble()*(time1 - time0); // [s]
-				
-				double[] et = this.ionOptics.simulate(energyI, timeI); // do the simulation!
-				simulationCount ++;
-				if (Double.isNaN(et[0]))	continue; // sometimes, they won't hit the CsI cathode. That's fine.
-				
-				double energyO = et[0]/1e6, timeO = et[1]/ns; // then convert to the same units as the bins
-//				energyO = energyI/1e6; timeO = timeI/ns;
-				int eBin = NumericalMethods.bin(energyO, energyBins);
-				int tBin = NumericalMethods.bin(timeO, timeBins);
-				if (eBin >= 0 && eBin < energyBins.length-1 && tBin >= 0 && tBin < timeBins.length-1) // if it falls in detectable bounds
-					matrix[(timeBins.length-1)*eBin + tBin][(timeBins.length-1)*i + j0] += weight; // add it to the row
-			}
-		}
-		
-		long endTime = System.currentTimeMillis();
-		if (logger != null)
-			logger.info(String.format(Locale.US, "completed %d simulations in %.2f minutes.",
-					simulationCount, (endTime - startTime)/60000.));
-		
-		for (int i = 0; i < n; i ++) { // now iterate through all of the rows
-			for (int j = 0; j < n; j ++) { // and all of the columns, of which we still don't have many
-				int jRef = j/(timeBins.length-1)*(timeBins.length-1) + j0; // look for the nearest column that is filled
-				int iRef = i - j + jRef; // [i,j] is equivalent to an [iRef,jRef] by time symmetry
-				if (iRef >= 0 && i/(timeBins.length-1) == iRef/(timeBins.length-1)) // this may have jumped over to the next energy,
-					matrix[i][j] = matrix[iRef][jRef];
-				else
-					matrix[i][j] = 0; // but if so, it's almost certainly 0
-			}
-		}
-		
-		return matrix;
-	}
-	
-	/**
 	 * compute the time and energy resolution (FWHM) for particles at a given energy.
 	 * @param referenceEnergy the energy of the central ray [MeV]
 	 * @return {energy resolution [keV], time resolution [ps]}
 	 */
 	public double[] computeResolution(double referenceEnergy) {
-		instantiateTimeAxis(new double[] {-1e-3, 1e-3});
-		double[] energyDist = new double[energyAxis.length];
-		double[] timeDist = new double[timeAxis.length];
-		double[][] transferMatrix = evaluateTransferMatrix();
-		
-		int iRef = NumericalMethods.bin(referenceEnergy, energyBins);
-		int jRef = timeAxis.length/2;
-		
-		for (int i = 0; i < energyAxis.length; i ++) {
-			for (int j = 0; j < timeAxis.length; j ++) {
-				energyDist[i] += transferMatrix[(timeBins.length-1)*i + j][(timeBins.length-1)*iRef + jRef];
-				timeDist[j] += transferMatrix[(timeBins.length-1)*i + j][(timeBins.length-1)*iRef + jRef];
-			}
-		}
-		
-//		System.out.println(Arrays.toString(energyAxis));
-//		System.out.println(Arrays.toString(energyDist));
-//		System.out.println(Arrays.toString(timeAxis));
-//		System.out.println(Arrays.toString(timeDist));
-		
-		double energyResolution = NumericalMethods.fwhm(energyAxis, energyDist);
-		double timeResolution = NumericalMethods.fwhm(timeAxis, timeDist);
-		return new double[] { energyResolution/1e-3, timeResolution/1e-3};
+		return this.ionOptics.computeResolution(referenceEnergy);
 	}
 
 	public double efficiency() {
@@ -276,43 +202,33 @@ public class Analysis {
 	}
 	
 	/**
-	 * compute the total response to an implosion with the given neutron spectrum and save and
-	 * analyze it.
+	 * compute the total response to an implosion with the given neutron spectrum
+	 * and save and analyze it.
 	 * @param energies the energies that describe the rows of counts [MeV]
 	 * @param times the times that describe the columns of counts [ns]
-	 * @param spectrum the time- and energy- resolved neutron spectrum in number of neutrons. each
-	 * row corresponds to one element of energies, and each column one element of times. [#/MeV/ns]
+	 * @param spectrum the time- and energy- resolved neutron spectrum in number
+	 *                 of neutrons. each row corresponds to one element of
+	 *                 energies, and each column one element of times. [#/MeV/ns]
 	 * @param errorBars whether to bother computing error bars
-	 * @return {computation time, 0, Yn, err, BT, err, BW, err, skewness, err, kurtosis, err, peak compression, err, rho R (BT), err,
-	 * \< rho R \>, err, d(rho R)/dt, err, \<Ti\>, err, dTi/dt, err, \<vi\>, err, dvi/dt, err}
+	 * @return {computation time, 0, Yn, err, BT, err, BW, err, skewness, err,
+	 *          kurtosis, err, peak compression, err, rho R (BT), err,
+	 *          \< rho R \>, err, d(rho R)/dt, err, \<Ti\>, err, dTi/dt, err,
+	 *          \<vi\>, err, dvi/dt, err}
 	 */
 	public double[] respondAndAnalyze(double[] energies, double[] times, double[][] spectrum, ErrorMode errorBars) {
-		this.instantiateTimeAxis(times); // first, create the detector time bins
-		
-		this.rongTransferMatrix = evaluateTransferMatrix(); // use those to put the transfer matrix together
-		
-//		if (TRANSFER_FUNC_ERROR != 0) {
-//			double energyResolutionModifier = 1 + (2*RANDOM.nextDouble() - 1)*TRANSFER_FUNC_ERROR;
-//			double timeResolutionModifier = 1 + (2*RANDOM.nextDouble() - 1)*TRANSFER_FUNC_ERROR;
-//			System.out.println("augmenting energy resolution by "+energyResolutionModifier+" and time resolution by "+timeResolutionModifier);
-//			for (int i = 0; i < 4; i ++)
-//				this.cosyCoefficients[i][0] *= energyResolutionModifier;
-//			for (int i = 0; i < 6; i ++)
-//				if (i != 4)
-//					this.cosyCoefficients[i][4] *= timeResolutionModifier;
-//			this.trueTransferMatrix = evaluateTransferMatrix();// evaluateTransferMatrix(); // now make up the actual transfer matrix
-//			for (int i = 0; i < 4; i ++)
-//				this.cosyCoefficients[i][0] /= energyResolutionModifier;
-//			for (int i = 0; i < 6; i ++)
-//				if (i != 4)
-//					this.cosyCoefficients[i][4] /= timeResolutionModifier;
-//		}
-//		else {
-			this.trueTransferMatrix = this.rongTransferMatrix;
-//		}
+		if (spectrum.length != energies.length-1 || spectrum[0].length != times.length-1)
+			throw new IllegalArgumentException("These dimensions don't make any sense.");
 
-		this.deuteronSpectrum = this.response(energies, times, spectrum, true, true);
+		this.instantiateTimeAxis(times); // first, create the detector time bins
+
+		spectrum = NumericalMethods.downsample(
+				times, energies, spectrum, timeBins, energyBins); // first rebin the spectrum
+
+		this.deuteronSpectrum = this.ionOptics.response(
+				energyBins, timeBins, spectrum, true, true);
+
 		Quantity[] values = analyze(deuteronSpectrum, errorBars);
+
 		if (values != null) {
 			double[] output = new double[2*values.length];
 			for (int i = 0; i < values.length; i++) {
@@ -324,50 +240,6 @@ public class Analysis {
 		else {
 			return null;
 		}
-	}
-	
-	/**
-	 * compute the total response to an implosion with the given neutron spectrum using the
-	 * precomputed transfer matrix. account for electrostatic time correction, but not for any
-	 * analysis.
-	 * @param inEBins the edges of the energy bins [MeV]
-	 * @param inTBins the edges of the time bins [ns]
-	 * @param inSpectrum the neutron counts in each bin
-	 * @param stochastic whether to add noise to mimic real data
-	 * @param actual whether to use the true response function or what we believe to be the response function
-	 * @return the counts in the measured spectrum bins
-	 */
-	public double[][] response(double[] inEBins, double[] inTBins, double[][] inSpectrum,
-			boolean stochastic, boolean actual) {
-		if (inSpectrum.length != inEBins.length-1 || inSpectrum[0].length != inTBins.length-1)
-			throw new IllegalArgumentException("These dimensions don't make any sense.");
-		
-		double[][] sizedSpectrum = NumericalMethods.downsample(
-				inTBins, inEBins, inSpectrum, this.timeBins, this.energyBins); // first bin the spectrum
-		
-		double[] u = new double[(energyBins.length-1)*(timeBins.length-1)];
-		for (int i = 0; i < energyBins.length-1; i ++)
-			for (int j = 0; j < timeBins.length-1; j ++)
-				u[(timeBins.length-1)*i + j] = sizedSpectrum[i][j]; // now flatten the spectrum
-		
-		double[] v;
-		if (actual)
-			v = NumericalMethods.matmul(trueTransferMatrix, u); // then do the multiplication
-		else
-			v = NumericalMethods.matmul(rongTransferMatrix, u);
-		
-		double[][] outSpectrum = new double[energyBins.length-1][timeBins.length-1];
-		for (int i = 0; i < energyBins.length-1; i ++)
-			for (int j = 0; j < timeBins.length-1; j ++)
-				outSpectrum[i][j] = v[(timeBins.length-1)*i + j]; // finally, unflatten. inflate. rounden.
-		
-		if (stochastic) { // to simulate stochasticity
-			for (int i = 0; i < energyBins.length-1; i ++)
-				for (int j = 0; j < timeBins.length-1; j ++)
-					outSpectrum[i][j] = NumericalMethods.poisson(outSpectrum[i][j], RANDOM); // just jitter every cell
-		}
-		
-		return outSpectrum;
 	}
 	
 	/**
@@ -390,15 +262,16 @@ public class Analysis {
 			logger.log(Level.INFO, String.format("There were %.1g deuterons detected.", NumericalMethods.sum(spectrum)));
 		}
 		
-		double[][] D = new double[energyBins.length-1][timeBins.length-1];
-		for (int i = 0; i < energyBins.length-1; i ++)
-			for (int j = 0; j < timeBins.length-1; j ++)
-				D[i][j] = Math.max(1, spectrum[i][j]);
-		
-		if (logger != null)  logger.info("beginning fit process.");
+		logger.info("beginning fit process.");
 		long startTime = System.currentTimeMillis();
-		
-		double[][] gelf = Optimization.optimizeGelfgat(spectrum, D, this.rongTransferMatrix, 1e5);
+
+//		double[][] D = new double[energyBins.length-1][timeBins.length-1];
+//		for (int i = 0; i < energyBins.length-1; i ++)
+//			for (int j = 0; j < timeBins.length-1; j ++)
+//				D[i][j] = Math.max(1, spectrum[i][j]);
+
+//		double[][] gelf = Optimization.optimizeGelfgat(spectrum, D, this.rongTransferMatrix, 1e5);
+		double[][] gelf = spectrum;
 		
 		double[] yieldGess = new double[timeAxis.length];
 		for (int j = 0; j < timeAxis.length; j ++) {
@@ -455,7 +328,7 @@ public class Analysis {
 			double[][] teoSpectrum = SpectrumGenerator.generateSpectrum(
 					params[0], params[1], electronTemperature, params[2], params[3],
 					energyBins, timeBins); // generate the neutron spectrum based on those
-			double[][] fitSpectrum = this.response(
+			double[][] fitSpectrum = this.ionOptics.response(
 					energyBins, timeBins, teoSpectrum, false, false); // blur it according to the transfer matrix
 			
 			double error = 0; // negative Bayes factor (in nepers)
@@ -546,14 +419,14 @@ public class Analysis {
 		this.fitNeutronSpectrum = SpectrumGenerator.generateSpectrum( // and then interpret it
 				getNeutronYield(), getIonTemperature(), electronTemperature,
 				getFlowVelocity(), getArealDensity(), energyBins, timeBins);
-		this.fitDeuteronSpectrum = this.response(energyBins, timeBins, fitNeutronSpectrum,
+		this.fitDeuteronSpectrum = this.ionOptics.response(energyBins, timeBins, fitNeutronSpectrum,
 				false, false);
 		
 		Quantity iBT = NumericalMethods.quadargmax(measurements[0]); // index of max yield
 		Quantity bangTime = NumericalMethods.interp(timeAxis, iBT); // time of max yield
 		
 		if (errorBars == ErrorMode.HESSIAN) {
-			if (logger != null) logger.log(Level.INFO, "calculating error bars.");
+			logger.log(Level.INFO, "calculating error bars.");
 			double c = logPosterior.apply(opt); // start by getting the actual value
 			double[] step = new double[opt.length]; // and the values in all basis directions
 			for (int i = 0; i < step.length; i ++) {
@@ -563,7 +436,7 @@ public class Analysis {
 				opt[i] -= dxi;
 			}
 			double[][] hessian = new double[opt.length][opt.length]; // then go for the second derivatives
-			for (int i = 0; i < hessian.length; i ++) {
+			for (int i = 0; i < hessian.length; i ++) { // TODO: move this into a separate funccion
 				double dxi = dimensionScale[i]*1e-4;
 				double r = step[i];
 				opt[i] -= dxi;
@@ -592,24 +465,13 @@ public class Analysis {
 				if (hessian[i][i] < 0)
 					hessian[i][i] = Double.NaN;
 			}
-			for (int i = 0; i < hessian.length; i ++) {
-				for (int j = i+1; j < hessian.length; j ++) {
-					if (Math.abs(hessian[i][j]) > Math.sqrt(hessian[i][i]*hessian[j][j]))
-						hessian[i][j] = hessian[j][i] = Math.signum(hessian[i][j])*Math.sqrt(hessian[i][i]*hessian[j][j]); // enforce positive semidefiniteness
-				}
-			}
-			
+			NumericalMethods.coercePositiveSemidefinite(hessian);
 			covarianceMatrix = NumericalMethods.pseudoinv(hessian);
 			for (int i = 0; i < hessian.length; i ++) {
 				if (covarianceMatrix[i][i] < 1/hessian[i][i]) // these are all approximations, and sometimes they violate the properties of positive semidefiniteness
 					covarianceMatrix[i][i] = 1/hessian[i][i]; // do what you must to make it work
 			}
-			for (int i = 0; i < hessian.length; i ++) {
-				for (int j = i+1; j < hessian.length; j ++) {
-					if (Math.abs(covarianceMatrix[i][j]) > Math.sqrt(covarianceMatrix[i][i]*covarianceMatrix[j][j]))
-						covarianceMatrix[i][j] = covarianceMatrix[j][i] = Math.signum(covarianceMatrix[i][j])*Math.sqrt(covarianceMatrix[i][i]*covarianceMatrix[j][j]); // enforce positive semidefiniteness
-				}
-			}
+			NumericalMethods.coercePositiveSemidefinite(covarianceMatrix);
 		}
 		else if (errorBars == ErrorMode.STATISTICS) {
 			covarianceMatrix = new double[opt.length][opt.length];

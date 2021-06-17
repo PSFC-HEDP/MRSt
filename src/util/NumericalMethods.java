@@ -1001,6 +1001,30 @@ public class NumericalMethods {
 	}
 
 	/**
+	 * do a quick pass thru all of the 2x2 submatrices of this symmetric matrix
+	 * to make sure they have nonnegative determinants, and alter the nondiagonal
+	 * elements if they don't.
+	 */
+	public static void coercePositiveSemidefinite(double[][] A) {
+		for (int i = 0; i < A.length; i ++) {
+			if (A[i].length != A.length)
+				throw new IllegalArgumentException("this method only works with square matrices.");
+			for (int j = 0; j < A[i].length; j ++)
+				if (A[i][j] != A[j][i])
+					throw new IllegalArgumentException("this method only works with symmetric matrices.");
+		}
+
+		for (int i = 0; i < A.length; i ++)
+			if (A[i][i] < 0)
+				A[i][i] = 0;
+
+		for (int i = 0; i < A.length; i ++)
+			for (int j = i+1; j < A.length; j ++)
+				if (A[i][j]*A[j][i] > A[i][i]*A[j][j])
+					A[i][j] = A[j][i] = Math.signum(A[i][j])*Math.sqrt(A[i][i]*A[j][j]); // enforce positive semidefiniteness
+	}
+
+	/**
 	 * copied from https://www.sanfoundry.com/java-program-find-inverse-matrix/
 	 * @return
 	 */

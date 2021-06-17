@@ -171,7 +171,7 @@ public class Detector {
 	public static void main(String[] args) throws IOException {
 		int res = 100;
 		int n = 10000;
-		double[] tBounds = {-50, 5};
+		double[] tBounds = {-40, 5};
 		Detector detector = new Detector(
 				Particle.D, 100, 0.1, 1e3,
 				1e-3, 1e0, 20, .60,
@@ -200,7 +200,7 @@ public class Detector {
 			System.out.println("Signal amplification: " + (NumericalMethods.sum(dist)/detector.averageGain/n));
 			System.out.println("Effective time resolution degradation: " + NumericalMethods.fwhm(axis, dist) + " ps");
 			if (energy == 12.5)
-				PythonPlot.plotLines("Energy histogram", axis, dist, errors, "Electrons");
+				PythonPlot.plotLines("Energy histogram", axis, "Time (ps)", dist, errors, "Electrons");
 		}
 	}
 }
