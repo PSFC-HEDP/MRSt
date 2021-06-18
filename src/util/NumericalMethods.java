@@ -1010,7 +1010,7 @@ public class NumericalMethods {
 			if (A[i].length != A.length)
 				throw new IllegalArgumentException("this method only works with square matrices.");
 			for (int j = 0; j < A[i].length; j ++)
-				if (A[i][j] != A[j][i])
+				if (Double.isFinite(A[i][j]) && A[i][j] != A[j][i])
 					throw new IllegalArgumentException("this method only works with symmetric matrices.");
 		}
 

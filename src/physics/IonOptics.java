@@ -29,6 +29,7 @@ import util.NumericalMethods.DiscreteFunction;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 
 import static physics.Analysis.RANDOM;
 
@@ -232,8 +233,8 @@ public class IonOptics {
 	public double[][] response(double[] energyBins, double[] timeBins, double[][] inSpectrum,
 	                           boolean stochastic, boolean actual) {
 		if (this.rongTransferMatrix == null ||
-				energyBins != this.energyBins ||
-				timeBins != this.timeBins) // the full nmx2nm believed transfer matrix plus smoothing rows
+				!Arrays.equals(energyBins, this.energyBins) ||
+				!Arrays.equals(timeBins, this.timeBins)) // the full nmx2nm believed transfer matrix plus smoothing rows
 			this.rongTransferMatrix = evaluateTransferMatrix(energyBins, timeBins); // (only evaluate it if it hasn't been evaluated yet)
 		this.energyBins = energyBins;
 		this.timeBins = timeBins;
