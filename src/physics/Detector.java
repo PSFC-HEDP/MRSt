@@ -43,10 +43,14 @@ public class Detector {
 	private static final double ESCAPE_PROB = .70; // probability of an edge electron's escape
 	private static final double WORK_FUNC = 40e-3; // work function [keV]
 
+	private static final double MCP_BLURRING = 0.100; // MCT response time [ns]
+	private static final double CABLE_RESPONSE = 0.100; // cable response time [ns]
+
 	private static final int INTEGRATION_RESOLUTION = 100;
 
 	private final double substrateThickness; // [μm]
 	private final double photocathodeThickness; // [μm]
+	private final double photocathodeAngle; // [rad]
 	private final double bias; // [V]
 	private final double meshLength; // [m]
 	private final double driftLength; // [m]
@@ -64,6 +68,7 @@ public class Detector {
 	 * @param substrateThickness the thickness of the silicon layer that supports
 	 *                           the photocathode [μm]
 	 * @param photocathodeThickness the thickness of the CsI photocathode [μm]
+	 * @param photocathodeAngle the angle by which the detector plane is tilted
 	 * @param bias the mean strength of the accelerating electric field [V]
 	 * @param meshLength the distance across which the SE are accelerated [m]
 	 * @param driftLength the length of the the PDDT [m]
@@ -74,7 +79,7 @@ public class Detector {
 	 */
 	public Detector(Particle ion,
 	                double substrateThickness,
-	                double photocathodeThickness,
+	                double photocathodeThickness, double photocathodeAngle,
 	                double bias,
 	                double meshLength, double driftLength,
 	                double dilation,
@@ -86,6 +91,7 @@ public class Detector {
 		this.driftLength = driftLength;
 		this.substrateThickness = substrateThickness;
 		this.photocathodeThickness = photocathodeThickness;
+		this.photocathodeAngle = Math.toRadians(photocathodeAngle);
 		this.dilation = dilation;
 		this.openAreaRatio = openAreaRatio;
 		this.averageGain = averageGain;
@@ -118,11 +124,12 @@ public class Detector {
 		double electronPerDeuteron = 0;
 		for (int i = 0; i <= INTEGRATION_RESOLUTION; i ++) { // then do a fancier integral to get the number of deuterons generated in the substrate
 			double x = ((double)i/INTEGRATION_RESOLUTION - 1)*photocathodeThickness; // [μm]
-			double dEdx = stoppingCsI.evaluate(E);
+			double dEdx = stoppingCsI.evaluate(E)/Math.cos(photocathodeAngle);
 			double dx = (i == 0 || i == INTEGRATION_RESOLUTION) ? step/2 : step;
 			electronPerDeuteron += 1/WORK_FUNC*dEdx*ESCAPE_PROB*Math.exp(x/ESCAPE_LENGTH)*dx;
 			E -= dEdx*step; // I'm using a first-order method here, but it should be fine because the total change in energy across the photocathode is quite small
 		}
+		System.out.println(electronPerDeuteron);
 
 		double[][] henkeData = CSV.read(new File("input/henke_electron_data.csv"), ',');
 		DiscreteFunction pdf = new DiscreteFunction(henkeData); // [eV] -> [1/eV]
@@ -159,6 +166,25 @@ public class Detector {
 	}
 
 	/**
+	 * compute and return the response function of the MCP and faraday cups
+	 * @param times the time axis for the funccion, starting at 0 [ns]
+	 * @return the voltage at each time after a delta funccion of signal electrons
+	 */
+	private double[] MCPResponseFunction(double[] times) {
+		double[] intermediate = new double[times.length];
+		for (int i = 0; i < times.length; i ++)
+			intermediate[i] = Math.exp(-times[i]/(CABLE_RESPONSE/dilation));//1/(CABLE_RESPONSE/dilation + times[i]);
+		System.out.println(MCP_BLURRING/dilation);
+		double[] convolved = new double[times.length];
+		for (int i = 0; i < times.length; i ++)
+			for (int j = 0; j < i; j ++)
+				convolved[i] += Math.exp(-(times[i] - times[j])/(MCP_BLURRING/dilation))*intermediate[j]/1e8;
+//				convolved[i] += Math.exp(-Math.pow(times[i] - times[j] - 3*MCP_BLURRING/dilation, 2)/
+//						                         (2*Math.pow(MCP_BLURRING/dilation, 2)))*intermediate[j]/1e11;
+		return convolved;
+	}
+
+	/**
 	 * @return the time it takes for an electron with no inicial energy to reach
 	 * the MCT, ignoring dilation [ns]
 	 */
@@ -171,9 +197,9 @@ public class Detector {
 	public static void main(String[] args) throws IOException {
 		int res = 100;
 		int n = 10000;
-		double[] tBounds = {-40, 5};
+		double[] tBounds = {-60, 60};
 		Detector detector = new Detector(
-				Particle.D, 100, 0.1, 1e3,
+				Particle.D, 100, 0.1, 68, 1e3,
 				1e-3, 1e0, 20, .60,
 				1e4, 100);
 
@@ -186,21 +212,34 @@ public class Detector {
 			double[] axis = new double[res];
 			double[] dist = new double[res];
 			double[] errors = new double[res];
-			for (int i = 0; i < bins.length; i++)
+			for (int i = 0; i < bins.length; i ++)
 				bins[i] = tBounds[0] + (tBounds[1] - tBounds[0])*i/res;
-			for (int i = 0; i < axis.length; i++)
+			for (int i = 0; i < axis.length; i ++)
 				axis[i] = (bins[i] + bins[i + 1])/2;
-			for (int i = 0; i < times.length; i++) {
+			for (int i = 0; i < times.length; i ++) {
 				double adjustedTime = (times[i] - detector.maxTime())/1e-3;
 				int bin;
 				if ((bin = NumericalMethods.bin(adjustedTime, axis)) >= 0)
 					dist[bin] += gains[i];
 			}
+
+			double[] kernelAxis = new double[res];
+			for (int i = 0; i < kernelAxis.length; i ++)
+				kernelAxis[i] = (axis[i] - axis[0])/1e3;
+			double[] kernel = detector.MCPResponseFunction(kernelAxis);
+			double[] blurredDist = new double[res];
+			for (int i = 0; i < res; i ++)
+				for (int j = 0; j <= i; j ++)
+					blurredDist[i] += kernel[j]*dist[i - j];
+
 			System.out.println("Energy: " + energy);
 			System.out.println("Signal amplification: " + (NumericalMethods.sum(dist)/detector.averageGain/n));
 			System.out.println("Effective time resolution degradation: " + NumericalMethods.fwhm(axis, dist) + " ps");
-			if (energy == 12.5)
-				PythonPlot.plotLines("Energy histogram", axis, "Time (ps)", dist, errors, "Electrons");
+			if (energy == 12.5) {
+//				PythonPlot.plotLines("Energy histogram", axis, "Time [ps]", dist, errors, "Electrons");
+//				PythonPlot.plotLines("MCP response function", kernelAxis, "Time [ps]", kernel, errors, " ");
+				PythonPlot.plotLines("Measured signal", axis, "Time [ps]", blurredDist, errors, "Signal level");
+			}
 		}
 	}
 }

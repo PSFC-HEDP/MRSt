@@ -1025,8 +1025,20 @@ public class NumericalMethods {
 	}
 
 	/**
+	 * average this matrix with it transpose.
+	 */
+	public static void coerceSymmetric(double[][] A) {
+		for (double[] row: A)
+			if (row.length != A.length)
+				throw new IllegalArgumentException("this method only works with square matrices.");
+
+		for (int i = 0; i < A.length; i ++)
+			for (int j = i+1; j < A.length; j ++)
+				A[i][j] = A[j][i] = (A[i][j] + A[j][i])/2;
+	}
+
+	/**
 	 * copied from https://www.sanfoundry.com/java-program-find-inverse-matrix/
-	 * @return
 	 */
 	public static double[][] matinv(double[][] arr) {
 		double[][] a = new double[arr.length][];
@@ -1125,7 +1137,6 @@ public class NumericalMethods {
 	 * value is zero, then it removes that dimension before inverting, and then puts NaNs back
 	 * in where they were.
 	 * @param arr
-	 * @return
 	 */
 	public static double[][] pseudoinv(double[][] arr) {
 		int n = 0;

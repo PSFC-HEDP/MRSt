@@ -23,13 +23,6 @@
  */
 package physics;
 
-import java.io.IOException;
-import java.util.Locale;
-import java.util.Random;
-import java.util.function.Function;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
 import app.SpectrumGenerator;
 import org.apache.commons.math3.optim.InitialGuess;
 import org.apache.commons.math3.optim.MaxEval;
@@ -39,13 +32,17 @@ import org.apache.commons.math3.optim.nonlinear.scalar.MultivariateOptimizer;
 import org.apache.commons.math3.optim.nonlinear.scalar.ObjectiveFunction;
 import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.MultiDirectionalSimplex;
 import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.PowellOptimizer;
-
-import physics.Particle;
 import util.NumericalMethods;
 import util.NumericalMethods.Quantity;
-import physics.Detector;
-import physics.IonOptics;
 import util.Optimization;
+
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.Locale;
+import java.util.Random;
+import java.util.function.Function;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * the class where all the math is.
@@ -64,7 +61,7 @@ public class Analysis {
 		"Ti at BT (keV)", "dTi/dt at BT (keV/ns)", "d^2Ti/dt^2 at BT (keV/ns^2)",
 		"Burn-average vi (km/s)", "dvi/dt at BT (km/s/ns)",
 		}; // the names, units, and order of time-dependent burn parameters
-	public static final String[] HEADERS_WITH_ERRORS = appendErrorsToHeader(HEADERS);
+	public static final String[] HEADERS_WITH_ERRORS = appendErrorsToHeader();
 
 	public static final Random RANDOM = new Random(0);
 
@@ -134,15 +131,8 @@ public class Analysis {
 				cosyCoefficients, cosyExponents, focalTilt);
 		this.detector = new Detector(
 				ion, SUBSTRATE_THICKNESS, PHOTOCATHODE_THICKNESS,
-				PDDT_BIAS, MESH_LENGTH, DRIFT_LENGTH,
+				focalTilt, PDDT_BIAS, MESH_LENGTH, DRIFT_LENGTH,
 				TIME_DILATION, MCT_POROSITY, MCT_GAIN, 100);
-
-		if (logger != null)  logger.info("beginning Monte Carlo computation.");
-		long startTime = System.currentTimeMillis();
-		long endTime = System.currentTimeMillis();
-		if (logger != null)
-			logger.info(String.format(Locale.US, "completed in %.2f minutes.",
-			                          (endTime - startTime)/60000.));
 
 		this.precision = precision;
 
@@ -224,8 +214,13 @@ public class Analysis {
 		spectrum = NumericalMethods.downsample(
 				times, energies, spectrum, timeBins, energyBins); // first rebin the spectrum
 
+		logger.info("beginning Monte Carlo computation.");
+		long startTime = System.currentTimeMillis();
 		this.deuteronSpectrum = this.ionOptics.response(
 				energyBins, timeBins, spectrum, true, true);
+		long endTime = System.currentTimeMillis();
+		logger.info(String.format(Locale.US, "completed in %.2f minutes.",
+			                          (endTime - startTime)/60000.));
 
 		Quantity[] values = analyze(deuteronSpectrum, errorBars);
 
@@ -255,7 +250,7 @@ public class Analysis {
 			throw new IllegalArgumentException("These dimensions are wrong.");
 
 		if (NumericalMethods.max(spectrum) == 0) {
-			if (logger != null) logger.log(Level.SEVERE, "There were no deuterons detected.");
+			logger.log(Level.SEVERE, "There were no deuterons detected.");
 			return null;
 		}
 		else {
@@ -471,6 +466,7 @@ public class Analysis {
 				if (covarianceMatrix[i][i] < 1/hessian[i][i]) // these are all approximations, and sometimes they violate the properties of positive semidefiniteness
 					covarianceMatrix[i][i] = 1/hessian[i][i]; // do what you must to make it work
 			}
+//			NumericalMethods.coerceSymmetric(covarianceMatrix);
 			NumericalMethods.coercePositiveSemidefinite(covarianceMatrix);
 		}
 		else if (errorBars == ErrorMode.STATISTICS) {
@@ -489,9 +485,8 @@ public class Analysis {
 		}
 		
 		long endTime = System.currentTimeMillis();
-		if (logger != null)
-			logger.info(String.format(Locale.US, "completed in %.2f minutes.",
-					(endTime - startTime)/60000.));
+		logger.info(String.format(Locale.US, "completed in %.2f minutes.",
+				(endTime - startTime)/60000.));
 		
 		Quantity[] V = new Quantity[measurements[3].length]; // this is not really volume; it is (ρR)^(-2/3)
 		for (int j = 0; j < V.length; j ++)
@@ -523,26 +518,24 @@ public class Analysis {
 				NumericalMethods.derivative(timeAxis, measurements[2], bangTime, .12, 1),
 		}; // collect the figures of merit
 		
-		if (logger != null) {
-			logger.info(String.format("Total yield (μ0):  %s", res[1].times(1e15).toString(covarianceMatrix)));
-			logger.info(String.format("Bang time:         %s ns", res[2].toString(covarianceMatrix)));
-			logger.info(String.format("Burn width (μ2):   %s ps", res[3].over(1e-3).toString(covarianceMatrix)));
-			logger.info(String.format("Burn skewness (μ3):%s", res[4].toString(covarianceMatrix)));
-			logger.info(String.format("Burn kurtosis (μ4):%s", res[5].toString(covarianceMatrix)));
-			logger.info(String.format("Peak compression:  %s ps + BT", res[6].over(1e-3).toString(covarianceMatrix)));
-			logger.info(String.format("Burn-averaged \u03C1R:  %s g/cm^2", res[7].toString(covarianceMatrix)));
-			logger.info(String.format("\u03C1R at peak:        %s g/cm^2", res[8].toString(covarianceMatrix)));
-			logger.info(String.format("\u03C1R at BT:          %s g/cm^2", res[9].toString(covarianceMatrix)));
-			logger.info(String.format("d\u03C1R/dt at BT:      %s g/cm^2/(100 ps)", res[10].over(1e1).toString(covarianceMatrix)));
-			logger.info(String.format("d^2V/dt^2/V at BT: %s 1/ns^2", res[11].toString(covarianceMatrix)));
-			logger.info(String.format("Burn-averaged Ti:  %s keV", res[12].toString(covarianceMatrix)));
-			logger.info(String.format("Ti at peak:        %s keV", res[13].toString(covarianceMatrix)));
-			logger.info(String.format("Ti at BT:          %s keV", res[14].toString(covarianceMatrix)));
-			logger.info(String.format("dTi/dt at BT:      %s keV/(100 ps)", res[15].over(1e1).toString(covarianceMatrix)));
-			logger.info(String.format("d^2Ti/dt^2 at BT:  %s keV/ns^2", res[16].toString(covarianceMatrix)));
-			logger.info(String.format("Burn-averaged vi:  %s km/s", res[17].toString(covarianceMatrix)));
-			logger.info(String.format("dvi/dt at BT:      %s μm/ns/(100 ps)", res[18].over(1e1).toString(covarianceMatrix)));
-		}
+		logger.info(String.format("Total yield (μ0):  %s", res[1].times(1e15).toString(covarianceMatrix)));
+		logger.info(String.format("Bang time:         %s ns", res[2].toString(covarianceMatrix)));
+		logger.info(String.format("Burn width (μ2):   %s ps", res[3].over(1e-3).toString(covarianceMatrix)));
+		logger.info(String.format("Burn skewness (μ3):%s", res[4].toString(covarianceMatrix)));
+		logger.info(String.format("Burn kurtosis (μ4):%s", res[5].toString(covarianceMatrix)));
+		logger.info(String.format("Peak compression:  %s ps + BT", res[6].over(1e-3).toString(covarianceMatrix)));
+		logger.info(String.format("Burn-averaged \u03C1R:  %s g/cm^2", res[7].toString(covarianceMatrix)));
+		logger.info(String.format("\u03C1R at peak:        %s g/cm^2", res[8].toString(covarianceMatrix)));
+		logger.info(String.format("\u03C1R at BT:          %s g/cm^2", res[9].toString(covarianceMatrix)));
+		logger.info(String.format("d\u03C1R/dt at BT:      %s g/cm^2/(100 ps)", res[10].over(1e1).toString(covarianceMatrix)));
+		logger.info(String.format("d^2V/dt^2/V at BT: %s 1/ns^2", res[11].toString(covarianceMatrix)));
+		logger.info(String.format("Burn-averaged Ti:  %s keV", res[12].toString(covarianceMatrix)));
+		logger.info(String.format("Ti at peak:        %s keV", res[13].toString(covarianceMatrix)));
+		logger.info(String.format("Ti at BT:          %s keV", res[14].toString(covarianceMatrix)));
+		logger.info(String.format("dTi/dt at BT:      %s keV/(100 ps)", res[15].over(1e1).toString(covarianceMatrix)));
+		logger.info(String.format("d^2Ti/dt^2 at BT:  %s keV/ns^2", res[16].toString(covarianceMatrix)));
+		logger.info(String.format("Burn-averaged vi:  %s km/s", res[17].toString(covarianceMatrix)));
+		logger.info(String.format("dvi/dt at BT:      %s μm/ns/(100 ps)", res[18].over(1e1).toString(covarianceMatrix)));
 		return res;
 	}
 	
@@ -598,7 +591,7 @@ public class Analysis {
 		}
 		
 		double[] totalParams = totalGuess.clone();
-		if (logger != null) logger.log(Level.FINER, Double.toString(func.apply(totalGuess)));
+		logger.log(Level.FINER, Double.toString(func.apply(totalGuess)));
 		activeGuess = Optimization.minimizeLBFGSB(
 				(activeParams) -> { // when you optimize
 					updateArray(totalParams, activeParams, active); // only optimize a subset of the dimensions
@@ -612,7 +605,7 @@ public class Analysis {
 		updateArray(totalParams, activeGuess, active);
 		
 		double oldPosterior = Double.POSITIVE_INFINITY, newPosterior = func.apply(totalParams);
-		if (logger != null) logger.log(Level.FINER, Double.toString(newPosterior));
+		logger.log(Level.FINER, Double.toString(newPosterior));
 		MultivariateOptimizer optimizer = new PowellOptimizer(1e-14, 1);
 		while (oldPosterior - newPosterior > threshold) { // optimize it over and over; you'll get there eventually
 			activeGuess = optimizer.optimize(
@@ -629,7 +622,7 @@ public class Analysis {
 			oldPosterior = newPosterior;
 			updateArray(totalParams, activeGuess, active);
 			newPosterior = func.apply(totalParams);
-			if (logger != null) logger.log(Level.FINER, Double.toString(newPosterior));
+			logger.log(Level.FINER, Double.toString(newPosterior));
 		}
 		return totalParams;
 	}
@@ -735,17 +728,14 @@ public class Analysis {
 	}
 	
 	
-	private static String[] appendErrorsToHeader(String[] headers) {
-		String[] out = new String[2*headers.length + 4];
-		for (int i = 0; i < headers.length; i ++) {
+	private static String[] appendErrorsToHeader() {
+		String[] out = new String[2*HEADERS.length + 4];
+		for (int i = 0; i < HEADERS.length; i ++) {
 			if (i < 4)
-				out[i] = headers[i];
+				out[i] = HEADERS[i];
 			else {
-				out[2*(i-4)+4] = headers[i];
-				int locationOfTheWordQuoteErrorUnquote = headers[i].indexOf('(') - 1;
-				if (locationOfTheWordQuoteErrorUnquote == -2)
-					locationOfTheWordQuoteErrorUnquote = headers[i].length();
-				out[2*(i-4)+5] = headers[i] + " error";
+				out[2*(i-4)+4] = HEADERS[i];
+				out[2*(i-4)+5] = HEADERS[i] + " error";
 			}
 		}
 		return out;

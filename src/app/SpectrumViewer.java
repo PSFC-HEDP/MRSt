@@ -245,7 +245,8 @@ public class SpectrumViewer extends Application {
 								logger); // make the simulation
 						
 //						double[] res = mc.computeResolution(14.);
-//						System.out.println(String.format("Energy res: %.2f keV\nTime res: %.2f ps", res[0], res[1]));
+//						logger.info(String.format("Energy res: %.2f keV", res[0]));
+//						logger.info(String.format("Time res:   %.2f ps", res[1]));
 						
 						mc.respondAndAnalyze(
 								eBins,
