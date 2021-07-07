@@ -30,6 +30,7 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -138,7 +139,7 @@ public class CSV {
 			String line;
 			while ((line = in.readLine()) != null) {
 				line = line.substring(1); // remove this single stupid space in front of the numbers
-				if (line.isEmpty())
+				if (line.trim().isEmpty())
 					break;
 				if (line.substring(line.length()/14*14).contains(Integer.toString(maxOrder + 1))) // check for when we see an exponent over the highest order
 					break;
