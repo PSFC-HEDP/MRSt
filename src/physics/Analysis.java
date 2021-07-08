@@ -188,7 +188,7 @@ public class Analysis {
 	}
 
 	public double efficiency() {
-		return this.ionOptics.efficiency(14e6);
+		return this.ionOptics.efficiency(14);
 	}
 	
 	/**
@@ -284,7 +284,7 @@ public class Analysis {
 		double[] lowerBound = new double[opt.length];
 		double[] upperBound = new double[opt.length];
 		for (int j = 0; j < rite - left; j ++) {
-			yieldGess[left+j] = Math.max(yieldGess[left+j], 1/this.ionOptics.efficiency(14e6));
+			yieldGess[left+j] = Math.max(yieldGess[left+j], 1/this.ionOptics.efficiency(14));
 			double scaledYieldGess = yieldGess[left+j]/timeStep/1e15;
 			double[] gesses = {          scaledYieldGess,  4,    0, 1 }; //inicial gess
 			double[] scales = {      0.5*scaledYieldGess, 10,  200, 1 }; // rough ranges of these variables
@@ -472,8 +472,8 @@ public class Analysis {
 		else if (errorBars == ErrorMode.STATISTICS) {
 			covarianceMatrix = new double[opt.length][opt.length];
 			for (int j = 0; j < rite - left; j ++) {
-				double statistics = 1 + opt[4*j+0]*timeStep*1e15*this.ionOptics.efficiency(14e6); // total deuteron yield from this neutron time bin
-				double dsStatistics = 1 + opt[4*j+0]*timeStep*1e15*this.ionOptics.efficiency(14e6)*opt[4*j+3]/21.;
+				double statistics = 1 + opt[4*j+0]*timeStep*1e15*this.ionOptics.efficiency(14); // total deuteron yield from this neutron time bin
+				double dsStatistics = 1 + opt[4*j+0]*timeStep*1e15*this.ionOptics.efficiency(14)*opt[4*j+3]/21.;
 				covarianceMatrix[4*j+0][4*j+0] = Math.pow(opt[4*j+0], 2)/statistics;
 				covarianceMatrix[4*j+1][4*j+1] = Math.pow(opt[4*j+1], 2)*2/(statistics - 1);
 				covarianceMatrix[4*j+2][4*j+2] = .4034*14*opt[4*j+1]/1e3/statistics/Math.pow(.54e-3, 2);
