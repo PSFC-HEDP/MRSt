@@ -40,7 +40,6 @@ import static physics.Analysis.RANDOM;
 public class IonOptics {
 
 	private static final double SPEED_OF_LIGHT = 2.99792458e8;
-	private static final double eV = Math.abs(Particle.E.charge);
 	private static final double keV = 1e3*Math.abs(Particle.E.charge);
 	private static final double MeV = 1e6*Math.abs(Particle.E.charge);
 	private static final double μm = 1e-6;
@@ -49,7 +48,7 @@ public class IonOptics {
 	private static final int x = 0, y = 1, z = 2;
 
 	private static final double MIN_E = 12, MAX_E = 16;
-	private static final int TIME_CORRECTION_RESOLUTION = 20;
+	private static final int TIME_CORRECTION_RESOLUTION = 50;
 	private static final int STOPPING_DISTANCE_RESOLUTION = 64;
 	private static final String STOPPING_POWER_FILENAME = "input/stopping_power_%ss_CD.csv";
 
@@ -267,10 +266,10 @@ public class IonOptics {
 				u[(timeBins.length-1)*i + j] = inSpectrum[i][j]; // now flatten the spectrum
 
 		double[] v;
-		if (actual)
+//		if (actual)
+//			v = NumericalMethods.matmul(rongTransferMatrix, u);
+//		else
 			v = NumericalMethods.matmul(rongTransferMatrix, u); // then do the multiplication
-		else
-			v = NumericalMethods.matmul(rongTransferMatrix, u);
 
 		double[][] outSpectrum = new double[energyBins.length-1][timeBins.length-1];
 		for (int i = 0; i < energyBins.length-1; i ++)
