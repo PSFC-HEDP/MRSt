@@ -92,8 +92,8 @@ public class Optimization {
 			throw new IllegalArgumentException("Initial step must be downhill.");
 		if (δf0 == 0)
 			return x0; // if the gradient here is naught, there's absolutely noting we can do
-		if (Double.isNaN(f0))
-			throw new IllegalArgumentException("Initial guess was NaN.");
+		if (!Double.isFinite(f0))
+			throw new IllegalArgumentException("Initial guess was "+f0);
 		
 		final double α = 1e-4, β = 0.9;
 		

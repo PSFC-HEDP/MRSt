@@ -148,21 +148,21 @@ public class NumericalMethods {
 
 	/**
 	 * draw a number from an exponential distribution.
-	 * @param λ mean
+	 * @param μ mean
 	 * @return the number
 	 */
-	public static double exponential(double λ) {
-		return exponential(λ, Math.random());
+	public static double exponential(double μ) {
+		return exponential(μ, Math.random());
 	}
 
 	/**
 	 * draw a number from an exponential distribution.
-	 * @param λ mean
+	 * @param μ mean
 	 * @param random the rng to use
 	 * @return the number
 	 */
-	public static double exponential(double λ, Random random) {
-		return exponential(λ, random.nextDouble());
+	public static double exponential(double μ, Random random) {
+		return exponential(μ, random.nextDouble());
 	}
 
 	/**
@@ -172,7 +172,26 @@ public class NumericalMethods {
 	 * @return the number
 	 */
 	private static double exponential(double λ, double u) {
-		return -λ*Math.log(1-u);
+		return -λ*Math.log(1 - u);
+	}
+
+	/**
+	 * draw a number from an erlang distribution.
+	 * @param k number of exponential distributions to sum
+	 * @param μ mean of each individual exponential distribution
+	 * @param random the rng to use
+	 * @return the number
+	 */
+	public static double erlang(int k, double μ, Random random) {
+		if (k < 20) {
+			double u = 1;
+			for (int i = 0; i < k; i ++)
+				u *= 1 - random.nextDouble();
+			return exponential(μ, 1 - u);
+		}
+		else {
+			return (int) Math.max(0., normal(k*μ, Math.sqrt(k)*μ, random));
+		}
 	}
 	
 	/**

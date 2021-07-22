@@ -37,7 +37,6 @@ import util.NumericalMethods.Quantity;
 import util.Optimization;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Locale;
 import java.util.Random;
 import java.util.function.Function;
@@ -190,6 +189,12 @@ public class Analysis {
 	public double efficiency() {
 		return this.ionOptics.efficiency(14);
 	}
+
+	public double gain() {
+		return this.ionOptics.efficiency(14)
+				*this.detector.efficiency(14)
+				*this.detector.gain();
+	}
 	
 	/**
 	 * compute the total response to an implosion with the given neutron spectrum
@@ -216,11 +221,14 @@ public class Analysis {
 
 		logger.info("beginning Monte Carlo computation.");
 		long startTime = System.currentTimeMillis();
-		this.deuteronSpectrum = this.ionOptics.response(
-				energyBins, timeBins, spectrum, true, true);
+		this.deuteronSpectrum = this.detector.response(
+				energyBins, timeBins, this.ionOptics.response(
+					energyBins, timeBins, spectrum,
+					true, true),
+				true);
 		long endTime = System.currentTimeMillis();
 		logger.info(String.format(Locale.US, "completed in %.2f minutes.",
-			                          (endTime - startTime)/60000.));
+			                      (endTime - startTime)/60000.));
 
 		Quantity[] values = analyze(deuteronSpectrum, errorBars);
 
@@ -256,7 +264,7 @@ public class Analysis {
 		else {
 			logger.log(Level.INFO, String.format("There were %.1g deuterons detected.", NumericalMethods.sum(spectrum)));
 		}
-		
+
 		logger.info("beginning fit process.");
 		long startTime = System.currentTimeMillis();
 
@@ -266,7 +274,10 @@ public class Analysis {
 //				D[i][j] = Math.max(1, spectrum[i][j]);
 
 //		double[][] gelf = Optimization.optimizeGelfgat(spectrum, D, this.rongTransferMatrix, 1e5);
-		double[][] gelf = spectrum;
+		double[][] gelf = new double[spectrum.length][spectrum[0].length]; // start with the most basick inicial gess
+		for (int i = 0; i < spectrum.length; i ++)
+			for (int j = 0; j < spectrum[i].length; j ++)
+				gelf[i][j] = spectrum[i][j]/this.gain(); // the spectrum scaled by the efficiency of the system
 		
 		double[] yieldGess = new double[timeAxis.length];
 		for (int j = 0; j < timeAxis.length; j ++) {
@@ -284,7 +295,7 @@ public class Analysis {
 		double[] lowerBound = new double[opt.length];
 		double[] upperBound = new double[opt.length];
 		for (int j = 0; j < rite - left; j ++) {
-			yieldGess[left+j] = Math.max(yieldGess[left+j], 1/this.ionOptics.efficiency(14));
+			yieldGess[left+j] = Math.max(yieldGess[left+j], 1/this.gain());
 			double scaledYieldGess = yieldGess[left+j]/timeStep/1e15;
 			double[] gesses = {          scaledYieldGess,  4,    0, 1 }; //inicial gess
 			double[] scales = {      0.5*scaledYieldGess, 10,  200, 1 }; // rough ranges of these variables
@@ -329,14 +340,35 @@ public class Analysis {
 			double error = 0; // negative Bayes factor (in nepers)
 			for (int i = 0; i < spectrum.length; i ++) {
 				for (int j = 0; j < spectrum[i].length; j ++) { // compute the error between it and the actual spectrum
-					if (fitSpectrum[i][j] > 0)
-						error += fitSpectrum[i][j] - spectrum[i][j]*Math.log(fitSpectrum[i][j]);
-					else if (fitSpectrum[i][j] == 0 && spectrum[i][j] > 0)
-						error += Double.POSITIVE_INFINITY; // throwing infinity if we expect 0 and got not 0
-					else if (fitSpectrum[i][j] == 0 && spectrum[i][j] == 0)
-						error += 0; // skipping places where we expect 0 and got 0
-					else
-						throw new IllegalArgumentException("What to do when expected "+fitSpectrum[i][j]+" and observed "+spectrum[i][j]+"?");
+					if (fitSpectrum[i][j] == 0) {
+						if (spectrum[i][j] == 0)
+							error += 0;
+						else
+							return Double.POSITIVE_INFINITY;
+					}
+					else if (fitSpectrum[i][j] > 0) {
+						double θ = fitSpectrum[i][j];
+						double ηe = detector.efficiency(energyAxis[i]);
+						double log_p0 = θ*(Math.exp(-ηe) - 1);
+						if (spectrum[i][j] == 0) {
+							error += -log_p0;
+						}
+						else if (spectrum[i][j] > 0) {
+							double n = spectrum[i][j];
+							double K = detector.gain();
+							double μ = K*ηe*θ;
+							if (ηe*θ > 100) {
+								μ = θ/(1 - Math.exp(-θ));
+								μ = K*ηe*μ/(1 - Math.exp(-ηe*μ));
+							}
+							double β = Math.max(1/μ, (.32/Math.sqrt(ηe) + (.09+.01*ηe)/Math.pow(θ,.45))/K);
+							double α = β*μ;
+							double log_Γα = (α - 1 > 1e-50) ? (α - 1)*Math.log(α - 1) - (α - 1) : 0;
+							error += -Math.log(1 - Math.exp(log_p0)) - (α - 1)*Math.log(n) + β*n - α*Math.log(β) + log_Γα;
+						}
+						else
+							throw new IllegalArgumentException("What to do when expected "+fitSpectrum[i][j]+" and observed "+spectrum[i][j]+"?");
+					}
 				}
 			}
 			
@@ -394,7 +426,7 @@ public class Analysis {
 		smoothingRapper[0] = 1;
 		logger.log(Level.FINE, "Performing final fit pass...");
 		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, .001*precision);
-		
+
 		this.measurements = new Quantity[4][timeAxis.length]; // unpack the optimized vector
 		for (int j = 0; j < timeAxis.length; j ++) {
 			if (j >= left && j < rite) {
@@ -472,8 +504,8 @@ public class Analysis {
 		else if (errorBars == ErrorMode.STATISTICS) {
 			covarianceMatrix = new double[opt.length][opt.length];
 			for (int j = 0; j < rite - left; j ++) {
-				double statistics = 1 + opt[4*j+0]*timeStep*1e15*this.ionOptics.efficiency(14); // total deuteron yield from this neutron time bin
-				double dsStatistics = 1 + opt[4*j+0]*timeStep*1e15*this.ionOptics.efficiency(14)*opt[4*j+3]/21.;
+				double statistics = 1 + opt[4*j+0]*timeStep*1e15*this.gain(); // total deuteron yield from this neutron time bin
+				double dsStatistics = 1 + opt[4*j+0]*timeStep*1e15*this.gain()*opt[4*j+3]/21.;
 				covarianceMatrix[4*j+0][4*j+0] = Math.pow(opt[4*j+0], 2)/statistics;
 				covarianceMatrix[4*j+1][4*j+1] = Math.pow(opt[4*j+1], 2)*2/(statistics - 1);
 				covarianceMatrix[4*j+2][4*j+2] = .4034*14*opt[4*j+1]/1e3/statistics/Math.pow(.54e-3, 2);
