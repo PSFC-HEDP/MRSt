@@ -171,6 +171,26 @@ public class IonOptics {
 	}
 
 	/**
+	 * compute the dispersion at the detector plane
+	 * @return the time skew [keV/mm]
+	 */
+	public double computeDispersion() {
+		double[] central = this.backCalculate(0, 0);
+		double[] perturbd = this.backCalculate(1e-6, 0);
+		return (perturbd[0] - central[0])/1e-6;
+	}
+
+	/**
+	 * compute the time skew at the detector plane
+	 * @return the time skew [ps/keV]
+	 */
+	public double computeTimeSkew() {
+		double[] central = this.backCalculate(0, 0);
+		double[] perturbd = this.backCalculate(1e-6, 0);
+		return (perturbd[1] - central[1])/1e-12/((perturbd[0] - central[0])*1e3);
+	}
+
+	/**
 	 * compute the time and energy resolution (FWHM) for particles at a given energy.
 	 * @param referenceEnergy the neutron energy of the central ray [MeV]
 	 * @return {energy resolution [keV], time resolution [ps]}
@@ -215,8 +235,8 @@ public class IonOptics {
 //		System.out.println(Arrays.toString(timeAxis));
 //		System.out.println(Arrays.toString(timeDist));
 
-		double energyResolution = NumericalMethods.fwhm(energyAxis, energyDist);
-		double timeResolution = NumericalMethods.fwhm(timeAxis, timeDist);
+		double energyResolution = NumericalMethods.std(energyBins, energyDist);
+		double timeResolution = NumericalMethods.std(timeBins, timeDist);
 		return new double[] { energyResolution/1e-3, timeResolution/1e-3};
 	}
 
@@ -301,6 +321,7 @@ public class IonOptics {
 		double[] vFinal = computeFinalVelocity(energy, rCollision, rAperture);
 
 		double[] rFocal = computeFocusedPosition(rCollision, vFinal, time);
+		if (!Double.isNaN(rFocal[x])) System.out.printf("[%.5g, %.5g],\n", rFocal[x]/Math.cos(focalPlaneAngle), rFocal[y]);
 
 		return backCalculate(rFocal[x]/Math.cos(focalPlaneAngle), rFocal[3]);
 	}
@@ -419,10 +440,10 @@ public class IonOptics {
 			dHat[i] /= norm;
 
 		double cosθ = nHat[x]*dHat[x] + nHat[y]*dHat[y] + nHat[z]*dHat[z];
-		double E1 = energyFactor*E0*cosθ*cosθ; // assume elastic collision between neutron and ion
-		double distance = (foilDistance + foilThickness/2 - rFoil[z])/dHat[z];
-		E1 = energyVsDistance.evaluate(distanceVsEnergy.evaluate(E1) - distance); // lose some energy to stopping in the foil
-//		double E1 = energyFactor*E0;
+//		double E1 = energyFactor*E0*cosθ*cosθ; // assume elastic collision between neutron and ion
+//		double distance = (foilDistance + foilThickness/2 - rFoil[z])/dHat[z];
+//		E1 = energyVsDistance.evaluate(distanceVsEnergy.evaluate(E1) - distance); // lose some energy to stopping in the foil
+		double E1 = energyFactor*E0;
 
 		if (E1 < cosyKmin || E1 > cosyKmax) {
 			return new double[] { Double.NaN, Double.NaN, Double.NaN }; // some won't make it through the "energy aperture"
@@ -484,6 +505,4 @@ public class IonOptics {
 		}
 		return output;
 	}
-
-
 }

@@ -33,6 +33,7 @@ import java.util.logging.Logger;
 
 import physics.Analysis;
 import physics.Particle;
+import physics.SpectrumGenerator;
 import util.CSV;
 import util.CSV.COSYMapping;
 import physics.Analysis.ErrorMode;

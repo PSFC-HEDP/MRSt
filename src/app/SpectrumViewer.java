@@ -51,6 +51,7 @@ import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import physics.Analysis;
 import physics.Particle;
+import physics.SpectrumGenerator;
 import util.CSV;
 import util.CSV.COSYMapping;
 import physics.Analysis.ErrorMode;
@@ -243,11 +244,16 @@ public class SpectrumViewer extends Application {
 								focalPlaneTilt.getValue(),
 								.1,
 								logger); // make the simulation
-						
-//						double[] res = mc.computeResolution(14.);
-//						logger.info(String.format("Energy res: %.2f keV", res[0]));
-//						logger.info(String.format("Time res:   %.2f ps", res[1]));
-						
+
+						double dispersion = mc.computeDispersion();
+						double skew = mc.computeTimeSkew();
+						logger.info(String.format("Dispersion: %.2f keV/mm", dispersion));
+						logger.info(String.format("Time skew:  %.2f ps/keV", skew));
+						logger.info(String.format("Efficiency: %.4g", mc.efficiency()));
+						double[] res = mc.computeResolution(14.);
+						logger.info(String.format("Energy res: %.2f keV", res[0]));
+						logger.info(String.format("Time res:   %.2f ps", res[1]));
+
 						mc.respondAndAnalyze(
 								eBins,
 								tBins,

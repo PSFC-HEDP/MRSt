@@ -23,7 +23,6 @@
  */
 package physics;
 
-import app.SpectrumGenerator;
 import org.apache.commons.math3.optim.InitialGuess;
 import org.apache.commons.math3.optim.MaxEval;
 import org.apache.commons.math3.optim.MaxIter;
@@ -175,6 +174,22 @@ public class Analysis {
 		this.timeAxis = new double[timeBins.length-1];
 		for (int i = 0; i < timeBins.length-1; i ++)
 			this.timeAxis[i] = (this.timeBins[i] + this.timeBins[i+1])/2;
+	}
+
+	/**
+	 * compute the dispersion at the detector plane
+	 * @return dE/dl [keV/mm]
+	 */
+	public double computeDispersion() {
+		return this.ionOptics.computeDispersion();
+	}
+
+	/**
+	 * compute the time skew at the detector plane
+	 * @return dt/dE [ps/keV]
+	 */
+	public double computeTimeSkew() {
+		return this.ionOptics.computeTimeSkew();
 	}
 
 	/**
