@@ -209,13 +209,6 @@ public class IonOptics {
 		for (int j = 0; j <= nTimes; j ++)
 			timeBins[j] = (timeRange[1] - timeRange[0])*j/nTimes + timeRange[0];
 
-		double[] energyAxis = new double[nEnergies];
-		for (int i = 0; i < nEnergies; i ++)
-			energyAxis[i] = (energyBins[i] + energyBins[i+1])/2.;
-		double[] timeAxis = new double[nTimes];
-		for (int j = 0; j < nTimes; j ++)
-			timeAxis[j] = (timeBins[j] + timeBins[j+1])/2.;
-
 		evaluateTransferMatrix(energyBins, timeBins);
 
 		int iRef = NumericalMethods.bin(referenceEnergy, energyBins);
@@ -230,7 +223,14 @@ public class IonOptics {
 			}
 		}
 
-//		System.out.println(Arrays.toString(energyAxis));
+		//		double[] energyAxis = new double[nEnergies];
+		//		for (int i = 0; i < nEnergies; i ++)
+		//			energyAxis[i] = (energyBins[i] + energyBins[i+1])/2.;
+		//		double[] timeAxis = new double[nTimes];
+		//		for (int j = 0; j < nTimes; j ++)
+		//			timeAxis[j] = (timeBins[j] + timeBins[j+1])/2.;
+
+		//		System.out.println(Arrays.toString(energyAxis));
 //		System.out.println(Arrays.toString(energyDist));
 //		System.out.println(Arrays.toString(timeAxis));
 //		System.out.println(Arrays.toString(timeDist));
@@ -440,10 +440,9 @@ public class IonOptics {
 			dHat[i] /= norm;
 
 		double cosθ = nHat[x]*dHat[x] + nHat[y]*dHat[y] + nHat[z]*dHat[z];
-//		double E1 = energyFactor*E0*cosθ*cosθ; // assume elastic collision between neutron and ion
-//		double distance = (foilDistance + foilThickness/2 - rFoil[z])/dHat[z];
-//		E1 = energyVsDistance.evaluate(distanceVsEnergy.evaluate(E1) - distance); // lose some energy to stopping in the foil
-		double E1 = energyFactor*E0;
+		double E1 = energyFactor*E0*cosθ*cosθ; // assume elastic collision between neutron and ion
+		double distance = (foilDistance + foilThickness/2 - rFoil[z])/dHat[z];
+		E1 = energyVsDistance.evaluate(distanceVsEnergy.evaluate(E1) - distance); // lose some energy to stopping in the foil
 
 		if (E1 < cosyKmin || E1 > cosyKmax) {
 			return new double[] { Double.NaN, Double.NaN, Double.NaN }; // some won't make it through the "energy aperture"
