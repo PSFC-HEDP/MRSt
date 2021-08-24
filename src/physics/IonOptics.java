@@ -321,7 +321,7 @@ public class IonOptics {
 		double[] vFinal = computeFinalVelocity(energy, rCollision, rAperture);
 
 		double[] rFocal = computeFocusedPosition(rCollision, vFinal, time);
-		if (!Double.isNaN(rFocal[x])) System.out.printf("[%.5g, %.5g],\n", rFocal[x]/Math.cos(focalPlaneAngle), rFocal[y]);
+//		if (!Double.isNaN(rFocal[x])) System.out.printf("[%.5g, %.5g],\n", rFocal[x]/Math.cos(focalPlaneAngle), rFocal[y]);
 
 		return backCalculate(rFocal[x]/Math.cos(focalPlaneAngle), rFocal[3]);
 	}
