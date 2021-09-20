@@ -23,22 +23,19 @@
  */
 package app;
 
-import physics.Analysis;
 import physics.IonOptics;
 import physics.Particle;
+import util.COSYMapping;
 import util.CSV;
-import util.CSV.COSYMapping;
 
 import java.io.File;
 import java.io.IOException;
 
 public class FocalPlanePlotter {
 	public static void main(String[] args) throws IOException {
-		COSYMapping map = CSV.readCosyCoefficients(new File("input/MRSt_IRF_FP tilted_final.txt"), 3);
-		double[][] cosyCoefficients = map.coefficients;
-		int[][] cosyExponents = map.exponents;
+		COSYMapping cosyMapping = CSV.readCosyCoefficients(new File("input/MRSt_IRF_FP tilted_final.txt"), 3);
+		cosyMapping.setConfig(Particle.D, 12.45);
 		IonOptics io = new IonOptics(
-				Particle.D,
 				3e-3,
 				.8e-3,
 				.8e-3,
@@ -48,9 +45,7 @@ public class FocalPlanePlotter {
 				20e-3,
 				12,
 				16,
-				14,
-				cosyCoefficients,
-				cosyExponents,
+				cosyMapping,
 				68
 		); // make the simulation
 		System.out.print("Ys = np.array(\n");

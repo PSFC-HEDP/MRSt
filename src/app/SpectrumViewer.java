@@ -52,8 +52,8 @@ import javafx.stage.Stage;
 import physics.Analysis;
 import physics.Particle;
 import physics.SpectrumGenerator;
+import util.COSYMapping;
 import util.CSV;
-import util.CSV.COSYMapping;
 import physics.Analysis.ErrorMode;
 import util.NumericalMethods;
 import util.PythonPlot;
@@ -68,6 +68,7 @@ import util.Spinner;
 public class SpectrumViewer extends Application {
 	
 	private static final Particle ION = Particle.D;
+	private static final double CENTRAL_E = 12.45;
 	private static final int SPACING_0 = 16;
 	private static final int SPACING_1 = 10;
 	private static final int SPACING_2 = 4;
@@ -84,9 +85,7 @@ public class SpectrumViewer extends Application {
 	private Spinner<Double> yieldFactor;
 	private CheckBox errorBars;
 	
-	private double[][] stoppingPowerData;
-	private double[][] cosyCoefficients;
-	private int[][] cosyExponents;
+	private COSYMapping cosyMapping;
 	private double[] timeBins;
 	private double[] energyBins;
 	private double[][] spectrum;
@@ -97,7 +96,7 @@ public class SpectrumViewer extends Application {
 	/**
 	 * build the GUI and display it.
 	 */
-	public void start(Stage stage) throws NumberFormatException, IOException {
+	public void start(Stage stage) throws NumberFormatException {
 		GridPane leftPane = new GridPane();
 		leftPane.setHgap(SPACING_1);
 		leftPane.setVgap(SPACING_1);
@@ -159,9 +158,8 @@ public class SpectrumViewer extends Application {
 		
 		leftPane.add(chooseFileWidget("COSY map file:", stage, "MRSt_IRF_FP tilted_final.txt",
 				(file) -> {
-					COSYMapping map = CSV.readCosyCoefficients(file, order.getValue());
-					this.cosyCoefficients = map.coefficients;
-					this.cosyExponents = map.exponents;
+					this.cosyMapping = CSV.readCosyCoefficients(file, order.getValue());
+					this.cosyMapping.setConfig(ION, CENTRAL_E);
 				}), 0, row, 3, 1);
 
 		VBox rightPane = new VBox(SPACING_1);
@@ -200,7 +198,7 @@ public class SpectrumViewer extends Application {
 		
 		Button execute = new Button("Compute!");
 		execute.setOnAction((event) -> {
-			if (cosyCoefficients == null)
+			if (cosyMapping == null)
 				logger.severe("Please select a COSY map file.");
 			else if (energyBins == null)
 				logger.severe("Please select an energy bin file.");
@@ -231,7 +229,6 @@ public class SpectrumViewer extends Application {
 					Analysis mc;
 					try {
 						mc = new Analysis(
-								ION,
 								foilDistance.getValue()*1e-3,
 								foilWidth.getValue()*1e-3,
 								foilHeight.getValue()*1e-3,
@@ -239,8 +236,7 @@ public class SpectrumViewer extends Application {
 								apertureDistance.getValue()*1e0,
 								apertureWidth.getValue()*1e-3,
 								apertureHeight.getValue()*1e-3,
-								cosyCoefficients,
-								cosyExponents,
+								cosyMapping,
 								focalPlaneTilt.getValue(),
 								.1,
 								logger); // make the simulation
@@ -250,9 +246,9 @@ public class SpectrumViewer extends Application {
 						logger.info(String.format("Dispersion: %.2f keV/mm", dispersion));
 						logger.info(String.format("Time skew:  %.2f ps/keV", skew));
 						logger.info(String.format("Efficiency: %.4g", mc.efficiency()));
-						double[] res = mc.computeResolution(14.);
-						logger.info(String.format("Energy res: %.2f keV", res[0]));
-						logger.info(String.format("Time res:   %.2f ps", res[1]));
+//						double[] res = mc.computeResolution(14.);
+//						logger.info(String.format("Energy res: %.2f keV", res[0]));
+//						logger.info(String.format("Time res:   %.2f ps", res[1]));
 
 						mc.respondAndAnalyze(
 								eBins,
@@ -383,7 +379,7 @@ public class SpectrumViewer extends Application {
 	}
 	
 	
-	private static interface Callback {
+	private interface Callback {
 		void process(File file) throws IOException;
 	}
 	

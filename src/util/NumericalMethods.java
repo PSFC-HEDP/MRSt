@@ -1435,9 +1435,26 @@ public class NumericalMethods {
 				throw new IllegalArgumentException("cannot invert a non-monotonically increasing function.");
 			}
 		}
+
+		/**
+		 * get the second-order-accurate first derivative of this function
+		 * @return the derivative as a function of x.
+		 */
+		public DiscreteFunction derivative() {
+			if (!equal)
+				throw new IllegalArgumentException("eh");
+			int n = X.length;
+			double[] dydx = new double[n];
+			dydx[0] = (-3*Y[0] + 4*Y[1] - Y[2])/(X[2] - X[0]);
+			for (int i = 1; i < n - 1; i ++)
+				dydx[i] = (Y[i+1] - Y[i-1])/(X[i+1] - X[i-1]);
+			dydx[n-1] = (Y[n-3] - 4*Y[n-2] + 3*Y[n-1])/(X[n-1] - X[n-3]);
+			return new DiscreteFunction(X, dydx, true, this.log);
+		}
 		
 		/**
-		 * return the antiderivative of this, with some arbitrary vertical shift applied.
+		 * use the trapezoid rule to estimate  the antiderivative of this, with
+		 * some arbitrary vertical shift applied.
 		 * @return the antiderivative.
 		 */
 		public DiscreteFunction antiderivative() {

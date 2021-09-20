@@ -31,6 +31,7 @@ import org.apache.commons.math3.optim.nonlinear.scalar.MultivariateOptimizer;
 import org.apache.commons.math3.optim.nonlinear.scalar.ObjectiveFunction;
 import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.MultiDirectionalSimplex;
 import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.PowellOptimizer;
+import util.COSYMapping;
 import util.NumericalMethods;
 import util.NumericalMethods.Quantity;
 import util.Optimization;
@@ -63,20 +64,20 @@ public class Analysis {
 
 	public static final Random RANDOM = new Random(0);
 
-	private static final double MIN_E = 12, MAX_E = 16, REF_E = 14; // histogram bounds [MeV]
+	private static final double MIN_E = 12, MAX_E = 16; // histogram bounds [MeV]
 	private static final int BUFFER = 4; // empty pixels to include simulate on each side [ns]
-	private static final double E_BIN = .09, T_BIN = 30e-3; // resolutions [MeV], [ns]
+	private static final double E_BIN = .09, T_BIN = 30e-3; // bin sizes [MeV], [ns]
 
-	private static final double SUBSTRATE_THICKNESS = 100; // [μm]
-	private static final double PHOTOCATHODE_THICKNESS = .1; // [μm]
-	private static final double PDDT_BIAS = 1e3; // [V]
-	private static final double MESH_LENGTH = 1e-3; // [m]
-	private static final double DRIFT_LENGTH = 1e0; // [m]
-	private static final double TIME_DILATION = 20;
-	private static final double MCT_POROSITY = .70;
-	private static final double MCT_GAIN = 1e4;
-
-	private static final double TRANSFER_FUNC_ERROR = 0.00; // the error in the transfer function
+//	private static final double SUBSTRATE_THICKNESS = 100; // [μm]
+//	private static final double PHOTOCATHODE_THICKNESS = .1; // [μm]
+//	private static final double PDDT_BIAS = 1e3; // [V]
+//	private static final double MESH_LENGTH = 1e-3; // [m]
+//	private static final double DRIFT_LENGTH = 1e0; // [m]
+//	private static final double TIME_DILATION = 20;
+//	private static final double MCT_POROSITY = .70;
+//	private static final double MCT_GAIN = 1e4;
+//
+//	private static final double TRANSFER_FUNC_ERROR = 0.00; // the error in the transfer function
 
 	private final IonOptics ionOptics; // the ion optic system
 	private final Detector detector; // the detector system
@@ -99,7 +100,6 @@ public class Analysis {
 	
 	/**
 	 * perform some preliminary calculations for the provided configuration.
-	 * @param ion either Particle.P or Particle.D
 	 * @param foilDistance the distance from TCC to the foil [m]
 	 * @param foilWidth the total width of the foil [m]
 	 * @param foilHeight the total hite of the foil [m]
@@ -107,30 +107,30 @@ public class Analysis {
 	 * @param apertureDistance the distance from TCC to the aperture [m]
 	 * @param apertureWidth the width of the aperture [m]
 	 * @param apertureHeight the hite of the aperture [m]
-	 * @param cosyCoefficients the COSY coefficient matrix
-	 * @param cosyExponents the corresponding COSY power lists
+	 * @param cosyMapping the COSY matrix
 	 * @param focalTilt angle of the focal plane (0 means untilted) [deg]
 	 * @param precision a number that modifies how hard it tries to fully converge
 	 * @throws IOException if one or more of the stopping power tables cannot be
 	 *                     accessd for any reason
 	 */
 	public Analysis(
-			Particle ion,
 			double foilDistance, double foilWidth, double foilHeight, double foilThickness,
 			double apertureDistance, double apertureWidth, double apertureHeight,
-			double[][] cosyCoefficients, int[][] cosyExponents,
-			double focalTilt,
+			COSYMapping cosyMapping, double focalTilt,
 			double precision, Logger logger) throws IOException {
 
 		this.ionOptics = new IonOptics(
-				ion, foilDistance, foilWidth, foilHeight, foilThickness,
+				foilDistance, foilWidth, foilHeight, foilThickness,
 				apertureDistance, apertureWidth, apertureHeight,
-				MIN_E, MAX_E, REF_E,
-				cosyCoefficients, cosyExponents, focalTilt);
-		this.detector = new Detector(
-				ion, SUBSTRATE_THICKNESS, PHOTOCATHODE_THICKNESS,
-				focalTilt, PDDT_BIAS, MESH_LENGTH, DRIFT_LENGTH,
-				TIME_DILATION, MCT_POROSITY, MCT_GAIN, 100);
+				MIN_E, MAX_E, cosyMapping, focalTilt);
+//		this.detector = new PulseDilationDriftTube(
+//				ion, SUBSTRATE_THICKNESS, PHOTOCATHODE_THICKNESS,
+//				focalTilt, PDDT_BIAS, MESH_LENGTH, DRIFT_LENGTH,
+//				TIME_DILATION, MCT_POROSITY, MCT_GAIN, 100);
+//		this.detector = new StreakCameraArray(
+//			  2.5e-2, 200e-6, 5e-2,
+//			  cosyMapping, apertureDistance, apertureHeight);
+		this.detector = new PerfectDetector();
 
 		this.precision = precision;
 
@@ -362,27 +362,28 @@ public class Analysis {
 							return Double.POSITIVE_INFINITY;
 					}
 					else if (fitSpectrum[i][j] > 0) {
-						double θ = fitSpectrum[i][j];
-						double ηe = detector.efficiency(energyAxis[i]);
-						double log_p0 = θ*(Math.exp(-ηe) - 1);
-						if (spectrum[i][j] == 0) {
-							error += -log_p0;
-						}
-						else if (spectrum[i][j] > 0) {
-							double n = spectrum[i][j];
-							double K = detector.gain();
-							double μ = K*ηe*θ;
-							if (ηe*θ > 100) {
-								μ = θ/(1 - Math.exp(-θ));
-								μ = K*ηe*μ/(1 - Math.exp(-ηe*μ));
-							}
-							double β = Math.max(1/μ, (.32/Math.sqrt(ηe) + (.09+.01*ηe)/Math.pow(θ,.45))/K);
-							double α = β*μ;
-							double log_Γα = (α - 1 > 1e-50) ? (α - 1)*Math.log(α - 1) - (α - 1) : 0;
-							error += -Math.log(1 - Math.exp(log_p0)) - (α - 1)*Math.log(n) + β*n - α*Math.log(β) + log_Γα;
-						}
-						else
-							throw new IllegalArgumentException("What to do when expected "+fitSpectrum[i][j]+" and observed "+spectrum[i][j]+"?");
+						error += fitSpectrum[i][j] - spectrum[i][j]*Math.log(fitSpectrum[i][j]);
+//						double θ = fitSpectrum[i][j];
+//						double ηe = detector.efficiency(energyAxis[i]);
+//						double log_p0 = θ*(Math.exp(-ηe) - 1);
+//						if (spectrum[i][j] == 0) {
+//							error += -log_p0;
+//						}
+//						else if (spectrum[i][j] > 0) {
+//							double n = spectrum[i][j];
+//							double K = detector.gain();
+//							double μ = K*ηe*θ;
+//							if (ηe*θ > 100) {
+//								μ = θ/(1 - Math.exp(-θ));
+//								μ = K*ηe*μ/(1 - Math.exp(-ηe*μ));
+//							}
+//							double β = Math.max(1/μ, (.32/Math.sqrt(ηe) + (.09+.01*ηe)/Math.pow(θ,.45))/K);
+//							double α = β*μ;
+//							double log_Γα = (α - 1 > 1e-50) ? (α - 1)*Math.log(α - 1) - (α - 1) : 0;
+//							error += -Math.log(1 - Math.exp(log_p0)) - (α - 1)*Math.log(n) + β*n - α*Math.log(β) + log_Γα;
+//						}
+//						else
+//							throw new IllegalArgumentException("What to do when expected "+fitSpectrum[i][j]+" and observed "+spectrum[i][j]+"?");
 					}
 				}
 			}
@@ -797,7 +798,7 @@ public class Analysis {
 	 *
 	 */
 	public enum ErrorMode {
-		NONE, HESSIAN, STATISTICS;
+		NONE, HESSIAN, STATISTICS
 	}
 	
 	

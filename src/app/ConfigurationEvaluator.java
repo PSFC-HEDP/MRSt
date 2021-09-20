@@ -46,8 +46,8 @@ import javafx.stage.Stage;
 import physics.Analysis;
 import physics.Particle;
 import physics.SpectrumGenerator;
+import util.COSYMapping;
 import util.CSV;
-import util.CSV.COSYMapping;
 import physics.Analysis.ErrorMode;
 import util.Spinner;
 
@@ -88,15 +88,12 @@ public class ConfigurationEvaluator extends Application {
 	private CheckBox errorBars;
 	private TextField saveFile;
 	
-	private double[][] cosyCoefficients;
-	private int[][] cosyExponents;
+	private COSYMapping cosyMapping;
 	private Logger logger;
 	
 	
 	/**
 	 * build the GUI and display it.
-	 * @throws IOException 
-	 * @throws NumberFormatException 
 	 */
 	public void start(Stage stage) throws NumberFormatException, IOException {
 		GridPane leftPane = new GridPane();
@@ -168,12 +165,10 @@ public class ConfigurationEvaluator extends Application {
 		
 		leftPane.add(chooseFileWidget("COSY map file:", stage, "MRSt_IRF_FP tilted_final.txt",
 				(file) -> {
-					COSYMapping map = CSV.readCosyCoefficients(file, order.getValue());
-					this.cosyCoefficients = map.coefficients;
-					this.cosyExponents = map.exponents;
+					this.cosyMapping = CSV.readCosyCoefficients(file, order.getValue());
+					this.cosyMapping.setConfig(ION, 12.45);
 				}), 0, row, 3, 1);
-		row ++;
-		
+
 		VBox rightPane = new VBox(SPACING_1);
 
 		this.variations = new CheckBox[4];
@@ -198,14 +193,13 @@ public class ConfigurationEvaluator extends Application {
 		
 		Button execute = new Button("Evaluate!");
 		execute.setOnAction((event) -> {
-			if (cosyCoefficients == null)
+			if (cosyMapping == null)
 				logger.severe("Please select a COSY map file.");
 			else {
 				new Thread(() -> {
 					Analysis mc = null;
 					try {
 						mc = new Analysis(
-								ION,
 								foilDistance.getValue()*1e-3,
 								foilWidth.getValue()*1e-3,
 								foilHeight.getValue()*1e-3,
@@ -213,8 +207,7 @@ public class ConfigurationEvaluator extends Application {
 								apertureDistance.getValue()*1e0,
 								apertureWidth.getValue()*1e-3,
 								apertureHeight.getValue()*1e-3,
-								cosyCoefficients,
-								cosyExponents,
+								cosyMapping,
 								focalPlaneTilt.getValue(),
 
 								1,
@@ -328,10 +321,9 @@ public class ConfigurationEvaluator extends Application {
 	 * create a consistent-looking file selection thingy with a button and label, and bind it
 	 * to the given File.
 	 * @param title the title of the window
-	 * @param stage
+	 * @param stage I don't really know what a stage is, but I need it for the file dialog
 	 * @param initialFilename the filename of the file that it will try to load initially
 	 * @param action the action to take with the file once it's chosen
-	 * @return
 	 */
 	private static Region chooseFileWidget(String title, Stage stage, String initialFilename,
 	                                       Callback action) {
@@ -373,14 +365,11 @@ public class ConfigurationEvaluator extends Application {
 	}
 	
 	
-	private static interface Callback {
+	private interface Callback {
 		void process(File file) throws IOException;
 	}
 	
-	
-	/**
-	 * @param args
-	 */
+
 	public static void main(String[] args) {
 		launch(args);
 	}

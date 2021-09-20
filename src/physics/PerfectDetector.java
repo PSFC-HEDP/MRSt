@@ -1,5 +1,3 @@
-package physics;
-
 /**
  * MIT License
  * <p>
@@ -23,24 +21,21 @@ package physics;
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-public interface Detector {
+package physics;
 
-	/**
-	 * the number of signal electrons created for every incident deuteron
-	 * @param energy energy of the deuteron [MeV]
-	 */
-	double efficiency(double energy);
+public class PerfectDetector implements Detector {
+	@Override
+	public double efficiency(double energy) {
+		return 1;
+	}
 
-	/**
-	 * the average number of cable electrons from each signal electron
-	 */
-	double gain();
+	@Override
+	public double gain() {
+		return 1;
+	}
 
-	/**
-	 * compute the detected spectrum given a deuteron spectrum at the photocathode
-	 * @param stochastic whether to apply noise to the result
-	 */
-	double[][] response(double[] energyBins, double[] timeBins,
-						double[][] inSpectrum, boolean stochastic);
-
+	@Override
+	public double[][] response(double[] energyBins, double[] timeBins, double[][] inSpectrum, boolean stochastic) {
+		return inSpectrum;
+	}
 }

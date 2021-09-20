@@ -30,7 +30,6 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -153,7 +152,9 @@ public class CSV {
 				expList.add(bloc);
 			}
 		}
-		return new COSYMapping(coefList.toArray(new double[0][]), expList.toArray(new int[0][]));
+		return new COSYMapping(
+			  coefList.toArray(new double[0][]),
+			  expList.toArray(new int[0][])); // someday there may be COSY matrices that are bilt for other particles, or other energies.  that day is not today.
 	}
 	
 	/**
@@ -211,16 +212,6 @@ public class CSV {
 		for (int i = 0; i < data.length; i ++)
 			columnVector[i][0] = data[i];
 		write(columnVector, file, '\n');
-	}
-	
-	
-	public static class COSYMapping {
-		public final double[][] coefficients;
-		public final int[][] exponents;
-		public COSYMapping(double[][] coefficients, int[][] exponents) {
-			this.coefficients = coefficients;
-			this.exponents = exponents;
-		}
 	}
 	
 }

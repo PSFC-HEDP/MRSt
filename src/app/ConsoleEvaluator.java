@@ -34,8 +34,8 @@ import java.util.logging.Logger;
 import physics.Analysis;
 import physics.Particle;
 import physics.SpectrumGenerator;
+import util.COSYMapping;
 import util.CSV;
-import util.CSV.COSYMapping;
 import physics.Analysis.ErrorMode;
 
 
@@ -85,13 +85,11 @@ public class ConsoleEvaluator {
 			final int T = t;
 			final String finalImplosionName = implosionName;
 			threads[t] = new Thread(() -> {
-				Analysis mc = null;
+				Analysis mc;
 				try {
 					COSYMapping map = CSV.readCosyCoefficients(new File("input/MRSt_IRF_FP tilted_final.txt"), 3);
-					double[][] cosyCoefficients = map.coefficients;
-					int[][] cosyExponents = map.exponents;
+					map.setConfig(Particle.D, 12.45);
 					mc = new Analysis(
-							Particle.D,
 							3e-3,
 							2*foilRadius,
 							2*foilRadius,
@@ -99,18 +97,18 @@ public class ConsoleEvaluator {
 							6e0,
 							apertureWidth,
 							apertureHeight,
-							cosyCoefficients,
-							cosyExponents,
+							map,
 							68,
 							.1,
 							logger); // make the simulation
 				} catch (Exception e) {
 					logger.log(Level.SEVERE, e.getMessage(), e);
+					return;
 				}
 				
 				for (int k = 0; k < numYields/numThreads; k ++) {
-					double[] eBins = null, tBins = null;
-					double[][] spec = null;
+					double[] eBins, tBins;
+					double[][] spec;
 					try {
 						eBins = CSV.readColumn(new File("input/energy.txt"));
 						tBins = CSV.readColumn(new File("input/time "+finalImplosionName+".txt"));
@@ -119,12 +117,11 @@ public class ConsoleEvaluator {
 							System.out.println("interpreting a weird spectrum file...");
 							spec = SpectrumGenerator.interpretSpectrumFile(tBins, eBins, spec);
 						}
-					} catch (ArrayIndexOutOfBoundsException | NumberFormatException e) {
+					} catch (ArrayIndexOutOfBoundsException | NumberFormatException | IOException e) {
 						logger.log(Level.SEVERE, e.getMessage(), e);
-					} catch (IOException e) {
-						logger.log(Level.SEVERE, e.getMessage(), e);
+						return;
 					}
-					
+
 					double yield = Math.pow(10, -3.*Math.random());
 					SpectrumGenerator.modifySpectrum(tBins, eBins, spec, yield, 1, 1, 0);
 					

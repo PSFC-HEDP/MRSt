@@ -29,8 +29,8 @@ import java.io.IOException;
 import physics.Analysis;
 import physics.Particle;
 import physics.SpectrumGenerator;
+import util.COSYMapping;
 import util.CSV;
-import util.CSV.COSYMapping;
 import physics.Analysis.ErrorMode;
 
 /**
@@ -48,11 +48,9 @@ public class ConfigurationPlotter {
 			for (double tFoil = 25e-6; tFoil < 110e-6; tFoil += 15e-6) {
 				for (double wAperture = 1.0e-3; wAperture < 5.1e-3; wAperture += 1.0e-3) {
 //					System.out.println("setting up simulatin");
-					COSYMapping map = CSV.readCosyCoefficients(new File("input/MRSt_IRF_FP tilted_final.txt"), 3);
-					double[][] cosyCoefficients = map.coefficients;
-					int[][] cosyExponents = map.exponents;
+					COSYMapping mapping = CSV.readCosyCoefficients(new File("input/MRSt_IRF_FP tilted_final.txt"), 3);
+					mapping.setConfig(Particle.D, 12.45);
 					Analysis mc = new Analysis(
-							Particle.D,
 							3e-3,
 							2*rFoil,
 							2*rFoil,
@@ -60,8 +58,7 @@ public class ConfigurationPlotter {
 							6e0,
 							wAperture,
 							20e-3,
-							cosyCoefficients,
-							cosyExponents,
+							mapping,
 							68,
 							.1,
 							null); // make the simulation
