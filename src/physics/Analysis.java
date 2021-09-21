@@ -66,7 +66,7 @@ public class Analysis {
 
 	private static final double MIN_E = 12, MAX_E = 16; // histogram bounds [MeV]
 	private static final int BUFFER = 4; // empty pixels to include simulate on each side [ns]
-	private static final double E_BIN = .09, T_BIN = 30e-3; // bin sizes [MeV], [ns]
+	private static final double E_BIN = .05, T_BIN = 30e-3; // bin sizes [MeV], [ns]
 
 //	private static final double SUBSTRATE_THICKNESS = 100; // [μm]
 //	private static final double PHOTOCATHODE_THICKNESS = .1; // [μm]
@@ -127,10 +127,10 @@ public class Analysis {
 //				ion, SUBSTRATE_THICKNESS, PHOTOCATHODE_THICKNESS,
 //				focalTilt, PDDT_BIAS, MESH_LENGTH, DRIFT_LENGTH,
 //				TIME_DILATION, MCT_POROSITY, MCT_GAIN, 100);
-//		this.detector = new StreakCameraArray(
-//			  2.5e-2, 200e-6, 5e-2,
-//			  cosyMapping, apertureDistance, apertureHeight);
-		this.detector = new PerfectDetector();
+		this.detector = new StreakCameraArray(
+			  2.5e-2, 300e-6, 5e-2,
+			  ionOptics);
+//		this.detector = new PerfectDetector();
 
 		this.precision = precision;
 

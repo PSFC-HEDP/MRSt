@@ -52,7 +52,7 @@ public class FocalPlanePlotter {
 		for (double E = 12; E <= 16; E += .125) {
 			System.out.println("],[");
 			for (int k = 0; k < 1000; k++) {
-				io.simulate(E, 0);
+				io.simulate(E, 0, false);
 			}
 		}
 		System.out.print("])\n");
@@ -61,7 +61,7 @@ public class FocalPlanePlotter {
 			System.out.printf("%.3f, ", E);
 		}
 		System.out.print("])\n");
-		io.simulate(13.54, 0);
-		io.simulate(14.46, 0);
+		io.simulate(13.54, 0, false);
+		io.simulate(14.46, 0, false);
 	}
 }

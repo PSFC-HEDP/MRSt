@@ -156,8 +156,9 @@ public class IonOptics {
 	 * @return the time skew [keV/mm]
 	 */
 	public double computeDispersion() {
-		double[] central = this.backCalculate(0, 0);
-		double[] perturbd = this.backCalculate(1e-6, 0);
+		double[] central = this.backCalculate(0, 0, 0, 0);
+		double[] perturbd = this.backCalculate(
+			  1e-6*Math.cos(focalPlaneAngle), 1e-6*Math.sin(focalPlaneAngle), 0, 0);
 		return (perturbd[0] - central[0])/1e-6;
 	}
 
@@ -166,8 +167,9 @@ public class IonOptics {
 	 * @return the time skew [ps/keV]
 	 */
 	public double computeTimeSkew() {
-		double[] central = this.backCalculate(0, 0);
-		double[] perturbd = this.backCalculate(1e-6, 0);
+		double[] central = this.backCalculate(0, 0, 0, 0);
+		double[] perturbd = this.backCalculate(
+			  1e-6*Math.cos(focalPlaneAngle), 1e-6*Math.sin(focalPlaneAngle), 0, 0);
 		return (perturbd[1] - central[1])/1e-12/((perturbd[0] - central[0])*1e3);
 	}
 
@@ -294,17 +296,14 @@ public class IonOptics {
 	 * @param time initial time of released neutron [s].
 	 * @return { energy, time } [MeV, s].
 	 */
-	public double[] simulate(double energy, double time) {
+	public double[] simulate(double energy, double time, boolean foilBlur) {
 		double[] rCollision = chooseCollisionPosition();
 
 		double[] rAperture = chooseAperturePosition();
 
-		double[] vFinal = computeFinalVelocity(energy, rCollision, rAperture);
+		double[] vFinal = computeFinalVelocity(energy, rCollision, rAperture, foilBlur);
 
-		double[] rFocal = computeFocusedPosition(rCollision, vFinal, time);
-//		if (!Double.isNaN(rFocal[x])) System.out.printf("[%.5g, %.5g],\n", rFocal[x]/Math.cos(focalPlaneAngle), rFocal[y]);
-
-		return backCalculate(rFocal[x]/Math.cos(focalPlaneAngle), rFocal[3]);
+		return computeFocusedPosition(rCollision, vFinal, time);
 	}
 
 	/**
@@ -328,7 +327,7 @@ public class IonOptics {
 					double energyI = energy0 + RANDOM.nextDouble()*(energy1 - energy0); // randomly choose values from the bin [MeV]
 					double timeI = time0 + RANDOM.nextDouble()*(time1 - time0); // [s]
 
-					double[] et = this.simulate(energyI, timeI); // do the simulation!
+					double[] et = backCalculate(simulate(energyI, timeI, true)); // do the simulation!
 					if (Double.isNaN(et[0])) continue; // sometimes, they won't hit the CsI cathode. That's fine.
 
 					double energyO = et[0], timeO = et[1]/ns; // then convert to the same units as the bins
@@ -360,18 +359,17 @@ public class IonOptics {
 	/**
 	 * estimate the original time and energy of this ion's neutron without looking at its actual
 	 * time and energy, by guessing its energy and accounting for travel time.
-	 * @param position the position where it hits the focal plane [m]
-	 * @param time the time at which it hits the focal plane [s]
+	 * @param coords the position and time where it hits the focal plane (m, m, m, s)
 	 * @return { energy, time } [MeV, s].
 	 */
-	private double[] backCalculate(double position, double time) {
-		double focusingDistance = position*Math.sin(focalPlaneAngle);
-		double E = energyVsPosition.evaluate(position); // [J]
+	private double[] backCalculate(double... coords) {
+		double E = energyVsPosition.evaluate(coords[x]/Math.cos(focalPlaneAngle)); // [J]
 		double v = Math.sqrt(2*E/cosyMapping.ion.mass);
+		double focusingDistance = coords[z];
 		double Δt = cosyMapping.getT(0, 0, 0, 0, 0, E/MeV); // re-use the COSY mapping to estimate the time of flight from energy
 		return new double[] {
 			  E/energyFactor/MeV,
-			  time - (Δt + focusingDistance/v) };
+			  coords[3] - (Δt + focusingDistance/v) };
 	}
 
 	/**
@@ -404,7 +402,7 @@ public class IonOptics {
 	 * @return { vx, vy, vz } [m/s]
 	 */
 	private double[] computeFinalVelocity(
-			double energy, double[] rFoil, double[] rAperture) {
+			double energy, double[] rFoil, double[] rAperture, boolean foilBlur) {
 		double E0 = energy*MeV; // convert energy from [MeV] to [J]
 
 		double[] nHat = { // get the unit vector in the direction of the neutron
@@ -419,10 +417,16 @@ public class IonOptics {
 		for (int i = 0; i < 3; i ++)
 			dHat[i] /= norm;
 
-		double cosθ = nHat[x]*dHat[x] + nHat[y]*dHat[y] + nHat[z]*dHat[z];
-		double E1 = energyFactor*E0*cosθ*cosθ; // assume elastic collision between neutron and ion
-		double distance = (foilDistance + foilThickness/2 - rFoil[z])/dHat[z];
-		E1 = energyVsDistance.evaluate(distanceVsEnergy.evaluate(E1) - distance); // lose some energy to stopping in the foil
+		double E1;
+		if (foilBlur) {
+			double cosθ = nHat[x]*dHat[x] + nHat[y]*dHat[y] + nHat[z]*dHat[z];
+			E1 = energyFactor*E0*cosθ*cosθ; // assume elastic collision between neutron and ion
+			double distance = (foilDistance + foilThickness/2 - rFoil[z])/dHat[z];
+			E1 = energyVsDistance.evaluate(distanceVsEnergy.evaluate(E1) - distance); // lose some energy to stopping in the foil
+		}
+		else {
+			E1 = energyFactor*E0;
+		}
 
 		if (E1 < minEd || E1 > maxEd) {
 			return new double[] { Double.NaN, Double.NaN, Double.NaN }; // some won't make it through the "energy aperture"
