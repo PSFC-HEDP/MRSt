@@ -210,6 +210,24 @@ public class Analysis {
 				*this.detector.efficiency(14)
 				*this.detector.gain();
 	}
+
+	/**
+	 * what does the detector see if the given neutron spectrum goes thru the
+	 * ion optics
+	 */
+	public double[][] response(double[] energyBins, double[] timeBins,
+							   double[][] spectrum,
+							   boolean stochastic, boolean actual) {
+//		System.out.println("responding...");
+//		System.out.println(NumericalMethods.sum(spectrum));
+//		System.out.println(NumericalMethods.sum(this.ionOptics.response(energyBins, timeBins, spectrum, stochastic, actual)));
+//		System.out.println(NumericalMethods.sum(this.detector.response(energyBins, timeBins, ionOptics.response(energyBins, timeBins, spectrum, false, actual), false)));
+		return this.detector.response(
+			  energyBins, timeBins,
+			  this.ionOptics.response(
+			  	  energyBins, timeBins, spectrum, stochastic, actual),
+			  stochastic);
+	}
 	
 	/**
 	 * compute the total response to an implosion with the given neutron spectrum
@@ -236,11 +254,8 @@ public class Analysis {
 
 		logger.info("beginning Monte Carlo computation.");
 		long startTime = System.currentTimeMillis();
-		this.deuteronSpectrum = this.detector.response(
-				energyBins, timeBins, this.ionOptics.response(
-					energyBins, timeBins, spectrum,
-					true, true),
-				true);
+		this.deuteronSpectrum = this.response(
+				energyBins, timeBins, spectrum, true, true);
 		long endTime = System.currentTimeMillis();
 		logger.info(String.format(Locale.US, "completed in %.2f minutes.",
 			                      (endTime - startTime)/60000.));
@@ -349,8 +364,8 @@ public class Analysis {
 			double[][] teoSpectrum = SpectrumGenerator.generateSpectrum(
 					params[0], params[1], electronTemperature, params[2], params[3],
 					energyBins, timeBins); // generate the neutron spectrum based on those
-			double[][] fitSpectrum = this.ionOptics.response(
-					energyBins, timeBins, teoSpectrum, false, false); // blur it according to the transfer matrix
+			double[][] fitSpectrum = this.response(
+				  energyBins, timeBins, teoSpectrum, false, false); // blur it according to the transfer matrix
 			
 			double error = 0; // negative Bayes factor (in nepers)
 			for (int i = 0; i < spectrum.length; i ++) {
@@ -462,8 +477,8 @@ public class Analysis {
 		this.fitNeutronSpectrum = SpectrumGenerator.generateSpectrum( // and then interpret it
 				getNeutronYield(), getIonTemperature(), electronTemperature,
 				getFlowVelocity(), getArealDensity(), energyBins, timeBins);
-		this.fitDeuteronSpectrum = this.ionOptics.response(energyBins, timeBins, fitNeutronSpectrum,
-				false, false);
+		this.fitDeuteronSpectrum = this.response(
+			  energyBins, timeBins, fitNeutronSpectrum, false, false);
 		
 		Quantity iBT = NumericalMethods.quadargmax(measurements[0]); // index of max yield
 		Quantity bangTime = NumericalMethods.interp(timeAxis, iBT); // time of max yield
