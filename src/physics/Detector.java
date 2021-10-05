@@ -38,17 +38,19 @@ public interface Detector {
 
 	/**
 	 * the signal variance in a single bin given the bins
-	 * @param energyBins the energy bin edges
-	 * @param timeBins the time bin edges
+	 * @param energy the energy at which to evaluate it (MeV)
+	 * @param energyBins the energy bin edges (MeV)
+	 * @param timeBins the time bin edges (ns)
 	 */
-	double noise(double[] energyBins, double[] timeBins);
+	double noise(double energy, double[] energyBins, double[] timeBins);
 
 	/**
 	 * the base signal level in a single bin given the bins
-	 * @param energyBins the energy bin edges
-	 * @param timeBins the time bin edges
+	 * @param energy the energy at which to evaluate it (MeV)
+	 * @param energyBins the energy bin edges (MeV)
+	 * @param timeBins the time bin edges (ns)
 	 */
-	double background(double[] energyBins, double[] timeBins);
+	double background(double energy, double[] energyBins, double[] timeBins);
 
 	/**
 	 * compute the detected spectrum given a deuteron spectrum at the photocathode

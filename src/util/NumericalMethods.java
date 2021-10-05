@@ -854,11 +854,6 @@ public class NumericalMethods {
 	
 	/**
 	 * fit to a parabola and find the nth derivative.  x must be evenly spaced.
-	 * @param x
-	 * @param y
-	 * @param x0
-	 * @param Δx
-	 * @return
 	 */
 	public static Quantity derivative(double[] x, Quantity[] y, Quantity x0, double Δx, int n) {
 		double dx = x[1] - x[0];

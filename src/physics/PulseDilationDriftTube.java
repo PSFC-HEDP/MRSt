@@ -180,12 +180,12 @@ public class PulseDilationDriftTube implements Detector {
 	}
 
 	@Override
-	public double noise(double[] energyBins, double[] timeBins) {
+	public double noise(double energy, double[] energyBins, double[] timeBins) {
 		return 0; // TODO
 	}
 
 	@Override
-	public double background(double[] energyBins, double[] timeBins) {
+	public double background(double energy, double[] energyBins, double[] timeBins) {
 		return 0; // TODO
 	}
 

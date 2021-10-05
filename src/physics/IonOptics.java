@@ -294,7 +294,7 @@ public class IonOptics {
 	 * the back-calculated energy.
 	 * @param energy initial energy of released neutron [MeV].
 	 * @param time initial time of released neutron [s].
-	 * @return { energy, time } [MeV, s].
+	 * @return { x, y, z, t } [m, m, m, s].
 	 */
 	public double[] simulate(double energy, double time, boolean foilBlur) {
 		double[] rCollision = chooseCollisionPosition();
@@ -327,15 +327,19 @@ public class IonOptics {
 					double energyI = energy0 + RANDOM.nextDouble()*(energy1 - energy0); // randomly choose values from the bin [MeV]
 					double timeI = time0 + RANDOM.nextDouble()*(time1 - time0); // [s]
 
-					double[] et = backCalculate(simulate(energyI, timeI, true)); // do the simulation!
-					if (Double.isNaN(et[0])) continue; // sometimes, they won't hit the CsI cathode. That's fine.
+					double[] etUncorrected = simulate(energyI, timeI, true);
+					if (!Double.isNaN(etUncorrected[0])) { // sometimes, they won't hit the CsI cathode. That's fine.
+						if (RANDOM.nextDouble() < 1e-2)
+							System.out.printf("[%.3f, %.6f, %.6f, %.6g],\n", energyI, etUncorrected[x], etUncorrected[y], (etUncorrected[3] - timeI));
+						double[] et = backCalculate(etUncorrected); // do the simulation!
 
-					double energyO = et[0], timeO = et[1]/ns; // then convert to the same units as the bins
-					//					double energyO = energyI/1e6, timeO = timeI/ns;
-					int eBin = NumericalMethods.bin(energyO, energyBins);
-					int tBin = NumericalMethods.bin(timeO, timeBins);
-					if (eBin >= 0 && eBin < energyBins.length - 1 && tBin >= 0 && tBin < timeBins.length - 1) // if it falls in detectable bounds
-						matrix[(timeBins.length - 1)*eBin + tBin][(timeBins.length - 1)*i + j0] += weight; // add it to the row
+						double energyO = et[0], timeO = et[1]/ns; // then convert to the same units as the bins
+						//					double energyO = energyI/1e6, timeO = timeI/ns;
+						int eBin = NumericalMethods.bin(energyO, energyBins);
+						int tBin = NumericalMethods.bin(timeO, timeBins);
+						if (eBin >= 0 && eBin < energyBins.length - 1 && tBin >= 0 && tBin < timeBins.length - 1) // if it falls in detectable bounds
+							matrix[(timeBins.length - 1)*eBin + tBin][(timeBins.length - 1)*i + j0] += weight; // add it to the row
+					}
 				}
 			}
 

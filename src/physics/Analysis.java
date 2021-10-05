@@ -374,6 +374,7 @@ public class Analysis {
 			
 			double error = 0; // negative Bayes factor (in nepers)
 			for (int i = 0; i < spectrum.length; i ++) {
+				double energy = (energyBins[i] + energyBins[i+1])/2.;
 				for (int j = 0; j < spectrum[i].length; j ++) { // compute the error between it and the actual spectrum
 					if (fitSpectrum[i][j] == 0) {
 						if (spectrum[i][j] == 0)
@@ -384,8 +385,8 @@ public class Analysis {
 					else if (fitSpectrum[i][j] > 0) {
 //						error += fitSpectrum[i][j] - spectrum[i][j]*Math.log(fitSpectrum[i][j]);
 						double μ = fitSpectrum[i][j];
-						double a = μ*μ/detector.noise(energyBins, timeBins);
-						double b = μ/detector.noise(energyBins, timeBins);
+						double a = μ*μ/detector.noise(energy, energyBins, timeBins);
+						double b = μ/detector.noise(energy, energyBins, timeBins);
 						error += b*spectrum[i][j] - a*Math.log(b*spectrum[i][j]) + (a-1)*Math.log(a-1) - (a-1);
 //						double θ = fitSpectrum[i][j];
 //						double ηe = detector.efficiency(energyAxis[i]);

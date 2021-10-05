@@ -38,9 +38,10 @@ public class StreakCameraArray implements Detector {
 	private final double[] slitLeftBounds; // (MeV neutron)
 	private final double[] slitRiteBounds; // (MeV neutron)
 	private final double gain; // (counts/deuteron)
-	private final double noiseLevel; // (counts^2/(ns*MeV))
-	private final double backgroundLevel; // (counts/(ns*MeV))
+	private final double noiseDensity; // (counts^2/m^2)
+	private final double backgroundDensity; // (counts/m^2)
 
+	private final DiscreteFunction dxdE; // (MeV neutron -> m/MeV)
 	private final DiscreteFunction bowtieHite; // (MeV neutron -> m)
 
 	/**
@@ -77,6 +78,7 @@ public class StreakCameraArray implements Detector {
 			hRef[i] = yMax*2;
 		}
 		DiscreteFunction fpPosition = new DiscreteFunction(ERef, xRef, true);
+		this.dxdE = fpPosition.derivative();
 		DiscreteFunction fpEnergy = fpPosition.inv().indexed(FP_RESOLUTION);
 		this.bowtieHite = new DiscreteFunction(ERef, hRef, true);
 
@@ -92,12 +94,9 @@ public class StreakCameraArray implements Detector {
 		}
 
 		this.streakSpeed = slitLength/sweepTime; // (m/s in photocathode scale)
-		double binScale = fpPosition.derivative().evaluate(14)*streakSpeed*1e-9; // (m^2/(MeV*ns))
 		this.gain = gain;
-		double noiseLevel = noiseDensity*binScale; // (counts^2/(ns*MeV))
-		double backgroundLevel = backgroundDensity*binScale*NumericalMethods.exponential(1, RANDOM); // (counts/ns*MeV)
-		this.backgroundLevel = Math.max(backgroundLevel, Math.sqrt(noiseLevel));
-		this.noiseLevel = Math.max(noiseLevel, this.backgroundLevel);
+		this.backgroundDensity = backgroundDensity*NumericalMethods.gamma(4, 4, RANDOM); // (counts/ns*MeV)
+		this.noiseDensity = noiseDensity;
 	}
 
 	@Override
@@ -114,13 +113,17 @@ public class StreakCameraArray implements Detector {
 	}
 
 	@Override
-	public double noise(double[] energyBins, double[] timeBins) {
-		return noiseLevel*(energyBins[1] - energyBins[0])*(timeBins[1] - timeBins[0]);
+	public double noise(double energy, double[] energyBins, double[] timeBins) {
+		double binScale = dxdE.evaluate(energy)*streakSpeed*1e-9; // (m^2/(MeV*ns))
+		return noiseDensity*binScale
+			  *(energyBins[1] - energyBins[0])*(timeBins[1] - timeBins[0]);
 	}
 
 	@Override
-	public double background(double[] energyBins, double[] timeBins) {
-		return backgroundLevel*(energyBins[1] - energyBins[0])*(timeBins[1] - timeBins[0]);
+	public double background(double energy, double[] energyBins, double[] timeBins) {
+		double binScale = dxdE.evaluate(energy)*streakSpeed*1e-9; // (m^2/(MeV*ns))
+		return backgroundDensity*binScale
+			  *(energyBins[1] - energyBins[0])*(timeBins[1] - timeBins[0]);
 	}
 
 	@Override
@@ -137,10 +140,11 @@ public class StreakCameraArray implements Detector {
 
 		double[][] outSpectrum = new double[energyBins.length-1][timeBins.length-1];
 		for (int i = 0; i < energyBins.length-1; i ++) {
-			double efficiency = this.efficiency((energyBins[i] + energyBins[i+1])/2);
+			double energy = (energyBins[i] + energyBins[i+1])/2;
+			double efficiency = this.efficiency(energy);
 			if (efficiency != 0) {
 				for (int j = 0; j < timeBins.length - 1; j ++)
-					outSpectrum[i][j] = background(energyBins, timeBins);
+					outSpectrum[i][j] = background(energy, energyBins, timeBins);
 				for (int j = 0; j < timeBins.length - 1; j++) {
 					for (int l = 0; l < kernelSize; l++) {
 						int dj = l - kernelSize/2;
@@ -149,7 +153,7 @@ public class StreakCameraArray implements Detector {
 					}
 				}
 				if (stochastic) {
-					double σ2 = noise(energyBins, timeBins);
+					double σ2 = noise(energy, energyBins, timeBins);
 					for (int j = 0; j < timeBins.length - 1; j ++) {
 						double μ = outSpectrum[i][j];
 						double a = μ*μ/σ2;
