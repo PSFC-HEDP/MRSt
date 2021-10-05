@@ -23,6 +23,7 @@
  */
 package util;
 
+import java.util.Arrays;
 import java.util.Locale;
 import java.util.Random;
 
@@ -190,8 +191,45 @@ public class NumericalMethods {
 			return exponential(μ, 1 - u);
 		}
 		else {
-			return (int) Math.max(0., normal(k*μ, Math.sqrt(k)*μ, random));
+			return Math.max(0., normal(k*μ, Math.sqrt(k)*μ, random));
 		}
+	}
+
+	public static double gamma(double a, double b, Random random) {
+		if (a <= 0) {
+			throw new IllegalArgumentException("a must > 0");
+		}
+		if (a < 20) {
+			double μ = a/b, σ = Math.sqrt(a)/b;
+			double[] x = new double[40];
+			double[] y = new double[x.length-1];
+			for (int i = 0; i < x.length; i ++)
+				x[i] = Math.max(0., μ - 4.*σ) + 8.*σ/(x.length-1)*i;
+			for (int i = 0; i < y.length; i ++) {
+				double xM = (x[i] + x[i+1])/2.;
+				y[i] = Math.exp((a-1)*Math.log(xM) - b*xM - ((a-1)*Math.log(μ) - b*μ));
+			}
+			return drawFromProbabilityDistribution(x, y, random);
+		}
+		else {
+			return Math.max(0., normal(a/b, Math.sqrt(a)/b, random));
+		}
+	}
+
+	public static double drawFromProbabilityDistribution(
+		  double[] x, double[] pdf, Random random) {
+		double sum = 0;
+		for (int i = 0; i < pdf.length; i ++)
+			sum += pdf[i]*(x[i+1] - x[i]);
+		double u = random.nextDouble();
+		for (int i = 0; i < pdf.length; i ++) {
+			double thresh = pdf[i]*(x[i + 1] - x[i])/sum;
+			if (u <= thresh)
+				return x[i] + (x[i+1] - x[i])/thresh*u;
+			else
+				u -= thresh;
+		}
+		throw new IllegalArgumentException("math is broken: "+ Arrays.toString(x)+", "+Arrays.toString(pdf));
 	}
 	
 	/**
@@ -1712,5 +1750,9 @@ public class NumericalMethods {
 		System.out.println(x.times(y).toString(cov));
 		System.out.println(x.over(y).toString(cov));
 		System.out.println(x.mod(4).toString(cov));
+//		double[] x = {0, 1, 2, 3, 4, 5, 6};
+//		double[] pdf = {5, 3, 5, 8, 1, 0};
+//		for (int i = 0; i < 100000; i ++)
+//			System.out.printf("%.6f,\n", gamma(7.5, .06, new Random()));
 	}
 }

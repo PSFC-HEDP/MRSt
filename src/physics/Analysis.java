@@ -128,7 +128,8 @@ public class Analysis {
 //				focalTilt, PDDT_BIAS, MESH_LENGTH, DRIFT_LENGTH,
 //				TIME_DILATION, MCT_POROSITY, MCT_GAIN, 100);
 		this.detector = new StreakCameraArray(
-			  2.5e-2, 300e-6, 5e-2,
+			  2.5e-2, 400e-6, 5e-2,
+			  3.4e-9, 1e4, 4e+18, 1.6e+14,
 			  ionOptics);
 //		this.detector = new PerfectDetector();
 
@@ -377,7 +378,11 @@ public class Analysis {
 							return Double.POSITIVE_INFINITY;
 					}
 					else if (fitSpectrum[i][j] > 0) {
-						error += fitSpectrum[i][j] - spectrum[i][j]*Math.log(fitSpectrum[i][j]);
+//						error += fitSpectrum[i][j] - spectrum[i][j]*Math.log(fitSpectrum[i][j]);
+						double μ = fitSpectrum[i][j];
+						double a = μ*μ/detector.noise(energyBins, timeBins);
+						double b = μ/detector.noise(energyBins, timeBins);
+						error += b*spectrum[i][j] - a*Math.log(b*spectrum[i][j]) + (a-1)*Math.log(a-1) - (a-1);
 //						double θ = fitSpectrum[i][j];
 //						double ηe = detector.efficiency(energyAxis[i]);
 //						double log_p0 = θ*(Math.exp(-ηe) - 1);

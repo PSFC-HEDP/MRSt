@@ -35,6 +35,16 @@ public class PerfectDetector implements Detector {
 	}
 
 	@Override
+	public double noise(double[] energyBins, double[] timeBins) {
+		return 0;
+	}
+
+	@Override
+	public double background(double[] energyBins, double[] timeBins) {
+		return 0;
+	}
+
+	@Override
 	public double[][] response(double[] energyBins, double[] timeBins, double[][] inSpectrum, boolean stochastic) {
 		return inSpectrum;
 	}

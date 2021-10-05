@@ -179,6 +179,15 @@ public class PulseDilationDriftTube implements Detector {
 		return this.averageGain;
 	}
 
+	@Override
+	public double noise(double[] energyBins, double[] timeBins) {
+		return 0; // TODO
+	}
+
+	@Override
+	public double background(double[] energyBins, double[] timeBins) {
+		return 0; // TODO
+	}
 
 	/**
 	 * evaluate the response funccion of the detector and save it.

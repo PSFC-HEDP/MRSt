@@ -1,5 +1,3 @@
-package physics;
-
 /**
  * MIT License
  * <p>
@@ -23,38 +21,42 @@ package physics;
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-public interface Detector {
+package physics;
 
-	/**
-	 * the number of signal electrons created for every incident deuteron
-	 * @param energy energy of the deuteron [MeV]
-	 */
-	double efficiency(double energy);
+/**
+ * A detector that perfectly preserves all deuteron informacion, but loses all
+ * time resolucion
+ */
+public class SolidState implements Detector {
 
-	/**
-	 * the average number of cable electrons from each signal electron
-	 */
-	double gain();
+	@Override
+	public double efficiency(double energy) {
+		return 1;
+	}
 
-	/**
-	 * the signal variance in a single bin given the bins
-	 * @param energyBins the energy bin edges
-	 * @param timeBins the time bin edges
-	 */
-	double noise(double[] energyBins, double[] timeBins);
+	@Override
+	public double gain() {
+		return 1;
+	}
 
-	/**
-	 * the base signal level in a single bin given the bins
-	 * @param energyBins the energy bin edges
-	 * @param timeBins the time bin edges
-	 */
-	double background(double[] energyBins, double[] timeBins);
+	@Override
+	public double noise(double[] energyBins, double[] timeBins) {
+		return 0;
+	}
 
-	/**
-	 * compute the detected spectrum given a deuteron spectrum at the photocathode
-	 * @param stochastic whether to apply noise to the result
-	 */
-	double[][] response(double[] energyBins, double[] timeBins,
-						double[][] inSpectrum, boolean stochastic);
+	@Override
+	public double background(double[] energyBins, double[] timeBins) {
+		return 0; // TODO
+	}
 
+	@Override
+	public double[][] response(double[] energyBins, double[] timeBins,
+							   double[][] timeResolved, boolean stochastic) {
+		double[][] timeIntegrated = new double[energyBins.length - 1][timeBins.length - 1];
+		int j0 = (timeBins.length - 1)/2;
+		for (int i = 0; i < timeResolved.length; i ++)
+			for (int j = 0; j < timeResolved[i].length; j ++)
+				timeIntegrated[i][j0] += timeResolved[i][j];
+		return timeIntegrated;
+	}
 }
