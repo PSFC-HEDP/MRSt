@@ -58,7 +58,6 @@ public class Analysis {
 		"\u03C1R at BT (g/cm^2)", "d\u03C1R/dt at BT (g/cm^2/ns)", "d^2V/dt^2/V at BT (1/ns^2)",
 		"Burn-average Ti (keV)", "Peak Ti (keV)",
 		"Ti at BT (keV)", "dTi/dt at BT (keV/ns)", "d^2Ti/dt^2 at BT (keV/ns^2)",
-		"Burn-average vi (km/s)", "dvi/dt at BT (km/s/ns)",
 		}; // the names, units, and order of time-dependent burn parameters
 	public static final String[] HEADERS_WITH_ERRORS = appendErrorsToHeader();
 
@@ -296,6 +295,8 @@ public class Analysis {
 			logger.log(Level.INFO, String.format("There were %.1g deuterons detected.", NumericalMethods.sum(spectrum)));
 		}
 
+		final int N = 3; // number of degrees of freedom at each time step
+
 		logger.info("beginning fit process.");
 		long startTime = System.currentTimeMillis();
 
@@ -321,22 +322,22 @@ public class Analysis {
 		final int left = NumericalMethods.firstLocalMin(yieldGess);
 		final int rite = NumericalMethods.lastLocalMin(yieldGess) + 1;
 		
-		double[] opt = new double[4*(rite - left)];
+		double[] opt = new double[N*(rite - left)];
 		double[] dimensionScale = new double[opt.length];
 		double[] lowerBound = new double[opt.length];
 		double[] upperBound = new double[opt.length];
 		for (int j = 0; j < rite - left; j ++) {
 			yieldGess[left+j] = Math.max(yieldGess[left+j], 1/this.gain());
 			double scaledYieldGess = yieldGess[left+j]/timeStep/1e15;
-			double[] gesses = {          scaledYieldGess,  4,    0, 1 }; //inicial gess
-			double[] scales = {      0.5*scaledYieldGess, 10,  200, 1 }; // rough ranges of these variables
-			double[] lowers = {                       0.,  0, -250, 0 }; // lower bounds
-			double[] uppers = { Double.POSITIVE_INFINITY, 20,  250, 4 }; // upper bounds
+			double[] gesses = {          scaledYieldGess,  4, 1 }; //inicial gess
+			double[] scales = {      0.5*scaledYieldGess, 10, 1 }; // rough ranges of these variables
+			double[] lowers = {                       0.,  0, 0 }; // lower bounds
+			double[] uppers = { Double.POSITIVE_INFINITY, 20, 4 }; // upper bounds
 			for (int k = 0; k < scales.length; k ++) {
-				opt[4*j+k] = gesses[k];
-				dimensionScale[4*j+k] = scales[k];
-				lowerBound[4*j+k] = lowers[k];
-				upperBound[4*j+k] = uppers[k];
+				opt[N*j+k] = gesses[k];
+				dimensionScale[N*j+k] = scales[k];
+				lowerBound[N*j+k] = lowers[k];
+				upperBound[N*j+k] = uppers[k];
 			}
 		}
 		
@@ -346,24 +347,27 @@ public class Analysis {
 		double[] electronTemperature = new double[timeAxis.length];
 		for (int j = 0; j < timeAxis.length; j ++)
 			electronTemperature[j] = 3;
+		double[] bulkFlowVelocity = new double[timeAxis.length];
+		for (int j = 0; j < timeAxis.length; j ++)
+			bulkFlowVelocity[j] = 0;
 		
 		Function<double[], Double> logPosterior = (double[] x) -> {
 			final double smoothing = smoothingRapper[0];
 			final double baseline = baselineRapper[0];
 			
-			double[][] params = new double[4][timeAxis.length];
+			double[][] params = new double[N][timeAxis.length];
 			for (int j = 0; j < rite - left; j ++) {
 				for (int k = 0; k < params.length; k ++) {
-					params[k][left+j] = x[4*j+k]; // first unpack the state vector
+					params[k][left+j] = x[N*j+k]; // first unpack the state vector
 					
-					if (params[k][left+j] < lowerBound[4*j+k] ||
-							params[k][left+j] > upperBound[4*j+k]) // check for illegal (prior = 0) values
+					if (params[k][left+j] < lowerBound[N*j+k] ||
+							params[k][left+j] > upperBound[N*j+k]) // check for illegal (prior = 0) values
 						return Double.POSITIVE_INFINITY;
 				}
 			}
 			
 			double[][] teoSpectrum = SpectrumGenerator.generateSpectrum(
-					params[0], params[1], electronTemperature, params[2], params[3],
+					params[0], params[1], electronTemperature, bulkFlowVelocity, params[2],
 					energyBins, timeBins); // generate the neutron spectrum based on those
 			double[][] fitSpectrum = this.response(
 				  energyBins, timeBins, teoSpectrum, false, false); // blur it according to the transfer matrix
@@ -410,9 +414,8 @@ public class Analysis {
 			
 			double penalty = baseline; // negative log of prior (ignoring global normalization)
 			for (int j = left; j < rite; j ++) {
-				penalty += Math.pow(params[2][j]/50, 2)/2; // gaussian prior on velocity
 //				penalty += params[1][j]/10.0 - Math.log(params[1][j])/2.; // gamma prior on temp
-				penalty += params[3][j]/2.0; // exponential prior on areal density
+				penalty += params[2][j]/2.0; // exponential prior on areal density
 			}
 			
 			for (int j = left + 1; j < rite; j ++) {
@@ -426,7 +429,7 @@ public class Analysis {
 				}
 			}
 			
-			for (int k = 1; k <= 3; k += 2) {
+			for (int k = 1; k <= 2; k ++) {
 				for (int j = left; j < rite - 3; j ++) {
 					double Ψpp = (params[k][j] - 3*params[k][j+1] + 3*params[k][j+2] - params[k][j+3])/
 							Math.pow(timeStep, 3);
@@ -434,12 +437,6 @@ public class Analysis {
 					if (Ψpp != 0)
 						penalty += smoothing*5e-10*Math.pow(Ψpp/Ψ, 2); // encourage a smooth Ti and ρR
 				}
-			}
-			
-			for (int j = left + 1; j < rite - 1; j ++) {
-				double Vpp = (params[2][j-1] - 2*params[2][j] + params[2][j+1])/
-						Math.pow(timeStep, 3);
-				penalty += smoothing*2e-6*Math.pow(Vpp/50, 2); // encourage a smooth ion velocity
 			}
 			
 //			System.out.println(penalty+" + "+error);
@@ -463,13 +460,13 @@ public class Analysis {
 		logger.log(Level.FINE, "Performing final fit pass...");
 		opt = optimize(logPosterior, opt, dimensionScale, lowerBound, upperBound, .001*precision);
 
-		this.measurements = new Quantity[4][timeAxis.length]; // unpack the optimized vector
+		this.measurements = new Quantity[N][timeAxis.length]; // unpack the optimized vector
 		for (int j = 0; j < timeAxis.length; j ++) {
 			if (j >= left && j < rite) {
 				for (int k = 0; k < measurements.length; k ++) {
 					double[] grad = new double[opt.length];
-					grad[4*(j-left)+k] = 1;
-					measurements[k][j] = new Quantity(opt[4*(j-left)+k], grad);
+					grad[N*(j-left)+k] = 1;
+					measurements[k][j] = new Quantity(opt[N*(j-left)+k], grad);
 				}
 			}
 			else {
@@ -481,7 +478,7 @@ public class Analysis {
 		
 		this.fitNeutronSpectrum = SpectrumGenerator.generateSpectrum( // and then interpret it
 				getNeutronYield(), getIonTemperature(), electronTemperature,
-				getFlowVelocity(), getArealDensity(), energyBins, timeBins);
+				bulkFlowVelocity, getArealDensity(), energyBins, timeBins);
 		this.fitDeuteronSpectrum = this.response(
 			  energyBins, timeBins, fitNeutronSpectrum, false, false);
 		
@@ -540,12 +537,11 @@ public class Analysis {
 		else if (errorBars == ErrorMode.STATISTICS) {
 			covarianceMatrix = new double[opt.length][opt.length];
 			for (int j = 0; j < rite - left; j ++) {
-				double statistics = 1 + opt[4*j+0]*timeStep*1e15*this.gain(); // total deuteron yield from this neutron time bin
-				double dsStatistics = 1 + opt[4*j+0]*timeStep*1e15*this.gain()*opt[4*j+3]/21.;
-				covarianceMatrix[4*j+0][4*j+0] = Math.pow(opt[4*j+0], 2)/statistics;
-				covarianceMatrix[4*j+1][4*j+1] = Math.pow(opt[4*j+1], 2)*2/(statistics - 1);
-				covarianceMatrix[4*j+2][4*j+2] = .4034*14*opt[4*j+1]/1e3/statistics/Math.pow(.54e-3, 2);
-				covarianceMatrix[4*j+3][4*j+3] = Math.pow(opt[4*j+3], 2)/dsStatistics;
+				double statistics = 1 + opt[N*j+0]*timeStep*1e15*this.gain(); // total deuteron yield from this neutron time bin
+				double dsStatistics = 1 + opt[N*j+0]*timeStep*1e15*this.gain()*opt[N*j+2]/21.;
+				covarianceMatrix[N*j+0][N*j+0] = Math.pow(opt[N*j+0], 2)/statistics;
+				covarianceMatrix[N*j+1][N*j+1] = Math.pow(opt[N*j+1], 2)*2/(statistics - 1);
+				covarianceMatrix[N*j+2][N*j+3] = Math.pow(opt[N*j+2], 2)/dsStatistics;
 			}
 		}
 		else {
@@ -556,11 +552,11 @@ public class Analysis {
 		logger.info(String.format(Locale.US, "completed in %.2f minutes.",
 				(endTime - startTime)/60000.));
 		
-		Quantity[] V = new Quantity[measurements[3].length]; // this is not really volume; it is (ρR)^(-2/3)
+		Quantity[] V = new Quantity[measurements[2].length]; // this is not really volume; it is (ρR)^(-2/3)
 		for (int j = 0; j < V.length; j ++)
-			V[j] = measurements[3][j].pow(-1.5);
+			V[j] = measurements[2][j].pow(-1.5);
 		
-		Quantity iPC = NumericalMethods.quadargmax(left, rite, measurements[3]); // index of max compression
+		Quantity iPC = NumericalMethods.quadargmax(left, rite, measurements[2]); // index of max compression
 		Quantity peakCompress = NumericalMethods.interp(timeAxis, iPC); // time of max compression
 		Quantity iTPeak = NumericalMethods.quadargmax(left, rite, measurements[1]);
 		Quantity[] moments = new Quantity[5];
@@ -572,18 +568,16 @@ public class Analysis {
 				moments[0].times(timeStep), bangTime,
 				moments[2].sqrt().times(2.355), moments[3], moments[4],
 				peakCompress.minus(bangTime),
-				NumericalMethods.average(measurements[3], measurements[0], left, rite),
-				NumericalMethods.quadInterp(measurements[3], iPC),
-				NumericalMethods.quadInterp(measurements[3], iBT),
-				NumericalMethods.derivative(timeAxis, measurements[3], bangTime, .12, 1),
+				NumericalMethods.average(measurements[2], measurements[0], left, rite),
+				NumericalMethods.quadInterp(measurements[2], iPC),
+				NumericalMethods.quadInterp(measurements[2], iBT),
+				NumericalMethods.derivative(timeAxis, measurements[2], bangTime, .12, 1),
 				NumericalMethods.derivative(timeAxis, V, bangTime, .12, 2).over(NumericalMethods.quadInterp(V, iBT)),
 				NumericalMethods.average(measurements[1], measurements[0], left, rite),
 				NumericalMethods.quadInterp(measurements[1], iTPeak),
 				NumericalMethods.quadInterp(measurements[1], iBT),
 				NumericalMethods.derivative(timeAxis, measurements[1], bangTime, .12, 1),
 				NumericalMethods.derivative(timeAxis, measurements[1], bangTime, .12, 2),
-				NumericalMethods.average(measurements[2], measurements[0], left, rite),
-				NumericalMethods.derivative(timeAxis, measurements[2], bangTime, .12, 1),
 		}; // collect the figures of merit
 		
 		logger.info(String.format("Total yield (μ0):  %s", res[1].times(1e15).toString(covarianceMatrix)));
@@ -602,8 +596,6 @@ public class Analysis {
 		logger.info(String.format("Ti at BT:          %s keV", res[14].toString(covarianceMatrix)));
 		logger.info(String.format("dTi/dt at BT:      %s keV/(100 ps)", res[15].over(1e1).toString(covarianceMatrix)));
 		logger.info(String.format("d^2Ti/dt^2 at BT:  %s keV/ns^2", res[16].toString(covarianceMatrix)));
-		logger.info(String.format("Burn-averaged vi:  %s km/s", res[17].toString(covarianceMatrix)));
-		logger.info(String.format("dvi/dt at BT:      %s μm/ns/(100 ps)", res[18].over(1e1).toString(covarianceMatrix)));
 		return res;
 	}
 	
@@ -766,33 +758,19 @@ public class Analysis {
 	public double[] getIonTemperatureError() {
 		return NumericalMethods.stds(this.measurements[1], this.covarianceMatrix);
 	}
-	
-	/**
-	 * get the bulk flow mean values in [km/s]
-	 */
-	public double[] getFlowVelocity() {
-		return NumericalMethods.modes(this.measurements[2]);
-	}
-	
-	/**
-	 * get the bulk flow mean values in [km/s]
-	 */
-	public double[] getFlowVelocityError() {
-		return NumericalMethods.stds(this.measurements[2], this.covarianceMatrix);
-	}
-	
+
 	/**
 	 * get the ρR mean values in [g/cm^2]
 	 */
 	public double[] getArealDensity() {
-		return NumericalMethods.modes(this.measurements[3]);
+		return NumericalMethods.modes(this.measurements[2]);
 	}
 	
 	/**
 	 * get the ρR error bars in [g/cm^2]
 	 */
 	public double[] getArealDensityError() {
-		return NumericalMethods.stds(this.measurements[3], this.covarianceMatrix);
+		return NumericalMethods.stds(this.measurements[2], this.covarianceMatrix);
 	}
 	
 	
