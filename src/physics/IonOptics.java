@@ -329,8 +329,8 @@ public class IonOptics {
 
 					double[] etUncorrected = simulate(energyI, timeI, true);
 					if (!Double.isNaN(etUncorrected[0])) { // sometimes, they won't hit the CsI cathode. That's fine.
-						if (RANDOM.nextDouble() < 1e-2)
-							System.out.printf("[%.3f, %.6f, %.6f, %.6g],\n", energyI, etUncorrected[x], etUncorrected[y], (etUncorrected[3] - timeI));
+//						if (RANDOM.nextDouble() < Math.exp(-Math.pow(energyI - 14, 2)/(2*6/9e-5/5*1*14/2.355/2.355/1e6)))
+//							System.out.printf("[%.3f, %.6f, %.6f, %.6f, %.6g],\n", energyI, etUncorrected[x], etUncorrected[y], etUncorrected[z], (etUncorrected[3] - timeI));
 						double[] et = backCalculate(etUncorrected); // do the simulation!
 
 						double energyO = et[0], timeO = et[1]/ns; // then convert to the same units as the bins

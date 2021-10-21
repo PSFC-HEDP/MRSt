@@ -37,6 +37,7 @@ import util.NumericalMethods.Quantity;
 import util.Optimization;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Locale;
 import java.util.Random;
 import java.util.function.Function;
@@ -62,6 +63,8 @@ public class Analysis {
 	public static final String[] HEADERS_WITH_ERRORS = appendErrorsToHeader();
 
 	public static final Random RANDOM = new Random(0);
+
+	public static final double BACKGROUND_REDUCTION_FACTOR = 1;
 
 	private static final double MIN_E = 12, MAX_E = 16; // histogram bounds [MeV]
 	private static final int BUFFER = 4; // empty pixels to include simulate on each side [ns]
@@ -127,8 +130,12 @@ public class Analysis {
 //				focalTilt, PDDT_BIAS, MESH_LENGTH, DRIFT_LENGTH,
 //				TIME_DILATION, MCT_POROSITY, MCT_GAIN, 100);
 		this.detector = new StreakCameraArray(
-			  2.5e-2, 400e-6, 5e-2,
-			  3.4e-9, 1e4, 4e+18, 1.6e+14,
+			  2.5e-2, 400e-6,
+			  (focalTilt == 0) ? 11.5e-9 : 4.5e-9,
+			  1e4,
+			  4e+18/Math.pow(BACKGROUND_REDUCTION_FACTOR, 2),
+			  1.6e+14/BACKGROUND_REDUCTION_FACTOR,
+			  (focalTilt == 0) ? new double[] {-0.75e-2} : new double[] {-5e-2, 0},// 5e-2},
 			  ionOptics);
 //		this.detector = new PerfectDetector();
 
@@ -307,9 +314,12 @@ public class Analysis {
 
 //		double[][] gelf = Optimization.optimizeGelfgat(spectrum, D, this.rongTransferMatrix, 1e5);
 		double[][] gelf = new double[spectrum.length][spectrum[0].length]; // start with the most basick inicial gess
-		for (int i = 0; i < spectrum.length; i ++)
-			for (int j = 0; j < spectrum[i].length; j ++)
-				gelf[i][j] = spectrum[i][j]/this.gain(); // the spectrum scaled by the efficiency of the system
+		for (int i = 0; i < spectrum.length; i ++) {
+			double background = this.detector.background(energyAxis[i], energyBins, timeBins);
+			for (int j = 0; j < spectrum[i].length; j ++) {
+				gelf[i][j] = (spectrum[i][j] - background)/this.gain(); // the spectrum scaled by the efficiency of the system
+			}
+		}
 		
 		double[] yieldGess = new double[timeAxis.length];
 		for (int j = 0; j < timeAxis.length; j ++) {
@@ -321,7 +331,7 @@ public class Analysis {
 		final int bangIndex = NumericalMethods.argmax(yieldGess); // approximate BT locacion
 		final int left = NumericalMethods.firstLocalMin(yieldGess);
 		final int rite = NumericalMethods.lastLocalMin(yieldGess) + 1;
-		
+
 		double[] opt = new double[N*(rite - left)];
 		double[] dimensionScale = new double[opt.length];
 		double[] lowerBound = new double[opt.length];
@@ -340,7 +350,7 @@ public class Analysis {
 				upperBound[N*j+k] = uppers[k];
 			}
 		}
-		
+
 		double[] smoothingRapper = new double[1];
 		double[] baselineRapper = new double[1];
 		
@@ -350,7 +360,8 @@ public class Analysis {
 		double[] bulkFlowVelocity = new double[timeAxis.length];
 		for (int j = 0; j < timeAxis.length; j ++)
 			bulkFlowVelocity[j] = 0;
-		
+//		int[] iter = {0};
+
 		Function<double[], Double> logPosterior = (double[] x) -> {
 			final double smoothing = smoothingRapper[0];
 			final double baseline = baselineRapper[0];
@@ -371,23 +382,41 @@ public class Analysis {
 					energyBins, timeBins); // generate the neutron spectrum based on those
 			double[][] fitSpectrum = this.response(
 				  energyBins, timeBins, teoSpectrum, false, false); // blur it according to the transfer matrix
-			
+
+//			double[][] errorLocacion = new double[spectrum.length][spectrum[0].length];
 			double error = 0; // negative Bayes factor (in nepers)
 			for (int i = 0; i < spectrum.length; i ++) {
 				double energy = (energyBins[i] + energyBins[i+1])/2.;
 				for (int j = 0; j < spectrum[i].length; j ++) { // compute the error between it and the actual spectrum
-					if (fitSpectrum[i][j] == 0) {
-						if (spectrum[i][j] == 0)
-							error += 0;
-						else
-							return Double.POSITIVE_INFINITY;
-					}
-					else if (fitSpectrum[i][j] > 0) {
+					error += Math.pow(fitSpectrum[i][j] - spectrum[i][j], 2)/(2*detector.noise(energy, energyBins, timeBins));
+//					if (fitSpectrum[i][j] == 0) {
+//						if (spectrum[i][j] == 0) TODO make the detector handle this
+//							error += 0;
+//						else
+//							return Double.POSITIVE_INFINITY;
+//					}
+//					else if (fitSpectrum[i][j] > 0) {
 //						error += fitSpectrum[i][j] - spectrum[i][j]*Math.log(fitSpectrum[i][j]);
-						double μ = fitSpectrum[i][j];
-						double a = μ*μ/detector.noise(energy, energyBins, timeBins);
-						double b = μ/detector.noise(energy, energyBins, timeBins);
-						error += b*spectrum[i][j] - a*Math.log(b*spectrum[i][j]) + (a-1)*Math.log(a-1) - (a-1);
+//						System.out.println("the data say "+spectrum[i][j]);
+//						if (fitSpectrum[i][j] > 3.4e6 && Math.random() < 0.01) {
+//							for (double test = 0; test < 2*spectrum[i][j]; test += spectrum[i][j]*0.01) {
+//								double μ = test;//fitSpectrum[i][j];
+//								double σ = detector.noise(energy, energyBins, timeBins);
+//								σ = Math.pow(Math.pow(σ, -0.5) + Math.pow(μ, -0.5), -2); // make sure the noise does not exceed the background level
+//								double a = μ*μ/(σ*σ);
+//								double b = μ/(σ*σ);
+//								//						double aMax = spectrum[i][j]*spectrum[i][j]/(σ*σ);
+//								assert a > 1;
+////								System.out.printf("[%.5g, %.5g],\n", test,
+//												  //							error += //(fitSpectrum[i][j] > spectrum[i][j]) ?//Math.max(
+//												  b*spectrum[i][j] - a*Math.log(b*spectrum[i][j]) + (a - 1)*(Math.log(a - 1) - 1));
+								//Math.pow(fitSpectrum[i][j] - spectrum[i][j], 2)/(2*σ*σ) + aMax*(1 + Math.log(aMax)) + (aMax-1)*(Math.log(aMax-1) - 1);//);
+//							}
+//							System.exit(0);
+//						}
+//						errorLocacion[i][j] = Math.max(
+//							  b*spectrum[i][j] - a*Math.log(b*spectrum[i][j]) + (a-1)*(Math.log(a-1) - 1),
+//							  Math.pow(fitSpectrum[i][j] - spectrum[i][j], 2)/(2*σ*σ) + aMax*(1 + Math.log(aMax)) + (aMax-1)*(Math.log(aMax-1) - 1));
 //						double θ = fitSpectrum[i][j];
 //						double ηe = detector.efficiency(energyAxis[i]);
 //						double log_p0 = θ*(Math.exp(-ηe) - 1);
@@ -409,44 +438,72 @@ public class Analysis {
 //						}
 //						else
 //							throw new IllegalArgumentException("What to do when expected "+fitSpectrum[i][j]+" and observed "+spectrum[i][j]+"?");
-					}
+//					}
+//					else {
+//						throw new IllegalArgumentException("What to do when expected "+fitSpectrum[i][j]+" and observed "+spectrum[i][j]+"?");
+//					}
 				}
 			}
-			
-			double penalty = baseline; // negative log of prior (ignoring global normalization)
+
+//			double[] penaltySource = new double[3];
+			double penalty = 0;//baseline; // negative log of prior (ignoring global normalization)
 			for (int j = left; j < rite; j ++) {
 //				penalty += params[1][j]/10.0 - Math.log(params[1][j])/2.; // gamma prior on temp
 				penalty += params[2][j]/2.0; // exponential prior on areal density
+//				penaltySource[0] += params[2][j]/2.;
 			}
 			
 			for (int j = left + 1; j < rite; j ++) {
 				double Y = (params[0][j] + params[0][j-1])/2;
 				double Yp = (params[0][j] - params[0][j-1])/timeStep;
 				if (j <= bangIndex) Yp *= -1;
-				if (Y > 0) {
-					double z = Yp/Y*1.;
-					if (z < 0) penalty += smoothing/20*Math.exp(z);
-					else       penalty += smoothing/20*(1 + z + z*z/2.); // encourage a monotonically increasing yield before BT
-				}
+				double z = (Y > 0) ? Yp/Y*1. : 0;
+				if (z < 0) penalty += smoothing/20*Math.exp(z);
+				else       penalty += smoothing/20*(1 + z + z*z/2.); // encourage a monotonically increasing yield before BT
 			}
+//			penaltySource[1] = penalty-penaltySource[0];
 			
 			for (int k = 1; k <= 2; k ++) {
 				for (int j = left; j < rite - 3; j ++) {
 					double Ψpp = (params[k][j] - 3*params[k][j+1] + 3*params[k][j+2] - params[k][j+3])/
 							Math.pow(timeStep, 3);
 					double Ψ = (params[k][j] + params[k][j+1] + params[k][j+2] + params[k][j+3])/4;
-					if (Ψpp != 0)
+					if (Ψpp != 0) {
 						penalty += smoothing*5e-10*Math.pow(Ψpp/Ψ, 2); // encourage a smooth Ti and ρR
+//						penaltySource[2] += smoothing*5e-10*Math.pow(Ψpp/Ψ, 2);
+					}
 				}
 			}
-			
-//			System.out.println(penalty+" + "+error);
-			if (baseline == 0) { // the first time this function is called
-				baselineRapper[0] = -(penalty + error); // save its value as the baseline
-				return 0.0;
-			}
+
+//			if (iter[0] < 3) {
+//				//			System.out.println(Arrays.deepToString(errorLocacion));
+//				System.out.println(Arrays.deepToString(spectrum));
+//				System.out.println(Arrays.deepToString(fitSpectrum));
+//				System.out.println(Arrays.deepToString(errorLocacion));
+//				System.out.println(Arrays.toString(penaltySource));
+//				System.out.printf("%.1f + %.1f = %.1f\n", penalty, error, penalty + error);
+//			}
+//			if (baseline == 0) { // the first time this function is called
+//				baselineRapper[0] = -(penalty + error); // save its value as the baseline
+//				return 0.0;
+//			}
+//			iter[0] ++;
 			return penalty + error;
 		};
+
+//		for (int i = 0; i < rite-left; i ++) {
+//			opt[N*i + 1] = 6.5;
+//			opt[N*i + 2] = 0;
+//		}
+//		logPosterior.apply(opt);
+//		for (int i = 0; i < rite-left; i ++)
+//			opt[N*i] *= Math.pow(opt[N*i]/NumericalMethods.max(opt), 5.0)*Math.exp(-(timeAxis[left+i]-16.3)/.2);
+//		double[] goodOpt = Arrays.copyOf(opt, opt.length);
+//		logPosterior.apply(opt);
+//		for (int i = 0; i < rite-left; i ++)
+//			opt[N*i] = 0;
+//		logPosterior.apply(opt);
+//		opt = goodOpt;
 		
 		smoothingRapper[0] = 100;
 		logger.log(Level.FINE, "Performing ruff fit pass...");

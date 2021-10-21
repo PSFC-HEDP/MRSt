@@ -273,9 +273,9 @@ public class SpectrumViewer extends Application {
 						            "Fitted deuteron spectrum");
 						PythonPlot.plotLines(spectrumName,
 								mc.getTimeAxis(), "Time (ns)",
-								mc.getIonTemperature(), mc.getIonTemperatureError(), "Ti (keV)",
-								mc.getArealDensity(), mc.getArealDensityError(), "ρR (g/cm^2)",
-								mc.getNeutronYield(), mc.getNeutronYieldError(), "Yn (10^15/ns)"
+						 		mc.getNeutronYield(), mc.getNeutronYieldError(), "Yn (10^15/ns)",
+								mc.getIonTemperature(), mc.getIonTemperatureError(), "Ti (keV)"
+//								mc.getArealDensity(), mc.getArealDensityError(), "ρR (g/cm^2)",
 						);
 						PythonPlot.compareHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getCorrectedSpectrum(), mc.getFittedSpectrum(),
 								"Time", "Energy (MeV)", "Synthetic deuteron spectrum", "Fitted deuteron spectrum");

@@ -48,15 +48,16 @@ public class StreakCameraArray implements Detector {
 	 * create a new streak camera array to be used with the ion optics
 	 * @param slitLength the length of each slit in the dispersion direccion (m)
 	 * @param slitWidth the height of each slit in the nondispersion direccion (m)
-	 * @param slitSpacing the center-to-center distance between slits (m)
 	 * @param sweepTime the amount of time it takes to sweep (s)
 	 * @param noiseDensity the inherent noise level in the detector (counts^2/m^2)
-	 * @param backgroundDensity the inherent background level in the detector (counts/m^2(
+	 * @param backgroundDensity the inherent background level in the detector (counts/m^2)
+	 * @param slitPositions the centers of the slits on the focal plane
 	 * @param optics the ion optics system (needed to set up efficient calculacion)
 	 */
 	public StreakCameraArray(
-		  double slitLength, double slitWidth, double slitSpacing,
+		  double slitLength, double slitWidth,
 		  double sweepTime, double gain, double noiseDensity, double backgroundDensity,
+		  double[] slitPositions,
 		  IonOptics optics) {
 		this.slitWidth = slitWidth;
 
@@ -83,7 +84,8 @@ public class StreakCameraArray implements Detector {
 		this.bowtieHite = new DiscreteFunction(ERef, hRef, true);
 
 		double fpCenter = fpPosition.evaluate(14);
-		double[] slitPositions = {fpCenter - slitSpacing, fpCenter};//, fpCenter + slitSpacing};
+		for (int i = 0; i < slitPositions.length; i ++)
+			slitPositions[i] -= fpCenter;
 		this.slitLeftBounds = new double[slitPositions.length];
 		this.slitRiteBounds = new double[slitPositions.length];
 		for (int i = 0; i < this.slitLeftBounds.length; i ++) {
@@ -129,14 +131,15 @@ public class StreakCameraArray implements Detector {
 	@Override
 	public double[][] response(double[] energyBins, double[] timeBins,
 							   double[][] inSpectrum, boolean stochastic) {
-		double timeWidth = slitWidth/streakSpeed;
-		int kernelSize = 2 + (int)Math.ceil(timeWidth/(timeBins[1] - timeBins[0]));
-		if (kernelSize%2 == 0)
+		double timeWidth = slitWidth/streakSpeed/1e-9; // (ns)
+		double timeStep = timeBins[1] - timeBins[0]; // (ns)
+		int kernelSize = 2 + (int)Math.ceil(timeWidth/timeStep);
+		if (kernelSize%2 != 1)
 			kernelSize += 1;
-		if (kernelSize != 3) throw new IllegalArgumentException("Not implemented: "+kernelSize);
-		double[] timeResponse = new double[kernelSize];
-		timeResponse[0] = timeResponse[2] = timeWidth/(timeBins[1] - timeBins[0])/8;
-		timeResponse[1] = 1 - timeResponse[0] - timeResponse[2];
+		double[] timeResponse = new double[kernelSize]; // bild the time response funccion kernel
+		for (int i = 1; i < kernelSize - 1; i ++)
+			timeResponse[i] = timeStep/timeWidth;
+		timeResponse[0] = timeResponse[kernelSize-1] = (timeWidth - (kernelSize - 2)*timeStep)/timeWidth/2;
 
 		double[][] outSpectrum = new double[energyBins.length-1][timeBins.length-1];
 		for (int i = 0; i < energyBins.length-1; i ++) {
@@ -153,12 +156,11 @@ public class StreakCameraArray implements Detector {
 					}
 				}
 				if (stochastic) {
-					double σ2 = noise(energy, energyBins, timeBins);
+					double σ = Math.sqrt(noise(energy, energyBins, timeBins));
 					for (int j = 0; j < timeBins.length - 1; j ++) {
-						double μ = outSpectrum[i][j];
-						double a = μ*μ/σ2;
-						double b = μ/σ2;
-						outSpectrum[i][j] = NumericalMethods.gamma(a, b, RANDOM);
+						if (outSpectrum[i][j] > 0) {
+							outSpectrum[i][j] = NumericalMethods.normal(outSpectrum[i][j], σ, RANDOM);
+						}
 					}
 				}
 			}

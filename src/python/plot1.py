@@ -8,12 +8,14 @@ if len(sys.argv) <= 1:
 	import os
 	os.chdir('../..')
 	print(os.getcwd())
-	xlabel, ylabels, title, answer, n = 'Time (ns)', 'Ti (keV)\nρR (g/cm^2)\nYn (10^15/ns)', 'data', 'marginal', 3
+	# xlabel, ylabels, title, answer, n = 'Time (ns)', 'Yn (10^15/ns)\nTi (keV)\nρR (g/cm^2)', 'data', 'marginal', 3
+	xlabel, ylabels, title, answer, n = 'Time (ns)', 'Yn (10^15/ns)\nTi (keV)', 'data', 'og', 2
 else:
 	xlabel, ylabels, title, answer, n = sys.argv[1:]
 
 ylabels = ylabels.split('\n')
 n = int(n)
+assert n == len(ylabels)
 
 XA = np.loadtxt(f'output/{title}_x.csv', delimiter=',')
 YAs = [np.loadtxt(f'output/{title}_y_{i}.csv', delimiter=',') for i in range(n)]
@@ -23,10 +25,10 @@ if answer != '-':
 	try:
 		data = np.loadtxt(f'input/trajectories {answer}.csv', delimiter=',', skiprows=1) # get the true curves
 		XB = data[:,0]
-		YBs = [data[:,4], data[:,3], data[:,1], np.zeros(XB.shape)] # extract the relevant info from them
-		YBs[2] *= (0.1e6/1e-6)/(1e15*14.1e6*1.6e-19/1e-9)
-		while np.sum(YAs[2]*np.gradient(XA)) < np.sum(YBs[2]*(XB[1] - XB[0]))/3:
-			YBs[2] /= 10
+		YBs = [data[:,1], data[:,4], data[:,3], np.zeros(XB.shape)] # extract the relevant info from them
+		YBs[0] *= (0.1e6/1e-6)/(1e15*14.1e6*1.6e-19/1e-9)
+		while np.sum(YAs[0]*np.gradient(XA)) < np.sum(YBs[0]*(XB[1] - XB[0]))/3:
+			YBs[0] /= 10
 		# YBs[2] *= np.sum(YAs[2]*(XA[1] - XA[0]))/np.sum(YBs[2]*(XB[1] - XB[0])) # normalize the yield curves to account for any magnitude discrepancy
 	except IOError:
 		XB, YBs = None, None
