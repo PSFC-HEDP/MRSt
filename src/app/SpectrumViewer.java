@@ -72,6 +72,8 @@ public class SpectrumViewer extends Application {
 	private static final int SPACING_0 = 16;
 	private static final int SPACING_1 = 10;
 	private static final int SPACING_2 = 4;
+
+	private static final String DEFAULT_TRAJECTORY = "failed";
 	
 	private Spinner<Double> foilDistance;
 	private Spinner<Double> foilWidth;
@@ -169,12 +171,12 @@ public class SpectrumViewer extends Application {
 					this.energyBins = CSV.readColumn(file);
 				}));
 		
-		rightPane.getChildren().add(chooseFileWidget("Time bin file:", stage, "time og with falling temp.txt",
+		rightPane.getChildren().add(chooseFileWidget("Time bin file:", stage, "time "+DEFAULT_TRAJECTORY+".txt",
 				(file) -> {
 					this.timeBins = CSV.readColumn(file);
 				}));
 		
-		rightPane.getChildren().add(chooseFileWidget("Spectrum file:", stage, "spectrum og with falling temp.txt",
+		rightPane.getChildren().add(chooseFileWidget("Spectrum file:", stage, "spectrum "+DEFAULT_TRAJECTORY+".txt",
 				(file) -> {
 					this.spectrum = CSV.read(file, '\t');
 					if (file.getName().startsWith("spectrum "))

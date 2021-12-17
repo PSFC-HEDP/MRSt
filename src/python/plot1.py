@@ -21,16 +21,22 @@ XA = np.loadtxt(f'output/{title}_x.csv', delimiter=',')
 YAs = [np.loadtxt(f'output/{title}_y_{i}.csv', delimiter=',') for i in range(n)]
 ΔAs = [np.loadtxt(f'output/{title}_err_{i}.csv', delimiter=',') for i in range(n)]
 
+x0 = XA[np.argmax(YAs[0])]
+
 if answer != '-':
 	try:
 		data = np.loadtxt(f'input/trajectories {answer}.csv', delimiter=',', skiprows=1) # get the true curves
 		XB = data[:,0]
 		YBs = [data[:,1], data[:,4], data[:,3], np.zeros(XB.shape)] # extract the relevant info from them
 		YBs[0] *= (0.1e6/1e-6)/(1e15*14.1e6*1.6e-19/1e-9)
+
 		while np.sum(YAs[0]*np.gradient(XA)) < np.sum(YBs[0]*(XB[1] - XB[0]))/3:
 			YBs[0] /= 10
 		# YBs[2] *= np.sum(YAs[2]*(XA[1] - XA[0]))/np.sum(YBs[2]*(XB[1] - XB[0])) # normalize the yield curves to account for any magnitude discrepancy
+
+		x0 = XB[np.argmax(YBs[0])]
 	except IOError:
+		print(f"didn't find {answer}")
 		XB, YBs = None, None
 
 fig, host_ax = plt.subplots(figsize=(9,5))
@@ -55,18 +61,18 @@ for i in range(n):
 		'a':(-1, 1)
 	}.get(ylabels[i][0], (None, None))
 	YAs[i][np.isnan(ΔAs[i])] = np.nan
-	plots.append(axes[i].plot(XA, YAs[i], '-o', label=ylabels[i], color=f'C{i}')[0])
+	plots.append(axes[i].plot(XA - x0, YAs[i], '-o', label=ylabels[i], color=f'C{i}')[0])
 	if XB is not None:
-		axes[i].plot(XB, YBs[i], '--', color=f'C{i}')[0]
-	axes[i].fill_between(XA, YAs[i] - ΔAs[i], YAs[i] + ΔAs[i], color='C'+str(i), alpha=0.3)
+		axes[i].plot(XB - x0, YBs[i], '--', color=f'C{i}')[0]
+	axes[i].fill_between(XA - x0, YAs[i] - ΔAs[i], YAs[i] + ΔAs[i], color='C'+str(i), alpha=0.3)
 	axes[i].set_ylabel(ylabels[i])
 	axes[i].set_ylim(*rainge)
 
 	if ylabels[i].startswith('Y'):
 		Ymax = YAs[i].max(initial=0, where=np.isfinite(YAs[i]))
-		lims = np.min(XA[YAs[i]/Ymax >= 1e-3]), np.max(XA[YAs[i]/Ymax >= 1e-3])
+		lims = np.min(XA[YAs[i]/Ymax >= 1e-3]) - x0, np.max(XA[YAs[i]/Ymax >= 1e-3]) - x0
 		if not all(np.isfinite(lims)):
-			lims = XA[0], XA[-1]
+			lims = XA[0] - x0, XA[-1] - x0
 		axes[0].set_xlim(*lims)
 axes[0].set_xlabel(xlabel)
 

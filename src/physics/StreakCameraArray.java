@@ -156,11 +156,12 @@ public class StreakCameraArray implements Detector {
 					}
 				}
 				if (stochastic) {
-					double σ = Math.sqrt(noise(energy, energyBins, timeBins));
 					for (int j = 0; j < timeBins.length - 1; j ++) {
-						if (outSpectrum[i][j] > 0) {
+						double σ = Math.sqrt(
+							  noise(energy, energyBins, timeBins) +
+							  (outSpectrum[i][j] - background(energy, energyBins, timeBins))/gain);
+						if (outSpectrum[i][j] > 0)
 							outSpectrum[i][j] = NumericalMethods.normal(outSpectrum[i][j], σ, RANDOM);
-						}
 					}
 				}
 			}
