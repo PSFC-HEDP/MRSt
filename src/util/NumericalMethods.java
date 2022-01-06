@@ -1554,7 +1554,14 @@ public class NumericalMethods {
 		public Quantity(double value, int n) {
 			this(value, new double[n]);
 		}
-		
+
+		public Quantity(double value, int i, int n) {
+			double[] gradient = new double[n];
+			gradient[i] = 1;
+			this.value = value;
+			this.gradient = new Vector(gradient);
+		}
+
 		public Quantity(double value, double[] gradient) {
 			this(value, new Vector(gradient));
 		}
@@ -1563,7 +1570,7 @@ public class NumericalMethods {
 			this.value = value;
 			this.gradient = gradient;
 		}
-		
+
 		public double variance(double[][] covariance) {
 			if (this.getN() == 0)
 				return 0;

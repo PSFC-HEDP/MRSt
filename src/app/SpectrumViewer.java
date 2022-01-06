@@ -73,7 +73,7 @@ public class SpectrumViewer extends Application {
 	private static final int SPACING_1 = 10;
 	private static final int SPACING_2 = 4;
 
-	private static final String DEFAULT_TRAJECTORY = "failed";
+	private static final String DEFAULT_TRAJECTORY = "og with falling temp";
 	
 	private Spinner<Double> foilDistance;
 	private Spinner<Double> foilWidth;
@@ -158,7 +158,7 @@ public class SpectrumViewer extends Application {
 		leftPane.add(order, 1, row);
 		row ++;
 		
-		leftPane.add(chooseFileWidget("COSY map file:", stage, "MRSt_IRF_FP tilted_final.txt",
+		leftPane.add(chooseFileWidget("COSY map file:", stage, "MRSt_IRF_FP tilted.txt",
 				(file) -> {
 					this.cosyMapping = CSV.readCosyCoefficients(file, order.getValue());
 					this.cosyMapping.setConfig(ION, CENTRAL_E);
@@ -276,8 +276,8 @@ public class SpectrumViewer extends Application {
 						PythonPlot.plotLines(spectrumName,
 								mc.getTimeAxis(), "Time (ns)",
 						 		mc.getNeutronYield(), mc.getNeutronYieldError(), "Yn (10^15/ns)",
-								mc.getIonTemperature(), mc.getIonTemperatureError(), "Ti (keV)"
-//								mc.getArealDensity(), mc.getArealDensityError(), "ρR (g/cm^2)",
+								mc.getIonTemperature(), mc.getIonTemperatureError(), "Ti (keV)",
+								mc.getArealDensity(), mc.getArealDensityError(), "ρR (g/cm^2)"
 						);
 						PythonPlot.compareHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getCorrectedSpectrum(), mc.getFittedSpectrum(),
 								"Time", "Energy (MeV)", "Synthetic deuteron spectrum", "Fitted deuteron spectrum");

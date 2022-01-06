@@ -46,9 +46,28 @@ public class SpectrumGenerator {
 			new double[] {0.026877796, 0.029223872, 0.030997082, 0.033544329, 0.035526223, 0.038301112, 0.040480957, 0.043125867,
 					0.045434499, 0.048972573, 0.05105225, 0, 0}, true); // [1/MeV/(g/cm^2)]
 
+
+	/**
+	 * calculate the energy at which the downscatter spectrum overtakes the primary
+	 * @param Ti the ion temperature (keV)
+	 * @param ρR the areal density (g/cm^2)
+	 * @return the point at which the two components are equal, accurate to 10 keV
+	 */
+	public static double primaryCutoff(double Ti, double ρR) {
+		double[] energy = new double[201];
+		for (int i = 0; i < energy.length; i ++)
+			energy[i] = 12 + 2.*i/(energy.length - 1);
+		double[] total = generateSpectrum(1, Ti, 0, 0, ρR, energy, false);
+		double[] secondary = generateSpectrum(1, Ti, 0, 0, ρR, energy, true);
+		for (int i = 0; i < energy.length - 1; i ++)
+			if (total[i] > 2*secondary[i])
+				return energy[i];
+		throw new RuntimeException("this is a nonphysically hi ρR");
+	}
+
 	/**
 	 * generate a time-averaged spectrum based on some parameters that are taken to be constant.
-	 * @param Yn the total neutron yield [10^15]
+	 * @param Yn the primary neutron yield [10^15]
 	 * @param Ti the ion temperature [keV]
 	 * @param Te the electron temperature [keV]
 	 * @param vi the bulk flow rate parallel to the line of sight [μm/ns]
@@ -63,7 +82,7 @@ public class SpectrumGenerator {
 
 	/**
 	 * generate a time-averaged spectrum based on some parameters that are taken to be constant.
-	 * @param Yn the total neutron yield [10^15]
+	 * @param Yn the primary neutron yield [10^15]
 	 * @param Ti the ion temperature [keV]
 	 * @param Te the electron temperature [keV]
 	 * @param vi the bulk flow rate parallel to the line of sight [μm/ns]
@@ -153,8 +172,8 @@ public class SpectrumGenerator {
 	 * @param spectrum array of the neutron spectrum integrated in time [#/MeV]
 	 * @return spectrum array of the neutron spectrum [#]
 	 */
-	public static double[][]
-	interpretSpectrumFile(double[] times, double[] energies, double[][] spectrum) {
+	public static double[][] interpretSpectrumFile(
+		  double[] times, double[] energies, double[][] spectrum) {
 		for (int i = energies.length-1; i > 0; i --) // start by fixing the energies
 			energies[i] = (energies[i-1] + energies[i])/2;
 		energies[0] = 2*energies[0] - energies[1]; // for the last one, assume equal spacing

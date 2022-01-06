@@ -566,7 +566,7 @@ public class Optimization {
 							}
 							Mk = Mkinv.inv();
 						}
-				
+
 				double[] breakpoints = new double[n]; // STEP 2: find the Cauchy point -- the quadratic minimum in the downhill direction
 				Matrix d = new Matrix(n, 1);
 				for (int i = 0; i < n; i ++) {
@@ -598,7 +598,7 @@ public class Optimization {
 				double d2fdt2 = -θ*dfdt - p.dot(Mk.times(p));
 				assert dfdt < 0 : d;
 				double Δtmin = (d2fdt2 != 0) ? -dfdt/d2fdt2 : Δt;
-				while (Δtmin >= Δt) { // then check all subsequent segments
+				while (Double.isFinite(Δt) && Δtmin >= Δt) { // then check all subsequent segments
 					double xCb = (d.get(b, 0) > 0) ? upper[b] : lower[b];
 					double zb = xCb - xk.get(b, 0);
 					double gb = gk.get(b, 0);
@@ -616,13 +616,20 @@ public class Optimization {
 					b = breakpointOrder.pop();
 					t = breakpoints[b];
 					Δt = t - told;
-					Δtmin = (d2fdt2 != 0) ? -dfdt/d2fdt2 : (dfdt > 0) ? 0 : Δt;
+					if (d2fdt2 != 0)
+						Δtmin = -dfdt/d2fdt2;
+					else if (dfdt > 0)
+						Δtmin = 0;
+					else
+						Δtmin = Δt;
+					assert !Double.isNaN(Δtmin): Δtmin+"\n"+dfdt+"\n"+d2fdt2+"\n"+Δt;
 				}
 				if (Δtmin < 0)
 					Δtmin = 0;
 				else if (Double.isInfinite(Δtmin))
 					Δtmin = 1;
 				double tC = told + Δtmin;
+				assert Double.isFinite(tC): tC+"\n"+told+"\n"+Δtmin+"\n"+Arrays.toString(breakpoints);
 				c = c.plus(p.times(Δtmin));
 				List<Integer> F = new ArrayList<Integer>(breakpointOrder.size()+1);
 				Matrix xC = new Matrix(n, 1);
