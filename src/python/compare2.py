@@ -39,7 +39,7 @@ def update(*args):
 	ax.plot(Y, Z[1][:, j], '--', label=titleB)
 	ax.legend()
 	if np.max([Z[0][:, j], Z[1][:, j]]) > 0:
-		ax.set_yscale('symlog', linthresh=np.max([Z[0][:, j], Z[1][:, j]])/100, linscale=1/np.log(10))
+		ax.set_yscale('symlog', linthresh=max(1, np.max([Z[0][:, j], Z[1][:, j]])/100), linscale=1/np.log(10))
 	ax.set_xlabel(ylabel)
 	ax.set_title("Slice comparison of {} & {}".format(titleA, titleB))
 slider.on_changed(update)

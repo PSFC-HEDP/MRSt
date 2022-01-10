@@ -565,16 +565,16 @@ public class Analysis {
 		logger.info(String.format("Burn skewness (μ3):%s", res[4].toString(covarianceMatrix)));
 		logger.info(String.format("Burn kurtosis (μ4):%s", res[5].toString(covarianceMatrix)));
 		logger.info(String.format("Peak compression:  %s ps + BT", res[6].over(1e-3).toString(covarianceMatrix)));
-		logger.info(String.format("Burn-averaged \u03C1R:  %s g/cm^2", res[7].toString(covarianceMatrix)));
-		logger.info(String.format("\u03C1R at peak:        %s g/cm^2", res[8].toString(covarianceMatrix)));
-		logger.info(String.format("\u03C1R at BT:          %s g/cm^2", res[9].toString(covarianceMatrix)));
-		logger.info(String.format("d\u03C1R/dt at BT:      %s g/cm^2/(100 ps)", res[10].over(1e1).toString(covarianceMatrix)));
-		logger.info(String.format("d^2V/dt^2/V at BT: %s 1/ns^2", res[11].toString(covarianceMatrix)));
-		logger.info(String.format("Burn-averaged Ti:  %s keV", res[12].toString(covarianceMatrix)));
-		logger.info(String.format("Ti at peak:        %s keV", res[13].toString(covarianceMatrix)));
-		logger.info(String.format("Ti at BT:          %s keV", res[14].toString(covarianceMatrix)));
-		logger.info(String.format("dTi/dt at BT:      %s keV/(100 ps)", res[15].over(1e1).toString(covarianceMatrix)));
-		logger.info(String.format("d^2Ti/dt^2 at BT:  %s keV/ns^2", res[16].toString(covarianceMatrix)));
+		logger.info(String.format("Burn-averaged Ti:  %s keV", res[7].toString(covarianceMatrix)));
+		logger.info(String.format("Ti at peak:        %s keV", res[8].toString(covarianceMatrix)));
+		logger.info(String.format("Ti at BT:          %s keV", res[9].toString(covarianceMatrix)));
+		logger.info(String.format("dTi/dt at BT:      %s keV/(100 ps)", res[10].over(1e1).toString(covarianceMatrix)));
+		logger.info(String.format("d^2Ti/dt^2 at BT:  %s keV/ns^2", res[11].toString(covarianceMatrix)));
+		logger.info(String.format("Burn-averaged \u03C1R:  %s g/cm^2", res[12].toString(covarianceMatrix)));
+		logger.info(String.format("\u03C1R at peak:        %s g/cm^2", res[13].toString(covarianceMatrix)));
+		logger.info(String.format("\u03C1R at BT:          %s g/cm^2", res[14].toString(covarianceMatrix)));
+		logger.info(String.format("d\u03C1R/dt at BT:      %s g/cm^2/(100 ps)", res[15].over(1e1).toString(covarianceMatrix)));
+		logger.info(String.format("d^2V/dt^2/V at BT: %s 1/ns^2", res[16].toString(covarianceMatrix)));
 		return res;
 	}
 
@@ -663,15 +663,17 @@ public class Analysis {
 			if (z < 0) totalPenalty += .05*Math.exp(z);
 			else       totalPenalty += .05*(1 + z + z*z/2.); // encourage a monotonically increasing yield before BT
 		}
-//		for (int j = left; j < rite; j ++)
-//			totalPenalty += arealDensity[j]/2.0; // exponential prior on areal density
+		for (int j = left; j < rite; j ++)
+			totalPenalty += arealDensity[j]/5.0; // exponential prior on areal density
+		for (int j = left; j < rite; j ++)
+			totalPenalty += Math.pow((Math.log(ionTemperature[j]) - 0.2)/2.5, 2);
 		for (double[] x: new double[][] {ionTemperature, arealDensity}) {
 			for (int j = left; j < rite - 3; j++) {
 				double Ψpp = (x[j] - 3*x[j + 1] + 3*x[j + 2] - x[j + 3])/
 					  Math.pow(timeStep, 3);
 				double Ψ = (x[j] + x[j + 1] + x[j + 2] + x[j + 3])/4;
 				if (Ψpp != 0)
-					totalPenalty += 1e-12*Math.pow(Ψpp/Ψ, 2); // encourage a smooth Ti and ρR
+					totalPenalty += 1e-10*Math.pow(Ψpp/Ψ, 2); // encourage a smooth Ti and ρR
 			}
 		}
 

@@ -9,7 +9,7 @@ if len(sys.argv) <= 1:
 	os.chdir('../..')
 	print(os.getcwd())
 	# xlabel, ylabels, title, answer, n = 'Time (ns)', 'Yn (10^15/ns)\nTi (keV)\nρR (g/cm^2)', 'data', 'marginal', 3
-	xlabel, ylabels, title, answer, n = 'Time (ns)', 'Yn (10^15/ns)\nTi (keV)', 'data', 'og', 2
+	xlabel, ylabels, title, answer, n = 'Time (ns)', 'Yn (10^15/ns)\nTi (keV)\nρR (g/cm^2)', 'data', 'og with falling temp', 2
 else:
 	xlabel, ylabels, title, answer, n = sys.argv[1:]
 
@@ -30,9 +30,8 @@ if answer != '-':
 		YBs = [data[:,1], data[:,4], data[:,3], np.zeros(XB.shape)] # extract the relevant info from them
 		YBs[0] *= (0.1e6/1e-6)/(1e15*14.1e6*1.6e-19/1e-9)
 
-		while np.sum(YAs[0]*np.gradient(XA)) < np.sum(YBs[0]*(XB[1] - XB[0]))/3:
-			YBs[0] /= 10
-		# YBs[2] *= np.sum(YAs[2]*(XA[1] - XA[0]))/np.sum(YBs[2]*(XB[1] - XB[0])) # normalize the yield curves to account for any magnitude discrepancy
+		# while np.sum(YAs[0]*np.gradient(XA)) < np.sum(YBs[0]*(XB[1] - XB[0]))/3: # normalize the yield curves to account for any magnitude discrepancy
+		# 	YBs[0] /= 10
 
 		x0 = XB[np.argmax(YBs[0])]
 	except IOError:
@@ -54,10 +53,10 @@ for i in range(n):
 		axes[i].spines['right'].set_visible(True)
 
 	rainge = {
-		'Y':(0,None),
-		'T':(0,10),
-		'ρ':(0,1.5),
-		'V':(-100,100),
+		'Y':(0, None),
+		'T':(0, 10),
+		'ρ':(0, 2.0),
+		'V':(-100, 100),
 		'a':(-1, 1)
 	}.get(ylabels[i][0], (None, None))
 	YAs[i][np.isnan(ΔAs[i])] = np.nan
