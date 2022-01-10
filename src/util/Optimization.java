@@ -23,8 +23,6 @@
  */
 package util;
 
-import util.NumericalMethods;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
@@ -413,6 +411,9 @@ public class Optimization {
 			double relTol, double absTol) {
 		if (x0.length != scale.length)
 			throw new IllegalArgumentException("the scale must be the same size as the other dimensional things!");
+		for (double value: scale)
+			if (value == 0 || Double.isInfinite(value))
+				throw new IllegalArgumentException("all scales must be finite scalars, not " + value);
 
 		final double ds = 1e-5;
 		Function<double[], double[]> gradient = (x) -> { // finite difference gradient:
@@ -498,6 +499,9 @@ public class Optimization {
 		for (int i = 0; i < x0.length; i ++)
 			if (lower[i] > x0[i] || x0[i] > upper[i])
 				throw new IllegalArgumentException("Upper bounds must be greater than lower bounds");
+		for (double value: x0)
+			if (Double.isNaN(value))
+				throw new IllegalArgumentException("NaNs are strictly forbidden.");
 		
 		final int mMax = 6;
 		final int n = x0.length;
@@ -706,7 +710,12 @@ public class Optimization {
 						return linGradMat.apply(P(Xk.plus(Dk.times(λ)), lower, upper), Dk);
 					}, 0, fxk, gk.dot(dk), 1, λMax);
 			xk = P(xk.plus(dk.times(λk)), lower, upper);
-			
+			for (int i = 0; i < xk.getN(); i ++) {
+				if (Double.isNaN(xk.get(i, 0))) {
+					throw new IllegalArgumentException("whence did this NaN come from??");
+				}
+			}
+
 			Matrix gkp1 = gradMat.apply(xk);
 			double fxkp1 = funcMat.apply(xk);
 			if (Double.isNaN(fxkp1))

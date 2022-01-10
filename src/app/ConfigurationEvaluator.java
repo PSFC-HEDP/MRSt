@@ -209,6 +209,7 @@ public class ConfigurationEvaluator extends Application {
 								apertureHeight.getValue()*1e-3,
 								cosyMapping,
 								focalPlaneTilt.getValue(),
+								false,
 
 								1,
 								logger); // make the simulation

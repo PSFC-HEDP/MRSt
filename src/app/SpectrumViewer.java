@@ -86,6 +86,7 @@ public class SpectrumViewer extends Application {
 	private ChoiceBox<Integer> order;
 	private Spinner<Double> yieldFactor;
 	private CheckBox errorBars;
+	private CheckBox reuseMatrix;
 	
 	private COSYMapping cosyMapping;
 	private double[] timeBins;
@@ -193,11 +194,15 @@ public class SpectrumViewer extends Application {
 		container.add(yieldFactor, 1, 0);
 		container.add(new Label("%"), 2, 0);
 		rightPane.getChildren().add(container);
-		
+
 		this.errorBars = new CheckBox("Compute error bars");
 		this.errorBars.setSelected(true);
 		rightPane.getChildren().add(errorBars);
-		
+
+		this.reuseMatrix = new CheckBox("Reuse last transfer matrix");
+		this.reuseMatrix.setSelected(false);
+		rightPane.getChildren().add(reuseMatrix);
+
 		Button execute = new Button("Compute!");
 		execute.setOnAction((event) -> {
 			if (cosyMapping == null)
@@ -240,6 +245,7 @@ public class SpectrumViewer extends Application {
 								apertureHeight.getValue()*1e-3,
 								cosyMapping,
 								focalPlaneTilt.getValue(),
+								reuseMatrix.isSelected(),
 								.1,
 								logger); // make the simulation
 

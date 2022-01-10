@@ -60,6 +60,7 @@ public class ConfigurationPlotter {
 							20e-3,
 							mapping,
 							68,
+							false,
 							.1,
 							null); // make the simulation
 					

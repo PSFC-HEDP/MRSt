@@ -99,6 +99,7 @@ public class ConsoleEvaluator {
 							apertureHeight,
 							map,
 							68,
+							false,
 							.1,
 							logger); // make the simulation
 				} catch (Exception e) {
