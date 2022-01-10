@@ -32,7 +32,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 
-import static physics.Analysis.RANDOM;
+import static physics.Analysis.MC_RANDOM;
+import static physics.Analysis.NOISE_RANDOM;
 
 /**
  * A class to handle all of the deuteron physics, from their birth in the foil to
@@ -285,7 +286,7 @@ public class IonOptics {
 		if (stochastic) { // to simulate stochasticity
 			for (int i = 0; i < energyBins.length-1; i ++)
 				for (int j = 0; j < timeBins.length-1; j ++)
-					outSpectrum[i][j] = NumericalMethods.poisson(outSpectrum[i][j], RANDOM); // just jitter every cell
+					outSpectrum[i][j] = NumericalMethods.poisson(outSpectrum[i][j], NOISE_RANDOM); // just jitter every cell
 		}
 
 		return outSpectrum;
@@ -340,8 +341,8 @@ public class IonOptics {
 					double time0 = timeBins[j0]*ns, time1 = timeBins[j0 + 1]*ns; // [s]
 					double weight = this.efficiency((energy0 + energy1)/2)/TRANSFER_MATRIX_TRIES;
 					for (int k = 0; k < TRANSFER_MATRIX_TRIES; k++) {
-						double energyI = energy0 + RANDOM.nextDouble()*(energy1 - energy0); // randomly choose values from the bin [MeV]
-						double timeI = time0 + RANDOM.nextDouble()*(time1 - time0); // [s]
+						double energyI = energy0 + MC_RANDOM.nextDouble()*(energy1 - energy0); // randomly choose values from the bin [MeV]
+						double timeI = time0 + MC_RANDOM.nextDouble()*(time1 - time0); // [s]
 
 						double[] etUncorrected = simulate(energyI, timeI, true);
 						if (!Double.isNaN(etUncorrected[0])) { // sometimes, they won't hit the CsI cathode. That's fine.
@@ -401,9 +402,9 @@ public class IonOptics {
 	 * @return { x, y, z } [m]
 	 */
 	private double[] chooseCollisionPosition() {
-		double xF = foilWidth/2*(2*RANDOM.nextDouble()-1);
-		double yF = foilHeight/2*(2*RANDOM.nextDouble()-1);
-		double zF = foilDistance + foilThickness/2*(2*RANDOM.nextDouble()-1); // assume foil is thin, so every z coordinate is equally likely
+		double xF = foilWidth/2*(2*MC_RANDOM.nextDouble()-1);
+		double yF = foilHeight/2*(2*MC_RANDOM.nextDouble()-1);
+		double zF = foilDistance + foilThickness/2*(2*MC_RANDOM.nextDouble()-1); // assume foil is thin, so every z coordinate is equally likely
 		return new double[] { xF, yF, zF };
 	}
 
@@ -412,8 +413,8 @@ public class IonOptics {
 	 * @return { x, y, z } [m]
 	 */
 	private double[] chooseAperturePosition() {
-		double xA = (2*RANDOM.nextDouble()-1)*apertureWidth/2; // assume aperture is far away, so every point in it is equally likely to be hit
-		double yA = (2*RANDOM.nextDouble()-1)*apertureHeight/2;
+		double xA = (2*MC_RANDOM.nextDouble()-1)*apertureWidth/2; // assume aperture is far away, so every point in it is equally likely to be hit
+		double yA = (2*MC_RANDOM.nextDouble()-1)*apertureHeight/2;
 		double zA = apertureDistance;
 		return new double[] { xA, yA, zA };
 	}

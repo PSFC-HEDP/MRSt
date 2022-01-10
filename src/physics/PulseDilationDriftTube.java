@@ -32,7 +32,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 
-import static physics.Analysis.RANDOM;
+import static physics.Analysis.MC_RANDOM;
+import static physics.Analysis.NOISE_RANDOM;
 
 /**
  * A class to handle the detector modelling
@@ -160,8 +161,8 @@ public class PulseDilationDriftTube implements Detector {
 			for (int i = 0; i < energyBins.length-1; i ++)
 				for (int j = 0; j < timeBins.length-1; j ++)
 					outSpectrum[i][j] = NumericalMethods.erlang(
-							NumericalMethods.poisson(outSpectrum[i][j], RANDOM),
-							averageGain, RANDOM);
+							NumericalMethods.poisson(outSpectrum[i][j], NOISE_RANDOM),
+							averageGain, NOISE_RANDOM);
 		}
 
 		return outSpectrum;
@@ -207,10 +208,10 @@ public class PulseDilationDriftTube implements Detector {
 			responseTimeBins[j] = expectedTime + (j - m + 0.5)*(timeBins[1] - timeBins[0]);
 
 		for (int k = 0; k < NUM_RESPONSE_FUNCTION_TRIES; k ++) {
-			double initialTime = (RANDOM.nextDouble() - 0.5)*(timeBins[1] - timeBins[0]);
+			double initialTime = (MC_RANDOM.nextDouble() - 0.5)*(timeBins[1] - timeBins[0]);
 			double electronEnergy = henkeIDF.evaluate(Math.random()*henkeIDF.maxDatum());
 			double a = bias/meshLength*(-e.charge/e.mass)/2; // [m/s^2]
-			double b = RANDOM.nextDouble()*Math.sqrt(
+			double b = MC_RANDOM.nextDouble()*Math.sqrt(
 					2*electronEnergy*(-e.charge/e.mass)); // [m/s]
 			double c = -meshLength; // [m]
 			double meshTime = (-b + Math.sqrt(b*b - 4*a*c))/(2*a);

@@ -26,7 +26,7 @@ package physics;
 import util.NumericalMethods;
 import util.NumericalMethods.DiscreteFunction;
 
-import static physics.Analysis.RANDOM;
+import static physics.Analysis.NOISE_RANDOM;
 
 
 public class StreakCameraArray implements Detector {
@@ -97,7 +97,7 @@ public class StreakCameraArray implements Detector {
 
 		this.streakSpeed = slitLength/sweepTime; // (m/s in photocathode scale)
 		this.gain = gain;
-		this.backgroundDensity = backgroundDensity*NumericalMethods.gamma(4, 4, RANDOM); // (counts/ns*MeV)
+		this.backgroundDensity = backgroundDensity;//*NumericalMethods.gamma(4, 4, MC_RANDOM); // (counts/ns*MeV)
 		this.noiseDensity = noiseDensity;
 	}
 
@@ -161,7 +161,7 @@ public class StreakCameraArray implements Detector {
 							  noise(energy, energyBins, timeBins) +
 							  (outSpectrum[i][j] - background(energy, energyBins, timeBins))/gain);
 						if (outSpectrum[i][j] > 0)
-							outSpectrum[i][j] = NumericalMethods.normal(outSpectrum[i][j], σ, RANDOM);
+							outSpectrum[i][j] = NumericalMethods.normal(outSpectrum[i][j], σ, NOISE_RANDOM);
 					}
 				}
 			}

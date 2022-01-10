@@ -62,7 +62,8 @@ public class Analysis {
 		}; // the names, units, and order of time-dependent burn parameters
 	public static final String[] HEADERS_WITH_ERRORS = appendErrorsToHeader();
 
-	public static final Random RANDOM = new Random(0);
+	public static final Random MC_RANDOM = new Random(0);
+	public static final Random NOISE_RANDOM = new Random(1);
 
 	public static final double BACKGROUND_REDUCTION_FACTOR = 25;
 
