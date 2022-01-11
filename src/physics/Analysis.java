@@ -62,10 +62,10 @@ public class Analysis {
 		}; // the names, units, and order of time-dependent burn parameters
 	public static final String[] HEADERS_WITH_ERRORS = appendErrorsToHeader();
 
-	public static final Random MC_RANDOM = new Random(0);
-	public static final Random NOISE_RANDOM = new Random(1);
+	public static final Random MC_RANDOM = new Random(1);
+	public static final Random NOISE_RANDOM = new Random(0);
 
-	public static final double BACKGROUND_REDUCTION_FACTOR = 25;
+	public static final double BACKGROUND_REDUCTION_FACTOR = 125;
 
 	private static final double MIN_E = 12, MAX_E = 16; // histogram bounds [MeV]
 	private static final int BUFFER = 4; // empty pixels to include simulate on each side [ns]
@@ -132,15 +132,15 @@ public class Analysis {
 //				ion, SUBSTRATE_THICKNESS, PHOTOCATHODE_THICKNESS,
 //				focalTilt, PDDT_BIAS, MESH_LENGTH, DRIFT_LENGTH,
 //				TIME_DILATION, MCT_POROSITY, MCT_GAIN, 100);
-//		this.detector = new StreakCameraArray(
-//			  2.5e-2, 400e-6,
-//			  (focalTilt == 0) ? 11.5e-9 : 4.5e-9,
-//			  1e4,
-//			  4e+18/Math.pow(BACKGROUND_REDUCTION_FACTOR, 2),
-//			  1.6e+14/BACKGROUND_REDUCTION_FACTOR,
-//			  (focalTilt == 0) ? new double[] {-0.75e-2} : new double[] {-5e-2, 0, 5e-2},
-//			  ionOptics);
-		this.detector = new PerfectDetector();
+		this.detector = new StreakCameraArray(
+			  2.5e-2, 400e-6,
+			  (focalTilt == 0) ? 11.5e-9 : 4.5e-9,
+			  1e4,
+			  4e+18/Math.pow(BACKGROUND_REDUCTION_FACTOR, 2),
+			  1.6e+14/BACKGROUND_REDUCTION_FACTOR,
+			  (focalTilt == 0) ? new double[] {-0.75e-2} : new double[] {-5e-2, 0, 5e-2},
+			  ionOptics);
+//		this.detector = new PerfectDetector();
 
 		this.precision = precision;
 
@@ -347,7 +347,16 @@ public class Analysis {
 
 		final int N = 3;
 
-		for (int k = 0; k < 20; k ++) {
+		boolean stillUsingTheInitialGuess = true;
+
+		double lastValue;
+		double thisValue = logPosterior(
+			  spectrum, neutronYield,
+			  ionTemperature, electronTemperature,
+			  bulkFlowVelocity, arealDensity,
+			  left, rite, false, 0);
+
+		do {
 			final double[] neutronYieldInitialGess = neutronYield;
 			final double[] ionTemperatureInitialGess = ionTemperature;
 			final double[] arealDensityInitialGess = arealDensity;
@@ -363,6 +372,7 @@ public class Analysis {
 				upperBound[j] = Double.POSITIVE_INFINITY;
 			}
 
+			final boolean ignoreSpectralDistribution = stillUsingTheInitialGuess;
 			final double[] neutronYieldNewGess = optimize(
 				  (double[] x) -> logPosterior(
 				  	  spectrum,
@@ -371,12 +381,10 @@ public class Analysis {
 					  electronTemperature,
 					  bulkFlowVelocity,
 					  arealDensityInitialGess,
-					  left, rite,
-					  true,
-					  0),
+					  left, rite, ignoreSpectralDistribution, 0),
 				  neutronYieldInitialGess,
 				  scale, lowerBound, upperBound,
-				  precision, active);
+				  1.0, active);
 
 			logger.log(Level.FINE, "Fitting ion temperature...");
 
@@ -391,12 +399,10 @@ public class Analysis {
 					  electronTemperature,
 					  bulkFlowVelocity,
 					  arealDensityInitialGess,
-					  left, rite,
-					  false,
-					  0),
+					  left, rite, false, 0),
 				  ionTemperatureInitialGess,
 				  scale, lowerBound, upperBound,
-				  precision, active);
+				  1.0, active);
 
 			logger.log(Level.FINE, "Fitting ρR trajectory...");
 
@@ -411,17 +417,23 @@ public class Analysis {
 					  electronTemperature,
 					  bulkFlowVelocity,
 					  x,
-					  left, rite,
-					  false,
-					  0),
+					  left, rite, false, 0),
 				  arealDensityInitialGess,
 				  scale, lowerBound, upperBound,
-				  precision, active);
+				  1.0, active);
 
 			neutronYield = neutronYieldNewGess;
 			ionTemperature = ionTemperatureNewGess;
 			arealDensity = arealDensityNewGess;
-		}
+
+			stillUsingTheInitialGuess = false;
+			lastValue = thisValue;
+			thisValue = logPosterior(
+				  spectrum, neutronYield,
+				  ionTemperature, electronTemperature,
+				  bulkFlowVelocity, arealDensity,
+				  left, rite, false, 0);
+		} while (lastValue - thisValue > this.precision);
 
 		this.neutronYield = new Quantity[timeAxis.length];
 		this.ionTemperature = new Quantity[timeAxis.length];
