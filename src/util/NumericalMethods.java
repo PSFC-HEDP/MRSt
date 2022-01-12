@@ -26,6 +26,7 @@ package util;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.Random;
+import java.util.function.Function;
 
 /**
  * a file with some useful numerical analysis stuff.
@@ -1058,8 +1059,8 @@ public class NumericalMethods {
 	 * elements if they don't.
 	 */
 	public static void coercePositiveSemidefinite(double[][] A) {
-		for (int i = 0; i < A.length; i ++) {
-			if (A[i].length != A.length)
+		for (double[] row: A) {
+			if (row.length != A.length)
 				throw new IllegalArgumentException("this method only works with square matrices.");
 //			for (int j = 0; j < A[i].length; j ++)
 //				if (Double.isFinite(A[i][j]) && A[i][j] != A[j][i])
@@ -1188,7 +1189,6 @@ public class NumericalMethods {
 	 * a poor person's pseudoinverse. It's like a regular inverse, but if a particular diagonal
 	 * value is zero, then it removes that dimension before inverting, and then puts NaNs back
 	 * in where they were.
-	 * @param arr
 	 */
 	public static double[][] pseudoinv(double[][] arr) {
 		int n = 0;
@@ -1309,6 +1309,65 @@ public class NumericalMethods {
 			return ((((12155*z*z - 25740)*z*z + 18018)*z*z - 4620)*z*z + 315)*z/128.;
 		else
 			throw new IllegalArgumentException("I don't know Legendre polynomials that high.");
+	}
+
+	/**
+	 * calculate the hessian matrix of a function using finite differences
+	 * @param function the function to differentiate
+	 * @param x0 the point at which to differentiate
+	 * @param dx the step size of each dimension
+	 * @return the symmetrick hessian matrix
+	 */
+	public static double[][] hessian(Function<double[], Double> function,
+									 double[] x0, double[] dx) {
+		if (x0.length != dx.length)
+			throw new IllegalArgumentException("these arrays are supposed to have the same length.");
+
+		double c = function.apply(x0); // start by getting the actual value
+		assert Double.isFinite(c);
+
+		double[] step = new double[x0.length]; // and the values in all basis directions
+		for (int i = 0; i < step.length; i ++) {
+			double[] xR = Arrays.copyOf(x0, x0.length);
+			xR[i] += dx[i];
+			step[i] = function.apply(xR);
+			assert Double.isFinite(step[i]);
+		}
+
+		double[][] hessian = new double[x0.length][x0.length]; // then go for the second derivatives
+		for (int i = 0; i < hessian.length; i ++) {
+			double r = step[i];
+			double[] xL = Arrays.copyOf(x0, x0.length);
+			xL[i] += -dx[i];
+			double l = function.apply(xL);
+			if (Double.isFinite(l)) {
+//				System.out.println(i+": [");
+//				for (double x = -dx[i]; x <= dx[i]; x += dx[i]/16) {
+//					double[] xTest = Arrays.copyOf(x0, x0.length);
+//					xTest[i] = x0[i] + x;
+//					System.out.printf("[%.15g, %.14g],\n", x, function.apply(xTest));
+//				}
+//				System.out.println("]");
+				hessian[i][i] = (r - 2*c + l)/(dx[i]*dx[i]); // approximate it as paraboloidic
+				for (int j = 0; j < x0.length; j ++) { // and get some diagonal terms
+					if (j != i) {
+						double u = step[j];
+						double[] xUR = Arrays.copyOf(x0, x0.length);
+						xUR[i] += dx[i];
+						xUR[j] += dx[j];
+						double ur = function.apply(xUR);
+						hessian[i][j] = hessian[j][i] = (ur - u - r + c)/(dx[i]*dx[j]);
+					}
+				}
+			}
+			else { // if we are at a bound
+				hessian[i][i] = Math.pow((r - c)/dx[i], 2); // approximate this exponential-ish distribution as gaussian
+				for (int j = 0; j < i; j ++)
+					hessian[i][j] = hessian[j][i] = 0; // and reset any diagonal terms that previously involved this
+			}
+		}
+
+		return hessian;
 	}
 
 	/**
@@ -1742,19 +1801,23 @@ public class NumericalMethods {
 	
 	
 	public static void main(String[] args) {
-		double[][] cov = {{1, 0}, {0, 1}};
-		Quantity x = new Quantity(5, new double[] {1, 0});
-		Quantity y = new Quantity(12, new double[] {0, 1});
-		System.out.println(x.toString(cov));
-		System.out.println(y.toString(cov));
-		System.out.println(x.plus(y).toString(cov));
-		System.out.println(x.minus(y).toString(cov));
-		System.out.println(x.times(y).toString(cov));
-		System.out.println(x.over(y).toString(cov));
-		System.out.println(x.mod(4).toString(cov));
-//		double[] x = {0, 1, 2, 3, 4, 5, 6};
-//		double[] pdf = {5, 3, 5, 8, 1, 0};
-//		for (int i = 0; i < 100000; i ++)
-//			System.out.printf("%.6f,\n", gamma(7.5, .06, new Random()));
+//		double[][] cov = {{1, 0}, {0, 1}};
+//		Quantity x = new Quantity(5, new double[] {1, 0});
+//		Quantity y = new Quantity(12, new double[] {0, 1});
+//		System.out.println(x.toString(cov));
+//		System.out.println(y.toString(cov));
+//		System.out.println(x.plus(y).toString(cov));
+//		System.out.println(x.minus(y).toString(cov));
+//		System.out.println(x.times(y).toString(cov));
+//		System.out.println(x.over(y).toString(cov));
+//		System.out.println(x.mod(4).toString(cov));
+////		double[] x = {0, 1, 2, 3, 4, 5, 6};
+////		double[] pdf = {5, 3, 5, 8, 1, 0};
+////		for (int i = 0; i < 100000; i ++)
+////			System.out.printf("%.6f,\n", gamma(7.5, .06, new Random()));
+		Function<double[], Double> f = (double[] x) -> x[0]*x[0] - 3*x[1]*x[0] + 7*x[1]*x[1] + Math.exp(x[0] - 10);
+		double[] x0 = {10, 0};
+		double[] dx = {1e-3, 1e-3};
+		System.out.println(Arrays.deepToString(hessian(f, x0, dx)));
 	}
 }

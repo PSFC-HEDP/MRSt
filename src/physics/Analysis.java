@@ -346,6 +346,20 @@ public class Analysis {
 			active[j] = j >= left && j < rite;
 
 		final int N = 3;
+		final int M = timeAxis.length;
+
+		double[] yieldScale = new double[M];
+		double[] temperatureScale = new double[M];
+		double[] densityScale = new double[M];
+		double[] lowerBound = new double[M];
+		double[] upperBound = new double[M];
+		for (int j = 0; j < M; j++) {
+			yieldScale[j] = NumericalMethods.max(neutronYield)/6.;
+			temperatureScale[j] = 10;
+			densityScale[j] = 1;
+			lowerBound[j] = 0;
+			upperBound[j] = Double.POSITIVE_INFINITY;
+		}
 
 		boolean stillUsingTheInitialGuess = true;
 
@@ -363,15 +377,6 @@ public class Analysis {
 
 			logger.log(Level.FINE, "Fitting burn history...");
 
-			double[] scale = new double[timeAxis.length];
-			double[] lowerBound = new double[timeAxis.length];
-			double[] upperBound = new double[timeAxis.length];
-			for (int j = 0; j < timeAxis.length; j++) {
-				scale[j] = NumericalMethods.max(neutronYield)/6.;
-				lowerBound[j] = 0;
-				upperBound[j] = Double.POSITIVE_INFINITY;
-			}
-
 			final boolean ignoreSpectralDistribution = stillUsingTheInitialGuess;
 			final double[] neutronYieldNewGess = optimize(
 				  (double[] x) -> logPosterior(
@@ -383,13 +388,10 @@ public class Analysis {
 					  arealDensityInitialGess,
 					  left, rite, ignoreSpectralDistribution, 0),
 				  neutronYieldInitialGess,
-				  scale, lowerBound, upperBound,
+				  yieldScale, lowerBound, upperBound,
 				  1.0, active);
 
 			logger.log(Level.FINE, "Fitting ion temperature...");
-
-			for (int j = 0; j < timeAxis.length; j++)
-				scale[j] = 10;
 
 			final double[] ionTemperatureNewGess = optimize(
 				  (double[] x) -> logPosterior(
@@ -401,13 +403,10 @@ public class Analysis {
 					  arealDensityInitialGess,
 					  left, rite, false, 0),
 				  ionTemperatureInitialGess,
-				  scale, lowerBound, upperBound,
+				  temperatureScale, lowerBound, upperBound,
 				  1.0, active);
 
 			logger.log(Level.FINE, "Fitting ρR trajectory...");
-
-			for (int j = 0; j < timeAxis.length; j++)
-				scale[j] = 1;
 
 			final double[] arealDensityNewGess = optimize(
 				  (double[] x) -> logPosterior(
@@ -419,7 +418,7 @@ public class Analysis {
 					  x,
 					  left, rite, false, 0),
 				  arealDensityInitialGess,
-				  scale, lowerBound, upperBound,
+				  densityScale, lowerBound, upperBound,
 				  1.0, active);
 
 			neutronYield = neutronYieldNewGess;
@@ -435,16 +434,16 @@ public class Analysis {
 				  left, rite, false, 0);
 		} while (lastValue - thisValue > this.precision);
 
-		this.neutronYield = new Quantity[timeAxis.length];
-		this.ionTemperature = new Quantity[timeAxis.length];
-		this.arealDensity = new Quantity[timeAxis.length];
-		for (int j = 0; j < timeAxis.length; j++) {
+		this.neutronYield = new Quantity[M];
+		this.ionTemperature = new Quantity[M];
+		this.arealDensity = new Quantity[M];
+		for (int j = 0; j < M; j ++) {
 			this.neutronYield[j] = new Quantity(
-				  neutronYield[j], N*j, N*timeAxis.length);
+				  neutronYield[j], j, N*M);
 			this.ionTemperature[j] = new Quantity(
-				  ionTemperature[j], N*j + 1, N*timeAxis.length);
+				  ionTemperature[j], M+j, N*M);
 			this.arealDensity[j] = new Quantity(
-				  arealDensity[j], N*j + 2, N*timeAxis.length);
+				  arealDensity[j], 2*M+j, N*M);
 		}
 
 		this.fitNeutronSpectrum = SpectrumGenerator.generateSpectrum( // and then interpret it
@@ -458,65 +457,22 @@ public class Analysis {
 
 		if (errorMode == ErrorMode.HESSIAN) {
 			logger.log(Level.INFO, "calculating error bars.");
-			final double[] neutronYieldFinal = neutronYield;
-			final double[] ionTemperatureFinal = ionTemperature;
-			final double[] arealDensityFinal = arealDensity;
-			Function<double[], Double> objectiveFunction = (double[] turbation) -> {
-				double[] turbedYield = Arrays.copyOf(neutronYieldFinal, timeAxis.length);
-				double[] turbedTemp = Arrays.copyOf(ionTemperatureFinal, timeAxis.length);
-				double[] turbedDensity = Arrays.copyOf(arealDensityFinal, timeAxis.length);
-				for (int j = 0; j < timeAxis.length; j ++) {
-					turbedYield[j] += turbation[N*j];
-					turbedTemp[j] += turbation[N*j + 1];
-					turbedDensity[j] += turbation[N*j + 2];
-				}
-				return this.logPosterior(spectrum, turbedYield,
-										 turbedTemp, electronTemperature,
-										 bulkFlowVelocity, turbedDensity,
-										 left, rite, false, 0);
-			};
-			double[] x = new double[N*timeAxis.length];
-			double[] dx = new double[N*timeAxis.length];
-			for (int j = 0; j < timeAxis.length; j ++) {
-				dx[N*j] = NumericalMethods.max(neutronYield)*1e-4;
-				dx[N*j + 1] = 1e-4;
-				dx[N*j + 2] = 1e-4;
+			double[] x0 = new double[N*M], dx = new double[N*M];
+			for (int j = 0; j < M; j ++) {
+				x0[    j] = neutronYield[j];
+				dx[    j] = NumericalMethods.max(neutronYield)*1e-4;
+				x0[  M+j] = ionTemperature[j];
+				dx[  M+j] = 1e-4;
+				x0[2*M+j] = arealDensity[j];
+				dx[2*M+j] = 1e-4;
 			}
-			double c = objectiveFunction.apply(x); // start by getting the actual value
-			double[] step = new double[x.length]; // and the values in all basis directions
-			for (int i = 0; i < step.length; i ++) {
-				x[i] = dx[i];
-				step[i] = objectiveFunction.apply(x);
-				x[i] = 0;
-			}
-			double[][] hessian = new double[x.length][x.length]; // then go for the second derivatives
-			for (int i = 0; i < hessian.length; i ++) { // TODO: move this into a separate funccion
-				double r = step[i];
-				x[i] = dx[i];
-				double l = objectiveFunction.apply(x);
-				x[i] = 0;
-				if (Double.isInfinite(l)) { // if we are at a bound
-					hessian[i][i] = Math.pow((r - c)/dx[i], 2); // approximate this exponential-ish distribution as gaussian
-					for (int j = 0; j < i; j ++)
-						hessian[i][j] = hessian[j][i] = 0; // and reset any diagonal terms that previously involved this
-				}
-				else {
-					hessian[i][i] = (r - 2*c + l)/(dx[i]*dx[i]); // otherwise approximate it as gaussian
-					for (int j = 0; j < x.length; j ++) { // and get some diagonal terms
-						double u = step[j];
-						x[j] += dx[j];
-						x[i] += dx[i];
-						double ur = objectiveFunction.apply(x);
-						x[i] = 0;
-						x[j] = 0;
-						hessian[i][j] = hessian[j][i] = (ur - u - r + c)/(dx[i]*dx[j]);
-					}
-				}
-			}
-			for (int i = 0; i < hessian.length; i ++) {
-				if (hessian[i][i] < 0)
-					hessian[i][i] = Double.NaN;
-			}
+			double[][] hessian = NumericalMethods.hessian((double[] x) -> {
+				assert x.length == N*M;
+				double[] input0 = Arrays.copyOfRange(x, 0, 1*M);
+				double[] input1 = Arrays.copyOfRange(x, 1*M, 2*M);
+				double[] input2 = Arrays.copyOfRange(x, 2*M, 3*M);
+				return this.logPosterior(spectrum, input0, input1, electronTemperature, bulkFlowVelocity, input2, left, rite, false, 0);
+			}, x0, dx);
 			NumericalMethods.coercePositiveSemidefinite(hessian);
 			covarianceMatrix = NumericalMethods.pseudoinv(hessian);
 			for (int i = 0; i < hessian.length; i ++) {
@@ -527,24 +483,24 @@ public class Analysis {
 			NumericalMethods.coercePositiveSemidefinite(covarianceMatrix);
 		}
 		else if (errorMode == ErrorMode.STATISTICS) {
-			covarianceMatrix = new double[N*timeAxis.length][N*timeAxis.length];
+			covarianceMatrix = new double[N*M][N*M];
 			for (int j = 0; j < rite - left; j ++) {
 				double statistics = 1 + neutronYield[j]*timeStep*1e15*this.gain(); // total deuteron yield from this neutron time bin
 				double dsStatistics = 1 + neutronYield[j]*timeStep*1e15*this.gain()*arealDensity[j]/21.;
-				covarianceMatrix[N*j+0][N*j+0] = Math.pow(neutronYield[j], 2)/statistics;
-				covarianceMatrix[N*j+1][N*j+1] = Math.pow(ionTemperature[j], 2)*2/(statistics - 1);
-				covarianceMatrix[N*j+2][N*j+2] = Math.pow(arealDensity[j], 2)/dsStatistics;
+				covarianceMatrix[    j][    j] = Math.pow(neutronYield[j], 2)/statistics;
+				covarianceMatrix[  M+j][  M+j] = Math.pow(ionTemperature[j], 2)*2/(statistics - 1);
+				covarianceMatrix[2*M+j][2*M+j] = Math.pow(arealDensity[j], 2)/dsStatistics;
 			}
 		}
 		else {
-			covarianceMatrix = new double[N*timeAxis.length][N*timeAxis.length];
+			covarianceMatrix = new double[N*M][N*M];
 		}
 		
 		long endTime = System.currentTimeMillis();
 		logger.info(String.format(Locale.US, "completed in %.2f minutes.",
 				(endTime - startTime)/60000.));
 		
-		Quantity[] V = new Quantity[timeAxis.length]; // this is not really volume; it is (ρR)^(-2/3)
+		Quantity[] V = new Quantity[M]; // this is not really volume; it is (ρR)^(-2/3)
 		for (int j = 0; j < V.length; j ++)
 			V[j] = this.arealDensity[j].pow(-1.5);
 		
