@@ -603,6 +603,10 @@ public class Optimization {
 				assert dfdt < 0 : d;
 				double Δtmin = (d2fdt2 != 0) ? -dfdt/d2fdt2 : Δt;
 				while (Double.isFinite(Δt) && Δtmin >= Δt) { // then check all subsequent segments
+					if (breakpointOrder.size() == 0) {
+						Δtmin = Δt;
+						break;
+					}
 					double xCb = (d.get(b, 0) > 0) ? upper[b] : lower[b];
 					double zb = xCb - xk.get(b, 0);
 					double gb = gk.get(b, 0);
@@ -613,7 +617,7 @@ public class Optimization {
 					d2fdt2 = d2fdt2 - θ*gb*gb - 2*gb*wb.dot(Mk.times(p)) - gb*gb*wb.dot(Mk.times(wb));
 					if (d2fdt2 < 0) {
 						System.err.println("WARN: encountered a concave-down line search");
-						d2fdt2 *= -1;
+						d2fdt2 = 0;
 					}
 					p = p.plus(wb.times(gb));
 					told = t;

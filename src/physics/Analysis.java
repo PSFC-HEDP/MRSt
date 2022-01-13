@@ -65,7 +65,7 @@ public class Analysis {
 	public static final Random MC_RANDOM = new Random(1);
 	public static final Random NOISE_RANDOM = new Random(0);
 
-	public static final double BACKGROUND_REDUCTION_FACTOR = 125;
+	public static final double BACKGROUND_REDUCTION_FACTOR = 200;
 
 	private static final double MIN_E = 12, MAX_E = 16; // histogram bounds [MeV]
 	private static final int BUFFER = 4; // empty pixels to include simulate on each side [ns]
@@ -307,6 +307,11 @@ public class Analysis {
 
 		logger.info("beginning fit process.");
 		long startTime = System.currentTimeMillis();
+
+		for (int i = 0; i < spectrum.length; i ++)
+			for (double value: spectrum[i])
+				if (Double.isNaN(value))
+					throw new IllegalArgumentException("well fuck you too");
 
 		// start with the simplest possible reconstruction
 		double[][] gelf = new double[spectrum.length][spectrum[0].length];

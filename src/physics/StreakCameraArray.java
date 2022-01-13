@@ -131,15 +131,20 @@ public class StreakCameraArray implements Detector {
 	@Override
 	public double[][] response(double[] energyBins, double[] timeBins,
 							   double[][] inSpectrum, boolean stochastic) {
+		for (double[] row : inSpectrum)
+			for (double val: row)
+				if (Double.isNaN(val))
+					throw new IllegalArgumentException("this can't be nan.");
+
 		double timeWidth = slitWidth/streakSpeed/1e-9; // (ns)
 		double timeStep = timeBins[1] - timeBins[0]; // (ns)
-		int kernelSize = 2 + (int)Math.ceil(timeWidth/timeStep);
+		int kernelSize = (int)Math.ceil(timeWidth/timeStep);
 		if (kernelSize%2 != 1)
 			kernelSize += 1;
 		double[] timeResponse = new double[kernelSize]; // bild the time response funccion kernel
 		for (int i = 1; i < kernelSize - 1; i ++)
 			timeResponse[i] = timeStep/timeWidth;
-		timeResponse[0] = timeResponse[kernelSize-1] = (timeWidth - (kernelSize - 2)*timeStep)/timeWidth/2;
+		timeResponse[0] = timeResponse[kernelSize-1] = (1 - (kernelSize - 2)*timeStep/timeWidth)/2;
 
 		double[][] outSpectrum = new double[energyBins.length-1][timeBins.length-1];
 		for (int i = 0; i < energyBins.length-1; i ++) {
@@ -157,9 +162,7 @@ public class StreakCameraArray implements Detector {
 				}
 				if (stochastic) {
 					for (int j = 0; j < timeBins.length - 1; j ++) {
-						double σ = Math.sqrt(
-							  noise(energy, energyBins, timeBins) +
-							  (outSpectrum[i][j] - background(energy, energyBins, timeBins))/gain);
+						double σ = Math.sqrt(noise(energy, energyBins, timeBins));
 						if (outSpectrum[i][j] > 0)
 							outSpectrum[i][j] = NumericalMethods.normal(outSpectrum[i][j], σ, NOISE_RANDOM);
 					}

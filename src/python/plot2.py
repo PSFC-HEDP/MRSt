@@ -20,7 +20,7 @@ if 'euteron' in title:
 
 print(Z)
 
-plt.pcolormesh(X, Y, Z, cmap='plasma')#, norm=matplotlib.colors.SymLogNorm(vmin=0, vmax=Z.max(), linthresh=max(1, Z.max()/1e4), linscale=1/np.log(10)))
+plt.pcolormesh(X, Y, Z, cmap='plasma', norm=matplotlib.colors.SymLogNorm(vmin=0, vmax=Z.max(), linthresh=max(1, Z.max()/1e4), linscale=1/np.log(10)))
 plt.xlabel(xlabel, fontsize=18)
 plt.ylabel(ylabel, fontsize=18)
 plt.gca().xaxis.set_tick_params(labelsize=18)

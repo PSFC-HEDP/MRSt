@@ -1341,13 +1341,6 @@ public class NumericalMethods {
 			xL[i] += -dx[i];
 			double l = function.apply(xL);
 			if (Double.isFinite(l)) {
-//				System.out.println(i+": [");
-//				for (double x = -dx[i]; x <= dx[i]; x += dx[i]/16) {
-//					double[] xTest = Arrays.copyOf(x0, x0.length);
-//					xTest[i] = x0[i] + x;
-//					System.out.printf("[%.15g, %.14g],\n", x, function.apply(xTest));
-//				}
-//				System.out.println("]");
 				hessian[i][i] = (r - 2*c + l)/(dx[i]*dx[i]); // approximate it as paraboloidic
 				for (int j = 0; j < x0.length; j ++) { // and get some diagonal terms
 					if (j != i) {
