@@ -72,7 +72,7 @@ public class ConfigurationEvaluator extends Application {
 	private static final int SPACING_1 = 10;
 	private static final int SPACING_2 = 4;
 	
-	private static final int NUM_YIELDS = 1000;
+	private static final int NUM_YIELDS = 18;
 	
 	
 	private Spinner<Double> foilDistance;
@@ -163,7 +163,7 @@ public class ConfigurationEvaluator extends Application {
 		leftPane.add(order, 1, row);
 		row ++;
 		
-		leftPane.add(chooseFileWidget("COSY map file:", stage, "MRSt_IRF_FP tilted_final.txt",
+		leftPane.add(chooseFileWidget("COSY map file:", stage, "MRSt_IRF_FP tilted.txt",
 				(file) -> {
 					this.cosyMapping = CSV.readCosyCoefficients(file, order.getValue());
 					this.cosyMapping.setConfig(ION, 12.45);
@@ -222,9 +222,9 @@ public class ConfigurationEvaluator extends Application {
 						double[] eBins = null, tBins = null;
 						double[][] spec = null;
 						try {
-							eBins = CSV.readColumn(new File("data/energy.txt"));
-							tBins = CSV.readColumn(new File("data/time og with falling temp.txt"));
-							spec = CSV.read(new File("data/spectrum og with falling temp.txt"), '\t');
+							eBins = CSV.readColumn(new File("input/energy.txt"));
+							tBins = CSV.readColumn(new File("input/time og with falling temp.txt"));
+							spec = CSV.read(new File("input/spectrum og with falling temp.txt"), '\t');
 							if (spec.length != eBins.length-1 || spec[0].length != tBins.length-1) {
 								logger.info("interpreting a weird spectrum file...");
 								spec = SpectrumGenerator.interpretSpectrumFile(tBins, eBins, spec);
@@ -268,12 +268,12 @@ public class ConfigurationEvaluator extends Application {
 						
 						if (k%6 == 5 || k == NUM_YIELDS - 1) {
 							try {
-								CSV.write(results, new File("working/"+saveFile.getText()), ',',
+								CSV.write(results, new File("output/"+saveFile.getText()), ',',
 								          Analysis.HEADERS_WITH_ERRORS);
 							} catch (IOException e) {
 								logger.log(Level.SEVERE, e.getMessage(), e);
 							}
-							logger.info("Saved ensemble results to working/"+saveFile.getText());
+							logger.info("Saved ensemble results to output/"+saveFile.getText());
 						}
 					}
 					try {
@@ -332,7 +332,7 @@ public class ConfigurationEvaluator extends Application {
 		Button button = new Button("Chose file…");
 		FileChooser fileChooser = new FileChooser();
 		fileChooser.setTitle("Load "+title);
-		fileChooser.setInitialDirectory(new File("data/"));
+		fileChooser.setInitialDirectory(new File("input/"));
 		fileChooser.getExtensionFilters().addAll(
 				new FileChooser.ExtensionFilter("Data files", "*.csv", "*.tsv", "*.txt"),
 				new FileChooser.ExtensionFilter("All files", "*.*"));
@@ -356,7 +356,7 @@ public class ConfigurationEvaluator extends Application {
 		output.setAlignment(Pos.CENTER_LEFT);
 		label.setText(initialFilename);
 		try {
-			action.process(new File("data/"+initialFilename));
+			action.process(new File("input/"+initialFilename));
 		} catch (IOException e) {
 			label.setText("No file chosen");
 		} catch (Exception e) {
