@@ -738,10 +738,10 @@ public class NumericalMethods {
 	 * @return x[i], more or less
 	 */
 	public static Quantity interp(double[] x, Quantity i) {
-		if (i.value < 0 || i.value > x.length-1)
-			throw new IndexOutOfBoundsException("Even partial indices have limits: "+i);
-		int i0 = Math.max(0, Math.min(x.length-2, (int) i.value));
-		return i.minus(i0).times(x[i0+1]).minus(i.minus(i0+1).times(x[i0]));
+		Quantity[] xQ = new Quantity[x.length];
+		for (int j = 0; j < x.length; j ++)
+			xQ[j] = new Quantity(x[j], i.getN());
+		return interp(xQ, i);
 	}
 	
 	/**
@@ -755,6 +755,20 @@ public class NumericalMethods {
 			throw new IndexOutOfBoundsException("Even partial indices have limits: "+i);
 		int i0 = Math.max(0, Math.min(x.length-2, (int) i.value));
 		return i.minus(i0).times(x[i0+1]).minus(i.minus(i0+1).times(x[i0]));
+	}
+
+	/**
+	 * interpolate the value onto the given array.
+	 * @param x0 the desired coordinate
+	 * @param x the array of coordinates (must be unimodally increasing)
+	 * @param y the array of values
+	 * @return y(x0), more or less
+	 */
+	public static double interp(double x0, double[] x, double[] y) {
+		Quantity[] yQ = new Quantity[y.length];
+		for (int j = 0; j < y.length; j ++)
+			yQ[j] = new Quantity(y[j], 0);
+		return interp(new Quantity(x0, 0), x, yQ).value;
 	}
 	
 	/**

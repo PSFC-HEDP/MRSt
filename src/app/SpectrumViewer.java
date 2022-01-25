@@ -246,7 +246,7 @@ public class SpectrumViewer extends Application {
 								cosyMapping,
 								focalPlaneTilt.getValue(),
 								reuseMatrix.isSelected(),
-								.1,
+								.001,
 								logger); // make the simulation
 
 						double dispersion = mc.computeDispersion();

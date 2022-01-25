@@ -65,8 +65,6 @@ public class Analysis {
 	public static final Random MC_RANDOM = new Random(1);
 	public static final Random NOISE_RANDOM = new Random(0);
 
-	public static final double BACKGROUND_REDUCTION_FACTOR = 200;
-
 	private static final double MIN_E = 12, MAX_E = 16; // histogram bounds [MeV]
 	private static final int BUFFER = 4; // empty pixels to include simulate on each side [ns]
 	private static final double E_BIN = .05, T_BIN = 30e-3; // bin sizes [MeV], [ns]
@@ -135,9 +133,9 @@ public class Analysis {
 		this.detector = new StreakCameraArray(
 			  2.5e-2, 400e-6,
 			  (focalTilt == 0) ? 11.5e-9 : 4.5e-9,
-			  1e4,
-			  4e+18/Math.pow(BACKGROUND_REDUCTION_FACTOR, 2),
-			  1.6e+14/BACKGROUND_REDUCTION_FACTOR,
+			  2.4/Math.cos(Math.toRadians(focalTilt)) * 51,
+			  81/(25e-6*25e-6),
+			  81/(25e-6*25e-6),
 			  (focalTilt == 0) ? new double[] {-0.75e-2} : new double[] {-5e-2, 0, 5e-2},
 			  ionOptics);
 //		this.detector = new PerfectDetector();
@@ -308,8 +306,8 @@ public class Analysis {
 		logger.info("beginning fit process.");
 		long startTime = System.currentTimeMillis();
 
-		for (int i = 0; i < spectrum.length; i ++)
-			for (double value: spectrum[i])
+		for (double[] doubles: spectrum)
+			for (double value: doubles)
 				if (Double.isNaN(value))
 					throw new IllegalArgumentException("well fuck you too");
 
@@ -368,87 +366,130 @@ public class Analysis {
 
 		boolean stillUsingTheInitialGuess = true;
 
-		double lastValue;
-		double thisValue = logPosterior(
-			  spectrum, neutronYield,
-			  ionTemperature, electronTemperature,
-			  bulkFlowVelocity, arealDensity,
-			  left, rite, false, 0);
+//		for (double smoothing = 1e4; smoothing > .9; smoothing /= 10) {
+			final double finalSmoothing = 1;//smoothing;
 
-		do {
-			final double[] neutronYieldInitialGess = neutronYield;
-			final double[] ionTemperatureInitialGess = ionTemperature;
-			final double[] arealDensityInitialGess = arealDensity;
-
-			logger.log(Level.FINE, "Fitting burn history...");
-
-			final boolean ignoreSpectralDistribution = stillUsingTheInitialGuess;
-			final double[] neutronYieldNewGess = optimize(
-				  (double[] x) -> logPosterior(
-				  	  spectrum,
-					  x,
-					  ionTemperatureInitialGess,
-					  electronTemperature,
-					  bulkFlowVelocity,
-					  arealDensityInitialGess,
-					  left, rite, ignoreSpectralDistribution, 0),
-				  neutronYieldInitialGess,
-				  yieldScale, lowerBound, upperBound,
-				  1.0, active);
-
-			logger.log(Level.FINE, "Fitting ion temperature...");
-
-			final double[] ionTemperatureNewGess = optimize(
-				  (double[] x) -> logPosterior(
-				  	  spectrum,
-					  neutronYieldNewGess,
-					  x,
-					  electronTemperature,
-					  bulkFlowVelocity,
-					  arealDensityInitialGess,
-					  left, rite, false, 0),
-				  ionTemperatureInitialGess,
-				  temperatureScale, lowerBound, upperBound,
-				  1.0, active);
-
-			logger.log(Level.FINE, "Fitting ρR trajectory...");
-
-			final double[] arealDensityNewGess = optimize(
-				  (double[] x) -> logPosterior(
-				  	  spectrum,
-					  neutronYieldNewGess,
-					  ionTemperatureNewGess,
-					  electronTemperature,
-					  bulkFlowVelocity,
-					  x,
-					  left, rite, false, 0),
-				  arealDensityInitialGess,
-				  densityScale, lowerBound, upperBound,
-				  1.0, active);
-
-			neutronYield = neutronYieldNewGess;
-			ionTemperature = ionTemperatureNewGess;
-			arealDensity = arealDensityNewGess;
-
-			stillUsingTheInitialGuess = false;
-			lastValue = thisValue;
-			thisValue = logPosterior(
+			double lastValue;
+			double thisValue = logPosterior(
 				  spectrum, neutronYield,
 				  ionTemperature, electronTemperature,
 				  bulkFlowVelocity, arealDensity,
-				  left, rite, false, 0);
-		} while (lastValue - thisValue > this.precision);
+				  left, rite, false, 1e3);
+
+			do {
+				final double[] neutronYieldInitialGess = neutronYield;
+				final double[] ionTemperatureInitialGess = ionTemperature;
+				final double[] arealDensityInitialGess = arealDensity;
+
+				logger.log(Level.FINE, "Fitting burn history...");
+
+				final boolean ignoreSpectralDistribution = stillUsingTheInitialGuess;
+				final double[] neutronYieldNewGess = optimize(
+					  (double[] x) -> logPosterior(
+							spectrum,
+							x,
+							ionTemperatureInitialGess,
+							electronTemperature,
+							bulkFlowVelocity,
+							arealDensityInitialGess,
+							left, rite, ignoreSpectralDistribution, finalSmoothing),
+					  neutronYieldInitialGess,
+					  yieldScale, lowerBound, upperBound,
+					  active);
+
+				logger.log(Level.FINE, "Fitting ion temperature...");
+
+				final double[] ionTemperatureNewGess = optimize(
+					  (double[] x) -> logPosterior(
+							spectrum,
+							neutronYieldNewGess,
+							x,
+							electronTemperature,
+							bulkFlowVelocity,
+							arealDensityInitialGess,
+							left, rite, false, finalSmoothing),
+					  ionTemperatureInitialGess,
+					  temperatureScale, lowerBound, upperBound,
+					  active);
+
+				logger.log(Level.FINE, "Fitting ρR trajectory...");
+
+				final double[] arealDensityNewGess = optimize(
+					  (double[] x) -> logPosterior(
+						  spectrum,
+						  neutronYieldNewGess,
+						  ionTemperatureNewGess,
+						  electronTemperature,
+						  bulkFlowVelocity,
+						  x,
+						  left, rite, false, finalSmoothing),
+					  arealDensityInitialGess,
+					  densityScale, lowerBound, upperBound,
+					  active);
+
+				neutronYield = neutronYieldNewGess;
+				ionTemperature = ionTemperatureNewGess;
+				arealDensity = arealDensityNewGess;
+
+				stillUsingTheInitialGuess = false;
+				lastValue = thisValue;
+				thisValue = logPosterior(
+					  spectrum, neutronYield,
+					  ionTemperature, electronTemperature,
+					  bulkFlowVelocity, arealDensity,
+					  left, rite, false, finalSmoothing);
+			} while (lastValue - thisValue > this.precision);
+//		}
+
+//		try {
+//			double ultimatePosterior = this.logPosterior(spectrum, neutronYield, ionTemperature, electronTemperature, bulkFlowVelocity, arealDensity, left, rite, false, finalSmoothing);
+//			double ultimateBayesor = this.logPosterior(spectrum, neutronYield, ionTemperature, electronTemperature, bulkFlowVelocity, arealDensity, left, rite, false, 0);
+//			double[][] trueTrajectories;
+//			trueTrajectories = CSV.read(new File("input/trajectories og with falling temp.csv"), ',', 1);
+//			double[] time = new double[trueTrajectories.length];
+//			double[] ρR = new double[trueTrajectories.length];
+//			double[] Yn = new double[trueTrajectories.length];
+//			double[] Ti = new double[trueTrajectories.length];
+//			for (int i = 0; i < trueTrajectories.length; i++) {
+//				time[i] = trueTrajectories[i][0];
+//				Yn[i] = trueTrajectories[i][1]*.1*1e6/1e-6/(14e6*1.6e-19)/1e15*1e-9; // convert from 0.1MJ/μs to 1e15n/ns
+//				Ti[i] = trueTrajectories[i][4];
+//				ρR[i] = trueTrajectories[i][3];
+//			}
+//			for (int j = NumericalMethods.argmax(neutronYield); j <= NumericalMethods.argmax(neutronYield)+1; j ++) {
+//				if (timeAxis[j] < time[0]) {
+////					neutronYield[j] = 0;
+//					ionTemperature[j] = Ti[0];
+//					arealDensity[j] = ρR[0];
+//				} else if (timeAxis[j] > time[time.length-1]) {
+////					neutronYield[j] = 0;
+//					ionTemperature[j] = Ti[time.length-1];
+//					arealDensity[j] = ρR[time.length-1];
+//				}
+//				else {
+////					neutronYield[j] = NumericalMethods.interp(timeAxis[j], time, Yn);
+//					ionTemperature[j] = NumericalMethods.interp(timeAxis[j], time, Ti);
+//					arealDensity[j] = NumericalMethods.interp(timeAxis[j], time, ρR);
+//				}
+//			}
+//			double truePosterior = this.logPosterior(spectrum, neutronYield, ionTemperature, electronTemperature, bulkFlowVelocity, arealDensity, left, rite, false, finalSmoothing);
+//			double trueBayesor = this.logPosterior(spectrum, neutronYield, ionTemperature, electronTemperature, bulkFlowVelocity, arealDensity, left, rite, false, 0);
+//			System.out.printf("it got to %g, but the true anser is actually at %g.  in terms of likelihood alone, that's %g and %g.\n", ultimatePosterior, truePosterior, ultimateBayesor, trueBayesor);
+//		}
+//		catch (IOException e) {
+//			System.err.println("the test thing didn't work.");
+//		}
 
 		this.neutronYield = new Quantity[M];
 		this.ionTemperature = new Quantity[M];
 		this.arealDensity = new Quantity[M];
-		for (int j = 0; j < M; j ++) {
+		for (int j = 0; j < timeAxis.length; j ++) {
 			this.neutronYield[j] = new Quantity(
 				  neutronYield[j], j, N*M);
 			this.ionTemperature[j] = new Quantity(
 				  ionTemperature[j], M+j, N*M);
 			this.arealDensity[j] = new Quantity(
-				  arealDensity[j], 2*M+j, N*M);
+				  arealDensity[j], N*M);//, 2*M+j, N*M);
 		}
 
 		this.fitNeutronSpectrum = SpectrumGenerator.generateSpectrum( // and then interpret it
@@ -467,16 +508,19 @@ public class Analysis {
 				x0[    j] = neutronYield[j];
 				dx[    j] = NumericalMethods.max(neutronYield)*1e-4;
 				x0[  M+j] = ionTemperature[j];
-				dx[  M+j] = 1e-4;
+				dx[  M+j] = 1e-2;
 				x0[2*M+j] = arealDensity[j];
-				dx[2*M+j] = 1e-4;
+				dx[2*M+j] = 1e-3;
 			}
 			double[][] hessian = NumericalMethods.hessian((double[] x) -> {
 				assert x.length == N*M;
 				double[] input0 = Arrays.copyOfRange(x, 0, 1*M);
 				double[] input1 = Arrays.copyOfRange(x, 1*M, 2*M);
 				double[] input2 = Arrays.copyOfRange(x, 2*M, 3*M);
-				return this.logPosterior(spectrum, input0, input1, electronTemperature, bulkFlowVelocity, input2, left, rite, false, 0);
+				return this.logPosterior(spectrum, input0,
+										 input1, electronTemperature,
+										 bulkFlowVelocity, input2,
+										 left, rite, false, 1e3);
 			}, x0, dx);
 			NumericalMethods.coercePositiveSemidefinite(hessian);
 			covarianceMatrix = NumericalMethods.pseudoinv(hessian);
@@ -500,7 +544,7 @@ public class Analysis {
 		else {
 			covarianceMatrix = new double[N*M][N*M];
 		}
-		
+
 		long endTime = System.currentTimeMillis();
 		logger.info(String.format(Locale.US, "completed in %.2f minutes.",
 				(endTime - startTime)/60000.));
@@ -554,10 +598,9 @@ public class Analysis {
 
 	/**
 	 * a utility function for the fitting: get the error in this spectrum fit
-	 * @param sumInEnergy whether to combine energies when comparing
-	 * @param energyCutoff only look at neutrons above this energy
 	 * @param left the leftmost time bin to consider
 	 * @param rite the time bin after the rightmost one to consider
+	 * @param sumInEnergy whether to combine energies when comparing
 	 * @return the log of the inverse posterior value for this spectrum
 	 */
 	private double logPosterior(double[][] spectrum,
@@ -568,7 +611,7 @@ public class Analysis {
 								double[] arealDensity,
 								int left, int rite,
 								boolean sumInEnergy,
-								double energyCutoff) {
+								double smoothing) {
 		for (int j = 0; j < timeAxis.length; j ++)
 			if (Double.isNaN(neutronYield[j]))
 				throw new IllegalArgumentException("you shouldn't be passing nan; whence did it come");
@@ -581,7 +624,7 @@ public class Analysis {
 		double[][] neutrons = SpectrumGenerator.generateSpectrum(
 			  neutronYield, ionTemperature, electronTemperature, bulkFlowVelocity, arealDensity,
 			  energyBins, timeBins); // generate the neutron spectrum based on those
-		double[][] deuterons = this.response(
+		double[][] signal = this.response(
 			  energyBins, timeBins, neutrons, false, false);
 
 		double gain = detector.gain();
@@ -594,21 +637,19 @@ public class Analysis {
 			double[] backgrounds = new double[numEnergies];
 			for (int i = 0; i < spectrum.length; i ++) {
 				double energy = (energyBins[i] + energyBins[i+1])/2.;
-				if (energy > energyCutoff) {
-					int index = (sumInEnergy) ? 0 : i;
-					experValues[index] += spectrum[i][j];
-					theorValues[index] += deuterons[i][j];
-					variances[index] += detector.noise(energy, energyBins, timeBins);
-					backgrounds[index] = detector.background(energy, energyBins, timeBins);
-				}
+				int index = (sumInEnergy) ? 0 : i;
+				experValues[index] += spectrum[i][j];
+				theorValues[index] += signal[i][j];
+				variances[index] += detector.noise(energy, energyBins, timeBins);
+				backgrounds[index] = detector.background(energy, energyBins, timeBins);
 			}
 			for (int i = 0; i < numEnergies; i ++) {
 				double theorNumber = (theorValues[i] - backgrounds[i])/gain;
 				double experNumber = (experValues[i] - backgrounds[i])/gain;
 				if (variances[i] > 0) { // if this detector has significant noise
-					variances[i] += theorNumber; // include pre-amplification poisson noise
+					double variance = variances[i] + theorNumber*gain*gain; // include pre-amplification poisson noise
 					totalError += Math.pow(experValues[i] - theorValues[i], 2)/
-						  (2*variances[i]); // and use a Gaussian approximation
+						  (2*variance); // and use a Gaussian approximation
 				}
 				else { // if the detector noise is zero
 					if (theorNumber > 0) {
@@ -647,7 +688,7 @@ public class Analysis {
 					  Math.pow(timeStep, 3);
 				double Ψ = (x[j] + x[j + 1] + x[j + 2] + x[j + 3])/4;
 				if (Ψpp != 0)
-					totalPenalty += 1e-10*Math.pow(Ψpp/Ψ, 2); // encourage a smooth Ti and ρR
+					totalPenalty += smoothing*1e-10*Math.pow(Ψpp/Ψ, 2); // encourage a smooth Ti and ρR
 			}
 		}
 
@@ -663,12 +704,11 @@ public class Analysis {
 	 * @param totalScale the scale lengths of the variables
 	 * @param totalLower the lower bounds of the variables (only sometimes enforced)
 	 * @param totalUpper the upper bounds of the variables (only sometimes enforced)
-	 * @param threshold the termination condition threshold
 	 * @param activeDimensions which components of the state vector are allowed to be changed
 	 */
 	private double[] optimize(Function<double[], Double> func, double[] totalGuess,
-			double[] totalScale, double[] totalLower, double[] totalUpper, double threshold,
-			boolean... activeDimensions) {
+							  double[] totalScale, double[] totalLower, double[] totalUpper,
+							  boolean... activeDimensions) {
 		if (totalGuess.length != totalScale.length)
 			throw new IllegalArgumentException("Scale and guess must have the same length");
 		
@@ -710,21 +750,21 @@ public class Analysis {
 		double[] totalParams = totalGuess.clone();
 		logger.log(Level.FINER, Double.toString(func.apply(totalGuess)));
 		activeGuess = Optimization.minimizeLBFGSB(
-				(activeParams) -> { // when you optimize
+			  (activeParams) -> { // when you optimize
 					updateArray(totalParams, activeParams, active); // only optimize a subset of the dimensions
 					return func.apply(totalParams);
 				},
-				activeGuess,
-				activeScale,
-				activeLower,
-				activeUpper,
-				0, threshold*1e-2);
+			  activeGuess,
+			  activeScale,
+			  activeLower,
+			  activeUpper,
+			  0, 1.0*1e-2);
 		updateArray(totalParams, activeGuess, active);
 		
 		double oldPosterior = Double.POSITIVE_INFINITY, newPosterior = func.apply(totalParams);
 		logger.log(Level.FINER, Double.toString(newPosterior));
-		MultivariateOptimizer optimizer = new PowellOptimizer(1e-14, 1);
-		while (oldPosterior - newPosterior > threshold) { // optimize it over and over; you'll get there eventually
+		MultivariateOptimizer optimizer = new PowellOptimizer(1e-14, 0.1);
+		while (oldPosterior - newPosterior > 0.1) { // optimize it over and over; you'll get there eventually
 			activeGuess = optimizer.optimize(
 					GoalType.MINIMIZE,
 					new ObjectiveFunction((activeParams) -> { // when you optimize
