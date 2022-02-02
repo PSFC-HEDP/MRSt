@@ -374,7 +374,7 @@ public class Analysis {
 				  spectrum, neutronYield,
 				  ionTemperature, electronTemperature,
 				  bulkFlowVelocity, arealDensity,
-				  left, rite, false, 1e3);
+				  active, false, 1e3);
 
 			do {
 				final double[] neutronYieldInitialGess = neutronYield;
@@ -392,10 +392,9 @@ public class Analysis {
 							electronTemperature,
 							bulkFlowVelocity,
 							arealDensityInitialGess,
-							left, rite, ignoreSpectralDistribution, finalSmoothing),
+							active, ignoreSpectralDistribution, finalSmoothing),
 					  neutronYieldInitialGess,
-					  yieldScale, lowerBound, upperBound,
-					  active);
+					  yieldScale, lowerBound, upperBound, active);
 
 				logger.log(Level.FINE, "Fitting ion temperature...");
 
@@ -407,10 +406,9 @@ public class Analysis {
 							electronTemperature,
 							bulkFlowVelocity,
 							arealDensityInitialGess,
-							left, rite, false, finalSmoothing),
+							active, false, finalSmoothing),
 					  ionTemperatureInitialGess,
-					  temperatureScale, lowerBound, upperBound,
-					  active);
+					  temperatureScale, lowerBound, upperBound, active);
 
 				logger.log(Level.FINE, "Fitting ρR trajectory...");
 
@@ -422,10 +420,9 @@ public class Analysis {
 						  electronTemperature,
 						  bulkFlowVelocity,
 						  x,
-						  left, rite, false, finalSmoothing),
+						  active, false, finalSmoothing),
 					  arealDensityInitialGess,
-					  densityScale, lowerBound, upperBound,
-					  active);
+					  densityScale, lowerBound, upperBound, active);
 
 				neutronYield = neutronYieldNewGess;
 				ionTemperature = ionTemperatureNewGess;
@@ -437,7 +434,7 @@ public class Analysis {
 					  spectrum, neutronYield,
 					  ionTemperature, electronTemperature,
 					  bulkFlowVelocity, arealDensity,
-					  left, rite, false, finalSmoothing);
+					  active, false, finalSmoothing);
 			} while (lastValue - thisValue > this.precision);
 //		}
 
@@ -501,29 +498,39 @@ public class Analysis {
 		Quantity iBT = NumericalMethods.quadargmax(this.neutronYield); // index of max yield
 		Quantity bangTime = NumericalMethods.interp(timeAxis, iBT); // time of max yield
 
-		if (errorMode == ErrorMode.HESSIAN) {
+		if (errorMode == ErrorMode.HESSIAN) { // calculate the error bars using second-derivatives
 			logger.log(Level.INFO, "calculating error bars.");
-			double[] x0 = new double[N*M], dx = new double[N*M];
-			for (int j = 0; j < M; j ++) {
-				x0[    j] = neutronYield[j];
-				dx[    j] = NumericalMethods.max(neutronYield)*1e-4;
-				x0[  M+j] = ionTemperature[j];
-				dx[  M+j] = 1e-2;
-				x0[2*M+j] = arealDensity[j];
-				dx[2*M+j] = 1e-3;
+			final int m = rite - left;
+			double[] x0 = new double[N*m], dx = new double[N*m];
+			for (int j = left; j < rite; j ++) { // set up for a finite-difference hessian calculation
+				x0[      j - left] = neutronYield[j];
+				dx[      j - left] = NumericalMethods.max(neutronYield)*1e-4;
+				x0[  m + j - left] = ionTemperature[j];
+				dx[  m + j - left] = 1e-2;
+				x0[2*m + j - left] = arealDensity[j];
+				dx[2*m + j - left] = 1e-3;
 			}
+			final double[] testNeutronYield = Arrays.copyOf(neutronYield, M);
+			final double[] testIonTemperature = Arrays.copyOf(ionTemperature, M);
+			final double[] testArealDensity = Arrays.copyOf(arealDensity, M);
 			double[][] hessian = NumericalMethods.hessian((double[] x) -> {
-				assert x.length == N*M;
-				double[] input0 = Arrays.copyOfRange(x, 0, 1*M);
-				double[] input1 = Arrays.copyOfRange(x, 1*M, 2*M);
-				double[] input2 = Arrays.copyOfRange(x, 2*M, 3*M);
-				return this.logPosterior(spectrum, input0,
-										 input1, electronTemperature,
-										 bulkFlowVelocity, input2,
-										 left, rite, false, 1e3);
-			}, x0, dx);
+				assert x.length == N*m;
+				System.arraycopy(x, 0  , testNeutronYield, left, m);
+				System.arraycopy(x, 1*m, testIonTemperature, left, m);
+				System.arraycopy(x, 2*m, testArealDensity, left, m);
+				return this.logPosterior(spectrum, testNeutronYield,
+										 testIonTemperature, electronTemperature,
+										 bulkFlowVelocity, testArealDensity,
+										 active, false, 1e3);
+			}, x0, dx); // the do that
 			NumericalMethods.coercePositiveSemidefinite(hessian);
-			covarianceMatrix = NumericalMethods.pseudoinv(hessian);
+			double[][] activeCovarianceMatrix = NumericalMethods.pseudoinv(hessian); // invert it to get the covariance
+			covarianceMatrix = new double[N*M][N*M]; // then expand it to include the inactive dimensions
+			for (int k1 = 0; k1 < N; k1 ++)
+				for (int j1 = left; j1 < rite; j1 ++)
+					for (int k2 = 0; k2 < N; k2 ++)
+						for (int j2 = left; j2 < rite; j2 ++)
+							covarianceMatrix[k1*M+j1][k2*M+j2] = activeCovarianceMatrix[k1*m + j1-left][k2*m + j2-left];
 			for (int i = 0; i < hessian.length; i ++) {
 				if (covarianceMatrix[i][i] < 1/hessian[i][i]) // these are all approximations, and sometimes they violate the properties of positive semidefiniteness
 					covarianceMatrix[i][i] = 1/hessian[i][i]; // do what you must to make it work
@@ -598,8 +605,7 @@ public class Analysis {
 
 	/**
 	 * a utility function for the fitting: get the error in this spectrum fit
-	 * @param left the leftmost time bin to consider
-	 * @param rite the time bin after the rightmost one to consider
+	 * @param active whether to apply the prior to each timestep
 	 * @param sumInEnergy whether to combine energies when comparing
 	 * @return the log of the inverse posterior value for this spectrum
 	 */
@@ -609,13 +615,13 @@ public class Analysis {
 								double[] electronTemperature,
 								double[] bulkFlowVelocity,
 								double[] arealDensity,
-								int left, int rite,
+								boolean[] active,
 								boolean sumInEnergy,
 								double smoothing) {
 		for (int j = 0; j < timeAxis.length; j ++)
 			if (Double.isNaN(neutronYield[j]))
 				throw new IllegalArgumentException("you shouldn't be passing nan; whence did it come");
-		for (int j = left; j < rite; j ++)
+		for (int j = 0; j < timeAxis.length; j ++)
 			if (neutronYield[j] < 0 || ionTemperature[j] < 0 ||
 				  electronTemperature[j] < 0 || bulkFlowVelocity[j] < 0 ||
 				  arealDensity[j] < 0)
@@ -629,7 +635,7 @@ public class Analysis {
 
 		double gain = detector.gain();
 		double totalError = 0; // negative log likelihood
-		for (int j = left; j < rite; j ++) {
+		for (int j = 0; j < timeAxis.length; j ++) {
 			int numEnergies = (sumInEnergy) ? 1 : spectrum.length;
 			double[] experValues = new double[numEnergies];
 			double[] theorValues = new double[numEnergies];
@@ -670,7 +676,7 @@ public class Analysis {
 
 		double totalPenalty = 0; // negative log prior
 		int bangIndex = NumericalMethods.argmax(neutronYield); // approximate BT locacion
-		for (int j = left + 1; j < rite; j ++) {
+		for (int j = 1; j < timeAxis.length; j ++) {
 			double Y = (neutronYield[j] + neutronYield[j-1])/2;
 			double Yp = (neutronYield[j] - neutronYield[j-1])/timeStep;
 			if (j <= bangIndex) Yp *= -1;
@@ -678,17 +684,19 @@ public class Analysis {
 			if (z < 0) totalPenalty += .05*Math.exp(z);
 			else       totalPenalty += .05*(1 + z + z*z/2.); // encourage a monotonically increasing yield before BT
 		}
-		for (int j = left; j < rite; j ++)
+		for (int j = 0; j < timeAxis.length; j ++)
 			totalPenalty += arealDensity[j]/5.0; // exponential prior on areal density
-		for (int j = left; j < rite; j ++)
+		for (int j = 0; j < timeAxis.length; j ++)
 			totalPenalty += Math.pow((Math.log(ionTemperature[j]) - 0.2)/2.5, 2);
 		for (double[] x: new double[][] {ionTemperature, arealDensity}) {
-			for (int j = left; j < rite - 3; j++) {
-				double Ψpp = (x[j] - 3*x[j + 1] + 3*x[j + 2] - x[j + 3])/
-					  Math.pow(timeStep, 3);
-				double Ψ = (x[j] + x[j + 1] + x[j + 2] + x[j + 3])/4;
-				if (Ψpp != 0)
-					totalPenalty += smoothing*1e-10*Math.pow(Ψpp/Ψ, 2); // encourage a smooth Ti and ρR
+			for (int j = 0; j < timeAxis.length - 3; j ++) {
+				if (active[j] && active[j+1] && active[j+2] && active[j+3]) {
+					double Ψpp = (x[j] - 3*x[j+1] + 3*x[j+2] - x[j+3])/
+						  Math.pow(timeStep, 3);
+					double Ψ = (x[j] + x[j+1] + x[j+2] + x[j+3])/4;
+					if (Ψpp != 0)
+						totalPenalty += smoothing*1e-10*Math.pow(Ψpp/Ψ, 2); // encourage a smooth Ti and ρR
+				}
 			}
 		}
 
