@@ -72,7 +72,7 @@ public class ConfigurationEvaluator extends Application {
 	private static final int SPACING_1 = 10;
 	private static final int SPACING_2 = 4;
 	
-	private static final int NUM_YIELDS = 18;
+	private static final int NUM_YIELDS = 100;
 	
 	
 	private Spinner<Double> foilDistance;
@@ -233,7 +233,7 @@ public class ConfigurationEvaluator extends Application {
 							logger.log(Level.SEVERE, e.getMessage(), e);
 						}
 						
-						double yield = (variations[0].isSelected()) ? Math.pow(10, -3.*Math.random()) : 1;
+						double yield = (variations[0].isSelected()) ? Math.pow(10, -3.*Math.random()) : Math.pow(10, -0.05*Math.random());
 						double temp =  (variations[1].isSelected()) ? Math.exp(2*Math.random() - 1) : 1; // roll the dies on the spectrum modifications
 						double downS = (variations[2].isSelected()) ? Math.exp(2*Math.random() - 1) : 1;
 						double flow =  (variations[3].isSelected()) ? 200*Math.random()*(2*Math.random() - 1) : 0;

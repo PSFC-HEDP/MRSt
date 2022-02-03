@@ -32,13 +32,13 @@ package physics;
 public enum Particle {
 	
 	/** electron */
-	E(9.10938356e-31, -1.60217662e-19, "Electron"),
+	E(9.10938356e-31, -1.60217662e-19, "electron"),
 	/** proton */
-	P(1.67262192e-27,  1.60217662e-19, "Proton"),
+	P(1.67262192e-27,  1.60217662e-19, "proton"),
 	/** neutron */
-	N(1.67492750e-27,  0.0,            "Neutron"),
+	N(1.67492750e-27,  0.0,            "neutron"),
 	/** deuteron */
-	D(3.34449463e-27,  1.60217662e-19, "Deuteron");
+	D(3.34449463e-27,  1.60217662e-19, "deuteron");
 	
 	public final double mass; // [kg]
 	public final double charge; // [C]

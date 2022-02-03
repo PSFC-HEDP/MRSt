@@ -12,14 +12,14 @@ warnings.filterwarnings("ignore")
 # COLUMNS = 3
 # SIZE = (12, 3.5)
 # MARGIN = dict(bottom=.15, top=.97, left=.07, right=.99, wspace=.40, hspace=.05)
-INCLUDE_ERRORS = True
-COLUMNS = 2
-SIZE = (16, 7.5)
-MARGIN = dict(bottom=.07, top=.93, left=.06, right=.99, wspace=.35, hspace=.05)
 # INCLUDE_ERRORS = True
-# COLUMNS = 1
-# SIZE = (8, 5)
-# MARGIN = dict(bottom=.10, top=.90, left=.13, right=.99, wspace=.35, hspace=.05)
+# COLUMNS = 2
+# SIZE = (16, 7.5)
+# MARGIN = dict(bottom=.07, top=.93, left=.06, right=.99, wspace=.35, hspace=.05)
+INCLUDE_ERRORS = True
+COLUMNS = 1
+SIZE = (8, 5)
+MARGIN = dict(bottom=.10, top=.90, left=.13, right=.99, wspace=.35, hspace=.05)
 # INCLUDE_ERRORS = False
 # COLUMNS = 2
 # SIZE = (7.5, 9.0)
@@ -39,12 +39,12 @@ MARGIN = dict(bottom=.07, top=.93, left=.06, right=.99, wspace=.35, hspace=.05)
 
 
 if len(sys.argv) <= 1:
-	# FILENAME = '../../output/ensemble-solenoid.csv'
-	FILENAME = '../../output/ensemble_4_9_5_2_1501_2021-06-01.csv'
+	FILENAME = '../../output/ensemble.csv'
+	# FILENAME = '../../output/ensemble_4_9_5_2_1501_2021-06-01.csv'
 else:
 	FILENAME = '../../output/'+sys.argv[1]
 BIN_WIDTH = 0.3 # in bels
-REFERENCE_YIELD = 1e16
+REFERENCE_YIELD = 4e17
 
 X_LABEL = "Yield"
 
@@ -55,14 +55,15 @@ Y_LABELS = [
 	# ("Burn width (ps)", 53, 67.7, 82, 7, False),
 	# ("Burn skewness", -1.6, -.698, -0.1, 3e-1, False),
 	# ("Burn kurtosis", -0.5, 4.7, 10.5, 3, False),
-	("ρR at BT (g/cm^2)", .71, .988, 1.29, 7e-2, True),
-	("Ti at BT (keV)", 5.25, 7.32, 9.75, 5e-2, True),#7.63848, 11, 0, False),
-	("Burn-average ρR (g/cm^2)", 0.71, .999, 1.29, 7e-2, True),
-	("Burn-average Ti (keV)", 5.25, 7.103, 9.75, 5e-2, True),
-	("dρR/dt at BT (g/cm^2/100ps)", -1.15, -.887, -.45, .060, False),
-	("dTi/dt at BT (keV/100ps)", -2.3, 1.928, 6.3, 1.9, False),
-	("Bang time (ns)", 16.243, 16.2583, 16.272, 1e-2, False), ("Burn width (ps)", 56, 71.3, 87, 7, False),
-	("Burn skewness", -1.3, -.590, 0.1, 3e-1, False), ("Burn kurtosis", -0.5, 4.52, 10.5, 3, False),
+	# ("ρR at BT (g/cm^2)", .71, .988, 1.29, 7e-2, True),
+	("Burn-average Ti (keV)", 5.25, 7.14320, 9.75, 5e-2, True),
+	("Ti at BT (keV)", 5.25, 7.51554, 9.75, 5e-2, True),#7.63848, 11, 0, False),
+	# ("Burn-average ρR (g/cm^2)", 0.71, .999, 1.29, 7e-2, True),
+	# ("dρR/dt at BT (g/cm^2/100ps)", -1.15, -.887, -.45, .060, False),
+	("dTi/dt at BT (keV/100ps)", -2.3, 1.09569, 6.3, 1.9, False),
+	# ("Bang time (ns)", 16.243, 16.258, 16.272, 1e-2, False),
+	("Burn width (ps)", 56, 69.5532, 87, 7, False),
+	# ("Burn skewness", -1.3, -.590, 0.1, 3e-1, False), ("Burn kurtosis", -0.5, 4.52, 10.5, 3, False),
 	# ("Burn-average vi (km/s)", -15.2, 0, 15.2, 20, False), ("dvi/dt at BT (km/s/100ps)", -25, 0, 25, 8, False),
 	# ("ρR at stagnation (g/cm^2)", 0.9, 1.39, 1.7, 0, False),
 	# ("Peak Ti (keV)", 5, 8.073, 13, 0, False),	#("Energy confinement time (ps)", 0, 114.8, 200, 0, False),
@@ -250,8 +251,10 @@ if INCLUDE_ERRORS:
 		dy = y - y_factor*y_true
 		# if percent:
 		# 	dy /= y_factor*y_true
-		error_at_yield = np.sqrt(np.mean(np.square(dy[np.absolute(np.log10(x/REFERENCE_YIELD)) <= 0.15])))
-		number_at_yield = np.sum(np.absolute(np.log10(x/REFERENCE_YIELD)) <= 0.15)
+		# print(f"{axis} is actually {np.mean(y[~np.isnan(y)])}")
+		at_yield = (~np.isnan(y)) & (np.absolute(np.log10(x/REFERENCE_YIELD)) <= 0.15)
+		error_at_yield = np.sqrt(np.mean(np.square(dy[at_yield])))
+		number_at_yield = np.sum(at_yield)
 		print(f"{axis} error:    {error_at_yield} ± {error_at_yield*np.sqrt(2/number_at_yield)}")
 
 		stds = np.sqrt(smooth_average(np.square(dy[order]), bessel_correction=True))

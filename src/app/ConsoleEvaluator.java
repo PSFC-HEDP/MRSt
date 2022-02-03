@@ -55,17 +55,54 @@ public class ConsoleEvaluator {
 			}
 		}
 
-		double foilRadius = Double.parseDouble(args[0])*1e-6; // foil radius measured in μm
-		double foilThickness = Double.parseDouble(args[1])*1e-6; // foil thickness measured in μm
-		double apertureWidth = Double.parseDouble(args[2])*1e-3; // aperture width in mm
-		double apertureHeight = Double.parseDouble(args[3])*1e-3; // aperture height in mm
-		int numYields = Integer.parseInt(args[4]); // number of datums to do
-		String implosionName = "og";
-		if (args.length > 5)
-			implosionName = args[5];
+		String implosionName;
+		if (args.length > 0)
+			implosionName = args[0];
+		else
+			implosionName = "og with falling temp";
+		int numYields; // number of datums to do
+		if (args.length > 1)
+			numYields = Integer.parseInt(args[1]);
+		else
+			numYields = 1000;
+		double tiltAngle;
+		if (args.length > 2)
+			tiltAngle = Double.parseDouble(args[2]);
+		else
+			tiltAngle = 66.59;
+		double foilRadius, foilThickness, apertureWidth, apertureHeight;
+		if (args.length > 6) {
+			foilRadius = Double.parseDouble(args[3])*1e-6; // foil radius measured in μm
+			foilThickness = Double.parseDouble(args[4])*1e-6; // foil thickness measured in μm
+			apertureWidth = Double.parseDouble(args[5])*1e-3; // aperture width in mm
+			apertureHeight = Double.parseDouble(args[6])*1e-3; // aperture height in mm
+		}
+		else {
+			if (args.length <= 3 || args[3].equals("h")) {
+				foilRadius = 400e-6;
+				foilThickness = 90e-6;
+				apertureWidth = 5e-3;
+				apertureHeight = 20e-3;
+			}
+			else if (args[3].equals("m")) {
+				foilRadius = 200e-6;
+				foilThickness = 50e-6;
+				apertureWidth = 4e-3;
+				apertureHeight = 20e-3;
+			}
+			else if (args[3].equals("l")) {
+				foilRadius = 100e-6;
+				foilThickness = 25e-6;
+				apertureWidth = 2e-3;
+				apertureHeight = 20e-3;
+			}
+			else {
+				throw new IllegalArgumentException(args[3]);
+			}
+		}
 		int numThreads = Math.min(10, Runtime.getRuntime().availableProcessors());
 		
-		String filename = String.format("ensemble_%.0f_%.0f_%.0f_%.0f_%d_%tF", foilRadius/1e-4, foilThickness/1e-5, apertureWidth/1e-3, apertureHeight/1e-2, numYields, System.currentTimeMillis());
+		String filename = String.format("ensemble_%.0f_%.0f_%d_%tF", apertureWidth/1e-3, tiltAngle, numYields, System.currentTimeMillis());
 		
 		System.setProperty("java.util.logging.SimpleFormatter.format",
 				"%1$tF %1$tT | %4$-7s | %5$s%6$s%n");
@@ -87,7 +124,7 @@ public class ConsoleEvaluator {
 			threads[t] = new Thread(() -> {
 				Analysis mc;
 				try {
-					COSYMapping map = CSV.readCosyCoefficients(new File("input/MRSt_IRF_FP tilted_final.txt"), 3);
+					COSYMapping map = CSV.readCosyCoefficients(new File("input/MRSt_IRF_FP tilted.txt"), 3);
 					map.setConfig(Particle.D, 12.45);
 					mc = new Analysis(
 							3e-3,
@@ -98,7 +135,7 @@ public class ConsoleEvaluator {
 							apertureWidth,
 							apertureHeight,
 							map,
-							68,
+							tiltAngle,
 							false,
 							.1,
 							logger); // make the simulation
@@ -123,7 +160,7 @@ public class ConsoleEvaluator {
 						return;
 					}
 
-					double yield = Math.pow(10, -3.*Math.random());
+					double yield = Math.pow(10, -3.0*Math.random());
 					SpectrumGenerator.modifySpectrum(tBins, eBins, spec, yield, 1, 1, 0);
 					
 					logger.log(Level.INFO, String.format("Yn = %f (%d/%d)", yield,
