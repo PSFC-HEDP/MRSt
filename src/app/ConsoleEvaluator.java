@@ -102,7 +102,10 @@ public class ConsoleEvaluator {
 		}
 		int numThreads = Math.min(10, Runtime.getRuntime().availableProcessors());
 		
-		String filename = String.format("ensemble_%.0f_%.0f_%d_%tF", apertureWidth/1e-3, tiltAngle, numYields, System.currentTimeMillis());
+		String filename = String.format("ensemble_%.0f_%.0f_%d_%s_%tF",
+										apertureWidth/1e-3, tiltAngle, numYields,
+										implosionName.replace(" ",""),
+										System.currentTimeMillis());
 		
 		System.setProperty("java.util.logging.SimpleFormatter.format",
 				"%1$tF %1$tT | %4$-7s | %5$s%6$s%n");
@@ -124,7 +127,11 @@ public class ConsoleEvaluator {
 			threads[t] = new Thread(() -> {
 				Analysis mc;
 				try {
-					COSYMapping map = CSV.readCosyCoefficients(new File("input/MRSt_IRF_FP tilted.txt"), 3);
+					COSYMapping map;
+					if (tiltAngle == 0)
+						map = CSV.readCosyCoefficients(new File("input/MRSt_IRF_FP not tilted.txt"), 3);
+					else
+						map = CSV.readCosyCoefficients(new File("input/MRSt_IRF_FP tilted.txt"), 3);
 					map.setConfig(Particle.D, 12.45);
 					mc = new Analysis(
 							3e-3,

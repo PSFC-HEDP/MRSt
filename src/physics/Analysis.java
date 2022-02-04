@@ -311,12 +311,16 @@ public class Analysis {
 				if (Double.isNaN(value))
 					throw new IllegalArgumentException("well fuck you too");
 
+		final int N = 3;
+		final int M = timeAxis.length;
+
 		// start with the simplest possible reconstruction
-		double[][] gelf = new double[spectrum.length][spectrum[0].length];
+		double[] naiveNeutronYield = new double[spectrum[0].length];
 		for (int i = 0; i < spectrum.length; i ++) {
 			double background = this.detector.background(energyAxis[i], energyBins, timeBins);
 			for (int j = 0; j < spectrum[i].length; j ++) {
-				gelf[i][j] = Math.max(0, (spectrum[i][j] - background)/this.gain()); // the spectrum scaled by the efficiency of the system
+				naiveNeutronYield[j] += Math.max(
+					  0, (spectrum[i][j] - background)/this.gain())/(timeStep*1e15); // the spectrum scaled by the efficiency of the system
 			}
 		}
 		//		double[][] D = new double[energyBins.length-1][timeBins.length-1];
@@ -325,117 +329,124 @@ public class Analysis {
 		//				D[i][j] = Math.max(1, spectrum[i][j]);
 		//		double[][] gelf = Optimization.optimizeGelfgat(spectrum, D, this.rongTransferMatrix, 1e5);
 
-		// put together the initial gess for the proper fitting
-		double[] neutronYield = new double[timeAxis.length]; // 1e15/ns
-		double[] ionTemperature = new double[timeAxis.length]; // keV
-		double[] electronTemperature = new double[timeAxis.length]; // keV
-		double[] bulkFlowVelocity = new double[timeAxis.length]; // μm/ns
-		double[] arealDensity = new double[timeAxis.length]; // g/cm^2
-		for (int j = 0; j < timeAxis.length; j ++) {
-			neutronYield[j] = 1.; // sum up the gelfgat fit to get the initial burn history gess
-			for (int i = 3; i < energyBins.length-1; i ++) // I'm not sure why the bottom few rows are so unusable
-				neutronYield[j] += gelf[i][j];
-			neutronYield[j] /= timeStep*1e15; // adjust the units
-			ionTemperature[j] = 4;
-			electronTemperature[j] = 4;
-			bulkFlowVelocity[j] = 0;
-			arealDensity[j] = 200e-3;
-		}
-
-		final int left = NumericalMethods.firstLocalMin(neutronYield);
-		final int rite = NumericalMethods.lastLocalMin(neutronYield) + 1;
-		boolean[] active = new boolean[timeAxis.length];
-		for (int j = 0; j < timeAxis.length; j ++)
-			active[j] = j >= left && j < rite;
-
-		final int N = 3;
-		final int M = timeAxis.length;
-
 		double[] yieldScale = new double[M];
 		double[] temperatureScale = new double[M];
 		double[] densityScale = new double[M];
 		double[] lowerBound = new double[M];
 		double[] upperBound = new double[M];
 		for (int j = 0; j < M; j++) {
-			yieldScale[j] = NumericalMethods.max(neutronYield)/6.;
+			yieldScale[j] = NumericalMethods.max(naiveNeutronYield)/6.;
 			temperatureScale[j] = 10;
 			densityScale[j] = 1;
 			lowerBound[j] = 0;
 			upperBound[j] = Double.POSITIVE_INFINITY;
 		}
 
-		boolean stillUsingTheInitialGuess = true;
+		// put together the initial gess for the proper fitting
+		double[] ionTemperature = new double[timeAxis.length]; // keV
+		double[] electronTemperature = new double[timeAxis.length]; // keV
+		double[] bulkFlowVelocity = new double[timeAxis.length]; // μm/ns
+		double[] arealDensity = new double[timeAxis.length]; // g/cm^2
+		for (int j = 0; j < timeAxis.length; j ++) {
+			ionTemperature[j] = 4;
+			electronTemperature[j] = 4;
+			bulkFlowVelocity[j] = 0;
+			arealDensity[j] = 200e-3;
+		}
 
-//		for (double smoothing = 1e4; smoothing > .9; smoothing /= 10) {
-			final double finalSmoothing = 1;//smoothing;
+		// then do the second simplest reconstruction for the burn history
+		double[] finalIonTemperature = ionTemperature;
+		double[] finalArealDensity = arealDensity;
+		double[] neutronYield = optimize(
+			  (double[] x) -> logPosterior(
+					spectrum,
+					x,
+					finalIonTemperature,
+					electronTemperature,
+					bulkFlowVelocity,
+					finalArealDensity,
+					null, true, 1),
+			  naiveNeutronYield, yieldScale, lowerBound, upperBound); // 10^15/ns
 
-			double lastValue;
-			double thisValue = logPosterior(
+		// determine the bounds of the region that's worth optimizing
+		double[] statistics = new double[M];
+		for (int i = 0; i < M; i ++)
+			statistics[i] = neutronYield[i]*1e15*this.efficiency()*timeStep;
+		final int peak = NumericalMethods.argmax(statistics);
+		final int left = Math.min(peak - 2, NumericalMethods.firstAbove(1, statistics));
+		final int rite = Math.max(peak + 3, NumericalMethods.lastAbove(1, statistics) + 1);
+		boolean[] active = new boolean[timeAxis.length];
+		for (int j = 0; j < timeAxis.length; j ++)
+			active[j] = j >= left && j < rite;
+
+		//		for (double smoothing = 1e4; smoothing > .9; smoothing /= 10) {
+		final double finalSmoothing = 1;//smoothing;
+
+		double lastValue;
+		double thisValue = logPosterior(
+			  spectrum, neutronYield,
+			  ionTemperature, electronTemperature,
+			  bulkFlowVelocity, arealDensity,
+			  active, false, finalSmoothing);
+
+		do {
+			final double[] neutronYieldInitialGess = neutronYield;
+			final double[] ionTemperatureInitialGess = ionTemperature;
+			final double[] arealDensityInitialGess = arealDensity;
+
+			logger.log(Level.FINE, "Fitting ion temperature...");
+
+			final double[] ionTemperatureNewGess = optimize(
+				  (double[] x) -> logPosterior(
+						spectrum,
+						neutronYieldInitialGess,
+						x,
+						electronTemperature,
+						bulkFlowVelocity,
+						arealDensityInitialGess,
+						active, false, finalSmoothing),
+				  ionTemperatureInitialGess,
+				  temperatureScale, lowerBound, upperBound, active);
+
+			logger.log(Level.FINE, "Fitting ρR trajectory...");
+
+			final double[] arealDensityNewGess = optimize(
+				  (double[] x) -> logPosterior(
+					  spectrum,
+					  neutronYieldInitialGess,
+					  ionTemperatureNewGess,
+					  electronTemperature,
+					  bulkFlowVelocity,
+					  x,
+					  active, false, finalSmoothing),
+				  arealDensityInitialGess,
+				  densityScale, lowerBound, upperBound, active);
+
+			logger.log(Level.FINE, "Fitting burn history...");
+
+			final double[] neutronYieldNewGess = optimize(
+				  (double[] x) -> logPosterior(
+						spectrum,
+						x,
+						ionTemperatureNewGess,
+						electronTemperature,
+						bulkFlowVelocity,
+						arealDensityNewGess,
+						active, false, finalSmoothing),
+				  neutronYieldInitialGess,
+				  yieldScale, lowerBound, upperBound, active);
+
+			ionTemperature = ionTemperatureNewGess;
+			arealDensity = arealDensityNewGess;
+			neutronYield = neutronYieldNewGess;
+
+			lastValue = thisValue;
+			thisValue = logPosterior(
 				  spectrum, neutronYield,
 				  ionTemperature, electronTemperature,
 				  bulkFlowVelocity, arealDensity,
-				  active, false, 1e3);
-
-			do {
-				final double[] neutronYieldInitialGess = neutronYield;
-				final double[] ionTemperatureInitialGess = ionTemperature;
-				final double[] arealDensityInitialGess = arealDensity;
-
-				logger.log(Level.FINE, "Fitting burn history...");
-
-				final boolean ignoreSpectralDistribution = stillUsingTheInitialGuess;
-				final double[] neutronYieldNewGess = optimize(
-					  (double[] x) -> logPosterior(
-							spectrum,
-							x,
-							ionTemperatureInitialGess,
-							electronTemperature,
-							bulkFlowVelocity,
-							arealDensityInitialGess,
-							active, ignoreSpectralDistribution, finalSmoothing),
-					  neutronYieldInitialGess,
-					  yieldScale, lowerBound, upperBound, active);
-
-				logger.log(Level.FINE, "Fitting ion temperature...");
-
-				final double[] ionTemperatureNewGess = optimize(
-					  (double[] x) -> logPosterior(
-							spectrum,
-							neutronYieldNewGess,
-							x,
-							electronTemperature,
-							bulkFlowVelocity,
-							arealDensityInitialGess,
-							active, false, finalSmoothing),
-					  ionTemperatureInitialGess,
-					  temperatureScale, lowerBound, upperBound, active);
-
-				logger.log(Level.FINE, "Fitting ρR trajectory...");
-
-				final double[] arealDensityNewGess = optimize(
-					  (double[] x) -> logPosterior(
-						  spectrum,
-						  neutronYieldNewGess,
-						  ionTemperatureNewGess,
-						  electronTemperature,
-						  bulkFlowVelocity,
-						  x,
-						  active, false, finalSmoothing),
-					  arealDensityInitialGess,
-					  densityScale, lowerBound, upperBound, active);
-
-				neutronYield = neutronYieldNewGess;
-				ionTemperature = ionTemperatureNewGess;
-				arealDensity = arealDensityNewGess;
-
-				stillUsingTheInitialGuess = false;
-				lastValue = thisValue;
-				thisValue = logPosterior(
-					  spectrum, neutronYield,
-					  ionTemperature, electronTemperature,
-					  bulkFlowVelocity, arealDensity,
-					  active, false, finalSmoothing);
-			} while (lastValue - thisValue > this.precision);
+				  active, false, finalSmoothing);
+		} while (lastValue - thisValue > this.precision);
 //		}
 
 //		try {
@@ -476,6 +487,11 @@ public class Analysis {
 //		catch (IOException e) {
 //			System.err.println("the test thing didn't work.");
 //		}
+
+//		System.out.println("it arrived at");
+//		System.out.println(Arrays.toString(ionTemperature));
+//		System.out.println()
+//		System.out.println("but wouldn't ")
 
 		this.neutronYield = new Quantity[M];
 		this.ionTemperature = new Quantity[M];
@@ -521,30 +537,31 @@ public class Analysis {
 				return this.logPosterior(spectrum, testNeutronYield,
 										 testIonTemperature, electronTemperature,
 										 bulkFlowVelocity, testArealDensity,
-										 active, false, 1e3);
+										 active, false, finalSmoothing);
 			}, x0, dx); // the do that
 			NumericalMethods.coercePositiveSemidefinite(hessian);
 			double[][] activeCovarianceMatrix = NumericalMethods.pseudoinv(hessian); // invert it to get the covariance
+			for (int i = 0; i < hessian.length; i ++) {
+				if (activeCovarianceMatrix[i][i] < 1/hessian[i][i]) // these are all approximations, and sometimes they violate the properties of positive semidefiniteness
+					activeCovarianceMatrix[i][i] = 1/hessian[i][i]; // do what you must to make it work
+			}
 			covarianceMatrix = new double[N*M][N*M]; // then expand it to include the inactive dimensions
 			for (int k1 = 0; k1 < N; k1 ++)
-				for (int j1 = left; j1 < rite; j1 ++)
-					for (int k2 = 0; k2 < N; k2 ++)
-						for (int j2 = left; j2 < rite; j2 ++)
-							covarianceMatrix[k1*M+j1][k2*M+j2] = activeCovarianceMatrix[k1*m + j1-left][k2*m + j2-left];
-			for (int i = 0; i < hessian.length; i ++) {
-				if (covarianceMatrix[i][i] < 1/hessian[i][i]) // these are all approximations, and sometimes they violate the properties of positive semidefiniteness
-					covarianceMatrix[i][i] = 1/hessian[i][i]; // do what you must to make it work
-			}
+				for (int j1 = left; j1 < rite; j1++)
+					for (int k2 = 0; k2 < N; k2++)
+						for (int j2 = left; j2 < rite; j2++)
+							covarianceMatrix[k1*M + j1][k2*M + j2] = activeCovarianceMatrix[k1*m + j1 - left][k2*m + j2 - left];
 //			NumericalMethods.coerceSymmetric(covarianceMatrix);
 			NumericalMethods.coercePositiveSemidefinite(covarianceMatrix);
+//			System.out.println(Arrays.deepToString(covarianceMatrix));
 		}
 		else if (errorMode == ErrorMode.STATISTICS) {
 			covarianceMatrix = new double[N*M][N*M];
 			for (int j = 0; j < rite - left; j ++) {
-				double statistics = 1 + neutronYield[j]*timeStep*1e15*this.gain(); // total deuteron yield from this neutron time bin
+				double primaryStatistics = 1 + neutronYield[j]*timeStep*1e15*this.gain(); // total deuteron yield from this neutron time bin
 				double dsStatistics = 1 + neutronYield[j]*timeStep*1e15*this.gain()*arealDensity[j]/21.;
-				covarianceMatrix[    j][    j] = Math.pow(neutronYield[j], 2)/statistics;
-				covarianceMatrix[  M+j][  M+j] = Math.pow(ionTemperature[j], 2)*2/(statistics - 1);
+				covarianceMatrix[    j][    j] = Math.pow(neutronYield[j], 2)/primaryStatistics;
+				covarianceMatrix[  M+j][  M+j] = Math.pow(ionTemperature[j], 2)*2/(primaryStatistics - 1);
 				covarianceMatrix[2*M+j][2*M+j] = Math.pow(arealDensity[j], 2)/dsStatistics;
 			}
 		}
@@ -690,7 +707,7 @@ public class Analysis {
 			totalPenalty += Math.pow((Math.log(ionTemperature[j]) - 0.2)/2.5, 2);
 		for (double[] x: new double[][] {ionTemperature, arealDensity}) {
 			for (int j = 0; j < timeAxis.length - 3; j ++) {
-				if (active[j] && active[j+1] && active[j+2] && active[j+3]) {
+				if (active == null || (active[j] && active[j+1] && active[j+2] && active[j+3])) {
 					double Ψpp = (x[j] - 3*x[j+1] + 3*x[j+2] - x[j+3])/
 						  Math.pow(timeStep, 3);
 					double Ψ = (x[j] + x[j+1] + x[j+2] + x[j+3])/4;

@@ -529,18 +529,18 @@ public class NumericalMethods {
 		return r;
 	}
 	
-	public static int firstLocalMin(double[] v) {
-		for (int i = 0; i < v.length-1; i ++)
-			if (v[i] < v[i+1])
+	public static int firstAbove(double cutoff, double[] v) {
+		for (int i = 0; i < v.length; i ++)
+			if (v[i] > cutoff)
 				return i;
-		return v.length-1;
+		return v.length;
 	}
 	
-	public static int lastLocalMin(double[] v) {
-		for (int i = v.length-1; i >= 1; i --)
-			if (v[i] < v[i-1])
+	public static int lastAbove(double cutoff, double[] v) {
+		for (int i = v.length-1; i >= 0; i --)
+			if (v[i] > cutoff)
 				return i;
-		return 0;
+		return -1;
 	}
 	
 	public static double max(double[] arr) {
@@ -1346,6 +1346,13 @@ public class NumericalMethods {
 			xR[i] += dx[i];
 			step[i] = function.apply(xR);
 			assert Double.isFinite(step[i]);
+
+//			System.out.println("data = np.array([");
+//			for (double x = x0[i] - 2*Math.abs(dx[i]); x <= x0[i] + 2*Math.abs(dx[i]); x += Math.abs(dx[i])*.04) {
+//				xR[i] = x;
+//				System.out.printf("[%f, %f],\n", x, function.apply(xR));
+//			}
+//			System.out.printf("]) # %d\n", i);
 		}
 
 		double[][] hessian = new double[x0.length][x0.length]; // then go for the second derivatives
