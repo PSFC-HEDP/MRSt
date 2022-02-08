@@ -188,42 +188,16 @@ public class SpectrumGenerator {
 
 	/**
 	 * modify a spectrum artificially in place.
-	 * @param times the time bin boundaries [ns]
-	 * @param energies the energy bin midpoints [MeV]
 	 * @param spectrum array of the neutron spectrum integrated in time [#/MeV]
-	 * @param yield the flat yield modifier to apply
-	 * @param temp the flat temperature modifier to apply
-	 * @param downS the flat down scatter yield modifier to apply
-	 * @param flow the flat velocity shift to apply [km/s]
+	 * @param yield the new yield to which to scale it
 	 */
-	public static void modifySpectrum(double[] times, double[] energies, double[][] spectrum,
-	                                  double yield, double temp, double downS, double flow) {
-		for (int i = 0; i < energies.length - 1; i ++) { // scale the whole thing up or down to change yield (and account for the broadening)
-			for (int j = 0; j < times.length - 1; j ++) {
-				if (energies[i] >= 13.3)
-					spectrum[i][j] = yield/Math.sqrt(temp)*spectrum[i][j];
-				else
-					spectrum[i][j] = yield*downS/Math.sqrt(temp)*spectrum[i][j];
-			}
-		}
-		for (int j = 0; j < times.length - 1; j ++) { // scale it in energy space to change temperature
-			double[] slice = new double[energies.length - 1];
-			for (int i = 0; i < energies.length - 1; i ++)
-				slice[i] = spectrum[i][j];
-			int argmax = NumericalMethods.argmax(slice);
-			double ePeak = NumericalMethods.mean(energies, slice);
-			double iPeak = argmax + (ePeak - energies[argmax])/(energies[1] - energies[0]); // find the peak index (assume equally spaced energy bins)
-			iPeak = NumericalMethods.coerce(argmax-1, argmax+1, iPeak);
-			for (int i = 0; i < energies.length - 1; i ++) {
-				double iP = iPeak + (i - iPeak)/Math.sqrt(temp);
-				if (iP >= 0 && iP < energies.length-2)
-					spectrum[i][j] = (1-iP%1)*slice[(int)iP] + (iP%1)*slice[(int)iP+1];
-				else
-					spectrum[i][j] = 0;
-			}
-		}
-		for (int i = 0; i < energies.length; i ++)
-			energies[i] = energies[i] - .54e-3*flow;
+	public static void modifySpectrum(double[][] spectrum,
+	                                  double yield) {
+		double modifier = yield/NumericalMethods.sum(spectrum);
+
+		for (int i = 0; i < spectrum.length; i ++) // scale the whole thing up or down to change yield
+			for (int j = 0; j < spectrum[i].length; j ++)
+				spectrum[i][j] = modifier*spectrum[i][j];
 	}
 
 

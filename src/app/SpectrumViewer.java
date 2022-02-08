@@ -226,7 +226,7 @@ public class SpectrumViewer extends Application {
 						}
 						else
 							spec = deepClone(spectrum);
-						SpectrumGenerator.modifySpectrum(tBins, eBins, spec, yieldFactor.getValue()/100., 1, 1, 0);
+						SpectrumGenerator.modifySpectrum(spec, yieldFactor.getValue()/100.*NumericalMethods.sum(spec));
 					} catch (ArrayIndexOutOfBoundsException e) {
 						logger.severe("Invalid input spectrum file.");
 						return;

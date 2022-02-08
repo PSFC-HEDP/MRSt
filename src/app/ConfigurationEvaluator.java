@@ -72,7 +72,7 @@ public class ConfigurationEvaluator extends Application {
 	private static final int SPACING_1 = 10;
 	private static final int SPACING_2 = 4;
 	
-	private static final int NUM_YIELDS = 100;
+	private static final int NUM_YIELDS = 6;
 	
 	
 	private Spinner<Double> foilDistance;
@@ -84,7 +84,7 @@ public class ConfigurationEvaluator extends Application {
 	private Spinner<Double> apertureHeight;
 	private Spinner<Double> focalPlaneTilt;
 	private ChoiceBox<Integer> order;
-	private CheckBox[] variations;
+	private CheckBox variation;
 	private CheckBox errorBars;
 	private TextField saveFile;
 	
@@ -171,17 +171,10 @@ public class ConfigurationEvaluator extends Application {
 
 		VBox rightPane = new VBox(SPACING_1);
 
-		this.variations = new CheckBox[4];
-		this.variations[0] = new CheckBox("Vary yield");
-		this.variations[1] = new CheckBox("Vary temperature");
-		this.variations[2] = new CheckBox("Vary density");
-		this.variations[3] = new CheckBox("Vary velocity");
-		for (CheckBox checkBox: variations) {
-			checkBox.setSelected(false);
-			rightPane.getChildren().add(checkBox);
-		}
-		this.variations[0].setSelected(true);
-		
+		this.variation = new CheckBox("Vary yield");
+		this.variation.setSelected(true);
+		rightPane.getChildren().add(variation);
+
 		this.errorBars = new CheckBox("Compute error bars");
 		this.errorBars.setSelected(true);
 		rightPane.getChildren().add(errorBars);
@@ -197,7 +190,7 @@ public class ConfigurationEvaluator extends Application {
 				logger.severe("Please select a COSY map file.");
 			else {
 				new Thread(() -> {
-					Analysis mc = null;
+					Analysis mc;
 					try {
 						mc = new Analysis(
 								foilDistance.getValue()*1e-3,
@@ -210,17 +203,17 @@ public class ConfigurationEvaluator extends Application {
 								cosyMapping,
 								focalPlaneTilt.getValue(),
 								false,
-
 								1,
 								logger); // make the simulation
 					} catch (Exception e) {
 						logger.log(Level.SEVERE, e.getMessage(), e);
+						return;
 					}
 					
 					double[][] results = new double[NUM_YIELDS][Analysis.HEADERS_WITH_ERRORS.length];
 					for (int k = 0; k < NUM_YIELDS; k ++) {
-						double[] eBins = null, tBins = null;
-						double[][] spec = null;
+						double[] eBins, tBins;
+						double[][] spec;
 						try {
 							eBins = CSV.readColumn(new File("input/energy.txt"));
 							tBins = CSV.readColumn(new File("input/time og with falling temp.txt"));
@@ -231,19 +224,17 @@ public class ConfigurationEvaluator extends Application {
 							}
 						} catch (ArrayIndexOutOfBoundsException | NumberFormatException | IOException e) {
 							logger.log(Level.SEVERE, e.getMessage(), e);
+							return;
 						}
 						
-						double yield = (variations[0].isSelected()) ? Math.pow(10, -3.*Math.random()) : Math.pow(10, -0.05*Math.random());
-						double temp =  (variations[1].isSelected()) ? Math.exp(2*Math.random() - 1) : 1; // roll the dies on the spectrum modifications
-						double downS = (variations[2].isSelected()) ? Math.exp(2*Math.random() - 1) : 1;
-						double flow =  (variations[3].isSelected()) ? 200*Math.random()*(2*Math.random() - 1) : 0;
-						SpectrumGenerator.modifySpectrum(tBins, eBins, spec, yield, temp, downS, flow);
+						double yield = 4e+17*((variation.isSelected()) ? Math.pow(10, -3.*Math.random()) : Math.pow(10, -0.05*Math.random()));
+						SpectrumGenerator.modifySpectrum(spec, yield);
 						
 						ErrorMode errorBars = this.errorBars.isSelected() ?
 								ErrorMode.HESSIAN :
 								ErrorMode.STATISTICS;
 						
-						logger.info(String.format("Yn = %f (%d/%d)", yield, k, NUM_YIELDS));
+						logger.info(String.format("Yn = %.4g (%d/%d)", yield, k, NUM_YIELDS));
 						
 						double[] result;
 						try {
@@ -257,13 +248,10 @@ public class ConfigurationEvaluator extends Application {
 							result = null;
 						}
 						results[k][0] = yield;
-						results[k][1] = temp;
-						results[k][2] = downS;
-						results[k][3] = flow;
 						if (result != null)
-							System.arraycopy(result, 0, results[k], 4, result.length);
+							System.arraycopy(result, 0, results[k], 1, result.length);
 						else
-							for (int i = 4; i < results[k].length; i ++)
+							for (int i = 1; i < results[k].length; i ++)
 								results[k][i] = Double.NaN;
 						
 						if (k%6 == 5 || k == NUM_YIELDS - 1) {

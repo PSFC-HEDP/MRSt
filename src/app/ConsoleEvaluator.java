@@ -23,6 +23,13 @@
  */
 package app;
 
+import physics.Analysis;
+import physics.Analysis.ErrorMode;
+import physics.Particle;
+import physics.SpectrumGenerator;
+import util.COSYMapping;
+import util.CSV;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.logging.ConsoleHandler;
@@ -30,13 +37,6 @@ import java.util.logging.FileHandler;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import physics.Analysis;
-import physics.Particle;
-import physics.SpectrumGenerator;
-import util.COSYMapping;
-import util.CSV;
-import physics.Analysis.ErrorMode;
 
 
 /**
@@ -167,10 +167,10 @@ public class ConsoleEvaluator {
 						return;
 					}
 
-					double yield = Math.pow(10, -3.0*Math.random());
-					SpectrumGenerator.modifySpectrum(tBins, eBins, spec, yield, 1, 1, 0);
+					double yield = 4e+17*Math.pow(10, -3.0*Math.random());
+					SpectrumGenerator.modifySpectrum(spec, yield);
 					
-					logger.log(Level.INFO, String.format("Yn = %f (%d/%d)", yield,
+					logger.log(Level.INFO, String.format("Yn = %.4g (%d/%d)", yield,
 							T+numThreads*k, numYields));
 					
 					double[] result;
@@ -185,13 +185,10 @@ public class ConsoleEvaluator {
 						result = null;
 					}
 					results[T+numThreads*k][0] = yield;
-					results[T+numThreads*k][1] = 1;
-					results[T+numThreads*k][2] = 1;
-					results[T+numThreads*k][3] = 0;
 					if (result != null)
-						System.arraycopy(result, 0, results[T+numThreads*k], 4, result.length);
+						System.arraycopy(result, 0, results[T+numThreads*k], 1, result.length);
 					else
-						for (int i = 4; i < results[T+numThreads*k].length; i ++)
+						for (int i = 1; i < results[T+numThreads*k].length; i ++)
 							results[T+numThreads*k][i] = Double.NaN;
 					
 					if (T == 0 && (k+1)%5 == 0)

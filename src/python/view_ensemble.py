@@ -39,8 +39,7 @@ MARGIN = dict(bottom=.10, top=.90, left=.13, right=.99, wspace=.35, hspace=.05)
 
 
 if len(sys.argv) <= 1:
-	FILENAME = '../../output/ensemble.csv'
-	# FILENAME = '../../output/ensemble_4_9_5_2_1501_2021-06-01.csv'
+	FILENAME = '../../output/ensemble_5_0_1000_failed_2022-02-04.csv'
 else:
 	FILENAME = '../../output/'+sys.argv[1]
 BIN_WIDTH = 0.3 # in bels
@@ -49,28 +48,18 @@ REFERENCE_YIELD = 4e17
 X_LABEL = "Yield"
 
 Y_LABELS = [
-	# (None, 0, 0, 0, 0, False),
-	# ("Total yield", 2e14, 4.36508e17, 9e17, 5e-2, True),
-	# ("Bang time (ns)", 16.243, 16.2583, 16.272, 1e-2, False),#1e-2, False),
-	# ("Burn width (ps)", 53, 67.7, 82, 7, False),
-	# ("Burn skewness", -1.6, -.698, -0.1, 3e-1, False),
-	# ("Burn kurtosis", -0.5, 4.7, 10.5, 3, False),
-	# ("ρR at BT (g/cm^2)", .71, .988, 1.29, 7e-2, True),
-	("Burn-average Ti (keV)", 5.25, 7.14320, 9.75, 5e-2, True),
-	("Ti at BT (keV)", 5.25, 7.51554, 9.75, 5e-2, True),#7.63848, 11, 0, False),
-	# ("Burn-average ρR (g/cm^2)", 0.71, .999, 1.29, 7e-2, True),
-	# ("dρR/dt at BT (g/cm^2/100ps)", -1.15, -.887, -.45, .060, False),
-	("dTi/dt at BT (keV/100ps)", -2.3, 1.09569, 6.3, 1.9, False),
-	# ("Bang time (ns)", 16.243, 16.258, 16.272, 1e-2, False),
-	("Burn width (ps)", 56, 69.5532, 87, 7, False),
-	# ("Burn skewness", -1.3, -.590, 0.1, 3e-1, False), ("Burn kurtosis", -0.5, 4.52, 10.5, 3, False),
-	# ("Burn-average vi (km/s)", -15.2, 0, 15.2, 20, False), ("dvi/dt at BT (km/s/100ps)", -25, 0, 25, 8, False),
-	# ("ρR at stagnation (g/cm^2)", 0.9, 1.39, 1.7, 0, False),
-	# ("Peak Ti (keV)", 5, 8.073, 13, 0, False),	#("Energy confinement time (ps)", 0, 114.8, 200, 0, False),
-	# ("dTi/dt at BT (keV/100ps)", -2.3, 2.08, 6.3, 1.9, False),
-	# ("d^2Ti/dt^2 at BT (keV/ns^2)", -2200, -400, 1700, 400, False),#("dTi/dt at stagnation (keV/(100ps))", -20, 30.20, 40, 1.9, False),
-	# ("d^2V/dt^2/V at BT (1/ns^2)", -700, 509, 2300, 50, False),#616
-	# ("Stagnation - BT (ps)", -160, -55.5 , 40, 0, False)
+	# ("Burn-average Ti (keV)", 5.25, 7.14320, 9.75, 5e-2, True),
+	# ("Ti at BT (keV)", 5.25, 7.51554, 9.75, 5e-2, True),
+	# ("dTi/dt at BT (keV/100ps)", -2.3, 1.09569, 6.3, 1.9, False),
+	# ("Burn width (ps)", 56, 69.5532, 87, 7, False),
+	# ("Burn-average Ti (keV)", 5.25, 7.52, 9.75, 5e-2, True),
+	# ("Ti at BT (keV)", 5.25, 7.8, 9.75, 5e-2, True),
+	# ("dTi/dt at BT (keV/100ps)", -2.3, 1.7, 6.3, 1.5, False),
+	# ("Burn width (ps)", 56, 70.39, 87, 7, False),
+	("Burn-average Ti (keV)", 3.25, 4.5, 5.75, 5e-2, True),
+	("Ti at BT (keV)", 2.25, 4.8, 6.75, 5e-2, True),
+	("dTi/dt at BT (keV/100ps)", -2.3, -1.3, 6.3, 1.1, False),
+	("Burn width (ps)", 100, 130, 150, 7, False),
 ]
 
 
@@ -200,8 +189,8 @@ for i, (axis, y_min, y_true, y_max, presis, percent) in enumerate(Y_LABELS): # i
 			y_factor[order]*y_true*(1 - presis), y_factor[order]*y_true*(1 + presis), color='#F7DFC8')
 	ax.plot(x[order], y_factor[order]*y_true, 'C1-', zorder=1, label="Based on original data")
 	ax.scatter(x[order], y[order], s=1, zorder=2, label="Based on fit to synthetic data")
-	# ax.plot(x[order], μ + σ, 'C3-', zorder=1, label="1σ variation")
-	# ax.plot(x[order], μ - σ, 'C3-', zorder=1)
+	ax.plot(x[order], μ + σ, 'C0-', linewidth=1, zorder=1, label="1σ variation")
+	ax.plot(x[order], μ - σ, 'C0-', linewidth=1, zorder=1)
 	if y_min > 0 and y_max/y_min > 10:
 		ax.set_yscale('log')
 	ax.set_ylim(y_min, y_max)

@@ -52,7 +52,7 @@ import java.util.logging.Logger;
 public class Analysis {
 	
 	public static final String[] HEADERS = {
-		  "Yield factor", "Temperature factor", "Down-scatter factor", "Velocity shift (μm/ns)",
+		  "Yield",
 		  "Computation time (s)", "Total yield (10^15)", "Bang time (ns)",
 		  "Burn width (ns)", "Burn skewness", "Burn kurtosis", "Stagnation - BT (ns)",
 		  "Burn-average Ti (keV)", "Peak Ti (keV)",
@@ -897,13 +897,13 @@ public class Analysis {
 	
 	
 	private static String[] appendErrorsToHeader() {
-		String[] out = new String[2*HEADERS.length + 4];
+		String[] out = new String[2*HEADERS.length + 1];
 		for (int i = 0; i < HEADERS.length; i ++) {
-			if (i < 4)
+			if (i < 1)
 				out[i] = HEADERS[i];
 			else {
-				out[2*(i-4)+4] = HEADERS[i];
-				out[2*(i-4)+5] = HEADERS[i] + " error";
+				out[2*(i-1)+1] = HEADERS[i];
+				out[2*(i-1)+2] = HEADERS[i] + " error";
 			}
 		}
 		return out;
