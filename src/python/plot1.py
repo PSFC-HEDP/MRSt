@@ -9,7 +9,7 @@ if len(sys.argv) <= 1:
 	os.chdir('../..')
 	print(os.getcwd())
 	# xlabel, ylabels, title, answer, n = 'Time (ns)', 'Yn (10^15/ns)\nTi (keV)\nρR (g/cm^2)', 'data', 'marginal', 3
-	xlabel, ylabels, title, answer, n = 'Time (ns)', 'Yn (10^15/ns)\nTi (keV)\nρR (g/cm^2)', 'data', 'og with falling temp', 2
+	xlabel, ylabels, title, answer, n = 'Time (ns)', 'Yn (10^15/ns)\nTi (keV)', 'data', 'og with falling temp', 2
 else:
 	xlabel, ylabels, title, answer, n = sys.argv[1:]
 
@@ -60,20 +60,20 @@ for i in range(n):
 		'a':(-1, 1)
 	}.get(ylabels[i][0], (None, None))
 	YAs[i][np.isnan(ΔAs[i])] = np.nan
-	plots.append(axes[i].plot(XA - x0, YAs[i], '-o', label=ylabels[i], color=f'C{i}')[0])
+	plots.append(axes[i].plot((XA - x0)*1000, YAs[i], '-o', label=ylabels[i], color=f'C{i}')[0])
 	if XB is not None:
-		axes[i].plot(XB - x0, YBs[i], '--', color=f'C{i}')[0]
-	axes[i].fill_between(XA - x0, YAs[i] - ΔAs[i], YAs[i] + ΔAs[i], color='C'+str(i), alpha=0.3)
+		axes[i].plot((XB - x0)*1000, YBs[i], '--', color=f'C{i}')[0]
+	axes[i].fill_between((XA - x0)*1000, YAs[i] - ΔAs[i], YAs[i] + ΔAs[i], color='C'+str(i), alpha=0.3)
 	axes[i].set_ylabel(ylabels[i])
 	axes[i].set_ylim(*rainge)
 
 	if ylabels[i].startswith('Y'):
 		Ymax = YAs[i].max(initial=0, where=np.isfinite(YAs[i]))
-		lims = np.min(XA[YAs[i]/Ymax >= 1e-3]) - x0, np.max(XA[YAs[i]/Ymax >= 1e-3]) - x0
+		lims = (np.min(XA[YAs[i]/Ymax >= 1e-3]) - x0)*1000, (np.max(XA[YAs[i]/Ymax >= 1e-3]) - x0)*1000
 		if not all(np.isfinite(lims)):
-			lims = XA[0] - x0, XA[-1] - x0
+			lims = (XA[0] - x0)*1000, (XA[-1] - x0)*1000
 		axes[0].set_xlim(*lims)
-axes[0].set_xlabel(xlabel)
+axes[0].set_xlabel(xlabel.replace("ns", "ps"))
 
 # axes[0].legend(plots, [p.get_label() for p in plots])
 

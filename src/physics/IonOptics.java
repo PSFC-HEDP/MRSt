@@ -53,7 +53,7 @@ public class IonOptics {
 	private static final String STOPPING_POWER_FILENAME = "input/stopping_power_%ss_CD.csv";
 
 	private static final int TRANSFER_MATRIX_TRIES = 10000; // the number of points to sample in each column of the transfer matrix
-
+	private static final double TRANSFER_FUNC_ERROR = 0.05; // the error in the transfer function
 
 	private final double foilDistance; // z coordinate of midplane of foil [m]
 	private final double foilWidth; // extent of foil in dispersion direccion [m]
@@ -73,7 +73,7 @@ public class IonOptics {
 	private double[] energyBins; // the energy bins that were last used to compute the transfer matrix
 	private double[] timeBins; // the time bins that were last used to compute the transfer matrix
 	private double[][] rongTransferMatrix; // the theoretical transfer matrix of the full ion-optick system
-//	private double[][] trueTransferMatrix; // a randomly varied transfer matrix, to mimick the uncertainty of reality
+	private double[][] trueTransferMatrix; // a randomly varied transfer matrix, to mimick the uncertainty of reality
 
 	private final DiscreteFunction distanceVsEnergy; // stopping distance info
 	private final DiscreteFunction energyVsDistance; // inverse stopping distance info
@@ -196,7 +196,7 @@ public class IonOptics {
 		for (int j = 0; j <= nTimes; j ++)
 			timeBins[j] = (timeRange[1] - timeRange[0])*j/nTimes + timeRange[0];
 
-		evaluateTransferMatrix(energyBins, timeBins);
+		makeSureWeHaveTransferMatrix(energyBins, timeBins);
 
 		int iRef = NumericalMethods.bin(referenceEnergy, energyBins);
 		int jRef = nTimes/2;
@@ -240,32 +240,7 @@ public class IonOptics {
 	 */
 	public double[][] response(double[] energyBins, double[] timeBins, double[][] inSpectrum,
 	                           boolean stochastic, boolean actual) {
-		if (this.rongTransferMatrix == null ||
-				!Arrays.equals(energyBins, this.energyBins) ||
-				!Arrays.equals(timeBins, this.timeBins)) // the full nmxnm believed transfer matrix
-			evaluateTransferMatrix(energyBins, timeBins);
-		this.energyBins = energyBins;
-		this.timeBins = timeBins;
-
-		//		if (TRANSFER_FUNC_ERROR != 0) {
-		//			double energyResolutionModifier = 1 + (2*RANDOM.nextDouble() - 1)*TRANSFER_FUNC_ERROR;
-		//			double timeResolutionModifier = 1 + (2*RANDOM.nextDouble() - 1)*TRANSFER_FUNC_ERROR;
-		//			logger.info("augmenting energy resolution by "+energyResolutionModifier+" and time resolution by "+timeResolutionModifier);
-		//			for (int i = 0; i < 4; i ++)
-		//				this.cosyCoefficients[i][0] *= energyResolutionModifier;
-		//			for (int i = 0; i < 6; i ++)
-		//				if (i != 4)
-		//					this.cosyCoefficients[i][4] *= timeResolutionModifier;
-		//			this.trueTransferMatrix = evaluateTransferMatrix();// evaluateTransferMatrix(); // now make up the actual transfer matrix
-		//			for (int i = 0; i < 4; i ++)
-		//				this.cosyCoefficients[i][0] /= energyResolutionModifier;
-		//			for (int i = 0; i < 6; i ++)
-		//				if (i != 4)
-		//					this.cosyCoefficients[i][4] /= timeResolutionModifier;
-		//		}
-		//		else {
-		// the full nmx2nm actual transfer matrix plus smoothing rows
-		//		}
+		makeSureWeHaveTransferMatrix(energyBins, timeBins); // the full nmxnm believed transfer matrix
 
 		double[] u = new double[(energyBins.length-1)*(timeBins.length-1)];
 		for (int i = 0; i < energyBins.length-1; i ++)
@@ -273,9 +248,9 @@ public class IonOptics {
 				u[(timeBins.length-1)*i + j] = inSpectrum[i][j]; // now flatten the spectrum
 
 		double[] v;
-//		if (actual)
-//			v = NumericalMethods.matmul(rongTransferMatrix, u);
-//		else
+		if (actual)
+			v = NumericalMethods.matmul(trueTransferMatrix, u);
+		else
 			v = NumericalMethods.matmul(rongTransferMatrix, u); // then do the multiplication
 
 		double[][] outSpectrum = new double[energyBins.length-1][timeBins.length-1];
@@ -311,17 +286,20 @@ public class IonOptics {
 	}
 
 	/**
-	 * determine the response of the MRSt to neutrons at particular energies. also tack on some
-	 * finite difference laplacian roughness measures.
+	 * evaluate the matrix governing the response of the MRSt to neutrons at
+	 * particular energies <i>if</i> we haven't yet for these bins.  if we have
+	 * already evaluated it, do absolutely noting.
 	 * @param energyBins the neutron energy bins by which we linearize [MeV]
 	 * @param timeBins the neutron time bins by which we linearize [ns]
 	 */
-	private void evaluateTransferMatrix(double[] energyBins, double[] timeBins) {
+	private void makeSureWeHaveTransferMatrix(double[] energyBins, double[] timeBins) {
 		if (this.rongTransferMatrix == null ||
-				!Arrays.equals(energyBins, this.energyBins) ||
-				!Arrays.equals(timeBins, this.timeBins)) { // (only evaluate it if it hasn't been evaluated yet)
+			  !Arrays.equals(energyBins, this.energyBins) ||
+			  !Arrays.equals(timeBins, this.timeBins)) { // (only evaluate it if it hasn't been evaluated yet)
 			this.energyBins = energyBins;
 			this.timeBins = timeBins;
+
+			this.rongTransferMatrix = null;
 
 			if (this.reuseMatrix) { // if the user sed to reuse the last transfer matrix
 				try {
@@ -333,52 +311,82 @@ public class IonOptics {
 			}
 
 			if (this.rongTransferMatrix == null) { // if we need to make a new one for whatever reason
-				int n = (energyBins.length - 1)*(timeBins.length - 1);
-				double[][] matrix = new double[n][n];
-				int j0 = timeBins.length/2; // time symmetry means we only need to evaluate at one time
-				for (int i = 0; i < energyBins.length - 1; i++) { // sweep through all energies
-					double energy0 = energyBins[i], energy1 = energyBins[i + 1]; // [MeV]
-					double time0 = timeBins[j0]*ns, time1 = timeBins[j0 + 1]*ns; // [s]
-					double weight = this.efficiency((energy0 + energy1)/2)/TRANSFER_MATRIX_TRIES;
-					for (int k = 0; k < TRANSFER_MATRIX_TRIES; k++) {
-						double energyI = energy0 + MC_RANDOM.nextDouble()*(energy1 - energy0); // randomly choose values from the bin [MeV]
-						double timeI = time0 + MC_RANDOM.nextDouble()*(time1 - time0); // [s]
-
-						double[] etUncorrected = simulate(energyI, timeI, true);
-						if (!Double.isNaN(etUncorrected[0])) { // sometimes, they won't hit the CsI cathode. That's fine.
-							//						if (RANDOM.nextDouble() < Math.exp(-Math.pow(energyI - 14, 2)/(2*6/9e-5/5*1*14/2.355/2.355/1e6)))
-							//							System.out.printf("[%.3f, %.6f, %.6f, %.6f, %.6g],\n", energyI, etUncorrected[x], etUncorrected[y], etUncorrected[z], (etUncorrected[3] - timeI));
-							double[] et = backCalculate(etUncorrected); // do the simulation!
-
-							double energyO = et[0], timeO = et[1]/ns; // then convert to the same units as the bins
-							//					double energyO = energyI/1e6, timeO = timeI/ns;
-							int eBin = NumericalMethods.bin(energyO, energyBins);
-							int tBin = NumericalMethods.bin(timeO, timeBins);
-							if (eBin >= 0 && eBin < energyBins.length - 1 && tBin >= 0 && tBin < timeBins.length - 1) // if it falls in detectable bounds
-								matrix[(timeBins.length - 1)*eBin + tBin][(timeBins.length - 1)*i + j0] += weight; // add it to the row
-						}
-					}
-				}
-
-				for (int i = 0; i < n; i++) { // now iterate through all of the rows
-					for (int j = 0; j < n; j++) { // and all of the columns, of which we still don't have many
-						int jRef = j/(timeBins.length - 1)*(timeBins.length - 1) + j0; // look for the nearest column that is filled
-						int iRef = i - j + jRef; // [i,j] is equivalent to an [iRef,jRef] by time symmetry
-						if (iRef >= 0 && i/(timeBins.length - 1) == iRef/(timeBins.length - 1)) // this may have jumped over to the next energy,
-							matrix[i][j] = matrix[iRef][jRef];
-						else
-							matrix[i][j] = 0; // but if so, it's almost certainly 0
-					}
-				}
-
-				this.rongTransferMatrix = matrix;
+				this.rongTransferMatrix = this.evaluateTransferMatrix(energyBins, timeBins);
 				try {
-					CSV.write(matrix, new File("output/transfer matrix.csv"), ',');
+					CSV.write(rongTransferMatrix, new File("output/transfer matrix.csv"), ',');
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
 			}
+
+			if (TRANSFER_FUNC_ERROR == 0) {
+				this.trueTransferMatrix = this.rongTransferMatrix;
+			}
+			else {
+				double energyResolutionModifier = 1 + (2*MC_RANDOM.nextDouble() - 1)*TRANSFER_FUNC_ERROR;
+				double timeResolutionModifier = 1 + (2*MC_RANDOM.nextDouble() - 1)*TRANSFER_FUNC_ERROR;
+				System.out.println("augmenting energy resolution by " + energyResolutionModifier + " and time resolution by " + timeResolutionModifier);
+				for (int i = 0; i < 4; i++)
+					this.cosyMapping.coefficients[i][0] *= energyResolutionModifier;
+				for (int i = 0; i < 6; i++)
+					if (i != 4)
+						this.cosyMapping.coefficients[i][4] *= timeResolutionModifier;
+				this.trueTransferMatrix = this.evaluateTransferMatrix(energyBins, timeBins);// evaluateTransferMatrix(); // now make up the actual transfer matrix
+				for (int i = 0; i < 4; i++)
+					this.cosyMapping.coefficients[i][0] /= energyResolutionModifier;
+				for (int i = 0; i < 6; i++)
+					if (i != 4)
+						this.cosyMapping.coefficients[i][4] /= timeResolutionModifier;
+			}
 		}
+	}
+
+	/**
+	 * determine the response of the MRSt to neutrons at particular energies. also tack on some
+	 * finite difference laplacian roughness measures.
+	 * @param energyBins the neutron energy bins by which we linearize [MeV]
+	 * @param timeBins the neutron time bins by which we linearize [ns]
+	 */
+	private double[][] evaluateTransferMatrix(double[] energyBins, double[] timeBins) {
+		int n = (energyBins.length - 1)*(timeBins.length - 1);
+		double[][] matrix = new double[n][n];
+		int j0 = timeBins.length/2; // time symmetry means we only need to evaluate at one time
+		for (int i = 0; i < energyBins.length - 1; i++) { // sweep through all energies
+			double energy0 = energyBins[i], energy1 = energyBins[i + 1]; // [MeV]
+			double time0 = timeBins[j0]*ns, time1 = timeBins[j0 + 1]*ns; // [s]
+			double weight = this.efficiency((energy0 + energy1)/2)/TRANSFER_MATRIX_TRIES;
+			for (int k = 0; k < TRANSFER_MATRIX_TRIES; k++) {
+				double energyI = energy0 + MC_RANDOM.nextDouble()*(energy1 - energy0); // randomly choose values from the bin [MeV]
+				double timeI = time0 + MC_RANDOM.nextDouble()*(time1 - time0); // [s]
+
+				double[] etUncorrected = simulate(energyI, timeI, true);
+				if (!Double.isNaN(etUncorrected[0])) { // sometimes, they won't hit the CsI cathode. That's fine.
+					//						if (RANDOM.nextDouble() < Math.exp(-Math.pow(energyI - 14, 2)/(2*6/9e-5/5*1*14/2.355/2.355/1e6)))
+					//							System.out.printf("[%.3f, %.6f, %.6f, %.6f, %.6g],\n", energyI, etUncorrected[x], etUncorrected[y], etUncorrected[z], (etUncorrected[3] - timeI));
+					double[] et = backCalculate(etUncorrected); // do the simulation!
+
+					double energyO = et[0], timeO = et[1]/ns; // then convert to the same units as the bins
+					//					double energyO = energyI/1e6, timeO = timeI/ns;
+					int eBin = NumericalMethods.bin(energyO, energyBins);
+					int tBin = NumericalMethods.bin(timeO, timeBins);
+					if (eBin >= 0 && eBin < energyBins.length - 1 && tBin >= 0 && tBin < timeBins.length - 1) // if it falls in detectable bounds
+						matrix[(timeBins.length - 1)*eBin + tBin][(timeBins.length - 1)*i + j0] += weight; // add it to the row
+				}
+			}
+		}
+
+		for (int i = 0; i < n; i++) { // now iterate through all of the rows
+			for (int j = 0; j < n; j++) { // and all of the columns, of which we still don't have many
+				int jRef = j/(timeBins.length - 1)*(timeBins.length - 1) + j0; // look for the nearest column that is filled
+				int iRef = i - j + jRef; // [i,j] is equivalent to an [iRef,jRef] by time symmetry
+				if (iRef >= 0 && i/(timeBins.length - 1) == iRef/(timeBins.length - 1)) // this may have jumped over to the next energy,
+					matrix[i][j] = matrix[iRef][jRef];
+				else
+					matrix[i][j] = 0; // but if so, it's almost certainly 0
+			}
+		}
+
+		return matrix;
 	}
 
 	/**

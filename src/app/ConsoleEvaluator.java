@@ -46,15 +46,6 @@ import java.util.logging.Logger;
  */
 public class ConsoleEvaluator {
 	public static void main(String[] args) throws SecurityException, IOException {
-		for (int i = 0; i < Analysis.HEADERS.length; i ++) {
-			if (i < 4)
-				Analysis.HEADERS_WITH_ERRORS[i] = Analysis.HEADERS[i];
-			else {
-				Analysis.HEADERS_WITH_ERRORS[2*(i-4)+4] = Analysis.HEADERS[i];
-				Analysis.HEADERS_WITH_ERRORS[2*(i-4)+5] = Analysis.HEADERS[i] + " error";
-			}
-		}
-
 		String implosionName;
 		if (args.length > 0)
 			implosionName = args[0];
@@ -167,7 +158,7 @@ public class ConsoleEvaluator {
 						return;
 					}
 
-					double yield = 4e+17*Math.pow(10, -3.0*Math.random());
+					double yield = 1e+18*Math.pow(10, -2.0*Math.random());
 					SpectrumGenerator.modifySpectrum(spec, yield);
 					
 					logger.log(Level.INFO, String.format("Yn = %.4g (%d/%d)", yield,

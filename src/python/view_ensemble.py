@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import os
 import re
 import sys
 plt.rcParams.update({'font.family': 'sans', 'font.size': 11})
@@ -39,27 +40,28 @@ MARGIN = dict(bottom=.10, top=.90, left=.13, right=.99, wspace=.35, hspace=.05)
 
 
 if len(sys.argv) <= 1:
-	FILENAME = '../../output/ensemble_5_0_1000_failed_2022-02-04.csv'
+	FILENAME = '../../output/ensemble_5_0_1000_og_2022-02-15.csv'
+	# FILENAME = '../../output with varying response/ensemble_5_67_1000_og_2022-02-09.csv'
 else:
 	FILENAME = '../../output/'+sys.argv[1]
 BIN_WIDTH = 0.3 # in bels
-REFERENCE_YIELD = 4e17
+REFERENCE_YIELDS = [3e17, 1e17, 3e16, 1e16]
 
 X_LABEL = "Yield"
 
 Y_LABELS = [
 	# ("Burn-average Ti (keV)", 5.25, 7.14320, 9.75, 5e-2, True),
 	# ("Ti at BT (keV)", 5.25, 7.51554, 9.75, 5e-2, True),
-	# ("dTi/dt at BT (keV/100ps)", -2.3, 1.09569, 6.3, 1.9, False),
+	# ("dTi/dt at BT (keV/100ps)", -3.5, 1.09569, 3.5, 1.9, False),
 	# ("Burn width (ps)", 56, 69.5532, 87, 7, False),
 	# ("Burn-average Ti (keV)", 5.25, 7.52, 9.75, 5e-2, True),
-	# ("Ti at BT (keV)", 5.25, 7.8, 9.75, 5e-2, True),
-	# ("dTi/dt at BT (keV/100ps)", -2.3, 1.7, 6.3, 1.5, False),
-	# ("Burn width (ps)", 56, 70.39, 87, 7, False),
-	("Burn-average Ti (keV)", 3.25, 4.5, 5.75, 5e-2, True),
-	("Ti at BT (keV)", 2.25, 4.8, 6.75, 5e-2, True),
-	("dTi/dt at BT (keV/100ps)", -2.3, -1.3, 6.3, 1.1, False),
-	("Burn width (ps)", 100, 130, 150, 7, False),
+	("Ti at BT (keV)", 5.25, 7.8, 9.75, 5e-2, True),
+	("dTi/dt at BT (keV/100ps)", -4.5, 2.0, 4.5, 1.5, False),
+	("Burn width (ps)", 56, 70.39, 87, 7, False),
+	# ("Burn-average Ti (keV)", 3.25, 4.4, 5.75, 5e-2, True),
+	# ("Ti at BT (keV)", 2.25, 4.4, 6.75, 5e-2, True),
+	# ("dTi/dt at BT (keV/100ps)", -3.5, -1.6, 3.5, 1.2, False),
+	# ("Burn width (ps)", 100, 126, 150, 7, False),
 ]
 
 
@@ -113,8 +115,9 @@ except FileNotFoundError:
 	print("Ese archivo no existe.")
 	quit()
 
-simulations = simulations[simulations["Yield factor"] != 0]
-simulations["Yield"] = simulations["Yield factor"]*4.7838e17
+if "Yield factor" in simulations:
+	simulations["Yield"] = simulations["Yield factor"]*4.7838e17
+simulations = simulations[simulations["Yield"] != 0]
 for parameter in simulations:
 	if '(ns)' in parameter:
 		simulations[parameter.replace('(ns)', '(ps)')] = simulations[parameter]*1e-9/1e-12
@@ -140,7 +143,7 @@ except AttributeError:
 
 fig.subplots_adjust(**MARGIN)
 
-for i, (axis, y_min, y_true, y_max, presis, percent) in enumerate(Y_LABELS): # iterate through each desired plot
+for i, (axis, y_min, y_original, y_max, presis, percent) in enumerate(Y_LABELS): # iterate through each desired plot
 	if axis is None: continue
 	if INCLUDE_ERRORS:
 		ax = axs[i//COLUMNS, i%COLUMNS * 2 + 0] # identify the corresponding axis object
@@ -170,10 +173,8 @@ for i, (axis, y_min, y_true, y_max, presis, percent) in enumerate(Y_LABELS): # i
 		ax.yaxis.set_visible(False)
 		continue
 
-	if 'keV' in axis:      y_factor = simulations["Temperature factor"].values # automatically determine the relevant scaling factor
-	elif 'g/cm^2' in axis: y_factor = simulations["Down-scatter factor"].values
-	elif 'yield' in axis:  y_factor = simulations["Yield factor"].values
-	else:                  y_factor = np.ones(len(simulations.index))
+	if 'yield' in axis:  y_true = simulations["Yield"].values # automatically determine the relevant scaling factor
+	else:                y_true = y_original*np.ones(len(simulations.index))
 
 	order = np.argsort(x) # get some useful indices of the data
 	order = order[np.isfinite(simulations["Total yield"].values[order])]
@@ -183,11 +184,11 @@ for i, (axis, y_min, y_true, y_max, presis, percent) in enumerate(Y_LABELS): # i
 
 	if not percent: # plot the actual stuff
 		ax.fill_between(x[order],
-			y_factor[order]*y_true - presis, y_factor[order]*y_true + presis, color='#F7DFC8')
+			y_true[order] - presis, y_true[order] + presis, color='#F7DFC8')
 	else:
 		ax.fill_between(x[order],
-			y_factor[order]*y_true*(1 - presis), y_factor[order]*y_true*(1 + presis), color='#F7DFC8')
-	ax.plot(x[order], y_factor[order]*y_true, 'C1-', zorder=1, label="Based on original data")
+			y_true[order]*(1 - presis), y_true[order]*(1 + presis), color='#F7DFC8')
+	ax.plot(x[order], y_true[order], 'C1-', zorder=1, label="Based on original data")
 	ax.scatter(x[order], y[order], s=1, zorder=2, label="Based on fit to synthetic data")
 	ax.plot(x[order], μ + σ, 'C0-', linewidth=1, zorder=1, label="1σ variation")
 	ax.plot(x[order], μ - σ, 'C0-', linewidth=1, zorder=1)
@@ -197,7 +198,7 @@ for i, (axis, y_min, y_true, y_max, presis, percent) in enumerate(Y_LABELS): # i
 	ax.set_ylabel(text_wrap(axis.replace("^2", "²")))
 
 if INCLUDE_ERRORS:
-	for i, (axis, y_min, y_true, y_max, presis, percent) in enumerate(Y_LABELS):
+	for i, (axis, y_min, y_original, y_max, presis, percent) in enumerate(Y_LABELS):
 		if axis is None: continue
 		ax = axs[i//COLUMNS, i%COLUMNS * 2 + 1]
 
@@ -225,32 +226,32 @@ if INCLUDE_ERRORS:
 			ax.yaxis.set_visible(False)
 			continue
 
-		if 'keV' in axis:      y_factor = simulations["Temperature factor"].values
-		elif 'g/cm^2' in axis: y_factor = simulations["Down-scatter factor"].values
-		elif 'yield' in axis:  y_factor = simulations["Yield factor"].values
-		else:                  y_factor = np.ones(len(simulations.index))
+		if 'yield' in axis:  y_true = simulations["Yield"].values
+		else:                y_true = y_original*np.ones(len(simulations.index))
 
 		if percent:
-			presis *= y_factor[order]*y_true
+			presis *= y_true[order]
 		# if presis <= 1e-2 and "(n" in axis:
 		# 	axis = axis.replace("(n", "(p")
 		# 	presis *= 1e3
 		# 	y_true *= 1e3
 
-		dy = y - y_factor*y_true
+		dy = y - y_true
 		# if percent:
-		# 	dy /= y_factor*y_true
+		# 	dy /= y_true
 		# print(f"{axis} is actually {np.mean(y[~np.isnan(y)])}")
-		at_yield = (~np.isnan(y)) & (np.absolute(np.log10(x/REFERENCE_YIELD)) <= 0.15)
-		error_at_yield = np.sqrt(np.mean(np.square(dy[at_yield])))
-		number_at_yield = np.sum(at_yield)
-		print(f"{axis} error:    {error_at_yield} ± {error_at_yield*np.sqrt(2/number_at_yield)}")
+		for reference_yield in REFERENCE_YIELDS:
+			print(f"reference yield: {reference_yield:.2e}")
+			at_yield = (~np.isnan(y)) & (np.absolute(np.log10(x/reference_yield)) <= 0.15)
+			error_at_yield = np.sqrt(np.mean(np.square(dy[at_yield])))
+			number_at_yield = np.sum(at_yield)
+			print(f"{axis} error:    {error_at_yield:.4f} ± {error_at_yield*np.sqrt(2/number_at_yield):.4f}")
 
 		stds = np.sqrt(smooth_average(np.square(dy[order]), bessel_correction=True))
 		errs = smooth_average(ɛ[order])
 		if not percent:
 			ax.plot(x[order], stds, 'C0-', label="Standard deviation from actuality")
-			ax.plot(x[order], y_factor[order]*presis, 'C1--', label="Required accuracy")
+			ax.plot(x[order], np.full(order.shape, presis), 'C1--', label="Required accuracy")
 			ax.plot(x[order], errs, 'C3--', label="Reported error bar size")
 		else:
 			ax.plot(x[order], stds, 'C0-', label="Standard deviation from actuality")
@@ -268,8 +269,8 @@ if INCLUDE_ERRORS:
 		else:
 			ax.set_ylabel(text_wrap(axis+" error"))
 
-config = '-'+FILENAME[23:36] if len(FILENAME) > 23 else ''
-fig.savefig('../../output/mrst{}.eps'.format(config), dpi=300)
-fig.savefig('../../output/mrst{}.png'.format(config), dpi=300)
+filename = os.path.splitext(FILENAME)[0]
+fig.savefig(f'{filename}.eps', dpi=300)
+fig.savefig(f'{filename}.png', dpi=300)
 
 plt.show()

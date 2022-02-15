@@ -52,9 +52,9 @@ import java.util.logging.Logger;
 public class Analysis {
 	
 	public static final String[] HEADERS = {
-		  "Yield",
-		  "Computation time (s)", "Total yield (10^15)", "Bang time (ns)",
-		  "Burn width (ns)", "Burn skewness", "Burn kurtosis", "Stagnation - BT (ns)",
+		  "Yield", "Computation time (s)",
+		  "Total yield (10^15)", "Bang time (ns)", "Burn width (ns)",
+		  "Burn skewness", "Burn kurtosis", "Stagnation - BT (ns)",
 		  "Burn-average Ti (keV)", "Peak Ti (keV)",
 		  "Ti at BT (keV)", "dTi/dt at BT (keV/ns)", "d^2Ti/dt^2 at BT (keV/ns^2)",
 		  "Burn-average \u03C1R (g/cm^2)", "\u03C1R at stagnation (g/cm^2)",
@@ -62,8 +62,8 @@ public class Analysis {
 		}; // the names, units, and order of time-dependent burn parameters
 	public static final String[] HEADERS_WITH_ERRORS = appendErrorsToHeader();
 
-	public static final Random MC_RANDOM = new Random(1);
-	public static final Random NOISE_RANDOM = new Random(0);
+	public static final Random MC_RANDOM = new Random(2);
+	public static final Random NOISE_RANDOM = new Random(3);
 
 	private static final double MIN_E = 12, MAX_E = 16; // histogram bounds [MeV]
 	private static final int BUFFER = 4; // empty pixels to include simulate on each side [ns]
@@ -78,7 +78,6 @@ public class Analysis {
 //	private static final double MCT_POROSITY = .70;
 //	private static final double MCT_GAIN = 1e4;
 //
-//	private static final double TRANSFER_FUNC_ERROR = 0.00; // the error in the transfer function
 
 	private final IonOptics ionOptics; // the ion optic system
 	private final Detector detector; // the detector system
@@ -131,7 +130,7 @@ public class Analysis {
 //				focalTilt, PDDT_BIAS, MESH_LENGTH, DRIFT_LENGTH,
 //				TIME_DILATION, MCT_POROSITY, MCT_GAIN, 100);
 		this.detector = new StreakCameraArray(
-			  2.5e-2, 400e-6,
+			  2.5e-2, 400e-6, // TODO: change this to 500; it's a nicer number
 			  (focalTilt == 0) ? 11.5e-9 : 4.5e-9,
 			  2.4/Math.cos(Math.toRadians(focalTilt)) * 51,
 			  81/(25e-6*25e-6),
@@ -552,7 +551,7 @@ public class Analysis {
 						for (int j2 = left; j2 < rite; j2++)
 							covarianceMatrix[k1*M + j1][k2*M + j2] = activeCovarianceMatrix[k1*m + j1 - left][k2*m + j2 - left];
 //			NumericalMethods.coerceSymmetric(covarianceMatrix);
-			NumericalMethods.coercePositiveSemidefinite(covarianceMatrix);
+//			NumericalMethods.coercePositiveSemidefinite(covarianceMatrix);
 //			System.out.println(Arrays.deepToString(covarianceMatrix));
 		}
 		else if (errorMode == ErrorMode.STATISTICS) {
@@ -897,9 +896,9 @@ public class Analysis {
 	
 	
 	private static String[] appendErrorsToHeader() {
-		String[] out = new String[2*HEADERS.length + 1];
+		String[] out = new String[2*HEADERS.length - 1];
 		for (int i = 0; i < HEADERS.length; i ++) {
-			if (i < 1)
+			if (i < 2)
 				out[i] = HEADERS[i];
 			else {
 				out[2*(i-1)+1] = HEADERS[i];
