@@ -58,6 +58,12 @@ public class StreakCameraArray implements Detector {
 		  double[] slitPositions, double slitLength, double[] slitWidths,
 		  double sweepTime, double gain, double noiseDensity, double backgroundDensity,
 		  IonOptics optics) {
+		if (slitPositions.length != slitWidths.length)
+			throw new IllegalArgumentException("number of slits must match");
+		for (double slitWidth: slitWidths)
+			if (slitWidth <= 0)
+				throw new IllegalArgumentException("slit widths must be positive, not " + slitWidth);
+
 		this.slitWidths = slitWidths;
 
 		double[] ERef = new double[FP_RESOLUTION];

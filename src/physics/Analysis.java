@@ -161,9 +161,9 @@ public class Analysis {
 			 apertureDistance, apertureWidth, apertureHeight,
 			 cosyMapping,
 			 detectorConfiguration.tiltAngle,
-			 detectorConfiguration.streakTime,
-			 detectorConfiguration.slitWidths,
 			 detectorConfiguration.slitPositions,
+			 detectorConfiguration.slitWidths,
+			 detectorConfiguration.streakTime,
 			 calibrationPrecision, reuseMatrix, analysisPrecision, logger);
 	}
 
@@ -188,9 +188,10 @@ public class Analysis {
 	public Analysis(
 		  double foilDistance, double foilWidth, double foilHeight, double foilThickness,
 		  double apertureDistance, double apertureWidth, double apertureHeight,
-		  COSYMapping cosyMapping, double focalTilt, double streakTime,
-		  double[] slitPositions, double[] slitWidths, double calibrationPrecision,
-		  boolean reuseMatrix, double precision, Logger logger) throws IOException {
+		  COSYMapping cosyMapping, double focalTilt,
+		  double[] slitPositions, double[] slitWidths, double streakTime,
+		  double calibrationPrecision, boolean reuseMatrix,
+		  double precision, Logger logger) throws IOException {
 
 		this.ionOptics = new IonOptics(
 			  foilDistance, foilWidth, foilHeight, foilThickness,
