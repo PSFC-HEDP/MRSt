@@ -27,6 +27,8 @@ import java.io.File;
 import java.io.IOException;
 
 import physics.Analysis;
+import physics.Detector.DetectorConfiguration;
+import physics.IonOptics.IonOpticConfiguration;
 import physics.Particle;
 import physics.SpectrumGenerator;
 import util.COSYMapping;
@@ -51,18 +53,12 @@ public class ConfigurationPlotter {
 					COSYMapping mapping = CSV.readCosyCoefficients(new File("input/MRSt_IRF_FP tilted_final.txt"), 3);
 					mapping.setConfig(Particle.D, 12.45);
 					Analysis mc = new Analysis(
-							3e-3,
-							2*rFoil,
-							2*rFoil,
-							tFoil,
-							6e0,
-							wAperture,
-							20e-3,
-							mapping,
-							68,
-							false,
-							.1,
-							null); // make the simulation
+						  new IonOpticConfiguration(tFoil, rFoil, wAperture),
+						  DetectorConfiguration.SINGLE_STREAK_CAMERA,
+						  0,
+						  false,
+						  .1,
+						  null); // make the simulation
 					
 //					System.out.println("kalkula emablia");
 

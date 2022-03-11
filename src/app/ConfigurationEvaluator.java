@@ -44,6 +44,7 @@ import javafx.scene.text.Font;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import physics.Analysis;
+import physics.Detector.DetectorConfiguration;
 import physics.Particle;
 import physics.SpectrumGenerator;
 import util.COSYMapping;
@@ -201,7 +202,10 @@ public class ConfigurationEvaluator extends Application {
 								apertureWidth.getValue()*1e-3,
 								apertureHeight.getValue()*1e-3,
 								cosyMapping,
-								focalPlaneTilt.getValue(),
+								(focalPlaneTilt.getValue() == 0) ?
+									  DetectorConfiguration.SINGLE_STREAK_CAMERA :
+									  DetectorConfiguration.DOUBLE_STREAK_CAMERA,
+								0,
 								false,
 								1,
 								logger); // make the simulation
@@ -226,8 +230,12 @@ public class ConfigurationEvaluator extends Application {
 							logger.log(Level.SEVERE, e.getMessage(), e);
 							return;
 						}
-						
-						double yield = 4e+17*((variation.isSelected()) ? Math.pow(10, -3.*Math.random()) : Math.pow(10, -0.05*Math.random()));
+
+						double yield;
+						if (variation.isSelected())
+							yield = 1e+19*Math.pow(10, -3.*Math.random());
+						else
+							yield = 4e+17*(0.95 + 0.10*Math.random());
 						SpectrumGenerator.modifySpectrum(spec, yield);
 						
 						ErrorMode errorBars = this.errorBars.isSelected() ?

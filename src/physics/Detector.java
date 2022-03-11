@@ -27,7 +27,7 @@ public interface Detector {
 
 	/**
 	 * the number of signal electrons created for every incident deuteron
-	 * @param energy energy of the deuteron [MeV]
+	 * @param energy energy of the neutron [MeV]
 	 */
 	double efficiency(double energy);
 
@@ -58,5 +58,34 @@ public interface Detector {
 	 */
 	double[][] response(double[] energyBins, double[] timeBins,
 						double[][] inSpectrum, boolean stochastic);
+
+	class DetectorConfiguration {
+		public static DetectorConfiguration SINGLE_STREAK_CAMERA =
+			  new DetectorConfiguration( 0.00000, 11.5e-9,
+										 new double[] {-0.75e-2},
+										 new double[] {500e-6});
+		public static DetectorConfiguration DOUBLE_STREAK_CAMERA =
+			  new DetectorConfiguration(66.58565,  4.5e-9,
+										new double[] {-5e-2, 0},
+										new double[] {500e-6, 500e-6});
+		public static DetectorConfiguration DOWNSCATTER_SLIT =
+			  new DetectorConfiguration(66.58565,  4.5e-9,
+										new double[] {-15e-2, 0},
+										new double[] {500e-6, 500e-6});
+
+		public final double tiltAngle;
+		public final double streakTime;
+		public final double[] slitWidths;
+		public final double[] slitPositions;
+
+		public DetectorConfiguration(
+			  double tiltAngle, double streakTime,
+			  double[] slitPositions, double[] slitWidths) {
+			this.tiltAngle = tiltAngle;
+			this.streakTime = streakTime;
+			this.slitWidths = slitWidths;
+			this.slitPositions = slitPositions;
+		}
+	}
 
 }

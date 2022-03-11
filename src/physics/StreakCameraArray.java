@@ -33,7 +33,7 @@ public class StreakCameraArray implements Detector {
 
 	private static final int FP_RESOLUTION = 30;
 
-	private final double slitWidth; // (m)
+	private final double[] slitWidths; // (m)
 	private final double streakSpeed; // (m/s in photocathode dimensions)
 	private final double[] slitLeftBounds; // (MeV neutron)
 	private final double[] slitRiteBounds; // (MeV neutron)
@@ -47,7 +47,7 @@ public class StreakCameraArray implements Detector {
 	/**
 	 * create a new streak camera array to be used with the ion optics
 	 * @param slitLength the length of each slit in the dispersion direccion (m)
-	 * @param slitWidth the height of each slit in the nondispersion direccion (m)
+	 * @param slitWidths the height of each slit in the nondispersion direccion (m)
 	 * @param sweepTime the amount of time it takes to sweep (s)
 	 * @param noiseDensity the inherent noise level in the detector (counts^2/m^2)
 	 * @param backgroundDensity the inherent background level in the detector (counts/m^2)
@@ -55,11 +55,10 @@ public class StreakCameraArray implements Detector {
 	 * @param optics the ion optics system (needed to set up efficient calculacion)
 	 */
 	public StreakCameraArray(
-		  double slitLength, double slitWidth,
+		  double[] slitPositions, double slitLength, double[] slitWidths,
 		  double sweepTime, double gain, double noiseDensity, double backgroundDensity,
-		  double[] slitPositions,
 		  IonOptics optics) {
-		this.slitWidth = slitWidth;
+		this.slitWidths = slitWidths;
 
 		double[] ERef = new double[FP_RESOLUTION];
 		double[] xRef = new double[FP_RESOLUTION];
@@ -103,9 +102,9 @@ public class StreakCameraArray implements Detector {
 
 	@Override
 	public double efficiency(double energy) {
-		for (int i = 0; i < slitLeftBounds.length; i ++)
-			if (energy >= slitLeftBounds[i] && energy <= slitRiteBounds[i])
-				return Math.min(1, slitWidth/bowtieHite.evaluate(energy));
+		int i;
+		if ((i = whichSlit(energy)) >= 0)
+			return Math.min(1, slitWidths[i]/bowtieHite.evaluate(energy));
 		return 0;
 	}
 
@@ -136,28 +135,33 @@ public class StreakCameraArray implements Detector {
 				if (Double.isNaN(val))
 					throw new IllegalArgumentException("this can't be nan.");
 
-		double timeWidth = slitWidth/streakSpeed/1e-9; // (ns)
-		double timeStep = timeBins[1] - timeBins[0]; // (ns)
-		int kernelSize = (int)Math.ceil(timeWidth/timeStep);
-		if (kernelSize%2 != 1)
-			kernelSize += 1;
-		double[] timeResponse = new double[kernelSize]; // bild the time response funccion kernel
-		for (int i = 1; i < kernelSize - 1; i ++)
-			timeResponse[i] = timeStep/timeWidth;
-		timeResponse[0] = timeResponse[kernelSize-1] = (1 - (kernelSize - 2)*timeStep/timeWidth)/2;
+		double[][] timeResponses = new double[slitWidths.length][];
+		for (int i = 0; i < slitWidths.length; i ++) {
+			double timeWidth = slitWidths[i]/streakSpeed/1e-9; // (ns)
+			double timeStep = timeBins[1] - timeBins[0]; // (ns)
+			int kernelSize = (int) Math.ceil(timeWidth/timeStep);
+			if (kernelSize%2 != 1)
+				kernelSize += 1;
+			timeResponses[i] = new double[kernelSize]; // bild the time response funccion kernel
+			for (int j = 1; j < kernelSize - 1; j ++)
+				timeResponses[i][j] = timeStep/timeWidth;
+			timeResponses[i][0] = (1 - (kernelSize - 2)*timeStep/timeWidth)/2;
+			timeResponses[i][kernelSize - 1] = timeResponses[i][0];
+		}
 
 		double[][] outSpectrum = new double[energyBins.length-1][timeBins.length-1];
 		for (int i = 0; i < energyBins.length-1; i ++) {
 			double energy = (energyBins[i] + energyBins[i+1])/2;
-			double efficiency = this.efficiency(energy);
-			if (efficiency != 0) {
+			int slit = whichSlit(energy);
+			if (slit >= 0) {
+				double efficiency = this.efficiency(energy);
 				for (int j = 0; j < timeBins.length - 1; j ++)
 					outSpectrum[i][j] = background(energy, energyBins, timeBins);
-				for (int j = 0; j < timeBins.length - 1; j++) {
-					for (int l = 0; l < kernelSize; l++) {
-						int dj = l - kernelSize/2;
+				for (int j = 0; j < timeBins.length - 1; j ++) {
+					for (int l = 0; l < timeResponses[slit].length; l ++) {
+						int dj = l - timeResponses[slit].length/2;
 						if (j + dj >= 0 && j + dj < timeBins.length - 1)
-							outSpectrum[i][j] += efficiency*gain*timeResponse[l]*inSpectrum[i][j + dj];
+							outSpectrum[i][j] += efficiency*gain*timeResponses[slit][l]*inSpectrum[i][j + dj];
 					}
 				}
 				if (stochastic) {
@@ -171,5 +175,17 @@ public class StreakCameraArray implements Detector {
 		}
 
 		return outSpectrum;
+	}
+
+	/**
+	 * find the slit that corresponds to this energy
+	 * @param energy the neutron energy in MeV
+	 * @return the index of the slit that gets it, or -1 if it is in no slit
+	 */
+	private int whichSlit(double energy) {
+		for (int i = 0; i < slitLeftBounds.length; i ++)
+			if (energy >= slitLeftBounds[i] && energy <= slitRiteBounds[i])
+				return i;
+		return -1;
 	}
 }

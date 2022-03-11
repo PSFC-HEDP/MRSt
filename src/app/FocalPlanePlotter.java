@@ -47,6 +47,7 @@ public class FocalPlanePlotter {
 				16,
 				cosyMapping,
 				68,
+				0,
 				false
 		); // make the simulation
 		System.out.print("Ys = np.array(\n");

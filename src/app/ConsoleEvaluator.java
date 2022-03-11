@@ -25,6 +25,8 @@ package app;
 
 import physics.Analysis;
 import physics.Analysis.ErrorMode;
+import physics.Detector.DetectorConfiguration;
+import physics.IonOptics.IonOpticConfiguration;
 import physics.Particle;
 import physics.SpectrumGenerator;
 import util.COSYMapping;
@@ -32,6 +34,9 @@ import util.CSV;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.FileHandler;
 import java.util.logging.Handler;
@@ -45,58 +50,72 @@ import java.util.logging.Logger;
  * @author Justin Kunimune
  */
 public class ConsoleEvaluator {
-	public static void main(String[] args) throws SecurityException, IOException {
-		String implosionName;
-		if (args.length > 0)
-			implosionName = args[0];
-		else
-			implosionName = "og with falling temp";
-		int numYields; // number of datums to do
-		if (args.length > 1)
-			numYields = Integer.parseInt(args[1]);
-		else
-			numYields = 1000;
-		double tiltAngle;
-		if (args.length > 2)
-			tiltAngle = Double.parseDouble(args[2]);
-		else
-			tiltAngle = 66.59;
-		double foilRadius, foilThickness, apertureWidth, apertureHeight;
-		if (args.length > 6) {
-			foilRadius = Double.parseDouble(args[3])*1e-6; // foil radius measured in μm
-			foilThickness = Double.parseDouble(args[4])*1e-6; // foil thickness measured in μm
-			apertureWidth = Double.parseDouble(args[5])*1e-3; // aperture width in mm
-			apertureHeight = Double.parseDouble(args[6])*1e-3; // aperture height in mm
-		}
-		else {
-			if (args.length <= 3 || args[3].equals("h")) {
-				foilRadius = 400e-6;
-				foilThickness = 90e-6;
-				apertureWidth = 5e-3;
-				apertureHeight = 20e-3;
-			}
-			else if (args[3].equals("m")) {
-				foilRadius = 200e-6;
-				foilThickness = 50e-6;
-				apertureWidth = 4e-3;
-				apertureHeight = 20e-3;
-			}
-			else if (args[3].equals("l")) {
-				foilRadius = 100e-6;
-				foilThickness = 25e-6;
-				apertureWidth = 2e-3;
-				apertureHeight = 20e-3;
+	public static void main(String[] args) throws SecurityException, IOException, InterruptedException {
+		StringBuilder filename = new StringBuilder("ensemble");
+		String prospectiveImplosionName = "og with falling temp";
+		int prospectiveNumYields = 1000;
+		int numThreads = Math.min(10, Runtime.getRuntime().availableProcessors());
+		IonOpticConfiguration prospectiveIonConfig = IonOpticConfiguration.HIGH_EFFICIENCY;
+		DetectorConfiguration prospectiveDetectorConfig = DetectorConfiguration.SINGLE_STREAK_CAMERA;
+		double prospectiveUncertainty = 0;
+		for (String arg : args) {
+			if (arg.contains("=")) {
+				String key = arg.substring(0, arg.indexOf('='));
+				String value = arg.substring(arg.indexOf('=') + 1);
+				switch (key) {
+					case "implosion":
+						prospectiveImplosionName = value;
+						break;
+					case "yields":
+						prospectiveNumYields = Integer.parseInt(value);
+						break;
+					case "threads":
+						numThreads = Integer.parseInt(value);
+						break;
+					case "uncertainty":
+						prospectiveUncertainty = Double.parseDouble(value);
+						break;
+					case "optics":
+						if (value.toLowerCase().startsWith("h"))
+							prospectiveIonConfig = IonOpticConfiguration.HIGH_EFFICIENCY;
+						else if (value.toLowerCase().startsWith("m"))
+							prospectiveIonConfig = IonOpticConfiguration.MID_EFFICIENCY;
+						else if (value.toLowerCase().startsWith("l"))
+							prospectiveIonConfig = IonOpticConfiguration.LOW_EFFICIENCY;
+						else
+							System.err.println("I don't know the '" + value + "' configuration");
+						break;
+					case "detector":
+						if (value.toLowerCase().startsWith("1"))
+							prospectiveDetectorConfig = DetectorConfiguration.SINGLE_STREAK_CAMERA;
+						else if (value.toLowerCase().startsWith("2"))
+							prospectiveDetectorConfig = DetectorConfiguration.DOUBLE_STREAK_CAMERA;
+						else if (value.toLowerCase().startsWith("d"))
+							prospectiveDetectorConfig = DetectorConfiguration.DOWNSCATTER_SLIT;
+						else
+							System.err.println("I don't know the '" + value + "' camera");
+						break;
+					default:
+						System.err.println("I don't know to what '" + key + "' refers");
+						break;
+				}
+
+				String tag = value.replace(" ", "");
+				if (tag.length() > 6) tag = tag.substring(0, 6);
+				filename.append("_").append(tag);
 			}
 			else {
-				throw new IllegalArgumentException(args[3]);
+				System.err.println("I don't understand '"+arg+"'.");
 			}
 		}
-		int numThreads = Math.min(10, Runtime.getRuntime().availableProcessors());
+
+		final String implosionName = prospectiveImplosionName;
+		final int numYields = prospectiveNumYields;
+		final DetectorConfiguration detectorConfiguration = prospectiveDetectorConfig;
+		final IonOpticConfiguration ionOpticConfiguration = prospectiveIonConfig;
+		final double uncertainty = prospectiveUncertainty;
 		
-		String filename = String.format("ensemble_%.0f_%.0f_%d_%s_%tF",
-										apertureWidth/1e-3, tiltAngle, numYields,
-										implosionName.replace(" ",""),
-										System.currentTimeMillis());
+		filename.append(String.format("_%tF", System.currentTimeMillis()));
 		
 		System.setProperty("java.util.logging.SimpleFormatter.format",
 				"%1$tF %1$tT | %4$-7s | %5$s%6$s%n");
@@ -108,32 +127,26 @@ public class ConsoleEvaluator {
 		logger.addHandler(consoleHandler);
 		Handler logfileHandler = new FileHandler("output/"+filename+".log");
 		logger.addHandler(logfileHandler);
-		logger.log(Level.INFO, "beginning "+numYields+" evaluations on "+numThreads+" cores");
-		
-		Thread[] threads = new Thread[numThreads];
-		double[][] results = new double[numYields][Analysis.HEADERS_WITH_ERRORS.length];
-		for (int t = 0; t < numThreads; t ++) {
-			final int T = t;
-			final String finalImplosionName = implosionName;
-			threads[t] = new Thread(() -> {
+		logger.log(Level.INFO, "beginning "+prospectiveNumYields+" evaluations on "+numThreads+" cores");
+
+		ExecutorService threads = Executors.newFixedThreadPool(numThreads);
+		double[][] results = new double[prospectiveNumYields][Analysis.HEADERS_WITH_ERRORS.length];
+		for (int k = 0; k < numYields; k ++) {
+			final int K = k;
+
+			threads.submit(() -> {
 				Analysis mc;
 				try {
 					COSYMapping map;
-					if (tiltAngle == 0)
+					if (detectorConfiguration.tiltAngle == 0)
 						map = CSV.readCosyCoefficients(new File("input/MRSt_IRF_FP not tilted.txt"), 3);
 					else
 						map = CSV.readCosyCoefficients(new File("input/MRSt_IRF_FP tilted.txt"), 3);
 					map.setConfig(Particle.D, 12.45);
 					mc = new Analysis(
-							3e-3,
-							2*foilRadius,
-							2*foilRadius,
-							foilThickness,
-							6e0,
-							apertureWidth,
-							apertureHeight,
-							map,
-							tiltAngle,
+							ionOpticConfiguration,
+							detectorConfiguration,
+							uncertainty*1e-2,
 							false,
 							.1,
 							logger); // make the simulation
@@ -141,57 +154,53 @@ public class ConsoleEvaluator {
 					logger.log(Level.SEVERE, e.getMessage(), e);
 					return;
 				}
-				
-				for (int k = 0; k < numYields/numThreads; k ++) {
-					double[] eBins, tBins;
-					double[][] spec;
-					try {
-						eBins = CSV.readColumn(new File("input/energy.txt"));
-						tBins = CSV.readColumn(new File("input/time "+finalImplosionName+".txt"));
-						spec = CSV.read(new File("input/spectrum "+finalImplosionName+".txt"), '\t');
-						if (spec.length != eBins.length-1 || spec[0].length != tBins.length-1) {
-							System.out.println("interpreting a weird spectrum file...");
-							spec = SpectrumGenerator.interpretSpectrumFile(tBins, eBins, spec);
-						}
-					} catch (ArrayIndexOutOfBoundsException | NumberFormatException | IOException e) {
-						logger.log(Level.SEVERE, e.getMessage(), e);
-						return;
-					}
 
-					double yield = 1e+18*Math.pow(10, -2.0*Math.random());
-					SpectrumGenerator.modifySpectrum(spec, yield);
-					
-					logger.log(Level.INFO, String.format("Yn = %.4g (%d/%d)", yield,
-							T+numThreads*k, numYields));
-					
-					double[] result;
-					try {
-						result = mc.respondAndAnalyze(
-								eBins,
-								tBins,
-								spec,
-								ErrorMode.HESSIAN); // and run it many times!
-					} catch (Exception e) {
-						logger.log(Level.SEVERE, e.getMessage(), e);
-						result = null;
+				double[] eBins, tBins;
+				double[][] spec;
+				try {
+					eBins = CSV.readColumn(new File("input/energy.txt"));
+					tBins = CSV.readColumn(new File("input/time "+implosionName+".txt"));
+					spec = CSV.read(new File("input/spectrum "+implosionName+".txt"), '\t');
+					if (spec.length != eBins.length-1 || spec[0].length != tBins.length-1) {
+						System.out.println("interpreting a weird spectrum file...");
+						spec = SpectrumGenerator.interpretSpectrumFile(tBins, eBins, spec);
 					}
-					results[T+numThreads*k][0] = yield;
-					if (result != null)
-						System.arraycopy(result, 0, results[T+numThreads*k], 1, result.length);
-					else
-						for (int i = 1; i < results[T+numThreads*k].length; i ++)
-							results[T+numThreads*k][i] = Double.NaN;
-					
-					if (T == 0 && (k+1)%5 == 0)
-						save(results, filename, logger);
+				} catch (ArrayIndexOutOfBoundsException | NumberFormatException | IOException e) {
+					logger.log(Level.SEVERE, e.getMessage(), e);
+					return;
 				}
+
+				double yield = 1e+19*Math.pow(10, -3.0*Math.random());
+				SpectrumGenerator.modifySpectrum(spec, yield);
+
+				logger.log(Level.INFO, String.format("Yn = %.4g (%d/%d)", yield,
+						K, numYields));
+
+				double[] result;
+				try {
+					result = mc.respondAndAnalyze(
+							eBins,
+							tBins,
+							spec,
+							ErrorMode.HESSIAN); // and run it many times!
+				} catch (Exception e) {
+					logger.log(Level.SEVERE, e.getMessage(), e);
+					result = null;
+				}
+				results[K][0] = yield;
+				if (result != null)
+					System.arraycopy(result, 0, results[K], 1, result.length);
+				else
+					for (int i = 1; i < results[K].length; i ++)
+						results[K][i] = Double.NaN;
+
+				if (K%10 == 9)
+					save(results, filename.toString(), logger);
 			});
-			threads[t].start();
 		}
-		
-		for (int t = 0; t < numThreads; t ++) // wait for all threads to finish
-			while (threads[t].isAlive()) {}
-		save(results, filename, logger); // and then, finally, save the result
+
+		threads.awaitTermination(3, TimeUnit.DAYS); // wait for all threads to finish
+		save(results, filename.toString(), logger); // and then, finally, save the result
 	}
 	
 	private static void save(double[][] results, String filename, Logger logger) {

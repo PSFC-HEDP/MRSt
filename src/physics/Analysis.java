@@ -31,11 +31,15 @@ import org.apache.commons.math3.optim.nonlinear.scalar.MultivariateOptimizer;
 import org.apache.commons.math3.optim.nonlinear.scalar.ObjectiveFunction;
 import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.MultiDirectionalSimplex;
 import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.PowellOptimizer;
+import physics.Detector.DetectorConfiguration;
+import physics.IonOptics.IonOpticConfiguration;
 import util.COSYMapping;
+import util.CSV;
 import util.NumericalMethods;
 import util.NumericalMethods.Quantity;
 import util.Optimization;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Locale;
@@ -50,7 +54,7 @@ import java.util.logging.Logger;
  * @author Justin Kunimune
  */
 public class Analysis {
-	
+
 	public static final String[] HEADERS = {
 		  "Yield", "Computation time (s)",
 		  "Total yield (10^15)", "Bang time (ns)", "Burn width (ns)",
@@ -67,7 +71,7 @@ public class Analysis {
 
 	private static final double MIN_E = 12, MAX_E = 16; // histogram bounds [MeV]
 	private static final int BUFFER = 4; // empty pixels to include simulate on each side [ns]
-	private static final double E_BIN = .05, T_BIN = 30e-3; // bin sizes [MeV], [ns]
+	private static final double E_BIN = .05, T_BIN = 20e-3; // bin sizes [MeV], [ns]
 
 //	private static final double SUBSTRATE_THICKNESS = 100; // [μm]
 //	private static final double PHOTOCATHODE_THICKNESS = .1; // [μm]
@@ -99,7 +103,70 @@ public class Analysis {
 	private double[][] covarianceMatrix; // and covariances that go with all of these
 	
 	private final Logger logger; // for logging
-	
+
+	/**
+	 * perform some preliminary calculations for the provided configuration.
+	 * @param analysisPrecision a number that modifies how hard it tries to fully converge
+	 * @throws IOException if one or more of the stopping power tables cannot be
+	 *                     accessd for any reason
+	 */
+	public Analysis(
+		  IonOpticConfiguration ionOpticConfiguration,
+		  DetectorConfiguration detectorConfiguration,
+		  double calibrationPrecision, boolean reuseMatrix,
+		  double analysisPrecision, Logger logger
+	) throws IOException {
+		this(3.0e-3,
+			 2*ionOpticConfiguration.foilRadius,
+			 2*ionOpticConfiguration.foilRadius,
+			 ionOpticConfiguration.foilThickness,
+			 6.0,
+			 ionOpticConfiguration.apertureWidth,
+			 20.0e-3,
+			 CSV.readCosyCoefficients(
+				   (detectorConfiguration.tiltAngle == 0) ?
+						 new File("input/MRSt_IRF_FP not tilted.txt") :
+						 new File("input/MRSt_IRF_FP tilted.txt"),
+				   3, Particle.D, 12.45),
+			 detectorConfiguration,
+			 calibrationPrecision,
+			 reuseMatrix,
+			 analysisPrecision,
+			 logger);
+	}
+
+	/**
+	 * perform some preliminary calculations for the provided configuration.
+	 * @param foilDistance the distance from TCC to the foil [m]
+	 * @param foilWidth the total width of the foil [m]
+	 * @param foilHeight the total hite of the foil [m]
+	 * @param foilThickness the thickness of the foil [m]
+	 * @param apertureDistance the distance from TCC to the aperture [m]
+	 * @param apertureWidth the width of the aperture [m]
+	 * @param apertureHeight the hite of the aperture [m]
+	 * @param cosyMapping the COSY matrix
+	 * @param analysisPrecision a number that modifies how hard it tries to fully converge
+	 * @throws IOException if one or more of the stopping power tables cannot be
+	 *                     accessd for any reason
+	 */
+	public Analysis(
+		  double foilDistance, double foilWidth, double foilHeight, double foilThickness,
+		  double apertureDistance, double apertureWidth, double apertureHeight,
+		  COSYMapping cosyMapping,
+		  DetectorConfiguration detectorConfiguration,
+		  double calibrationPrecision, boolean reuseMatrix,
+		  double analysisPrecision, Logger logger) throws IOException {
+
+		this(foilDistance, foilWidth, foilHeight, foilThickness,
+			 apertureDistance, apertureWidth, apertureHeight,
+			 cosyMapping,
+			 detectorConfiguration.tiltAngle,
+			 detectorConfiguration.streakTime,
+			 detectorConfiguration.slitWidths,
+			 detectorConfiguration.slitPositions,
+			 calibrationPrecision, reuseMatrix, analysisPrecision, logger);
+	}
+
 	/**
 	 * perform some preliminary calculations for the provided configuration.
 	 * @param foilDistance the distance from TCC to the foil [m]
@@ -111,47 +178,51 @@ public class Analysis {
 	 * @param apertureHeight the hite of the aperture [m]
 	 * @param cosyMapping the COSY matrix
 	 * @param focalTilt angle of the focal plane (0 means untilted) [deg]
+	 * @param slitWidths width of each streak camera slit [m]
+	 * @param streakTime period of the streak camera sweep [s]
+	 * @param slitPositions position in the focal plane of each streak camera [m]
 	 * @param precision a number that modifies how hard it tries to fully converge
 	 * @throws IOException if one or more of the stopping power tables cannot be
 	 *                     accessd for any reason
 	 */
 	public Analysis(
-			double foilDistance, double foilWidth, double foilHeight, double foilThickness,
-			double apertureDistance, double apertureWidth, double apertureHeight,
-			COSYMapping cosyMapping, double focalTilt, boolean reuseMatrix,
-			double precision, Logger logger) throws IOException {
+		  double foilDistance, double foilWidth, double foilHeight, double foilThickness,
+		  double apertureDistance, double apertureWidth, double apertureHeight,
+		  COSYMapping cosyMapping, double focalTilt, double streakTime,
+		  double[] slitPositions, double[] slitWidths, double calibrationPrecision,
+		  boolean reuseMatrix, double precision, Logger logger) throws IOException {
 
 		this.ionOptics = new IonOptics(
-				foilDistance, foilWidth, foilHeight, foilThickness,
-				apertureDistance, apertureWidth, apertureHeight,
-				MIN_E, MAX_E, cosyMapping, focalTilt, reuseMatrix);
-//		this.detector = new PulseDilationDriftTube(
-//				ion, SUBSTRATE_THICKNESS, PHOTOCATHODE_THICKNESS,
-//				focalTilt, PDDT_BIAS, MESH_LENGTH, DRIFT_LENGTH,
-//				TIME_DILATION, MCT_POROSITY, MCT_GAIN, 100);
+			  foilDistance, foilWidth, foilHeight, foilThickness,
+			  apertureDistance, apertureWidth, apertureHeight,
+			  MIN_E, MAX_E, cosyMapping, focalTilt,
+			  calibrationPrecision, reuseMatrix);
+		//		this.detector = new PulseDilationDriftTube(
+		//				ion, SUBSTRATE_THICKNESS, PHOTOCATHODE_THICKNESS,
+		//				focalTilt, PDDT_BIAS, MESH_LENGTH, DRIFT_LENGTH,
+		//				TIME_DILATION, MCT_POROSITY, MCT_GAIN, 100);
 		this.detector = new StreakCameraArray(
-			  2.5e-2, 400e-6, // TODO: change this to 500; it's a nicer number
-			  (focalTilt == 0) ? 11.5e-9 : 4.5e-9,
+			  slitPositions, 2.5e-2,
+			  slitWidths, streakTime,
 			  2.4/Math.cos(Math.toRadians(focalTilt)) * 51,
 			  81/(25e-6*25e-6),
 			  81/(25e-6*25e-6),
-			  (focalTilt == 0) ? new double[] {-0.75e-2} : new double[] {-5e-2, 0, 5e-2},
 			  ionOptics);
-//		this.detector = new PerfectDetector();
+		//		this.detector = new PerfectDetector();
 
 		this.precision = precision;
 
 		this.energyBins = new double[(int) ((MAX_E - MIN_E)/E_BIN + 1)];
 		for (int i = 0; i < energyBins.length; i ++)
 			this.energyBins[i] = (MIN_E + i*(MAX_E - MIN_E)/(energyBins.length-1));
-		
+
 		this.energyAxis = new double[energyBins.length-1];
 		for (int i = 0; i < energyBins.length-1; i ++)
 			this.energyAxis[i] = (this.energyBins[i] + this.energyBins[i+1])/2;
 
 		this.logger = logger;
 	}
-	
+
 	/**
 	 * establish the time bins and related quantities
 	 * @param spectrumTimeBins the time bins of the input spectrum, to use as

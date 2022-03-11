@@ -32,6 +32,7 @@ if answer != '-':
 
 		# while np.sum(YAs[0]*np.gradient(XA)) < np.sum(YBs[0]*(XB[1] - XB[0]))/3: # normalize the yield curves to account for any magnitude discrepancy
 		# 	YBs[0] /= 10
+		YBs[0] *= np.sum(YAs[0]*np.gradient(XA))/np.sum(YBs[0]*np.gradient(XB))
 
 		x0 = XB[np.argmax(YBs[0])]
 	except IOError:
@@ -91,5 +92,7 @@ plt.tight_layout()
 # axis.plot(YBs[i_dens], YBs[i_temp], '--k')
 # axis.set_xlabel("ρR (g/cm^2)")
 # axis.set_ylabel("Ti (keV)")
+
+plt.savefig("inferred_trajectories.png", dpi=300)
 
 plt.show()

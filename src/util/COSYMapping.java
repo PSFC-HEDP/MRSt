@@ -25,8 +25,6 @@ package util;
 
 import physics.Particle;
 
-import java.util.Arrays;
-
 /**
  * a table of polynomials output by COSY INFINITY to quasilinearly map one
  * vector space to another
@@ -50,6 +48,17 @@ public class COSYMapping {
 	public COSYMapping(double[][] coefficients, int[][] exponents) {
 		this.coefficients = coefficients;
 		this.exponents = exponents;
+	}
+
+	/**
+	 * create a new COSY map, complete with the requisite ion informacion
+	 * @param coefficients the coefficient table; each colum is a polynomial
+	 * @param exponents the exponent table; each colum is an input variable
+	 */
+	public COSYMapping(double[][] coefficients, int[][] exponents,
+					   Particle ion, double K0) {
+		this(coefficients, exponents);
+		this.setConfig(ion, K0);
 	}
 
 	public void setConfig(Particle ion, double K0) {

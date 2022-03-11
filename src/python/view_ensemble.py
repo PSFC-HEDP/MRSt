@@ -40,8 +40,8 @@ MARGIN = dict(bottom=.10, top=.90, left=.13, right=.99, wspace=.35, hspace=.05)
 
 
 if len(sys.argv) <= 1:
-	FILENAME = '../../output/ensemble_5_0_1000_og_2022-02-15.csv'
-	# FILENAME = '../../output with varying response/ensemble_5_67_1000_og_2022-02-09.csv'
+	FILENAME = '../../output/ensemble_5_0_1000_og_2022-03-08.csv'
+	# FILENAME = '../../output with varying response/ensemble_5_0_1000_og_2022-02-09.csv'
 else:
 	FILENAME = '../../output/'+sys.argv[1]
 BIN_WIDTH = 0.3 # in bels
@@ -56,7 +56,7 @@ Y_LABELS = [
 	# ("Burn width (ps)", 56, 69.5532, 87, 7, False),
 	# ("Burn-average Ti (keV)", 5.25, 7.52, 9.75, 5e-2, True),
 	("Ti at BT (keV)", 5.25, 7.8, 9.75, 5e-2, True),
-	("dTi/dt at BT (keV/100ps)", -4.5, 2.0, 4.5, 1.5, False),
+	("dTi/dt at BT (keV/100ps)", -5.2, 1.8, 5.2, 1.5, False),
 	("Burn width (ps)", 56, 70.39, 87, 7, False),
 	# ("Burn-average Ti (keV)", 3.25, 4.4, 5.75, 5e-2, True),
 	# ("Ti at BT (keV)", 2.25, 4.4, 6.75, 5e-2, True),
@@ -190,8 +190,8 @@ for i, (axis, y_min, y_original, y_max, presis, percent) in enumerate(Y_LABELS):
 			y_true[order]*(1 - presis), y_true[order]*(1 + presis), color='#F7DFC8')
 	ax.plot(x[order], y_true[order], 'C1-', zorder=1, label="Based on original data")
 	ax.scatter(x[order], y[order], s=1, zorder=2, label="Based on fit to synthetic data")
-	ax.plot(x[order], μ + σ, 'C0-', linewidth=1, zorder=1, label="1σ variation")
-	ax.plot(x[order], μ - σ, 'C0-', linewidth=1, zorder=1)
+	# ax.plot(x[order], μ + σ, 'C0-', linewidth=1, zorder=1, label="1σ variation")
+	# ax.plot(x[order], μ - σ, 'C0-', linewidth=1, zorder=1)
 	if y_min > 0 and y_max/y_min > 10:
 		ax.set_yscale('log')
 	ax.set_ylim(y_min, y_max)

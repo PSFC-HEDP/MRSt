@@ -50,6 +50,7 @@ import javafx.scene.text.Font;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import physics.Analysis;
+import physics.Detector.DetectorConfiguration;
 import physics.Particle;
 import physics.SpectrumGenerator;
 import util.COSYMapping;
@@ -162,7 +163,7 @@ public class SpectrumViewer extends Application {
 		leftPane.add(chooseFileWidget("COSY map file:", stage, "MRSt_IRF_FP tilted.txt",
 				(file) -> {
 					this.cosyMapping = CSV.readCosyCoefficients(file, order.getValue());
-					this.cosyMapping.setConfig(ION, CENTRAL_E);
+					this.cosyMapping.setConfig(ION, CENTRAL_E); // someday there may be COSY matrices that are bilt for other particles, or other energies.  that day is not today.
 				}), 0, row, 3, 1);
 
 		VBox rightPane = new VBox(SPACING_1);
@@ -244,7 +245,10 @@ public class SpectrumViewer extends Application {
 								apertureWidth.getValue()*1e-3,
 								apertureHeight.getValue()*1e-3,
 								cosyMapping,
-								focalPlaneTilt.getValue(),
+								(focalPlaneTilt.getValue() == 0) ?
+									DetectorConfiguration.SINGLE_STREAK_CAMERA :
+							  		DetectorConfiguration.DOWNSCATTER_SLIT,
+								0,
 								reuseMatrix.isSelected(),
 								.001,
 								logger); // make the simulation

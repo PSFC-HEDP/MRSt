@@ -23,6 +23,8 @@
  */
 package util;
 
+import physics.Particle;
+
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -118,18 +120,18 @@ public class CSV {
 			out[i] = table[i][j];
 		return out;
 	}
-	
+
 	/**
 	 * read a COSY-generated file and return the coefficients as a double matrix along with the
 	 * exponents as an int matrix.
 	 * @param file the COSY file to open
 	 * @param maxOrder the desired order of the polynomial
-	 * @return yep
+	 * @return the unconfigured cosy mapping object
 	 * @throws IOException if file cannot be found or permission is denied
 	 * @throws NumberFormatException if elements are not parsable as doubles
 	 */
 	public static COSYMapping readCosyCoefficients(File file, int maxOrder)
-			throws NumberFormatException, IOException {
+		  throws NumberFormatException, IOException {
 		List<double[]> coefList;
 		List<int[]> expList;
 		try (BufferedReader in = new BufferedReader(new FileReader(file))) { // start by reading it like a CSV
@@ -152,9 +154,25 @@ public class CSV {
 				expList.add(bloc);
 			}
 		}
-		return new COSYMapping(
-			  coefList.toArray(new double[0][]),
-			  expList.toArray(new int[0][])); // someday there may be COSY matrices that are bilt for other particles, or other energies.  that day is not today.
+		return new COSYMapping(coefList.toArray(new double[0][]),
+							   expList.toArray(new int[0][]));
+	}
+
+	/**
+	 * read a COSY-generated file and return the coefficients as a double matrix along with the
+	 * exponents as an int matrix, and also bundle it with some known information about the ion
+	 * species for which it was calculated.
+	 * @param file the COSY file to open
+	 * @param maxOrder the desired order of the polynomial
+	 * @return the complete cosy mapping object
+	 * @throws IOException if file cannot be found or permission is denied
+	 * @throws NumberFormatException if elements are not parsable as doubles
+	 */
+	public static COSYMapping readCosyCoefficients(File file, int maxOrder, Particle particle, double energy)
+			throws NumberFormatException, IOException {
+		COSYMapping map = readCosyCoefficients(file, maxOrder);
+		map.setConfig(particle, energy);
+		return map;
 	}
 	
 	/**
