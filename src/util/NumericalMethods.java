@@ -542,7 +542,15 @@ public class NumericalMethods {
 				return i;
 		return -1;
 	}
-	
+
+	public static double min(double[] arr) {
+		double min = Double.POSITIVE_INFINITY;
+		for (double x: arr)
+			if (x < min)
+				min = x;
+		return min;
+	}
+
 	public static double max(double[] arr) {
 		double max = Double.NEGATIVE_INFINITY;
 		for (double x: arr)
@@ -550,7 +558,7 @@ public class NumericalMethods {
 				max = x;
 		return max;
 	}
-	
+
 	public static double max(double[][] arr) {
 		double max = Double.NEGATIVE_INFINITY;
 		for (double[] row: arr)

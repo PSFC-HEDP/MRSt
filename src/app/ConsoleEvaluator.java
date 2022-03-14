@@ -39,9 +39,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.FileHandler;
+import java.util.logging.Formatter;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 
 
 /**
@@ -54,7 +56,7 @@ public class ConsoleEvaluator {
 		StringBuilder filename = new StringBuilder("ensemble");
 		String prospectiveImplosionName = "og with falling temp";
 		int prospectiveNumYields = 1000;
-		int numThreads = Math.min(10, Runtime.getRuntime().availableProcessors());
+		int numCores = Math.min(10, Runtime.getRuntime().availableProcessors());
 		IonOpticConfiguration prospectiveIonConfig = IonOpticConfiguration.HIGH_EFFICIENCY;
 		DetectorConfiguration prospectiveDetectorConfig = DetectorConfiguration.SINGLE_STREAK_CAMERA;
 		double prospectiveUncertainty = 0;
@@ -69,8 +71,8 @@ public class ConsoleEvaluator {
 					case "yields":
 						prospectiveNumYields = Integer.parseInt(value);
 						break;
-					case "threads":
-						numThreads = Integer.parseInt(value);
+					case "cores":
+						numCores = Integer.parseInt(value);
 						break;
 					case "uncertainty":
 						prospectiveUncertainty = Double.parseDouble(value);
@@ -116,20 +118,44 @@ public class ConsoleEvaluator {
 		final double uncertainty = prospectiveUncertainty;
 		
 		filename.append(String.format("_%tF", System.currentTimeMillis()));
-		
+
+		// set up the logging
 		System.setProperty("java.util.logging.SimpleFormatter.format",
-				"%1$tF %1$tT | %4$-7s | %5$s%6$s%n");
+						   "%1$tF %1$tT | %4$-7s | %5$s%6$s%n");
+		// (I don't know why they make this so difficult)
+		Formatter formatter = new SimpleFormatter();
 		Logger logger = Logger.getLogger("app");
 		logger.setUseParentHandlers(false);
 		logger.setLevel(Level.ALL);
 		Handler consoleHandler = new ConsoleHandler();
 		consoleHandler.setLevel(Level.FINE);
+		consoleHandler.setFormatter(formatter);
 		logger.addHandler(consoleHandler);
 		Handler logfileHandler = new FileHandler("output/"+filename+".log");
+		logfileHandler.setLevel(Level.INFO);
+		logfileHandler.setFormatter(formatter);
 		logger.addHandler(logfileHandler);
-		logger.log(Level.INFO, "beginning "+prospectiveNumYields+" evaluations on "+numThreads+" cores");
+		logger.log(Level.INFO, "beginning "+prospectiveNumYields+" evaluations on "+numCores+" cores");
 
-		ExecutorService threads = Executors.newFixedThreadPool(numThreads);
+		final COSYMapping map;
+		if (detectorConfiguration.tiltAngle == 0)
+			map = CSV.readCosyCoefficients(new File("input/MRSt_IRF_FP not tilted.txt"), 3);
+		else
+			map = CSV.readCosyCoefficients(new File("input/MRSt_IRF_FP tilted.txt"), 3);
+		map.setConfig(Particle.D, 12.45);
+
+		final double[] eBins = CSV.readColumn(new File("input/energy.txt"));
+		final double[] tBins = CSV.readColumn(new File("input/time "+implosionName+".txt"));
+		double[][] initialSpec = CSV.read(new File("input/spectrum "+implosionName+".txt"), '\t');
+		final double[][] spectrum;
+		if (initialSpec.length != eBins.length-1 || initialSpec[0].length != tBins.length-1) {
+			System.out.println("interpreting a weird spectrum file...");
+			spectrum = SpectrumGenerator.interpretSpectrumFile(tBins, eBins, initialSpec);
+		}
+		else
+			spectrum = initialSpec;
+
+		ExecutorService threads = Executors.newFixedThreadPool(numCores);
 		double[][] results = new double[prospectiveNumYields][Analysis.HEADERS_WITH_ERRORS.length];
 		for (int k = 0; k < numYields; k ++) {
 			final int K = k;
@@ -137,41 +163,21 @@ public class ConsoleEvaluator {
 			threads.submit(() -> {
 				Analysis mc;
 				try {
-					COSYMapping map;
-					if (detectorConfiguration.tiltAngle == 0)
-						map = CSV.readCosyCoefficients(new File("input/MRSt_IRF_FP not tilted.txt"), 3);
-					else
-						map = CSV.readCosyCoefficients(new File("input/MRSt_IRF_FP tilted.txt"), 3);
-					map.setConfig(Particle.D, 12.45);
 					mc = new Analysis(
-							ionOpticConfiguration,
-							detectorConfiguration,
-							uncertainty*1e-2,
-							false,
-							.1,
-							logger); // make the simulation
-				} catch (Exception e) {
-					logger.log(Level.SEVERE, e.getMessage(), e);
-					return;
-				}
-
-				double[] eBins, tBins;
-				double[][] spec;
-				try {
-					eBins = CSV.readColumn(new File("input/energy.txt"));
-					tBins = CSV.readColumn(new File("input/time "+implosionName+".txt"));
-					spec = CSV.read(new File("input/spectrum "+implosionName+".txt"), '\t');
-					if (spec.length != eBins.length-1 || spec[0].length != tBins.length-1) {
-						System.out.println("interpreting a weird spectrum file...");
-						spec = SpectrumGenerator.interpretSpectrumFile(tBins, eBins, spec);
-					}
-				} catch (ArrayIndexOutOfBoundsException | NumberFormatException | IOException e) {
-					logger.log(Level.SEVERE, e.getMessage(), e);
+						  ionOpticConfiguration,
+						  detectorConfiguration,
+						  uncertainty*1e-2,
+						  false,
+						  .1,
+						  logger); // make the simulation
+				} catch (IOException e) {
+					e.printStackTrace();
 					return;
 				}
 
 				double yield = 1e+19*Math.pow(10, -3.0*Math.random());
-				SpectrumGenerator.modifySpectrum(spec, yield);
+				double[][] scaledSpectrum = SpectrumGenerator.modifySpectrum(
+					  spectrum, yield);
 
 				logger.log(Level.INFO, String.format("Yn = %.4g (%d/%d)", yield,
 						K, numYields));
@@ -181,7 +187,7 @@ public class ConsoleEvaluator {
 					result = mc.respondAndAnalyze(
 							eBins,
 							tBins,
-							spec,
+							scaledSpectrum,
 							ErrorMode.HESSIAN); // and run it many times!
 				} catch (Exception e) {
 					logger.log(Level.SEVERE, e.getMessage(), e);
@@ -199,6 +205,7 @@ public class ConsoleEvaluator {
 			});
 		}
 
+		threads.shutdown();
 		threads.awaitTermination(3, TimeUnit.DAYS); // wait for all threads to finish
 		save(results, filename.toString(), logger); // and then, finally, save the result
 	}

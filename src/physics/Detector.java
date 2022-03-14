@@ -63,28 +63,33 @@ public interface Detector {
 		public static DetectorConfiguration SINGLE_STREAK_CAMERA =
 			  new DetectorConfiguration( 0.00000, 11.5e-9,
 										 new double[] {-0.75e-2},
+										 new double[] {2.5e-2},
 										 new double[] {500e-6});
 		public static DetectorConfiguration DOUBLE_STREAK_CAMERA =
 			  new DetectorConfiguration(66.58565,  4.5e-9,
 										new double[] {-5e-2, 0},
+										new double[] {2.5e-2, 2.5e-2},
 										new double[] {500e-6, 500e-6});
 		public static DetectorConfiguration DOWNSCATTER_SLIT =
 			  new DetectorConfiguration(66.58565,  4.5e-9,
-										new double[] {-15e-2, 0},
+										new double[] {-10e-2, 0},
+										new double[] {2.5e-2, 2.5e-2},
 										new double[] {500e-6, 500e-6});
 
 		public final double tiltAngle;
 		public final double streakTime;
-		public final double[] slitWidths;
 		public final double[] slitPositions;
+		public final double[] slitLengths;
+		public final double[] slitWidths;
 
 		public DetectorConfiguration(
 			  double tiltAngle, double streakTime,
-			  double[] slitPositions, double[] slitWidths) {
+			  double[] slitPositions, double[] slitLengths, double[] slitWidths) {
 			this.tiltAngle = tiltAngle;
 			this.streakTime = streakTime;
-			this.slitWidths = slitWidths;
 			this.slitPositions = slitPositions;
+			this.slitLengths = slitLengths;
+			this.slitWidths = slitWidths;
 		}
 	}
 

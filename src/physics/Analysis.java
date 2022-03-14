@@ -71,7 +71,7 @@ public class Analysis {
 
 	private static final double MIN_E = 12, MAX_E = 16; // histogram bounds [MeV]
 	private static final int BUFFER = 4; // empty pixels to include simulate on each side [ns]
-	private static final double E_BIN = .05, T_BIN = 20e-3; // bin sizes [MeV], [ns]
+	private static final double E_BIN = .05, T_BIN = 20e-3; // bin sizes [MeV], [ns] TODO: time bin should be an input
 
 //	private static final double SUBSTRATE_THICKNESS = 100; // [μm]
 //	private static final double PHOTOCATHODE_THICKNESS = .1; // [μm]
@@ -162,6 +162,7 @@ public class Analysis {
 			 cosyMapping,
 			 detectorConfiguration.tiltAngle,
 			 detectorConfiguration.slitPositions,
+			 detectorConfiguration.slitLengths,
 			 detectorConfiguration.slitWidths,
 			 detectorConfiguration.streakTime,
 			 calibrationPrecision, reuseMatrix, analysisPrecision, logger);
@@ -189,7 +190,8 @@ public class Analysis {
 		  double foilDistance, double foilWidth, double foilHeight, double foilThickness,
 		  double apertureDistance, double apertureWidth, double apertureHeight,
 		  COSYMapping cosyMapping, double focalTilt,
-		  double[] slitPositions, double[] slitWidths, double streakTime,
+		  double[] slitPositions, double[] slitLengths,
+		  double[] slitWidths, double streakTime,
 		  double calibrationPrecision, boolean reuseMatrix,
 		  double precision, Logger logger) throws IOException {
 
@@ -203,7 +205,7 @@ public class Analysis {
 		//				focalTilt, PDDT_BIAS, MESH_LENGTH, DRIFT_LENGTH,
 		//				TIME_DILATION, MCT_POROSITY, MCT_GAIN, 100);
 		this.detector = new StreakCameraArray(
-			  slitPositions, 2.5e-2,
+			  slitPositions, slitLengths,
 			  slitWidths, streakTime,
 			  2.4/Math.cos(Math.toRadians(focalTilt)) * 51,
 			  81/(25e-6*25e-6),

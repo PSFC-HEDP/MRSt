@@ -49,7 +49,7 @@ public class ConfigurationPlotter {
 		for (double rFoil = 200e-6; rFoil < 201e-6; rFoil += 100e-6) {
 			for (double tFoil = 25e-6; tFoil < 110e-6; tFoil += 15e-6) {
 				for (double wAperture = 1.0e-3; wAperture < 5.1e-3; wAperture += 1.0e-3) {
-//					System.out.println("setting up simulatin");
+//					System.out.println("setting up simulation");
 					COSYMapping mapping = CSV.readCosyCoefficients(new File("input/MRSt_IRF_FP tilted_final.txt"), 3);
 					mapping.setConfig(Particle.D, 12.45);
 					Analysis mc = new Analysis(
@@ -59,14 +59,11 @@ public class ConfigurationPlotter {
 						  false,
 						  .1,
 						  null); // make the simulation
-					
-//					System.out.println("kalkula emablia");
 
 					double[] resolutions = mc.computeResolution(14);
 					double timeRes = resolutions[1]; // [ps]
 					double energyRes = resolutions[0]; // [keV]
 					
-//					System.out.println("kalkula veria");
 					double[] errs = new double[MEASUREMENTS.length];
 					double[] eBins = CSV.readColumn(new File("data/Energy bins.txt"));
 					double[] tBins = CSV.readColumn(new File("data/nsp_150327_16p26_time - copia.txt"));

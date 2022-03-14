@@ -236,7 +236,7 @@ public class ConfigurationEvaluator extends Application {
 							yield = 1e+19*Math.pow(10, -3.*Math.random());
 						else
 							yield = 4e+17*(0.95 + 0.10*Math.random());
-						SpectrumGenerator.modifySpectrum(spec, yield);
+						spec = SpectrumGenerator.modifySpectrum(spec, yield);
 						
 						ErrorMode errorBars = this.errorBars.isSelected() ?
 								ErrorMode.HESSIAN :

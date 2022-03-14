@@ -23,18 +23,26 @@
  */
 package app;
 
+import physics.Detector.DetectorConfiguration;
 import physics.IonOptics;
 import physics.Particle;
 import util.COSYMapping;
 import util.CSV;
+import util.PythonPlot;
 
 import java.io.File;
 import java.io.IOException;
 
 public class FocalPlanePlotter {
 	public static void main(String[] args) throws IOException {
-		COSYMapping cosyMapping = CSV.readCosyCoefficients(new File("input/MRSt_IRF_FP tilted_final.txt"), 3);
-		cosyMapping.setConfig(Particle.D, 12.45);
+		// select constants
+		double tiltAngle = 67.7;
+		COSYMapping cosyMapping = CSV.readCosyCoefficients(
+			  new File("input/MRSt_IRF_FP bent.txt"),
+			  3, Particle.D, 12.45);
+		DetectorConfiguration slits = DetectorConfiguration.DOWNSCATTER_SLIT;
+
+		// set up the simulation
 		IonOptics io = new IonOptics(
 				3e-3,
 				.8e-3,
@@ -46,24 +54,33 @@ public class FocalPlanePlotter {
 				12,
 				16,
 				cosyMapping,
-				68,
+				tiltAngle,
 				0,
 				false
-		); // make the simulation
-		System.out.print("Ys = np.array(\n");
-		for (double E = 12; E <= 16; E += .125) {
-			System.out.println("],[");
-			for (int k = 0; k < 1000; k++) {
-				io.simulate(E, 0, false);
+		);
+
+		// select the energies
+		int N = 40;
+		double[] energies = new double[N + 1];
+		for (int i = 0; i <= N; i ++)
+			energies[i] = 12 + 4.*i/N;
+
+		// then collect the values
+		int M = 1000;
+		double[][] positions = new double[N + 1][3*M];
+		for (int i = 0; i <= N; i ++) {
+			System.out.printf("%d/%d\n", i, N + 1);
+			for (int k = 0; k < M; k ++) {
+				double[] xyzt = io.simulate(energies[i], 0, false);
+				positions[i][3*k  ] = xyzt[0]/Math.cos(Math.toRadians(tiltAngle));
+				positions[i][3*k+1] = xyzt[1];
+				positions[i][3*k+2] = xyzt[3];
 			}
 		}
-		System.out.print("])\n");
-		System.out.print("E = np.array([");
-		for (double E = 12; E <= 16; E += .125) {
-			System.out.printf("%.3f, ", E);
-		}
-		System.out.print("])\n");
-		io.simulate(13.54, 0, false);
-		io.simulate(14.46, 0, false);
+
+		// finally, plot
+		PythonPlot.plotFocalPlane(
+			  energies, positions,
+			  slits.slitPositions, slits.slitLengths, slits.slitWidths);
 	}
 }

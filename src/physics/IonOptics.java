@@ -307,6 +307,20 @@ public class IonOptics {
 	}
 
 	/**
+	 * simulate a single neutron emitted from TCC at the given energy and determine the
+	 * position and time at which its child ion crosses the focal plane, time corrected, and
+	 * the back-calculated energy.
+	 * @param energy initial energy of released neutron (MeV).
+	 * @return { x, y, z, t } [m, m, m, s].
+	 */
+	public double[] map(double energy) {
+		energy = energyFactor*energy*MeV;
+		double[] r = {0, 0, 0};
+		double[] vFinal = {0, 0, Math.sqrt(2*energy/cosyMapping.ion.mass)};
+		return computeFocusedPosition(r, vFinal, 0);
+	}
+
+	/**
 	 * evaluate the matrix governing the response of the MRSt to neutrons at
 	 * particular energies <i>if</i> we haven't yet for these bins.  if we have
 	 * already evaluated it, do absolutely noting.
@@ -346,7 +360,7 @@ public class IonOptics {
 			else {
 				double energyResolutionModifier = 1 + (2*MC_RANDOM.nextDouble() - 1)*calibrationPrecision;
 				double timeResolutionModifier = 1 + (2*MC_RANDOM.nextDouble() - 1)*calibrationPrecision;
-				System.out.println("augmenting energy resolution by " + energyResolutionModifier + " and time resolution by " + timeResolutionModifier);
+				System.out.println("augmenting ener1gy resolution by " + energyResolutionModifier + " and time resolution by " + timeResolutionModifier);
 				for (int i = 0; i < 4; i++)
 					this.cosyMapping.coefficients[i][0] *= energyResolutionModifier;
 				for (int i = 0; i < 6; i++)

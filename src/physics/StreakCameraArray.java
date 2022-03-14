@@ -26,6 +26,8 @@ package physics;
 import util.NumericalMethods;
 import util.NumericalMethods.DiscreteFunction;
 
+import java.util.Arrays;
+
 import static physics.Analysis.NOISE_RANDOM;
 
 
@@ -46,7 +48,7 @@ public class StreakCameraArray implements Detector {
 
 	/**
 	 * create a new streak camera array to be used with the ion optics
-	 * @param slitLength the length of each slit in the dispersion direccion (m)
+	 * @param slitLengths the length of each slit in the dispersion direccion (m)
 	 * @param slitWidths the height of each slit in the nondispersion direccion (m)
 	 * @param sweepTime the amount of time it takes to sweep (s)
 	 * @param noiseDensity the inherent noise level in the detector (counts^2/m^2)
@@ -55,7 +57,7 @@ public class StreakCameraArray implements Detector {
 	 * @param optics the ion optics system (needed to set up efficient calculacion)
 	 */
 	public StreakCameraArray(
-		  double[] slitPositions, double slitLength, double[] slitWidths,
+		  double[] slitPositions, double[] slitLengths, double[] slitWidths,
 		  double sweepTime, double gain, double noiseDensity, double backgroundDensity,
 		  IonOptics optics) {
 		if (slitPositions.length != slitWidths.length)
@@ -73,7 +75,7 @@ public class StreakCameraArray implements Detector {
 			ERef[i] = 12. + 4.*i/(FP_RESOLUTION - 1); // (MeV neutron)
 			double num = 0, xSum = 0, yMax = 0;
 			for (int k = 0; k < 1000; k ++) {
-				double[] rt = optics.simulate(ERef[i], 0, false);
+				double[] rt = optics.map(ERef[i]);
 				if (!Double.isNaN(rt[0])) {
 					num += 1;
 					xSum += Math.hypot(rt[0], rt[2])*Math.signum(rt[0]);
@@ -88,19 +90,21 @@ public class StreakCameraArray implements Detector {
 		DiscreteFunction fpEnergy = fpPosition.inv().indexed(FP_RESOLUTION);
 		this.bowtieHite = new DiscreteFunction(ERef, hRef, true);
 
-		double fpCenter = fpPosition.evaluate(14);
-		for (int i = 0; i < slitPositions.length; i ++)
-			slitPositions[i] -= fpCenter;
+//		double fpCenter = fpPosition.evaluate(14);
+		System.out.println("initializing...");
+		System.out.println(fpPosition.evaluate(14));
+		System.out.println(fpEnergy.evaluate(0));
 		this.slitLeftBounds = new double[slitPositions.length];
 		this.slitRiteBounds = new double[slitPositions.length];
 		for (int i = 0; i < this.slitLeftBounds.length; i ++) {
 			this.slitLeftBounds[i] = fpEnergy.evaluate(
-				  slitPositions[i] - slitLength/2);
+				  /*fpCenter +*/ slitPositions[i] - slitLengths[i]/2);
 			this.slitRiteBounds[i] = fpEnergy.evaluate(
-				  slitPositions[i] + slitLength/2);
+				  /*fpCenter +*/ slitPositions[i] + slitLengths[i]/2);
 		}
+		System.out.println(Arrays.toString(slitRiteBounds));
 
-		this.streakSpeed = slitLength/sweepTime; // (m/s in photocathode scale)
+		this.streakSpeed = NumericalMethods.min(slitLengths)/sweepTime; // (m/s in photocathode scale)
 		this.gain = gain;
 		this.backgroundDensity = backgroundDensity;//*NumericalMethods.gamma(4, 4, MC_RANDOM); // (counts/ns*MeV)
 		this.noiseDensity = noiseDensity;

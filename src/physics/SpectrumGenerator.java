@@ -158,7 +158,7 @@ public class SpectrumGenerator {
 
 		for (double value: counts)
 			if (Double.isNaN(value))
-				throw new IllegalArgumentException(String.format("passing %.4g, %.4g, %.4g, %.4g, %.4g yields a nan.", Yn, Ti, Te, vi, ρR));
+				throw new IllegalArgumentException(String.format("passing Yn=%.4g, Ti=%.4g, Te=%.4g, vi=%.4g, rhoR=%.4g yields a nan.", Yn, Ti, Te, vi, ρR));
 		return counts;
 	}
 
@@ -191,13 +191,15 @@ public class SpectrumGenerator {
 	 * @param spectrum array of the neutron spectrum integrated in time [#/MeV]
 	 * @param yield the new yield to which to scale it
 	 */
-	public static void modifySpectrum(double[][] spectrum,
+	public static double[][] modifySpectrum(double[][] spectrum,
 	                                  double yield) {
 		double modifier = yield/NumericalMethods.sum(spectrum);
 
+		double[][] output = new double[spectrum.length][spectrum[0].length];
 		for (int i = 0; i < spectrum.length; i ++) // scale the whole thing up or down to change yield
 			for (int j = 0; j < spectrum[i].length; j ++)
-				spectrum[i][j] = modifier*spectrum[i][j];
+				output[i][j] = modifier*spectrum[i][j];
+		return output;
 	}
 
 
