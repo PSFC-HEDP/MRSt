@@ -53,6 +53,8 @@ import java.util.logging.SimpleFormatter;
  */
 public class ConsoleEvaluator {
 	public static void main(String[] args) throws SecurityException, IOException, InterruptedException {
+
+		// first, parse the arguments
 		StringBuilder filename = new StringBuilder("ensemble");
 		String prospectiveImplosionName = "og with falling temp";
 		int prospectiveNumYields = 1000;
@@ -60,6 +62,9 @@ public class ConsoleEvaluator {
 		IonOpticConfiguration prospectiveIonConfig = IonOpticConfiguration.HIGH_EFFICIENCY;
 		DetectorConfiguration prospectiveDetectorConfig = DetectorConfiguration.SINGLE_STREAK_CAMERA;
 		double prospectiveUncertainty = 0;
+		double prospectiveEnergyBin = 50e-3;
+		double prospectiveTimeBin = 20e-3;
+		double prospectiveTolerance = 0.1;
 		for (String arg : args) {
 			if (arg.contains("=")) {
 				String key = arg.substring(0, arg.indexOf('='));
@@ -76,6 +81,15 @@ public class ConsoleEvaluator {
 						break;
 					case "uncertainty":
 						prospectiveUncertainty = Double.parseDouble(value);
+						break;
+					case "energyBin":
+						prospectiveEnergyBin = Double.parseDouble(value);
+						break;
+					case "timeBin":
+						prospectiveTimeBin = Double.parseDouble(value);
+						break;
+					case "tolerance":
+						prospectiveTolerance = Double.parseDouble(value);
 						break;
 					case "optics":
 						if (value.toLowerCase().startsWith("h"))
@@ -111,11 +125,15 @@ public class ConsoleEvaluator {
 			}
 		}
 
+		// convert them to their final forms
 		final String implosionName = prospectiveImplosionName;
 		final int numYields = prospectiveNumYields;
 		final DetectorConfiguration detectorConfiguration = prospectiveDetectorConfig;
 		final IonOpticConfiguration ionOpticConfiguration = prospectiveIonConfig;
 		final double uncertainty = prospectiveUncertainty;
+		final double energyBin = prospectiveEnergyBin;
+		final double timeBin = prospectiveTimeBin;
+		final double tolerance = prospectiveTolerance;
 		
 		filename.append(String.format("_%tF", System.currentTimeMillis()));
 
@@ -137,6 +155,7 @@ public class ConsoleEvaluator {
 		logger.addHandler(logfileHandler);
 		logger.log(Level.INFO, "beginning "+prospectiveNumYields+" evaluations on "+numCores+" cores");
 
+		// load the transfer matrix
 		final COSYMapping map;
 		if (detectorConfiguration.tiltAngle == 0)
 			map = CSV.readCosyCoefficients(new File("input/MRSt_IRF_FP not tilted.txt"), 3);
@@ -168,7 +187,7 @@ public class ConsoleEvaluator {
 						  detectorConfiguration,
 						  uncertainty*1e-2,
 						  false,
-						  .1,
+						  energyBin, timeBin, tolerance,
 						  logger); // make the simulation
 				} catch (IOException e) {
 					e.printStackTrace();

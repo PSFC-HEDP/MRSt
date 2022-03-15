@@ -250,7 +250,6 @@ public class SpectrumViewer extends Application {
 							  		DetectorConfiguration.DOWNSCATTER_SLIT,
 								0,
 								reuseMatrix.isSelected(),
-								.001,
 								logger); // make the simulation
 
 						double dispersion = mc.computeDispersion();

@@ -57,7 +57,6 @@ public class ConfigurationPlotter {
 						  DetectorConfiguration.SINGLE_STREAK_CAMERA,
 						  0,
 						  false,
-						  .1,
 						  null); // make the simulation
 
 					double[] resolutions = mc.computeResolution(14);

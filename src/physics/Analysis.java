@@ -106,7 +106,6 @@ public class Analysis {
 
 	/**
 	 * perform some preliminary calculations for the provided configuration.
-	 * @param analysisPrecision a number that modifies how hard it tries to fully converge
 	 * @throws IOException if one or more of the stopping power tables cannot be
 	 *                     accessd for any reason
 	 */
@@ -114,7 +113,23 @@ public class Analysis {
 		  IonOpticConfiguration ionOpticConfiguration,
 		  DetectorConfiguration detectorConfiguration,
 		  double calibrationPrecision, boolean reuseMatrix,
-		  double analysisPrecision, Logger logger
+		  Logger logger
+	) throws IOException {
+		this(ionOpticConfiguration, detectorConfiguration,
+			 calibrationPrecision, reuseMatrix,
+			 50e-3, 20e-3, 0.1, logger);
+	}
+
+	/**
+	 * perform some preliminary calculations for the provided configuration.
+	 * @throws IOException if one or more of the stopping power tables cannot be
+	 *                     accessd for any reason
+	 */
+	public Analysis(
+		  IonOpticConfiguration ionOpticConfiguration,
+		  DetectorConfiguration detectorConfiguration,
+		  double calibrationPrecision, boolean reuseMatrix,
+		  double eBin, double tBin, double precision, Logger logger
 	) throws IOException {
 		this(3.0e-3,
 			 2*ionOpticConfiguration.foilRadius,
@@ -131,7 +146,6 @@ public class Analysis {
 			 detectorConfiguration,
 			 calibrationPrecision,
 			 reuseMatrix,
-			 analysisPrecision,
 			 logger);
 	}
 
@@ -145,7 +159,6 @@ public class Analysis {
 	 * @param apertureWidth the width of the aperture [m]
 	 * @param apertureHeight the hite of the aperture [m]
 	 * @param cosyMapping the COSY matrix
-	 * @param analysisPrecision a number that modifies how hard it tries to fully converge
 	 * @throws IOException if one or more of the stopping power tables cannot be
 	 *                     accessd for any reason
 	 */
@@ -155,7 +168,7 @@ public class Analysis {
 		  COSYMapping cosyMapping,
 		  DetectorConfiguration detectorConfiguration,
 		  double calibrationPrecision, boolean reuseMatrix,
-		  double analysisPrecision, Logger logger) throws IOException {
+		  Logger logger) throws IOException {
 
 		this(foilDistance, foilWidth, foilHeight, foilThickness,
 			 apertureDistance, apertureWidth, apertureHeight,
@@ -165,23 +178,26 @@ public class Analysis {
 			 detectorConfiguration.slitLengths,
 			 detectorConfiguration.slitWidths,
 			 detectorConfiguration.streakTime,
-			 calibrationPrecision, reuseMatrix, analysisPrecision, logger);
+			 calibrationPrecision, reuseMatrix,
+			  50e-3, 20e-3, 0.1, logger);
 	}
 
 	/**
 	 * perform some preliminary calculations for the provided configuration.
-	 * @param foilDistance the distance from TCC to the foil [m]
-	 * @param foilWidth the total width of the foil [m]
-	 * @param foilHeight the total hite of the foil [m]
-	 * @param foilThickness the thickness of the foil [m]
-	 * @param apertureDistance the distance from TCC to the aperture [m]
-	 * @param apertureWidth the width of the aperture [m]
-	 * @param apertureHeight the hite of the aperture [m]
+	 * @param foilDistance the distance from TCC to the foil (m)
+	 * @param foilWidth the total width of the foil (m)
+	 * @param foilHeight the total hite of the foil (m)
+	 * @param foilThickness the thickness of the foil (m)
+	 * @param apertureDistance the distance from TCC to the aperture (m)
+	 * @param apertureWidth the width of the aperture (m)
+	 * @param apertureHeight the hite of the aperture (m)
 	 * @param cosyMapping the COSY matrix
-	 * @param focalTilt angle of the focal plane (0 means untilted) [deg]
-	 * @param slitWidths width of each streak camera slit [m]
-	 * @param streakTime period of the streak camera sweep [s]
-	 * @param slitPositions position in the focal plane of each streak camera [m]
+	 * @param focalTilt angle of the focal plane (0 means untilted) (deg)
+	 * @param slitWidths width of each streak camera slit (m)
+	 * @param streakTime period of the streak camera sweep (s)
+	 * @param slitPositions position in the focal plane of each streak camera (m)
+	 * @param eBin the size of the energy bins (MeV)
+	 * @param tBin the size of the time bins (ns)
 	 * @param precision a number that modifies how hard it tries to fully converge
 	 * @throws IOException if one or more of the stopping power tables cannot be
 	 *                     accessd for any reason
@@ -193,7 +209,7 @@ public class Analysis {
 		  double[] slitPositions, double[] slitLengths,
 		  double[] slitWidths, double streakTime,
 		  double calibrationPrecision, boolean reuseMatrix,
-		  double precision, Logger logger) throws IOException {
+		  double eBin, double tBin, double precision, Logger logger) throws IOException {
 
 		this.ionOptics = new IonOptics(
 			  foilDistance, foilWidth, foilHeight, foilThickness,

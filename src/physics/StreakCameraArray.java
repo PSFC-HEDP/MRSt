@@ -26,8 +26,6 @@ package physics;
 import util.NumericalMethods;
 import util.NumericalMethods.DiscreteFunction;
 
-import java.util.Arrays;
-
 import static physics.Analysis.NOISE_RANDOM;
 
 
@@ -90,19 +88,14 @@ public class StreakCameraArray implements Detector {
 		DiscreteFunction fpEnergy = fpPosition.inv().indexed(FP_RESOLUTION);
 		this.bowtieHite = new DiscreteFunction(ERef, hRef, true);
 
-//		double fpCenter = fpPosition.evaluate(14);
-		System.out.println("initializing...");
-		System.out.println(fpPosition.evaluate(14));
-		System.out.println(fpEnergy.evaluate(0));
 		this.slitLeftBounds = new double[slitPositions.length];
 		this.slitRiteBounds = new double[slitPositions.length];
 		for (int i = 0; i < this.slitLeftBounds.length; i ++) {
 			this.slitLeftBounds[i] = fpEnergy.evaluate(
-				  /*fpCenter +*/ slitPositions[i] - slitLengths[i]/2);
+				  slitPositions[i] - slitLengths[i]/2);
 			this.slitRiteBounds[i] = fpEnergy.evaluate(
-				  /*fpCenter +*/ slitPositions[i] + slitLengths[i]/2);
+				  slitPositions[i] + slitLengths[i]/2);
 		}
-		System.out.println(Arrays.toString(slitRiteBounds));
 
 		this.streakSpeed = NumericalMethods.min(slitLengths)/sweepTime; // (m/s in photocathode scale)
 		this.gain = gain;

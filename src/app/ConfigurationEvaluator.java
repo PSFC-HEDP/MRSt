@@ -207,7 +207,6 @@ public class ConfigurationEvaluator extends Application {
 									  DetectorConfiguration.DOUBLE_STREAK_CAMERA,
 								0,
 								false,
-								1,
 								logger); // make the simulation
 					} catch (Exception e) {
 						logger.log(Level.SEVERE, e.getMessage(), e);
