@@ -29,7 +29,7 @@ y = np.array(y)
 plt.figure(figsize=(9, 4))
 
 for i in range(quantiles.size):
-	plt.plot(x, y[:,i], linewidth=(2-i%4)*1.1, color='C0')
+	plt.plot(x, y[:,i], linewidth=(2 if i%4==0 else 1)*1.1, color='#000000')
 
 for e, Y in zip(energies[::5], particles[::5]):
 	# histogram, x_bins, y_bins = np.histogram2d(Y[:,0]*1e2, Y[:,1]*1e2, bins=20)
@@ -39,11 +39,13 @@ for e, Y in zip(energies[::5], particles[::5]):
 	y_min, y_max = Y[:,1].min()*1e2, Y[:,1].max()*1e2
 	plt.plot([x_min, x_min, x_max, x_max, x_min],
 	         [y_min, y_max, y_max, y_min, y_min],
-	         linewidth=0.8, color='C2')
+	         linewidth=0.8, color='#516EB6')
 
 for x, w, h in zip(slit_positions, slit_lengths, slit_widths):
 	plt.plot(np.multiply([x -w/2, x -w/2, x +w/2, x +w/2, x -w/2], 1e2),
-	         np.multiply([  -h/2,    h/2,    h/2,   -h/2,   -h/2], 1e2), 'C1')
+	         np.multiply([  -h/2,    h/2,    h/2,   -h/2,   -h/2], 1e2), '#D36EA9')
+
+
 
 # plt.plot(
 # 100*np.array(
@@ -58,5 +60,6 @@ plt.ylim(-2, 2)
 plt.xlabel("x (cm)")
 plt.ylabel("y (cm)")
 plt.tight_layout()
-plt.savefig('temp.png', dpi=300)
+plt.savefig('output/focalplane.png', dpi=300)
+plt.savefig('output/focalplane.eps')
 plt.show()

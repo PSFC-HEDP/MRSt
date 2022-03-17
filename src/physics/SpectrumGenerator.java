@@ -24,11 +24,10 @@
 package physics;
 
 import util.CSV;
-import util.NumericalMethods;
+import util.Math2;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
 
 /**
  * @author Justin Kunimune
@@ -36,13 +35,13 @@ import java.util.Arrays;
  */
 public class SpectrumGenerator {
 
-	private static final NumericalMethods.DiscreteFunction ALPHA_KNOCKON_SPECTRUM = new NumericalMethods.DiscreteFunction(
+	private static final Math2.DiscreteFunction ALPHA_KNOCKON_SPECTRUM = new Math2.DiscreteFunction(
 			new double[] {10.23, 10.5, 11.0, 11.25, 11.5, 12.0, 12.5, 13.0, 13.5, 14.0, 14.5,
 					15.0, 15.5, 16.0, 16.5, 17.0, 17.5, 18.0, 18.5, 19.0, 19.5, 19.85},
 			new double[] {1.62E-06, 4.87E-06, 3.71E-05, 8.85E-05, 0.00024044, 0.0019635, 0.016034, 0.097, 0.17674, 0.21588, 0.21588,
 					0.17674, 0.071859, 0.019584, 0.0056109, 0.00169, 0.00046811, 0.00014583, 4.26E-05, 1.28E-05, 3.68E-06, 1.62E-06},
 			false, true); // [1/MeV]
-	private static final NumericalMethods.DiscreteFunction DOWN_SCATTER_SPECTRUM = new NumericalMethods.DiscreteFunction(
+	private static final Math2.DiscreteFunction DOWN_SCATTER_SPECTRUM = new Math2.DiscreteFunction(
 			new double[] {11.50, 11.75, 12.00, 12.25, 12.50, 12.75, 13.00, 13.25,
 					13.50, 13.75, 14.00, 14.25, 14.50},
 			new double[] {0.026877796, 0.029223872, 0.030997082, 0.033544329, 0.035526223, 0.038301112, 0.040480957, 0.043125867,
@@ -152,7 +151,7 @@ public class SpectrumGenerator {
 			counts[i] = (I[i] + I[i+1])/2*(eBins[i+1] - eBins[i]);
 			primaryTotal += (IPrimary[i] + IPrimary[i+1])/2*(eBins[i+1] - eBins[i]);
 		}
-		int peakBin = NumericalMethods.bin(μ, eBins);
+		int peakBin = Math2.bin(μ, eBins);
 		if (primaryTotal < total*primary && peakBin >= 0)
 			counts[peakBin] += total*primary - primaryTotal; // make up for any particles lost to curvature
 
@@ -193,7 +192,7 @@ public class SpectrumGenerator {
 	 */
 	public static double[][] modifySpectrum(double[][] spectrum,
 	                                  double yield) {
-		double modifier = yield/NumericalMethods.sum(spectrum);
+		double modifier = yield/Math2.sum(spectrum);
 
 		double[][] output = new double[spectrum.length][spectrum[0].length];
 		for (int i = 0; i < spectrum.length; i ++) // scale the whole thing up or down to change yield

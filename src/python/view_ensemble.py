@@ -40,12 +40,12 @@ MARGIN = dict(bottom=.10, top=.90, left=.13, right=.99, wspace=.35, hspace=.05)
 
 
 if len(sys.argv) <= 1:
-	FILENAME = '../../output/ensemble_5_0_1000_og_2022-03-08.csv'
+	FILENAME = '../../output/ensemble_high_30ps_2022-03-16.csv'
 	# FILENAME = '../../output with varying response/ensemble_5_0_1000_og_2022-02-09.csv'
 else:
 	FILENAME = '../../output/'+sys.argv[1]
 BIN_WIDTH = 0.3 # in bels
-REFERENCE_YIELDS = [3e17, 1e17, 3e16, 1e16]
+REFERENCE_YIELDS = [1e16, 1e17, 1e18, 1e19]
 
 X_LABEL = "Yield"
 
@@ -55,9 +55,11 @@ Y_LABELS = [
 	# ("dTi/dt at BT (keV/100ps)", -3.5, 1.09569, 3.5, 1.9, False),
 	# ("Burn width (ps)", 56, 69.5532, 87, 7, False),
 	# ("Burn-average Ti (keV)", 5.25, 7.52, 9.75, 5e-2, True),
-	("Ti at BT (keV)", 5.25, 7.8, 9.75, 5e-2, True),
-	("dTi/dt at BT (keV/100ps)", -5.2, 1.8, 5.2, 1.5, False),
-	("Burn width (ps)", 56, 70.39, 87, 7, False),
+	("Burn width (ps)", 56, 68, 87, 7, False),
+	("Ti at BT (keV)", 5.25, 7.6, 9.75, 5e-2, True),
+	("dTi/dt at BT (keV/100ps)", -5.2, 1.4, 5.2, 1.5, False),
+	("dρR/dt at BT (mg/cm^2/100ps)", -5.2, 1.4, 5.2, 1.5, False),
+	("ρR at BT (mg/cm^2)", -5.2, 1.4, 5.2, 1.5, False),
 	# ("Burn-average Ti (keV)", 3.25, 4.4, 5.75, 5e-2, True),
 	# ("Ti at BT (keV)", 2.25, 4.4, 6.75, 5e-2, True),
 	# ("dTi/dt at BT (keV/100ps)", -3.5, -1.6, 3.5, 1.2, False),
@@ -154,7 +156,8 @@ for i, (axis, y_min, y_original, y_max, presis, percent) in enumerate(Y_LABELS):
 	y = simulations[axis].values
 	ɛ = simulations[axis+" error"].values
 
-	ax.set_xlim(x.min(), x.max()) # set up the x axis
+	ax.set_xlim(10**round(np.log10(x.min())),
+	            10**round(np.log10(x.max()))) # set up the x axis
 	if 'ield' in X_LABEL:
 		ax.set_xscale('log')
 	if i//COLUMNS == axs.shape[0]-1:
@@ -189,7 +192,7 @@ for i, (axis, y_min, y_original, y_max, presis, percent) in enumerate(Y_LABELS):
 		ax.fill_between(x[order],
 			y_true[order]*(1 - presis), y_true[order]*(1 + presis), color='#F7DFC8')
 	ax.plot(x[order], y_true[order], 'C1-', zorder=1, label="Based on original data")
-	ax.scatter(x[order], y[order], s=1, zorder=2, label="Based on fit to synthetic data")
+	ax.scatter(x[order], y[order], s=1, c=np.arange(x.size)[order], zorder=2, label="Based on fit to synthetic data")
 	# ax.plot(x[order], μ + σ, 'C0-', linewidth=1, zorder=1, label="1σ variation")
 	# ax.plot(x[order], μ - σ, 'C0-', linewidth=1, zorder=1)
 	if y_min > 0 and y_max/y_min > 10:

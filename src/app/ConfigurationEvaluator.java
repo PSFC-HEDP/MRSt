@@ -164,7 +164,7 @@ public class ConfigurationEvaluator extends Application {
 		leftPane.add(order, 1, row);
 		row ++;
 		
-		leftPane.add(chooseFileWidget("COSY map file:", stage, "MRSt_IRF_FP tilted.txt",
+		leftPane.add(chooseFileWidget("COSY map file:", stage, "MRSt_IRF_FP_70deg.txt",
 				(file) -> {
 					this.cosyMapping = CSV.readCosyCoefficients(file, order.getValue());
 					this.cosyMapping.setConfig(ION, 12.45);

@@ -23,15 +23,15 @@
  */
 package physics;
 
-import util.NumericalMethods;
-import util.NumericalMethods.DiscreteFunction;
+import util.Math2;
+import util.Math2.DiscreteFunction;
 
 import static physics.Analysis.NOISE_RANDOM;
 
 
 public class StreakCameraArray implements Detector {
 
-	private static final int FP_RESOLUTION = 30;
+	private static final int FP_RESOLUTION = 50;
 
 	private final double[] slitWidths; // (m)
 	private final double streakSpeed; // (m/s in photocathode dimensions)
@@ -97,7 +97,7 @@ public class StreakCameraArray implements Detector {
 				  slitPositions[i] + slitLengths[i]/2);
 		}
 
-		this.streakSpeed = NumericalMethods.min(slitLengths)/sweepTime; // (m/s in photocathode scale)
+		this.streakSpeed = Math2.min(slitLengths)/sweepTime; // (m/s in photocathode scale)
 		this.gain = gain;
 		this.backgroundDensity = backgroundDensity;//*NumericalMethods.gamma(4, 4, MC_RANDOM); // (counts/ns*MeV)
 		this.noiseDensity = noiseDensity;
@@ -171,7 +171,7 @@ public class StreakCameraArray implements Detector {
 					for (int j = 0; j < timeBins.length - 1; j ++) {
 						double σ = Math.sqrt(noise(energy, energyBins, timeBins));
 						if (outSpectrum[i][j] > 0)
-							outSpectrum[i][j] = NumericalMethods.normal(outSpectrum[i][j], σ, NOISE_RANDOM);
+							outSpectrum[i][j] = Math2.normal(outSpectrum[i][j], σ, NOISE_RANDOM);
 					}
 				}
 			}

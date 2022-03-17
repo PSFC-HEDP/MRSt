@@ -23,8 +23,8 @@
  */
 package physics;
 
-import util.NumericalMethods;
-import util.NumericalMethods.DiscreteFunction;
+import util.Math2;
+import util.Math2.DiscreteFunction;
 import util.PythonPlot;
 import util.CSV;
 
@@ -119,11 +119,11 @@ public class PulseDilationDriftTube implements Detector {
 		double[] electronsPerDeuteron = new double[EFFICIENCY_ENERGY_DEPENDENCE_RESOLUTION+1];
 		for (int i = 0; i < deuteronEnergies.length; i ++) {
 			deuteronEnergies[i] = 9. + (15. - 9.)*i/deuteronEnergies.length;
-			double E = NumericalMethods.odeSolve( // integrate the deuteron thru the substrate
-					stoppingSi,
-					- substrateThickness,
-					deuteronEnergies[i]*1e3,
-					INTEGRATION_RESOLUTION); // [keV]
+			double E = Math2.odeSolve( // integrate the deuteron thru the substrate
+									   stoppingSi,
+									   - substrateThickness,
+									   deuteronEnergies[i]*1e3,
+									   INTEGRATION_RESOLUTION); // [keV]
 			double step = photocathodeThickness/INTEGRATION_RESOLUTION; // [μm]
 			for (int j = 0; j <= INTEGRATION_RESOLUTION; j ++) { // then do a fancier integral to get the number of deuterons generated in the substrate
 				double x = ((double) j/INTEGRATION_RESOLUTION - 1)*photocathodeThickness; // [μm]
@@ -160,9 +160,9 @@ public class PulseDilationDriftTube implements Detector {
 		if (stochastic) {
 			for (int i = 0; i < energyBins.length-1; i ++)
 				for (int j = 0; j < timeBins.length-1; j ++)
-					outSpectrum[i][j] = NumericalMethods.erlang(
-							NumericalMethods.poisson(outSpectrum[i][j], NOISE_RANDOM),
-							averageGain, NOISE_RANDOM);
+					outSpectrum[i][j] = Math2.erlang(
+						  Math2.poisson(outSpectrum[i][j], NOISE_RANDOM),
+						  averageGain, NOISE_RANDOM);
 		}
 
 		return outSpectrum;
@@ -217,7 +217,7 @@ public class PulseDilationDriftTube implements Detector {
 			double meshTime = (-b + Math.sqrt(b*b - 4*a*c))/(2*a);
 			double driftSpeed = 2*a*meshTime + b;
 			double totalTime = initialTime + (meshTime + driftLength/driftSpeed)*1e9; // [ns]
-			int j = NumericalMethods.bin(totalTime, responseTimeBins);
+			int j = Math2.bin(totalTime, responseTimeBins);
 			if (j >= 0)
 				pddtResponse[j] += openAreaRatio/NUM_RESPONSE_FUNCTION_TRIES;
 		}
@@ -309,8 +309,8 @@ public class PulseDilationDriftTube implements Detector {
 					blurredDist[i] += kernel[j]*dist[i - j];
 
 			System.out.println("Energy: " + energy);
-			System.out.println("Signal amplification: " + (NumericalMethods.sum(dist)/detector.averageGain/n));
-			System.out.println("Effective time resolution degradation: " + NumericalMethods.fwhm(axis, dist) + " ps");
+			System.out.println("Signal amplification: " + (Math2.sum(dist)/detector.averageGain/n));
+			System.out.println("Effective time resolution degradation: " + Math2.fwhm(axis, dist) + " ps");
 			if (energy == 12.5) {
 //				PythonPlot.plotLines("Energy histogram", axis, "Time [ps]", dist, errors, "Electrons");
 //				PythonPlot.plotLines("MCP response function", kernelAxis, "Time [ps]", kernel, errors, " ");

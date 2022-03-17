@@ -50,8 +50,6 @@ public class ConfigurationPlotter {
 			for (double tFoil = 25e-6; tFoil < 110e-6; tFoil += 15e-6) {
 				for (double wAperture = 1.0e-3; wAperture < 5.1e-3; wAperture += 1.0e-3) {
 //					System.out.println("setting up simulation");
-					COSYMapping mapping = CSV.readCosyCoefficients(new File("input/MRSt_IRF_FP tilted_final.txt"), 3);
-					mapping.setConfig(Particle.D, 12.45);
 					Analysis mc = new Analysis(
 						  new IonOpticConfiguration(tFoil, rFoil, wAperture),
 						  DetectorConfiguration.SINGLE_STREAK_CAMERA,

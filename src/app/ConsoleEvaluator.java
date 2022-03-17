@@ -69,6 +69,7 @@ public class ConsoleEvaluator {
 			if (arg.contains("=")) {
 				String key = arg.substring(0, arg.indexOf('='));
 				String value = arg.substring(arg.indexOf('=') + 1);
+				String tagFormat = "_%.6s";
 				switch (key) {
 					case "implosion":
 						prospectiveImplosionName = value;
@@ -78,15 +79,19 @@ public class ConsoleEvaluator {
 						break;
 					case "cores":
 						numCores = Integer.parseInt(value);
+						tagFormat = "";
 						break;
 					case "uncertainty":
 						prospectiveUncertainty = Double.parseDouble(value);
+						tagFormat = "_%sc";
 						break;
 					case "energyBin":
-						prospectiveEnergyBin = Double.parseDouble(value);
+						prospectiveEnergyBin = Double.parseDouble(value)*1e-3;
+						tagFormat = "_%skeV";
 						break;
 					case "timeBin":
-						prospectiveTimeBin = Double.parseDouble(value);
+						prospectiveTimeBin = Double.parseDouble(value)*1e-3;
+						tagFormat = "_%sps";
 						break;
 					case "tolerance":
 						prospectiveTolerance = Double.parseDouble(value);
@@ -117,8 +122,7 @@ public class ConsoleEvaluator {
 				}
 
 				String tag = value.replace(" ", "");
-				if (tag.length() > 6) tag = tag.substring(0, 6);
-				filename.append("_").append(tag);
+				filename.append(String.format(tagFormat, tag));
 			}
 			else {
 				System.err.println("I don't understand '"+arg+"'.");
@@ -135,7 +139,8 @@ public class ConsoleEvaluator {
 		final double timeBin = prospectiveTimeBin;
 		final double tolerance = prospectiveTolerance;
 		
-		filename.append(String.format("_%tF", System.currentTimeMillis()));
+		filename.append(String.format("_%tF.csv", System.currentTimeMillis()));
+		final String filepath = "output/"+filename;
 
 		// set up the logging
 		System.setProperty("java.util.logging.SimpleFormatter.format",
@@ -154,14 +159,7 @@ public class ConsoleEvaluator {
 		logfileHandler.setFormatter(formatter);
 		logger.addHandler(logfileHandler);
 		logger.log(Level.INFO, "beginning "+prospectiveNumYields+" evaluations on "+numCores+" cores");
-
-		// load the transfer matrix
-		final COSYMapping map;
-		if (detectorConfiguration.tiltAngle == 0)
-			map = CSV.readCosyCoefficients(new File("input/MRSt_IRF_FP not tilted.txt"), 3);
-		else
-			map = CSV.readCosyCoefficients(new File("input/MRSt_IRF_FP tilted.txt"), 3);
-		map.setConfig(Particle.D, 12.45);
+		logger.log(Level.INFO, "results will be saved to "+filepath+".");
 
 		final double[] eBins = CSV.readColumn(new File("input/energy.txt"));
 		final double[] tBins = CSV.readColumn(new File("input/time "+implosionName+".txt"));
@@ -220,19 +218,19 @@ public class ConsoleEvaluator {
 						results[K][i] = Double.NaN;
 
 				if (K%10 == 9)
-					save(results, filename.toString(), logger);
+					save(results, filepath, logger);
 			});
 		}
 
 		threads.shutdown();
 		threads.awaitTermination(3, TimeUnit.DAYS); // wait for all threads to finish
-		save(results, filename.toString(), logger); // and then, finally, save the result
+		save(results, filepath, logger); // and then, finally, save the result
 	}
 	
-	private static void save(double[][] results, String filename, Logger logger) {
+	private static void save(double[][] results, String filepath, Logger logger) {
 		try {
-			CSV.write(results, new File("output/"+filename+".csv"), ',', Analysis.HEADERS_WITH_ERRORS);
-			logger.log(Level.INFO, "Saved ensemble results to output/"+filename+".csv");
+			CSV.write(results, new File(filepath), ',', Analysis.HEADERS_WITH_ERRORS);
+			logger.log(Level.INFO, "Saved ensemble results to "+filepath+".");
 		} catch (IOException e) {
 			logger.log(Level.SEVERE, e.getMessage(), e);
 		}

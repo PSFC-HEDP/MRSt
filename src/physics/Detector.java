@@ -52,6 +52,13 @@ public interface Detector {
 	 */
 	double background(double energy, double[] energyBins, double[] timeBins);
 
+//	/**
+//	 * the signal level in one bin that will cause it to start saturating.
+//	 * @param energyBins the energy bin edges (MeV)
+//	 * @param timeBins the time bin edges (ns)
+//	 */
+//	double saturationLimit(double[] energyBins, double[] timeBins);
+
 	/**
 	 * compute the detected spectrum given a deuteron spectrum at the photocathode
 	 * @param stochastic whether to apply noise to the result
@@ -61,21 +68,25 @@ public interface Detector {
 
 	class DetectorConfiguration {
 		public static DetectorConfiguration SINGLE_STREAK_CAMERA =
-			  new DetectorConfiguration( 0.00000, 11.5e-9,
+			  new DetectorConfiguration("MRSt_IRF_FP_00deg",
+										0.00000, 11.5e-9,
 										 new double[] {-0.75e-2},
 										 new double[] {2.5e-2},
 										 new double[] {500e-6});
 		public static DetectorConfiguration DOUBLE_STREAK_CAMERA =
-			  new DetectorConfiguration(66.58565,  4.5e-9,
+			  new DetectorConfiguration("MRSt_IRF_FP_70deg",
+										66.58565,  4.5e-9,
 										new double[] {-5e-2, 0},
 										new double[] {2.5e-2, 2.5e-2},
 										new double[] {500e-6, 500e-6});
 		public static DetectorConfiguration DOWNSCATTER_SLIT =
-			  new DetectorConfiguration(66.58565,  4.5e-9,
+			  new DetectorConfiguration("MRSt_IRF_FP_80deg",
+										70.00000,  4.5e-9,
 										new double[] {-10e-2, 0},
 										new double[] {2.5e-2, 2.5e-2},
 										new double[] {500e-6, 500e-6});
 
+		public final String cosyFile;
 		public final double tiltAngle;
 		public final double streakTime;
 		public final double[] slitPositions;
@@ -83,8 +94,9 @@ public interface Detector {
 		public final double[] slitWidths;
 
 		public DetectorConfiguration(
-			  double tiltAngle, double streakTime,
+			  String cosyFile, double tiltAngle, double streakTime,
 			  double[] slitPositions, double[] slitLengths, double[] slitWidths) {
+			this.cosyFile = cosyFile;
 			this.tiltAngle = tiltAngle;
 			this.streakTime = streakTime;
 			this.slitPositions = slitPositions;

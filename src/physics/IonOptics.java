@@ -25,8 +25,8 @@ package physics;
 
 import util.COSYMapping;
 import util.CSV;
-import util.NumericalMethods;
-import util.NumericalMethods.DiscreteFunction;
+import util.Math2;
+import util.Math2.DiscreteFunction;
 
 import java.io.File;
 import java.io.IOException;
@@ -219,7 +219,7 @@ public class IonOptics {
 
 		makeSureWeHaveTransferMatrix(energyBins, timeBins);
 
-		int iRef = NumericalMethods.bin(referenceEnergy, energyBins);
+		int iRef = Math2.bin(referenceEnergy, energyBins);
 		int jRef = nTimes/2;
 
 		double[] energyDist = new double[nEnergies];
@@ -243,8 +243,8 @@ public class IonOptics {
 //		System.out.println(Arrays.toString(timeAxis));
 //		System.out.println(Arrays.toString(timeDist));
 
-		double energyResolution = NumericalMethods.std(energyBins, energyDist);
-		double timeResolution = NumericalMethods.std(timeBins, timeDist);
+		double energyResolution = Math2.std(energyBins, energyDist);
+		double timeResolution = Math2.std(timeBins, timeDist);
 		return new double[] { energyResolution/1e-3, timeResolution/1e-3};
 	}
 
@@ -270,9 +270,9 @@ public class IonOptics {
 
 		double[] v;
 		if (actual)
-			v = NumericalMethods.matmul(trueTransferMatrix, u);
+			v = Math2.matmul(trueTransferMatrix, u);
 		else
-			v = NumericalMethods.matmul(rongTransferMatrix, u); // then do the multiplication
+			v = Math2.matmul(rongTransferMatrix, u); // then do the multiplication
 
 		double[][] outSpectrum = new double[energyBins.length-1][timeBins.length-1];
 		for (int i = 0; i < energyBins.length-1; i ++)
@@ -402,8 +402,8 @@ public class IonOptics {
 
 					double energyO = et[0], timeO = et[1]/ns; // then convert to the same units as the bins
 					//					double energyO = energyI/1e6, timeO = timeI/ns;
-					int eBin = NumericalMethods.bin(energyO, energyBins);
-					int tBin = NumericalMethods.bin(timeO, timeBins);
+					int eBin = Math2.bin(energyO, energyBins);
+					int tBin = Math2.bin(timeO, timeBins);
 					if (eBin >= 0 && eBin < energyBins.length - 1 && tBin >= 0 && tBin < timeBins.length - 1) // if it falls in detectable bounds
 						matrix[(timeBins.length - 1)*eBin + tBin][(timeBins.length - 1)*i + j0] += weight; // add it to the row
 				}
@@ -475,13 +475,13 @@ public class IonOptics {
 
 		double[] nHat = { // get the unit vector in the direction of the neutron
 				rFoil[x], rFoil[y], rFoil[z] };
-		double norm = Math.sqrt(NumericalMethods.sqr(nHat));
+		double norm = Math.sqrt(Math2.sqr(nHat));
 		for (int i = 0; i < 3; i ++)
 			nHat[i] /= norm;
 
 		double[] dHat = { // and the unit vector in the direction of the ion
 				rAperture[x] - rFoil[x], rAperture[y] - rFoil[y], rAperture[z] - rFoil[z] };
-		norm = Math.sqrt(NumericalMethods.sqr(dHat));
+		norm = Math.sqrt(Math2.sqr(dHat));
 		for (int i = 0; i < 3; i ++)
 			dHat[i] /= norm;
 
@@ -517,7 +517,7 @@ public class IonOptics {
 		if (Double.isNaN(vInit[0]))
 			return new double[] { Double.NaN, Double.NaN, Double.NaN, Double.NaN };
 
-		double KInit = 1/2.*cosyMapping.ion.mass*NumericalMethods.sqr(vInit)/MeV; // for the 'd' coordinate, we must convert velocity to energy
+		double KInit = 1/2.*cosyMapping.ion.mass*Math2.sqr(vInit)/MeV; // for the 'd' coordinate, we must convert velocity to energy
 		double xPlane = cosyMapping.getX(rFoil[x], vInit[x], rFoil[y], vInit[y], tNeutron, KInit);
 		double vxPlane = cosyMapping.getVx(rFoil[x], vInit[x], rFoil[y], vInit[y], tNeutron, KInit);
 		double yPlane = cosyMapping.getY(rFoil[x], vInit[x], rFoil[y], vInit[y], tNeutron, KInit);

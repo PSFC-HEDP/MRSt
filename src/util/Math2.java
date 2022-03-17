@@ -33,7 +33,7 @@ import java.util.function.Function;
  * 
  * @author Justin Kunimune
  */
-public class NumericalMethods {
+public class Math2 {
 
 	/**
 	 * draw a boolean from a Bernoulli distribution.
@@ -231,33 +231,6 @@ public class NumericalMethods {
 				u -= thresh;
 		}
 		throw new IllegalArgumentException("math is broken: "+ Arrays.toString(x)+", "+Arrays.toString(pdf));
-	}
-	
-	/**
-	 * generate a generic unimodal distribution with a handful of parameters with which to play.
-	 * it will be the linear combination of an erf stepping from yL to yR with a generalized
-	 * skew normal distribution with height ~yPeak, and skew and kurtosis-adjustment given by
-	 * tilt and fatten
-	 * @param x the x axis on which to generate it
-	 * @param yL the limit for negative x
-	 * @param yR the limit for positive x
-	 * @param yPeak the signed magnitude of the peak in the middle
-	 * @param xPeak the location of the center of the function
-	 * @param std the standard deviation of the peak
-	 * @param tilt the amount to skew the peak (0 is no skew)
-	 * @param fatten the exponent on the peak (2 is normal gaussian)
-	 * @return y values corresponding to the x values
-	 */
-	public static double[] unimode(double[] x, double yL, double yR, double yPeak,
-			double xPeak, double std, double tilt, double fatten) {
-		final double y0 = yR, yS = (yL - yR), yG = yPeak - (yL + yR)/2;
-		double[] y = new double[x.length];
-		for (int i = 0; i < x.length; i ++) {
-			double ξ = (x[i] - xPeak)/std;
-			y[i] = y0 + yS*erfc(ξ)/2 +
-					yG*Math.exp(-Math.pow(Math.abs(ξ), 4/fatten)/2)*erfc(-tilt*ξ);
-		}
-		return y;
 	}
 	
 	/**

@@ -56,7 +56,7 @@ import physics.SpectrumGenerator;
 import util.COSYMapping;
 import util.CSV;
 import physics.Analysis.ErrorMode;
-import util.NumericalMethods;
+import util.Math2;
 import util.PythonPlot;
 import util.Spinner;
 
@@ -160,7 +160,7 @@ public class SpectrumViewer extends Application {
 		leftPane.add(order, 1, row);
 		row ++;
 		
-		leftPane.add(chooseFileWidget("COSY map file:", stage, "MRSt_IRF_FP tilted.txt",
+		leftPane.add(chooseFileWidget("COSY map file:", stage, "MRSt_IRF_FP_70deg.txt",
 				(file) -> {
 					this.cosyMapping = CSV.readCosyCoefficients(file, order.getValue());
 					this.cosyMapping.setConfig(ION, CENTRAL_E); // someday there may be COSY matrices that are bilt for other particles, or other energies.  that day is not today.
@@ -227,7 +227,7 @@ public class SpectrumViewer extends Application {
 						}
 						else
 							spec = deepClone(spectrum);
-						SpectrumGenerator.modifySpectrum(spec, yieldFactor.getValue()/100.*NumericalMethods.sum(spec));
+						SpectrumGenerator.modifySpectrum(spec, yieldFactor.getValue()/100.*Math2.sum(spec));
 					} catch (ArrayIndexOutOfBoundsException e) {
 						logger.severe("Invalid input spectrum file.");
 						return;
@@ -272,7 +272,7 @@ public class SpectrumViewer extends Application {
 						return;
 					}
 					
-					double[][] smallSpec = NumericalMethods.downsample(tBins, eBins, spec, mc.getTimeBins(), mc.getEnergyBins());
+					double[][] smallSpec = Math2.downsample(tBins, eBins, spec, mc.getTimeBins(), mc.getEnergyBins());
 					try { // send the data to python for plotting
 						PythonPlot.plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), smallSpec,
 						                       "Original neutron spectrum");

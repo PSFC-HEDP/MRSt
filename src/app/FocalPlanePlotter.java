@@ -36,11 +36,10 @@ import java.io.IOException;
 public class FocalPlanePlotter {
 	public static void main(String[] args) throws IOException {
 		// select constants
-		double tiltAngle = 67.7;
-		COSYMapping cosyMapping = CSV.readCosyCoefficients(
-			  new File("input/MRSt_IRF_FP bent.txt"),
-			  3, Particle.D, 12.45);
 		DetectorConfiguration slits = DetectorConfiguration.DOWNSCATTER_SLIT;
+		COSYMapping cosyMapping = CSV.readCosyCoefficients(
+			  new File(String.format("input/%s.txt", slits.cosyFile)),
+			  3, Particle.D, 12.45);
 
 		// set up the simulation
 		IonOptics io = new IonOptics(
@@ -54,7 +53,7 @@ public class FocalPlanePlotter {
 				12,
 				16,
 				cosyMapping,
-				tiltAngle,
+				slits.tiltAngle,
 				0,
 				false
 		);
@@ -72,7 +71,7 @@ public class FocalPlanePlotter {
 			System.out.printf("%d/%d\n", i, N + 1);
 			for (int k = 0; k < M; k ++) {
 				double[] xyzt = io.simulate(energies[i], 0, false);
-				positions[i][3*k  ] = xyzt[0]/Math.cos(Math.toRadians(tiltAngle));
+				positions[i][3*k  ] = xyzt[0]/Math.cos(Math.toRadians(slits.tiltAngle));
 				positions[i][3*k+1] = xyzt[1];
 				positions[i][3*k+2] = xyzt[3];
 			}

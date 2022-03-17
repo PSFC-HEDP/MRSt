@@ -35,8 +35,8 @@ import physics.Detector.DetectorConfiguration;
 import physics.IonOptics.IonOpticConfiguration;
 import util.COSYMapping;
 import util.CSV;
-import util.NumericalMethods;
-import util.NumericalMethods.Quantity;
+import util.Math2;
+import util.Math2.Quantity;
 import util.Optimization;
 
 import java.io.File;
@@ -139,9 +139,8 @@ public class Analysis {
 			 ionOpticConfiguration.apertureWidth,
 			 20.0e-3,
 			 CSV.readCosyCoefficients(
-				   (detectorConfiguration.tiltAngle == 0) ?
-						 new File("input/MRSt_IRF_FP not tilted.txt") :
-						 new File("input/MRSt_IRF_FP tilted.txt"),
+				   new File(String.format(
+						 "input/%s.txt", detectorConfiguration.cosyFile)),
 				   3, Particle.D, 12.45),
 			 detectorConfiguration,
 			 calibrationPrecision,
@@ -346,7 +345,7 @@ public class Analysis {
 
 		this.instantiateTimeAxis(times); // first, create the detector time bins
 
-		spectrum = NumericalMethods.downsample(
+		spectrum = Math2.downsample(
 				times, energies, spectrum, timeBins, energyBins); // first rebin the spectrum
 
 		logger.info("beginning Monte Carlo computation.");
@@ -356,6 +355,12 @@ public class Analysis {
 		long endTime = System.currentTimeMillis();
 		logger.info(String.format(Locale.US, "completed in %.2f minutes.",
 			                      (endTime - startTime)/60000.));
+
+		double saturation = 1;/*NumericalMethods.max(deuteronSpectrum)/
+			  this.detector.saturationLimit(energyBins, timeBins);*/
+		if (saturation >= 1)
+			logger.warning(String.format("The detector is saturating by about %.2f%%",
+										 saturation/1e-2));
 
 		Quantity[] values = analyze(deuteronSpectrum, errorBars);
 
@@ -384,12 +389,12 @@ public class Analysis {
 		if (spectrum.length != energyBins.length-1 || spectrum[0].length != timeBins.length-1)
 			throw new IllegalArgumentException("These dimensions are wrong.");
 
-		if (NumericalMethods.max(spectrum) == 0) {
+		if (Math2.max(spectrum) == 0) {
 			logger.log(Level.SEVERE, "There were no deuterons detected.");
 			return null;
 		}
 		else {
-			logger.log(Level.INFO, String.format("There were %.1g deuterons detected.", NumericalMethods.sum(spectrum)));
+			logger.log(Level.INFO, String.format("There were %.1g deuterons detected.", Math2.sum(spectrum)));
 		}
 
 		logger.info("beginning fit process.");
@@ -424,7 +429,7 @@ public class Analysis {
 		double[] lowerBound = new double[M];
 		double[] upperBound = new double[M];
 		for (int j = 0; j < M; j++) {
-			yieldScale[j] = NumericalMethods.max(naiveNeutronYield)/6.;
+			yieldScale[j] = Math2.max(naiveNeutronYield)/6.;
 			temperatureScale[j] = 10;
 			densityScale[j] = 1;
 			lowerBound[j] = 0;
@@ -461,9 +466,9 @@ public class Analysis {
 		double[] statistics = new double[M];
 		for (int i = 0; i < M; i ++)
 			statistics[i] = neutronYield[i]*1e15*this.efficiency()*timeStep;
-		final int peak = NumericalMethods.argmax(statistics);
-		final int left = Math.min(peak - 2, NumericalMethods.firstAbove(1, statistics));
-		final int rite = Math.max(peak + 3, NumericalMethods.lastAbove(1, statistics) + 1);
+		final int peak = Math2.argmax(statistics);
+		final int left = Math.min(peak - 2, Math2.firstAbove(1, statistics));
+		final int rite = Math.max(peak + 3, Math2.lastAbove(1, statistics) + 1);
 		boolean[] active = new boolean[timeAxis.length];
 		for (int j = 0; j < timeAxis.length; j ++)
 			active[j] = j >= left && j < rite;
@@ -600,8 +605,8 @@ public class Analysis {
 		this.fitDeuteronSpectrum = this.response(
 			  energyBins, timeBins, fitNeutronSpectrum, false, false);
 		
-		Quantity iBT = NumericalMethods.quadargmax(this.neutronYield); // index of max yield
-		Quantity bangTime = NumericalMethods.interp(timeAxis, iBT); // time of max yield
+		Quantity iBT = Math2.quadargmax(this.neutronYield); // index of max yield
+		Quantity bangTime = Math2.interp(timeAxis, iBT); // time of max yield
 
 		if (errorMode == ErrorMode.HESSIAN) { // calculate the error bars using second-derivatives
 			logger.log(Level.INFO, "calculating error bars.");
@@ -609,7 +614,7 @@ public class Analysis {
 			double[] x0 = new double[N*m], dx = new double[N*m];
 			for (int j = left; j < rite; j ++) { // set up for a finite-difference hessian calculation
 				x0[      j - left] = neutronYield[j];
-				dx[      j - left] = NumericalMethods.max(neutronYield)*1e-4;
+				dx[      j - left] = Math2.max(neutronYield)*1e-4;
 				x0[  m + j - left] = ionTemperature[j];
 				dx[  m + j - left] = 1e-2;
 				x0[2*m + j - left] = arealDensity[j];
@@ -618,7 +623,7 @@ public class Analysis {
 			final double[] testNeutronYield = Arrays.copyOf(neutronYield, M);
 			final double[] testIonTemperature = Arrays.copyOf(ionTemperature, M);
 			final double[] testArealDensity = Arrays.copyOf(arealDensity, M);
-			double[][] hessian = NumericalMethods.hessian((double[] x) -> {
+			double[][] hessian = Math2.hessian((double[] x) -> {
 				assert x.length == N*m;
 				System.arraycopy(x, 0  , testNeutronYield, left, m);
 				System.arraycopy(x, 1*m, testIonTemperature, left, m);
@@ -628,8 +633,8 @@ public class Analysis {
 										 bulkFlowVelocity, testArealDensity,
 										 active, false, finalSmoothing);
 			}, x0, dx); // the do that
-			NumericalMethods.coercePositiveSemidefinite(hessian);
-			double[][] activeCovarianceMatrix = NumericalMethods.pseudoinv(hessian); // invert it to get the covariance
+			Math2.coercePositiveSemidefinite(hessian);
+			double[][] activeCovarianceMatrix = Math2.pseudoinv(hessian); // invert it to get the covariance
 			for (int i = 0; i < hessian.length; i ++) {
 				if (activeCovarianceMatrix[i][i] < 1/hessian[i][i]) // these are all approximations, and sometimes they violate the properties of positive semidefiniteness
 					activeCovarianceMatrix[i][i] = 1/hessian[i][i]; // do what you must to make it work
@@ -666,28 +671,28 @@ public class Analysis {
 		for (int j = 0; j < V.length; j ++)
 			V[j] = this.arealDensity[j].pow(-1.5);
 		
-		Quantity iPC = NumericalMethods.quadargmax(left, rite, this.arealDensity); // index of max compression
-		Quantity peakCompress = NumericalMethods.interp(timeAxis, iPC); // time of max compression
-		Quantity iTPeak = NumericalMethods.quadargmax(left, rite, this.ionTemperature);
+		Quantity iPC = Math2.quadargmax(left, rite, this.arealDensity); // index of max compression
+		Quantity peakCompress = Math2.interp(timeAxis, iPC); // time of max compression
+		Quantity iTPeak = Math2.quadargmax(left, rite, this.ionTemperature);
 		Quantity[] moments = new Quantity[5];
 		for (int k = 0; k < moments.length; k ++)
-			moments[k] = NumericalMethods.moment(k, timeBins, this.neutronYield);
+			moments[k] = Math2.moment(k, timeBins, this.neutronYield);
 		
 		Quantity[] res = {
 			  new Quantity((endTime - startTime)/1000., covarianceMatrix.length),
 			  moments[0].times(timeStep), bangTime,
 			  moments[2].sqrt().times(2.355), moments[3], moments[4],
 			  peakCompress.minus(bangTime),
-			  NumericalMethods.average(this.ionTemperature, this.neutronYield, left, rite),
-			  NumericalMethods.quadInterp(this.ionTemperature, iTPeak),
-			  NumericalMethods.quadInterp(this.ionTemperature, iBT),
-			  NumericalMethods.derivative(timeAxis, this.ionTemperature, bangTime, .12, 1),
-			  NumericalMethods.derivative(timeAxis, this.ionTemperature, bangTime, .12, 2),
-			  NumericalMethods.average(this.arealDensity, this.neutronYield, left, rite),
-			  NumericalMethods.quadInterp(this.arealDensity, iPC),
-			  NumericalMethods.quadInterp(this.arealDensity, iBT),
-			  NumericalMethods.derivative(timeAxis, this.arealDensity, bangTime, .12, 1),
-			  NumericalMethods.derivative(timeAxis, V, bangTime, .12, 2).over(NumericalMethods.quadInterp(V, iBT)),
+			  Math2.average(this.ionTemperature, this.neutronYield, left, rite),
+			  Math2.quadInterp(this.ionTemperature, iTPeak),
+			  Math2.quadInterp(this.ionTemperature, iBT),
+			  Math2.derivative(timeAxis, this.ionTemperature, bangTime, .12, 1),
+			  Math2.derivative(timeAxis, this.ionTemperature, bangTime, .12, 2),
+			  Math2.average(this.arealDensity, this.neutronYield, left, rite),
+			  Math2.quadInterp(this.arealDensity, iPC),
+			  Math2.quadInterp(this.arealDensity, iBT),
+			  Math2.derivative(timeAxis, this.arealDensity, bangTime, .12, 1),
+			  Math2.derivative(timeAxis, V, bangTime, .12, 2).over(Math2.quadInterp(V, iBT)),
 		}; // collect the figures of merit
 		
 		logger.info(String.format("Total yield (μ0):  %s", res[1].times(1e15).toString(covarianceMatrix)));
@@ -781,7 +786,7 @@ public class Analysis {
 		}
 
 		double totalPenalty = 0; // negative log prior
-		int bangIndex = NumericalMethods.argmax(neutronYield); // approximate BT locacion
+		int bangIndex = Math2.argmax(neutronYield); // approximate BT locacion
 		for (int j = 1; j < timeAxis.length; j ++) {
 			double Y = (neutronYield[j] + neutronYield[j-1])/2;
 			double Yp = (neutronYield[j] - neutronYield[j-1])/timeStep;
@@ -946,42 +951,42 @@ public class Analysis {
 	 * get the neutron yield mean values in [10^15/ns]
 	 */
 	public double[] getNeutronYield() {
-		return NumericalMethods.modes(this.neutronYield);
+		return Math2.modes(this.neutronYield);
 	}
 	
 	/**
 	 * get the neutron yield error bars in [10^15/ns]
 	 */
 	public double[] getNeutronYieldError() {
-		return NumericalMethods.stds(this.neutronYield, this.covarianceMatrix);
+		return Math2.stds(this.neutronYield, this.covarianceMatrix);
 	}
 	
 	/**
 	 * get the ion temperature mean values in [keV]
 	 */
 	public double[] getIonTemperature() {
-		return NumericalMethods.modes(this.ionTemperature);
+		return Math2.modes(this.ionTemperature);
 	}
 	
 	/**
 	 * get the ion temperature error bars in [keV]
 	 */
 	public double[] getIonTemperatureError() {
-		return NumericalMethods.stds(this.ionTemperature, this.covarianceMatrix);
+		return Math2.stds(this.ionTemperature, this.covarianceMatrix);
 	}
 
 	/**
 	 * get the ρR mean values in [g/cm^2]
 	 */
 	public double[] getArealDensity() {
-		return NumericalMethods.modes(this.arealDensity);
+		return Math2.modes(this.arealDensity);
 	}
 	
 	/**
 	 * get the ρR error bars in [g/cm^2]
 	 */
 	public double[] getArealDensityError() {
-		return NumericalMethods.stds(this.arealDensity, this.covarianceMatrix);
+		return Math2.stds(this.arealDensity, this.covarianceMatrix);
 	}
 	
 	

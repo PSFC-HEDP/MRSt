@@ -196,9 +196,9 @@ public class Optimization {
 			throw new IllegalArgumentException("Initial guess yielded bunk value: "+fx[x0.length]);
 		
 		while (true) { // now for the iterative part
-			int iWorst = NumericalMethods.argmax(fx);
-			int iNext = NumericalMethods.argpenmax(fx);
-			int iBest = NumericalMethods.argmin(fx);
+			int iWorst = Math2.argmax(fx);
+			int iNext = Math2.argpenmax(fx);
+			int iBest = Math2.argmin(fx);
 			
 			boolean done = true;
 			for (int j = 0; j < scale.length; j ++)
