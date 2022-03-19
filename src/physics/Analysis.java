@@ -71,7 +71,6 @@ public class Analysis {
 
 	private static final double MIN_E = 12, MAX_E = 16; // histogram bounds [MeV]
 	private static final int BUFFER = 4; // empty pixels to include simulate on each side [ns]
-	private static final double E_BIN = .05, T_BIN = 20e-3; // bin sizes [MeV], [ns] TODO: time bin should be an input
 
 //	private static final double SUBSTRATE_THICKNESS = 100; // [μm]
 //	private static final double PHOTOCATHODE_THICKNESS = .1; // [μm]
@@ -95,6 +94,7 @@ public class Analysis {
 	private double[][] fitDeuteronSpectrum; // backward-fit deuteron counts (this should be similar to deuteronSpectrum)
 	
 	private final double[] energyAxis; // centers of energy bins [ns]
+	private final double preferredTimeStep;
 	private double timeStep;
 	private double[] timeAxis; // centers of time bins [ns]
 	private Quantity[] neutronYield; // 1e15/ns
@@ -117,7 +117,7 @@ public class Analysis {
 	) throws IOException {
 		this(ionOpticConfiguration, detectorConfiguration,
 			 calibrationPrecision, reuseMatrix,
-			 50e-3, 20e-3, 0.1, logger);
+			 50e-3, 20e-3, 0.01, logger);
 	}
 
 	/**
@@ -142,9 +142,14 @@ public class Analysis {
 				   new File(String.format(
 						 "input/%s.txt", detectorConfiguration.cosyFile)),
 				   3, Particle.D, 12.45),
-			 detectorConfiguration,
+			 detectorConfiguration.tiltAngle,
+			 detectorConfiguration.slitPositions,
+			 detectorConfiguration.slitLengths,
+			 detectorConfiguration.slitWidths,
+			 detectorConfiguration.streakTime,
 			 calibrationPrecision,
 			 reuseMatrix,
+			 eBin, tBin, precision,
 			 logger);
 	}
 
@@ -178,7 +183,7 @@ public class Analysis {
 			 detectorConfiguration.slitWidths,
 			 detectorConfiguration.streakTime,
 			 calibrationPrecision, reuseMatrix,
-			  50e-3, 20e-3, 0.1, logger);
+			  50e-3, 20e-3, 0.01, logger);
 	}
 
 	/**
@@ -230,13 +235,15 @@ public class Analysis {
 
 		this.precision = precision;
 
-		this.energyBins = new double[(int) ((MAX_E - MIN_E)/E_BIN + 1)];
+		this.energyBins = new double[(int) ((MAX_E - MIN_E)/eBin + 1)];
 		for (int i = 0; i < energyBins.length; i ++)
 			this.energyBins[i] = (MIN_E + i*(MAX_E - MIN_E)/(energyBins.length-1));
 
 		this.energyAxis = new double[energyBins.length-1];
 		for (int i = 0; i < energyBins.length-1; i ++)
 			this.energyAxis[i] = (this.energyBins[i] + this.energyBins[i+1])/2;
+
+		this.preferredTimeStep = tBin;
 
 		this.logger = logger;
 	}
@@ -247,9 +254,9 @@ public class Analysis {
 	 *                         a reference
 	 */
 	private void instantiateTimeAxis(double[] spectrumTimeBins) {
-		double minT = spectrumTimeBins[0] - BUFFER*T_BIN;
-		double maxT = spectrumTimeBins[spectrumTimeBins.length-1] + BUFFER*T_BIN;
-		this.timeBins = new double[(int) ((maxT - minT)/T_BIN + 1)];
+		double minT = spectrumTimeBins[0] - BUFFER*preferredTimeStep;
+		double maxT = spectrumTimeBins[spectrumTimeBins.length-1] + BUFFER*preferredTimeStep;
+		this.timeBins = new double[(int) ((maxT - minT)/preferredTimeStep + 1)];
 		for (int i = 0; i < timeBins.length; i ++)
 			this.timeBins[i] = minT + i*(maxT - minT)/(timeBins.length-1);
 		
@@ -298,7 +305,12 @@ public class Analysis {
 	}
 
 	public double efficiency() {
-		return this.ionOptics.efficiency(14);
+		double meanEfficiency = 0;
+		int res = 10;
+		for (int i = -res; i <= res; i ++) // perform an unweited mean over [13.5, 14.5] MeV
+			meanEfficiency += this.ionOptics.efficiency(14 + 0.5*i/res)*this.detector.quantumEfficiency(14 + 0.5*i/res);
+		meanEfficiency /= 2.*res + 1;
+		return meanEfficiency;
 	}
 
 	public double gain() {
@@ -417,11 +429,6 @@ public class Analysis {
 					  0, (spectrum[i][j] - background)/this.gain())/(timeStep*1e15); // the spectrum scaled by the efficiency of the system
 			}
 		}
-		//		double[][] D = new double[energyBins.length-1][timeBins.length-1];
-		//		for (int i = 0; i < energyBins.length-1; i ++)
-		//			for (int j = 0; j < timeBins.length-1; j ++)
-		//				D[i][j] = Math.max(1, spectrum[i][j]);
-		//		double[][] gelf = Optimization.optimizeGelfgat(spectrum, D, this.rongTransferMatrix, 1e5);
 
 		double[] yieldScale = new double[M];
 		double[] temperatureScale = new double[M];
@@ -445,7 +452,7 @@ public class Analysis {
 			ionTemperature[j] = 4;
 			electronTemperature[j] = 4;
 			bulkFlowVelocity[j] = 0;
-			arealDensity[j] = 200e-3;
+			arealDensity[j] = 200e-3; // TODO: does it still work if this is 100e-3?
 		}
 
 		// then do the second simplest reconstruction for the burn history
@@ -463,17 +470,34 @@ public class Analysis {
 			  naiveNeutronYield, yieldScale, lowerBound, upperBound); // 10^15/ns
 
 		// determine the bounds of the region that's worth optimizing
-		double[] statistics = new double[M];
-		for (int i = 0; i < M; i ++)
-			statistics[i] = neutronYield[i]*1e15*this.efficiency()*timeStep;
+		double[] statistics = new double[M]; // TODO: do this check every iteration
+		for (int j = 0; j < M; j ++)
+			statistics[j] = neutronYield[j]*1e15*this.efficiency()*timeStep; // TODO: because of the high numbers I get here where it should actually be zero, I think efficiency is not very accurate
 		final int peak = Math2.argmax(statistics);
-		final int left = Math.min(peak - 2, Math2.firstAbove(1, statistics));
-		final int rite = Math.max(peak + 3, Math2.lastAbove(1, statistics) + 1);
+		int left = -1;
+		for (int j = peak - 2; j >= -1; j --) { // scan backward for the start of the signal
+			if (left == -1 && (j < 0 || statistics[j] < 10)) // if the statistics are very lo
+				left = j + 1; // this is probably the start
+			else if (j >= 0 && statistics[j] > 100) // if they earlier go somewhat hi, tho,
+				left = -1; // then we were mistaken
+		}
+		int rite = -1;
+		for (int j = peak + 2; j <= statistics.length; j ++) { // scan forward for the end of the signal
+			if (rite == -1 && (j >= statistics.length || statistics[j] < 100)) // if the statistics are very lo
+				rite = j; // this is probably the end
+			else if (j < statistics.length && statistics[j] > 1000) // if they later go somewhat hi, tho,
+				rite = -1; // then we were mistaken
+		}
 		boolean[] active = new boolean[timeAxis.length];
-		for (int j = 0; j < timeAxis.length; j ++)
+		for (int j = 0; j < timeAxis.length; j ++) {
 			active[j] = j >= left && j < rite;
+			if (!active[j]) neutronYield[j] = 0;
+		}
+		System.out.println("active is");
+		System.out.println(Arrays.toString(active));
+		System.out.println("because of");
+		System.out.println(Arrays.toString(statistics));
 
-		//		for (double smoothing = 1e4; smoothing > .9; smoothing /= 10) {
 		final double finalSmoothing = 1;//smoothing;
 
 		double lastValue;
@@ -541,7 +565,6 @@ public class Analysis {
 				  bulkFlowVelocity, arealDensity,
 				  active, false, finalSmoothing);
 		} while (lastValue - thisValue > this.precision);
-//		}
 
 //		try {
 //			double ultimatePosterior = this.logPosterior(spectrum, neutronYield, ionTemperature, electronTemperature, bulkFlowVelocity, arealDensity, left, rite, false, finalSmoothing);
@@ -582,11 +605,6 @@ public class Analysis {
 //			System.err.println("the test thing didn't work.");
 //		}
 
-//		System.out.println("it arrived at");
-//		System.out.println(Arrays.toString(ionTemperature));
-//		System.out.println()
-//		System.out.println("but wouldn't ")
-
 		this.neutronYield = new Quantity[M];
 		this.ionTemperature = new Quantity[M];
 		this.arealDensity = new Quantity[M];
@@ -596,7 +614,7 @@ public class Analysis {
 			this.ionTemperature[j] = new Quantity(
 				  ionTemperature[j], M+j, N*M);
 			this.arealDensity[j] = new Quantity(
-				  arealDensity[j], N*M);//, 2*M+j, N*M);
+				  arealDensity[j], 2*M+j, N*M);
 		}
 
 		this.fitNeutronSpectrum = SpectrumGenerator.generateSpectrum( // and then interpret it
@@ -610,24 +628,24 @@ public class Analysis {
 
 		if (errorMode == ErrorMode.HESSIAN) { // calculate the error bars using second-derivatives
 			logger.log(Level.INFO, "calculating error bars.");
-			final int m = rite - left;
+			final int j0 = left, m = rite - left;
 			double[] x0 = new double[N*m], dx = new double[N*m];
 			for (int j = left; j < rite; j ++) { // set up for a finite-difference hessian calculation
-				x0[      j - left] = neutronYield[j];
-				dx[      j - left] = Math2.max(neutronYield)*1e-4;
-				x0[  m + j - left] = ionTemperature[j];
-				dx[  m + j - left] = 1e-2;
-				x0[2*m + j - left] = arealDensity[j];
-				dx[2*m + j - left] = 1e-3;
+				x0[      j - j0] = neutronYield[j];
+				dx[      j - j0] = Math2.max(neutronYield)*1e-4;
+				x0[  m + j - j0] = ionTemperature[j];
+				dx[  m + j - j0] = 1e-2;
+				x0[2*m + j - j0] = arealDensity[j];
+				dx[2*m + j - j0] = 1e-3;
 			}
 			final double[] testNeutronYield = Arrays.copyOf(neutronYield, M);
 			final double[] testIonTemperature = Arrays.copyOf(ionTemperature, M);
 			final double[] testArealDensity = Arrays.copyOf(arealDensity, M);
 			double[][] hessian = Math2.hessian((double[] x) -> {
 				assert x.length == N*m;
-				System.arraycopy(x, 0  , testNeutronYield, left, m);
-				System.arraycopy(x, 1*m, testIonTemperature, left, m);
-				System.arraycopy(x, 2*m, testArealDensity, left, m);
+				System.arraycopy(x, 0  , testNeutronYield, j0, m);
+				System.arraycopy(x, 1*m, testIonTemperature, j0, m);
+				System.arraycopy(x, 2*m, testArealDensity, j0, m);
 				return this.logPosterior(spectrum, testNeutronYield,
 										 testIonTemperature, electronTemperature,
 										 bulkFlowVelocity, testArealDensity,
@@ -644,10 +662,7 @@ public class Analysis {
 				for (int j1 = left; j1 < rite; j1++)
 					for (int k2 = 0; k2 < N; k2++)
 						for (int j2 = left; j2 < rite; j2++)
-							covarianceMatrix[k1*M + j1][k2*M + j2] = activeCovarianceMatrix[k1*m + j1 - left][k2*m + j2 - left];
-//			NumericalMethods.coerceSymmetric(covarianceMatrix);
-//			NumericalMethods.coercePositiveSemidefinite(covarianceMatrix);
-//			System.out.println(Arrays.deepToString(covarianceMatrix));
+							covarianceMatrix[k1*M + j1][k2*M + j2] = activeCovarianceMatrix[k1*m + j1 - j0][k2*m + j2 - j0];
 		}
 		else if (errorMode == ErrorMode.STATISTICS) {
 			covarianceMatrix = new double[N*M][N*M];
@@ -753,12 +768,11 @@ public class Analysis {
 			double[] variances = new double[numEnergies];
 			double[] backgrounds = new double[numEnergies];
 			for (int i = 0; i < spectrum.length; i ++) {
-				double energy = (energyBins[i] + energyBins[i+1])/2.;
 				int index = (sumInEnergy) ? 0 : i;
 				experValues[index] += spectrum[i][j];
 				theorValues[index] += signal[i][j];
-				variances[index] += detector.noise(energy, energyBins, timeBins);
-				backgrounds[index] = detector.background(energy, energyBins, timeBins);
+				variances[index] += detector.noise(energyAxis[i], energyBins, timeBins);
+				backgrounds[index] = detector.background(energyAxis[i], energyBins, timeBins);
 			}
 			for (int i = 0; i < numEnergies; i ++) {
 				double theorNumber = (theorValues[i] - backgrounds[i])/gain;
@@ -786,27 +800,35 @@ public class Analysis {
 		}
 
 		double totalPenalty = 0; // negative log prior
-		int bangIndex = Math2.argmax(neutronYield); // approximate BT locacion
-		for (int j = 1; j < timeAxis.length; j ++) {
-			double Y = (neutronYield[j] + neutronYield[j-1])/2;
-			double Yp = (neutronYield[j] - neutronYield[j-1])/timeStep;
-			if (j <= bangIndex) Yp *= -1;
-			double z = (Y > 0) ? Yp/Y*1. : 0;
-			if (z < 0) totalPenalty += .05*Math.exp(z);
-			else       totalPenalty += .05*(1 + z + z*z/2.); // encourage a monotonically increasing yield before BT
+		for (int j = -2; j < timeAxis.length + 2; j ++) {
+			double[] x = new double[3];
+			for (int k = 0; k < 3; k ++) {
+				if (j+k >= 0 && j+k < timeAxis.length && (active == null || active[j+k]))
+					x[k] = neutronYield[j+k];
+				else
+					x[k] = 0;
+			}
+			double Y = Math2.mean(x);
+			double bendiness;
+			if (Y != 0) {
+				double Ypp = (x[0] - 2*x[1] + x[2])/Math.pow(timeStep, 2);
+				bendiness = Ypp/Y;
+			}
+			else
+				bendiness = 3./Math.pow(timeStep, 2);
+			totalPenalty += smoothing*1e-7*Math.pow(bendiness, 2); // encourage a smooth burn history
 		}
 		for (int j = 0; j < timeAxis.length; j ++)
-			totalPenalty += arealDensity[j]/5.0; // exponential prior on areal density
+			totalPenalty += arealDensity[j]/5.0 - Math.log(arealDensity[j]/50.0); // gamma prior on areal density
 		for (int j = 0; j < timeAxis.length; j ++)
-			totalPenalty += Math.pow((Math.log(ionTemperature[j]) - 0.2)/2.5, 2);
+			totalPenalty += Math.pow((Math.log(ionTemperature[j]) - 0.2)/2.5, 2); // log-normal prior on Ti
 		for (double[] x: new double[][] {ionTemperature, arealDensity}) {
 			for (int j = 0; j < timeAxis.length - 3; j ++) {
 				if (active == null || (active[j] && active[j+1] && active[j+2] && active[j+3])) {
 					double Ψpp = (x[j] - 3*x[j+1] + 3*x[j+2] - x[j+3])/
 						  Math.pow(timeStep, 3);
 					double Ψ = (x[j] + x[j+1] + x[j+2] + x[j+3])/4;
-					if (Ψpp != 0)
-						totalPenalty += smoothing*1e-10*Math.pow(Ψpp/Ψ, 2); // encourage a smooth Ti and ρR
+					totalPenalty += smoothing*1e-10*Math.pow(Ψpp/Ψ, 2); // encourage a smooth Ti and ρR
 				}
 			}
 		}

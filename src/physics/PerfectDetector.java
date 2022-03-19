@@ -23,7 +23,7 @@
  */
 package physics;
 
-public class PerfectDetector implements Detector {
+public class PerfectDetector extends Detector {
 	@Override
 	public double efficiency(double energy) {
 		return 1;

@@ -6,9 +6,9 @@ import os
 if "python" in os.getcwd():
 	os.chdir('../..')
 
-slit_lengths = np.loadtxt("output/focal plane lengths.csv")
-slit_widths = np.loadtxt("output/focal plane widths.csv")
-slit_positions = np.loadtxt("output/focal plane positions.csv")
+slit_lengths = np.atleast_1d(np.loadtxt("output/focal plane lengths.csv"))
+slit_widths = np.atleast_1d(np.loadtxt("output/focal plane widths.csv"))
+slit_positions = np.atleast_1d(np.loadtxt("output/focal plane positions.csv"))
 energies = np.loadtxt("output/focal plane energies.csv")
 particles = np.loadtxt("output/focal plane particles.csv",
                        delimiter=",")

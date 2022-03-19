@@ -454,7 +454,7 @@ public class Math2 {
 			s += x;
 		return s;
 	}
-	
+
 	public static double sum(double[][] arr) {
 		double s = 0;
 		for (double[] row: arr)
@@ -462,7 +462,15 @@ public class Math2 {
 				s += x;
 		return s;
 	}
-	
+
+	public static double[] elementwiseSum(double[]... arrs) {
+		double[] s = new double[arrs[0].length];
+		for (double[] row: arrs)
+			for (int j = 0; j < row.length; j++)
+				s[j] += row[j];
+		return s;
+	}
+
 	public static double mean(double[] arr) {
 		return sum(arr)/arr.length;
 	}
@@ -1328,12 +1336,22 @@ public class Math2 {
 			step[i] = function.apply(xR);
 			assert Double.isFinite(step[i]);
 
-//			System.out.println("data = np.array([");
-//			for (double x = x0[i] - 2*Math.abs(dx[i]); x <= x0[i] + 2*Math.abs(dx[i]); x += Math.abs(dx[i])*.04) {
-//				xR[i] = x;
-//				System.out.printf("[%f, %f],\n", x, function.apply(xR));
-//			}
-//			System.out.printf("]) # %d\n", i);
+			double min = Double.POSITIVE_INFINITY;
+			int argmin = -1;
+			System.out.println("data = np.array([");
+			for (int j = -20; j <= 20; j ++) {
+				double x = x0[i] + j/10.*Math.abs(dx[i]);
+				xR[i] = x;
+				double y = function.apply(xR);
+				System.out.printf("[%f, %f],\n", x, y);
+				if (y < min) {
+					min = y;
+					argmin = j;
+				}
+			}
+			System.out.printf("]) # %d\n", i);
+			if (Math.abs(argmin) == 20)
+				System.out.println("WARN: check this one; it doesn't seem to have converged.");
 		}
 
 		double[][] hessian = new double[x0.length][x0.length]; // then go for the second derivatives

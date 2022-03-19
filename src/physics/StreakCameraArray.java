@@ -29,7 +29,7 @@ import util.Math2.DiscreteFunction;
 import static physics.Analysis.NOISE_RANDOM;
 
 
-public class StreakCameraArray implements Detector {
+public class StreakCameraArray extends Detector {
 
 	private static final int FP_RESOLUTION = 50;
 
@@ -155,11 +155,11 @@ public class StreakCameraArray implements Detector {
 		double[][] outSpectrum = new double[energyBins.length-1][timeBins.length-1];
 		for (int i = 0; i < energyBins.length-1; i ++) {
 			double energy = (energyBins[i] + energyBins[i+1])/2;
+			for (int j = 0; j < timeBins.length - 1; j ++)
+				outSpectrum[i][j] = background(energy, energyBins, timeBins);
 			int slit = whichSlit(energy);
 			if (slit >= 0) {
 				double efficiency = this.efficiency(energy);
-				for (int j = 0; j < timeBins.length - 1; j ++)
-					outSpectrum[i][j] = background(energy, energyBins, timeBins);
 				for (int j = 0; j < timeBins.length - 1; j ++) {
 					for (int l = 0; l < timeResponses[slit].length; l ++) {
 						int dj = l - timeResponses[slit].length/2;

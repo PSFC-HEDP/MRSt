@@ -38,7 +38,7 @@ import static physics.Analysis.NOISE_RANDOM;
 /**
  * A class to handle the detector modelling
  */
-public class PulseDilationDriftTube implements Detector {
+public class PulseDilationDriftTube extends Detector {
 
 	private static final String SUBSTRATE_STOPPING_FILENAME = "input/stopping_power_%ss_Si.csv";
 	private static final String PHOTOCATHODE_STOPPING_FILENAME = "input/stopping_power_%ss_CsI.csv";

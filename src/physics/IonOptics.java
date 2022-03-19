@@ -282,7 +282,7 @@ public class IonOptics {
 		if (stochastic) { // to simulate stochasticity
 			for (int i = 0; i < energyBins.length-1; i ++)
 				for (int j = 0; j < timeBins.length-1; j ++)
-					outSpectrum[i][j] = NumericalMethods.poisson(outSpectrum[i][j], NOISE_RANDOM); // just jitter every cell
+					outSpectrum[i][j] = Math2.poisson(outSpectrum[i][j], NOISE_RANDOM); // just jitter every cell
 		}
 
 		return outSpectrum;
@@ -339,16 +339,21 @@ public class IonOptics {
 			if (this.reuseMatrix) { // if the user sed to reuse the last transfer matrix
 				try {
 					this.rongTransferMatrix = CSV.read(
-						  new File("output/transfer matrix.csv"), ',');
+						  new File("output/transfer matrix.csv"), ','); // load it from disc
 				} catch (IOException e) {
 					e.printStackTrace();
+				}
+				int n = (energyBins.length - 1)*(timeBins.length - 1);
+				if (this.rongTransferMatrix.length != n || this.rongTransferMatrix[0].length != n) { // check to make sure it is correctly shaped
+					System.out.println("I couldn't reuse this matrix because the size didn't match.  making a new one");
+					this.rongTransferMatrix = null;
 				}
 			}
 
 			if (this.rongTransferMatrix == null) { // if we need to make a new one for whatever reason
 				this.rongTransferMatrix = this.evaluateTransferMatrix(energyBins, timeBins);
 				try {
-					CSV.write(rongTransferMatrix, new File("output/transfer matrix.csv"), ',');
+					CSV.write(rongTransferMatrix, new File("output/transfer matrix.csv"), ','); // save it to disc
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
@@ -396,12 +401,9 @@ public class IonOptics {
 
 				double[] etUncorrected = simulate(energyI, timeI, true);
 				if (!Double.isNaN(etUncorrected[0])) { // sometimes, they won't hit the CsI cathode. That's fine.
-					//						if (RANDOM.nextDouble() < Math.exp(-Math.pow(energyI - 14, 2)/(2*6/9e-5/5*1*14/2.355/2.355/1e6)))
-					//							System.out.printf("[%.3f, %.6f, %.6f, %.6f, %.6g],\n", energyI, etUncorrected[x], etUncorrected[y], etUncorrected[z], (etUncorrected[3] - timeI));
 					double[] et = backCalculate(etUncorrected); // do the simulation!
 
 					double energyO = et[0], timeO = et[1]/ns; // then convert to the same units as the bins
-					//					double energyO = energyI/1e6, timeO = timeI/ns;
 					int eBin = Math2.bin(energyO, energyBins);
 					int tBin = Math2.bin(timeO, timeBins);
 					if (eBin >= 0 && eBin < energyBins.length - 1 && tBin >= 0 && tBin < timeBins.length - 1) // if it falls in detectable bounds

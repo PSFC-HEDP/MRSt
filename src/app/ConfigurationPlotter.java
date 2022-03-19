@@ -23,17 +23,15 @@
  */
 package app;
 
-import java.io.File;
-import java.io.IOException;
-
 import physics.Analysis;
+import physics.Analysis.ErrorMode;
 import physics.Detector.DetectorConfiguration;
 import physics.IonOptics.IonOpticConfiguration;
-import physics.Particle;
 import physics.SpectrumGenerator;
-import util.COSYMapping;
 import util.CSV;
-import physics.Analysis.ErrorMode;
+
+import java.io.File;
+import java.io.IOException;
 
 /**
  * @author Justin Kunimune

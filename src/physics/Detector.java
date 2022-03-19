@@ -23,18 +23,18 @@ package physics;
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-public interface Detector {
+public abstract class Detector {
 
 	/**
 	 * the number of signal electrons created for every incident deuteron
 	 * @param energy energy of the neutron [MeV]
 	 */
-	double efficiency(double energy);
+	abstract double efficiency(double energy);
 
 	/**
 	 * the average number of cable electrons from each signal electron
 	 */
-	double gain();
+	abstract double gain();
 
 	/**
 	 * the signal variance in a single bin given the bins
@@ -42,7 +42,7 @@ public interface Detector {
 	 * @param energyBins the energy bin edges (MeV)
 	 * @param timeBins the time bin edges (ns)
 	 */
-	double noise(double energy, double[] energyBins, double[] timeBins);
+	abstract double noise(double energy, double[] energyBins, double[] timeBins);
 
 	/**
 	 * the base signal level in a single bin given the bins
@@ -50,39 +50,43 @@ public interface Detector {
 	 * @param energyBins the energy bin edges (MeV)
 	 * @param timeBins the time bin edges (ns)
 	 */
-	double background(double energy, double[] energyBins, double[] timeBins);
+	abstract double background(double energy, double[] energyBins, double[] timeBins);
 
 //	/**
 //	 * the signal level in one bin that will cause it to start saturating.
 //	 * @param energyBins the energy bin edges (MeV)
 //	 * @param timeBins the time bin edges (ns)
 //	 */
-//	double saturationLimit(double[] energyBins, double[] timeBins);
+//	abstract double saturationLimit(double[] energyBins, double[] timeBins);
 
 	/**
 	 * compute the detected spectrum given a deuteron spectrum at the photocathode
 	 * @param stochastic whether to apply noise to the result
 	 */
-	double[][] response(double[] energyBins, double[] timeBins,
-						double[][] inSpectrum, boolean stochastic);
+	abstract double[][] response(double[] energyBins, double[] timeBins,
+								 double[][] inSpectrum, boolean stochastic);
 
-	class DetectorConfiguration {
+	double quantumEfficiency(double energy) {
+		return (this.efficiency(energy) != 0) ? 1 : 0;
+	}
+
+	public static class DetectorConfiguration {
 		public static DetectorConfiguration SINGLE_STREAK_CAMERA =
 			  new DetectorConfiguration("MRSt_IRF_FP_00deg",
 										0.00000, 11.5e-9,
-										 new double[] {-0.75e-2},
-										 new double[] {2.5e-2},
-										 new double[] {500e-6});
+										new double[] {-0.75e-2},
+										new double[] {2.5e-2},
+										new double[] {500e-6});
 		public static DetectorConfiguration DOUBLE_STREAK_CAMERA =
 			  new DetectorConfiguration("MRSt_IRF_FP_70deg",
-										66.58565,  4.5e-9,
+										66.58565, 4.5e-9,
 										new double[] {-5e-2, 0},
 										new double[] {2.5e-2, 2.5e-2},
 										new double[] {500e-6, 500e-6});
 		public static DetectorConfiguration DOWNSCATTER_SLIT =
 			  new DetectorConfiguration("MRSt_IRF_FP_80deg",
-										70.00000,  4.5e-9,
-										new double[] {-10e-2, 0},
+										70, 4.5e-9,
+										new double[] {-13e-2, 0},
 										new double[] {2.5e-2, 2.5e-2},
 										new double[] {500e-6, 500e-6});
 

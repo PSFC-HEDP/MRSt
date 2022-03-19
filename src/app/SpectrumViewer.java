@@ -25,6 +25,8 @@ package app;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
@@ -304,11 +306,14 @@ public class SpectrumViewer extends Application {
 		console.setEditable(false);
 		console.setPrefWidth(400);
 		console.setFont(Font.font("Monospace"));
+		rightPane.getChildren().add(console);
+
 		System.setProperty("java.util.logging.SimpleFormatter.format",
 				"%1$tF %1$tT | %4$-7s | %5$s%6$s%n");
 		logger = Logger.getLogger("app");
+		logger.setUseParentHandlers(false);
 		logger.setLevel(Level.ALL);
-		StreamHandler consoleHandler = new StreamHandler() {
+		StreamHandler guiHandler = new StreamHandler() {
 			public void publish(LogRecord record) {
 				Platform.runLater(() -> {
 					console.appendText(String.format("%7s: %s\n",
@@ -316,9 +321,11 @@ public class SpectrumViewer extends Application {
 				});
 			}
 		};
-		consoleHandler.setLevel(Level.ALL);
-		logger.addHandler(consoleHandler);
-		rightPane.getChildren().add(console);
+		guiHandler.setLevel(Level.ALL);
+		logger.addHandler(guiHandler);
+		ConsoleHandler commandlineHandler = new ConsoleHandler();
+		commandlineHandler.setLevel(Level.FINE);
+		logger.addHandler(commandlineHandler);
 		
 		StackPane root = new StackPane();
 		root.setPadding(new Insets(SPACING_0));

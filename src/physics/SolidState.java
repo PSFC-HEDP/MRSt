@@ -27,7 +27,7 @@ package physics;
  * A detector that perfectly preserves all deuteron informacion, but loses all
  * time resolucion
  */
-public class SolidState implements Detector {
+public class SolidState extends Detector {
 
 	@Override
 	public double efficiency(double energy) {
