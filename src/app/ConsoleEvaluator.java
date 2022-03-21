@@ -139,7 +139,7 @@ public class ConsoleEvaluator {
 		final double timeBin = prospectiveTimeBin;
 		final double tolerance = prospectiveTolerance;
 		
-		filename.append(String.format("_%tF.csv", System.currentTimeMillis()));
+		filename.append(String.format("_%tF", System.currentTimeMillis()));
 		final String filepath = "output/"+filename;
 
 		// set up the logging
@@ -154,7 +154,7 @@ public class ConsoleEvaluator {
 		consoleHandler.setLevel(Level.FINE);
 		consoleHandler.setFormatter(formatter);
 		logger.addHandler(consoleHandler);
-		Handler logfileHandler = new FileHandler("output/"+filename+".log");
+		Handler logfileHandler = new FileHandler(filepath+".log");
 		logfileHandler.setLevel(Level.INFO);
 		logfileHandler.setFormatter(formatter);
 		logger.addHandler(logfileHandler);
@@ -218,7 +218,7 @@ public class ConsoleEvaluator {
 						results[K][i] = Double.NaN;
 
 				if (K%10 == 9)
-					save(results, filepath, logger);
+					save(results, filepath+".csv", logger);
 			});
 		}
 
@@ -229,7 +229,7 @@ public class ConsoleEvaluator {
 	
 	private static void save(double[][] results, String filepath, Logger logger) {
 		try {
-			CSV.write(results, new File(filepath), ',', Analysis.HEADERS_WITH_ERRORS);
+			CSV.write(results, new File(filepath+".csv"), ',', Analysis.HEADERS_WITH_ERRORS);
 			logger.log(Level.INFO, "Saved ensemble results to "+filepath+".");
 		} catch (IOException e) {
 			logger.log(Level.SEVERE, e.getMessage(), e);

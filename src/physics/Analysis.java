@@ -483,9 +483,9 @@ public class Analysis {
 		}
 		int rite = -1;
 		for (int j = peak + 2; j <= statistics.length; j ++) { // scan forward for the end of the signal
-			if (rite == -1 && (j >= statistics.length || statistics[j] < 100)) // if the statistics are very lo
+			if (rite == -1 && (j >= statistics.length || statistics[j] < 10)) // if the statistics are very lo
 				rite = j; // this is probably the end
-			else if (j < statistics.length && statistics[j] > 1000) // if they later go somewhat hi, tho,
+			else if (j < statistics.length && statistics[j] > 100) // if they later go somewhat hi, tho,
 				rite = -1; // then we were mistaken
 		}
 		boolean[] active = new boolean[timeAxis.length];
@@ -801,22 +801,17 @@ public class Analysis {
 
 		double totalPenalty = 0; // negative log prior
 		for (int j = -2; j < timeAxis.length + 2; j ++) {
-			double[] x = new double[3];
+			double[] y = new double[3];
 			for (int k = 0; k < 3; k ++) {
 				if (j+k >= 0 && j+k < timeAxis.length && (active == null || active[j+k]))
-					x[k] = neutronYield[j+k];
+					y[k] = neutronYield[j+k];
 				else
-					x[k] = 0;
+					y[k] = 0;
 			}
-			double Y = Math2.mean(x);
-			double bendiness;
-			if (Y != 0) {
-				double Ypp = (x[0] - 2*x[1] + x[2])/Math.pow(timeStep, 2);
-				bendiness = Ypp/Y;
-			}
-			else
-				bendiness = 3./Math.pow(timeStep, 2);
-			totalPenalty += smoothing*1e-7*Math.pow(bendiness, 2); // encourage a smooth burn history
+			double slope0 = (y[0] != 0 || y[1] != 0) ? (y[1] - y[0])/(y[0] + y[1]) : 0;
+			double slope1 = (y[1] != 0 || y[2] != 0) ? (y[2] - y[1])/(y[1] + y[2]) : 0;
+			totalPenalty += 1e-0/timeStep*
+				  (Math.exp(slope1 - slope0) - Math.exp((slope1 - slope0)/2)*2 + 1); // encourage a smooth burn history with no local mins
 		}
 		for (int j = 0; j < timeAxis.length; j ++)
 			totalPenalty += arealDensity[j]/5.0 - Math.log(arealDensity[j]/50.0); // gamma prior on areal density

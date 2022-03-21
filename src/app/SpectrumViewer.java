@@ -152,7 +152,7 @@ public class SpectrumViewer extends Application {
 		
 		this.focalPlaneTilt = new Spinner<Double>(0.0, 89.9, 66.586, 5.0);
 		leftPane.add(new Label("F. plane angle"), 0, row);
-		leftPane.add(focalPlaneTilt, 1, row);
+		leftPane.add(focalPlaneTilt, 1, row); // XXX: this is actually effectively a streak camera configuration dropdown
 		leftPane.add(new Label("°"), 2, row);
 		row ++;
 		
@@ -321,10 +321,10 @@ public class SpectrumViewer extends Application {
 				});
 			}
 		};
-		guiHandler.setLevel(Level.ALL);
+		guiHandler.setLevel(Level.FINE);
 		logger.addHandler(guiHandler);
 		ConsoleHandler commandlineHandler = new ConsoleHandler();
-		commandlineHandler.setLevel(Level.FINE);
+		commandlineHandler.setLevel(Level.ALL);
 		logger.addHandler(commandlineHandler);
 		
 		StackPane root = new StackPane();
