@@ -29,24 +29,23 @@ package physics;
  */
 public class SolidState extends Detector {
 
+	public SolidState() {
+		super(0,
+			  0,
+			  1_000);
+	}
+
 	@Override
-	public double efficiency(double energy) {
+	public double gain(double energy) {
 		return 1;
 	}
 
 	@Override
-	public double gain() {
-		return 1;
-	}
-
-	@Override
-	public double noise(double energy, double[] energyBins, double[] timeBins) {
-		return 0;
-	}
-
-	@Override
-	public double background(double energy, double[] energyBins, double[] timeBins) {
-		return 0; // TODO
+	public double pixelsPerBin(double energy, double[] energyBins, double[] timeBins) {
+		double binSize = (energyBins[1] - energyBins[0]); // (MeV/bin)
+		double dispersion = 1; // (m^2/MeV) (TODO)
+		double frameArea = 1.36e-7; // m^2/frame (TODO)
+		return binSize*dispersion/frameArea;
 	}
 
 	@Override

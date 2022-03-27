@@ -3,8 +3,13 @@ import numpy as np
 import os
 
 
+plt.rcParams.update({'font.family': 'serif', 'font.size': 10})
+
 if "python" in os.getcwd():
 	os.chdir('../..')
+
+xlim = (-26.5, 14)
+ylim = (-2, 2)
 
 slit_lengths = np.atleast_1d(np.loadtxt("output/focal plane lengths.csv"))
 slit_widths = np.atleast_1d(np.loadtxt("output/focal plane widths.csv"))
@@ -26,26 +31,39 @@ for e, Y in zip(energies, particles):
 x = np.array(x)
 y = np.array(y)
 
-plt.figure(figsize=(9, 4))
+plt.figure(figsize=(9, 3.5))
 
-for i in range(quantiles.size):
-	plt.plot(x, y[:,i], linewidth=(2 if i%4==0 else 1)*1.1, color='#000000')
+# major_line_freq = max(1, (quantiles.size - 1)//4)
+# for i in range(quantiles.size):
+# 	plt.plot(x, y[:,i], linewidth=(2 if i%major_line_freq==0 else 1)*1.1, color='#D36EA9')
+plt.fill_between(x, y[:,0], y[:,-1], color='#D36EA9')
 
-for e, Y in zip(energies[::5], particles[::5]):
+crampd = None
+for e, Y in zip(energies[::8], particles[::8]):
 	# histogram, x_bins, y_bins = np.histogram2d(Y[:,0]*1e2, Y[:,1]*1e2, bins=20)
 	# x_points, y_points = np.meshgrid((x_bins[:-1] + x_bins[1:])/2, (y_bins[:-1] + y_bins[1:])/2, indexing="ij")
 	# plt.contour(x_points, y_points, histogram, levels=histogram.max()*np.linspace(0, 1, 21), colors="C2")
 	x_min, x_max = Y[:,0].min()*1e2, Y[:,0].max()*1e2
 	y_min, y_max = Y[:,1].min()*1e2, Y[:,1].max()*1e2
+	if crampd is None:
+		crampd = x_min > xlim[0]/2
+	major = (round(e) == round(e, 6)) if not crampd else (round(e/2) == round(e/2, 6))
+	linewidth = 1.6 if major else 0.8
+	linestyle = "solid"#(0, (2, 1)) if major else (0, (4, 2))
 	plt.plot([x_min, x_min, x_max, x_max, x_min],
 	         [y_min, y_max, y_max, y_min, y_min],
-	         linewidth=0.8, color='#516EB6')
+	         linewidth=linewidth, color='#516EB6')
+	plt.plot([(x_min + x_max)/2]*2, [ 100, y_max], color='#516EB6', linestyle=linestyle, linewidth=linewidth)
+	plt.plot([(x_min + x_max)/2]*2, [-100, y_min], color='#516EB6', linestyle=linestyle, linewidth=linewidth)
+	if major:
+		if x_min - 2.0 > xlim[0] and x_min < xlim[1]:
+			plt.text(x_min, ylim[0]*0.8, f"{e:.0f} MeV", horizontalalignment="right")
+		elif x_max > xlim[0] and x_max + 2.0 < xlim[1]:
+			plt.text(x_max, ylim[0]*0.8, f"{e:.0f} MeV", horizontalalignment="left")
 
 for x, w, h in zip(slit_positions, slit_lengths, slit_widths):
 	plt.plot(np.multiply([x -w/2, x -w/2, x +w/2, x +w/2, x -w/2], 1e2),
-	         np.multiply([  -h/2,    h/2,    h/2,   -h/2,   -h/2], 1e2), '#D36EA9')
-
-
+	         np.multiply([  -h/2,    h/2,    h/2,   -h/2,   -h/2], 1e2), '#000000')
 
 # plt.plot(
 # 100*np.array(
@@ -56,7 +74,8 @@ for x, w, h in zip(slit_positions, slit_lengths, slit_widths):
 # )
 
 # plt.axis('equal')
-plt.ylim(-2, 2)
+plt.xlim(*xlim)
+plt.ylim(*ylim)
 plt.xlabel("x (cm)")
 plt.ylabel("y (cm)")
 plt.tight_layout()

@@ -26,38 +26,29 @@ package physics;
 public abstract class Detector {
 
 	/**
-	 * the number of signal electrons created for every incident deuteron
-	 * @param energy energy of the neutron [MeV]
+	 * the background level in a single space unit (signal/space)
 	 */
-	abstract double efficiency(double energy);
+	private final double backgroundPerPixel;
+	/**
+	 * the background variance in a single space unit (signal^2/space)
+	 */
+	private final double noisePerPixel;
+	/**
+	 * the greatest amount of signal in a space unit that is measured linearly (signal/space)
+	 */
+	private final double saturationLimitPerPixel;
 
 	/**
-	 * the average number of cable electrons from each signal electron
+	 * supply the basic parameters for a generic Detector
+	 * @param background the background level in a single space unit (signal/space)
+	 * @param noise the background variance in a single space unit (signal^2/space)
+	 * @param saturation the signal density at which it saturates (signal/space)
 	 */
-	abstract double gain();
-
-	/**
-	 * the signal variance in a single bin given the bins
-	 * @param energy the energy at which to evaluate it (MeV)
-	 * @param energyBins the energy bin edges (MeV)
-	 * @param timeBins the time bin edges (ns)
-	 */
-	abstract double noise(double energy, double[] energyBins, double[] timeBins);
-
-	/**
-	 * the base signal level in a single bin given the bins
-	 * @param energy the energy at which to evaluate it (MeV)
-	 * @param energyBins the energy bin edges (MeV)
-	 * @param timeBins the time bin edges (ns)
-	 */
-	abstract double background(double energy, double[] energyBins, double[] timeBins);
-
-//	/**
-//	 * the signal level in one bin that will cause it to start saturating.
-//	 * @param energyBins the energy bin edges (MeV)
-//	 * @param timeBins the time bin edges (ns)
-//	 */
-//	abstract double saturationLimit(double[] energyBins, double[] timeBins);
+	protected Detector(double background, double noise, double saturation) {
+		this.backgroundPerPixel = background;
+		this.noisePerPixel = noise;
+		this.saturationLimitPerPixel = saturation;
+	}
 
 	/**
 	 * compute the detected spectrum given a deuteron spectrum at the photocathode
@@ -66,9 +57,86 @@ public abstract class Detector {
 	abstract double[][] response(double[] energyBins, double[] timeBins,
 								 double[][] inSpectrum, boolean stochastic);
 
-	double quantumEfficiency(double energy) {
-		return (this.efficiency(energy) != 0) ? 1 : 0;
+	/**
+	 * the total of signal units for every incident deuteron
+	 * @param energy energy of the neutron (MeV)
+	 * @return the gain (signal/deuteron)
+	 */
+	abstract double gain(double energy);
+
+	/**
+	 * the size of one bin in whatever unit is relevant to the detector; this
+	 * will be used to scale the background and saturation limit
+	 * @param energy the energy at which to evaluate it (MeV)
+	 * @param energyBins the energy bin edges (MeV)
+	 * @param timeBins the time bin edges (ns)
+	 * @return a conversion factor (space/bin)
+	 */
+	protected double pixelsPerBin(double energy, double[] energyBins, double[] timeBins) {
+		return 1;
 	}
+
+	/**
+	 * the background variance in a single bin given the bins
+	 * @param energy the energy at which to evaluate it (MeV)
+	 * @param energyBins the energy bin edges (MeV)
+	 * @param timeBins the time bin edges (ns)
+	 * @return a variance (signal^2/bin)
+	 */
+	public final double noise(double energy, double[] energyBins, double[] timeBins) {
+		return this.noisePerPixel
+			  *this.pixelsPerBin(energy, energyBins, timeBins);
+	}
+
+	/**
+	 * the base signal level in a single bin given the bins
+	 * @param energy the energy at which to evaluate it (MeV)
+	 * @param energyBins the energy bin edges (MeV)
+	 * @param timeBins the time bin edges (ns)
+	 */
+	public final double background(double energy, double[] energyBins, double[] timeBins) {
+		return this.backgroundPerPixel
+			  *this.pixelsPerBin(energy, energyBins, timeBins);
+	}
+
+	/**
+	 * the signal level in one bin that will cause it to start saturating.
+	 * @param energyBins the energy bin edges (MeV)
+	 * @param timeBins the time bin edges (ns)
+	 */
+	public final double saturationLimit(double energy, double[] energyBins, double[] timeBins) {
+		return this.saturationLimitPerPixel
+			  *this.pixelsPerBin(energy, energyBins, timeBins);
+	}
+
+	/**
+	 * the mean gain over the given energies
+	 * @param minEnergy the lower neutron energy bound (MeV n)
+	 * @param maxEnergy the upper neutron energy bound (MeV n)
+	 */
+	public double averageGain(double minEnergy, double maxEnergy) {
+		double totalGain = 0;
+		int res = 20;
+		for (int i = -res; i <= res; i ++) // perform an unweited mean over [13.5, 14.5] MeV
+			totalGain += this.gain(minEnergy + (maxEnergy - minEnergy)*i/res);
+		return totalGain / (2.*res + 1);
+	}
+
+	/**
+	 * the fraction of deuterons in this energy range that make it thru
+	 * @param minEnergy the lower neutron energy bound (MeV n)
+	 * @param maxEnergy the upper neutron energy bound (MeV n)
+	 * @return a number in [0, 1]
+	 */
+	public final double quantumEfficiency(double minEnergy, double maxEnergy) {
+		double survivingDeuterons = 0;
+		int res = 20;
+		for (int i = -res; i <= res; i ++) // perform an unweited mean over [13.5, 14.5] MeV
+			if (this.gain(minEnergy + (maxEnergy - minEnergy)*i/res) > 0)
+				survivingDeuterons += 1;
+		return survivingDeuterons / (2.*res + 1);
+	}
+
 
 	public static class DetectorConfiguration {
 		public static DetectorConfiguration SINGLE_STREAK_CAMERA =
@@ -84,11 +152,17 @@ public abstract class Detector {
 										new double[] {2.5e-2, 2.5e-2},
 										new double[] {500e-6, 500e-6});
 		public static DetectorConfiguration DOWNSCATTER_SLIT =
-			  new DetectorConfiguration("MRSt_IRF_FP_80deg",
-										70, 4.5e-9,
-										new double[] {-13e-2, 0},
+			  new DetectorConfiguration("MRSt_IRF_FP_60deg",
+										62.44417, 4.5e-9,
+										new double[] {-11.5e-2, 0},
 										new double[] {2.5e-2, 2.5e-2},
 										new double[] {500e-6, 500e-6});
+		public static DetectorConfiguration DRIFT_TUBE =
+			  new DetectorConfiguration("MRSt_IRF_FP_70deg",
+										66.58565, Double.NaN,
+										new double[] {0},
+										new double[] {1},
+										new double[] {1});
 
 		public final String cosyFile;
 		public final double tiltAngle;

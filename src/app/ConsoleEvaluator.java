@@ -27,9 +27,7 @@ import physics.Analysis;
 import physics.Analysis.ErrorMode;
 import physics.Detector.DetectorConfiguration;
 import physics.IonOptics.IonOpticConfiguration;
-import physics.Particle;
 import physics.SpectrumGenerator;
-import util.COSYMapping;
 import util.CSV;
 
 import java.io.File;
@@ -159,7 +157,7 @@ public class ConsoleEvaluator {
 		logfileHandler.setFormatter(formatter);
 		logger.addHandler(logfileHandler);
 		logger.log(Level.INFO, "beginning "+prospectiveNumYields+" evaluations on "+numCores+" cores");
-		logger.log(Level.INFO, "results will be saved to "+filepath+".");
+		logger.log(Level.INFO, "results will be saved to '"+filepath+".csv'.");
 
 		final double[] eBins = CSV.readColumn(new File("input/energy.txt"));
 		final double[] tBins = CSV.readColumn(new File("input/time "+implosionName+".txt"));

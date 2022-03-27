@@ -24,28 +24,17 @@
 package physics;
 
 public class PerfectDetector extends Detector {
+	protected PerfectDetector() {
+		super(0, 0, Double.POSITIVE_INFINITY);
+	}
+
 	@Override
-	public double efficiency(double energy) {
+	double gain(double energy) {
 		return 1;
 	}
-
-	@Override
-	public double gain() {
-		return 1;
-	}
-
-	@Override
-	public double noise(double energy, double[] energyBins, double[] timeBins) {
-		return 0;
-	}
-
-	@Override
-	public double background(double energy, double[] energyBins, double[] timeBins) {
-		return 0;
-	}
-
 	@Override
 	public double[][] response(double[] energyBins, double[] timeBins, double[][] inSpectrum, boolean stochastic) {
 		return inSpectrum;
 	}
+
 }

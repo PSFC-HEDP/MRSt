@@ -40,7 +40,7 @@ MARGIN = dict(bottom=.10, top=.90, left=.13, right=.99, wspace=.35, hspace=.05)
 
 
 if len(sys.argv) <= 1:
-	FILENAME = '../../output/ensemble_medium_downsc_2022-03-19.csv'
+	FILENAME = '../../output/ensemble_high_15c_2022-03-21.csv'
 	# FILENAME = '../../output with varying response/ensemble_5_0_1000_og_2022-02-09.csv'
 else:
 	FILENAME = '../../output/'+sys.argv[1]
@@ -50,11 +50,11 @@ REFERENCE_YIELDS = [1e16, 1e17, 1e18, 1e19]
 X_LABEL = "Yield"
 
 Y_LABELS = [
-	("Burn width (ps)", 56, 67.5, 87, 7, False),
-	("Ti at BT (keV)", 5.8, 7.6, 9.2, 5e-2, True),
-	("dTi/dt at BT (keV/100ps)", -1.6, 1.4, 3.2, 0.7, False),
-	# ("ρR at BT (g/cm^2)", 0.67, 0.95, 1.13, 7e-2, True),
-	# ("dρR/dt at BT (g/cm^2/100ps)", -2.1, -1.0, 1.1, -0.5, False),
+	("Burn width (ps)", 56, 67.68, 87, 7, False),
+	("Ti at BT (keV)", 5.8, 7.54, 9.2, 5e-2, True),
+	("dTi/dt at BT (keV/100ps)", -1.6, 0.80, 3.2, 0.5, False),
+	# ("ρR at BT (g/cm^2)", 0.67, 0.970, 1.13, 7e-2, True),
+	# ("dρR/dt at BT (g/cm^2/100ps)", -2.1, -0.95, 1.1, 0.6, False),
 ]
 
 
@@ -183,7 +183,7 @@ for i, (axis, y_min, y_original, y_max, presis, percent) in enumerate(Y_LABELS):
 		ax.fill_between(x[order],
 			y_true[order]*(1 - presis), y_true[order]*(1 + presis), color='#F7DFC8')
 	ax.plot(x[order], y_true[order], 'C1-', zorder=1, label="Based on original data")
-	ax.scatter(x[order], y[order], s=1, c=np.arange(x.size)[order], zorder=2, label="Based on fit to synthetic data")
+	ax.scatter(x[order], y[order], s=1, zorder=2, label="Based on fit to synthetic data")
 	# ax.plot(x[order], μ + σ, 'C0-', linewidth=1, zorder=1, label="1σ variation")
 	# ax.plot(x[order], μ - σ, 'C0-', linewidth=1, zorder=1)
 	if y_min > 0 and y_max/y_min > 10:

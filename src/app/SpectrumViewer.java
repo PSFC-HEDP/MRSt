@@ -229,7 +229,7 @@ public class SpectrumViewer extends Application {
 						}
 						else
 							spec = deepClone(spectrum);
-						SpectrumGenerator.modifySpectrum(spec, yieldFactor.getValue()/100.*Math2.sum(spec));
+						spec = SpectrumGenerator.modifySpectrum(spec, yieldFactor.getValue()/100.*Math2.sum(spec));
 					} catch (ArrayIndexOutOfBoundsException e) {
 						logger.severe("Invalid input spectrum file.");
 						return;
@@ -258,7 +258,6 @@ public class SpectrumViewer extends Application {
 						double skew = mc.computeTimeSkew();
 						logger.info(String.format("Dispersion: %.2f keV/mm", dispersion));
 						logger.info(String.format("Time skew:  %.2f ps/keV", skew));
-						logger.info(String.format("Efficiency: %.4g", mc.efficiency()));
 //						double[] res = mc.computeResolution(14.);
 //						logger.info(String.format("Energy res: %.2f keV", res[0]));
 //						logger.info(String.format("Time res:   %.2f ps", res[1]));

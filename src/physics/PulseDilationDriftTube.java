@@ -95,6 +95,9 @@ public class PulseDilationDriftTube extends Detector {
 								  double dilation,
 								  double openAreaRatio, double averageGain,
 								  int integrationResolution) throws IOException {
+		super(0, // TODO
+			  0, // TODO
+			  Double.POSITIVE_INFINITY);
 
 		double A = ion.mass/Particle.N.mass;
 		this.energyFactor = 4*A/Math.pow(A + 1, 2);
@@ -168,26 +171,9 @@ public class PulseDilationDriftTube extends Detector {
 		return outSpectrum;
 	}
 
-
 	@Override
-	public double efficiency(double energy) {
-		return this.electronsPerDeuteron.evaluate(energy)*this.openAreaRatio;
-	}
-
-
-	@Override
-	public double gain() {
-		return this.averageGain;
-	}
-
-	@Override
-	public double noise(double energy, double[] energyBins, double[] timeBins) {
-		return 0; // TODO
-	}
-
-	@Override
-	public double background(double energy, double[] energyBins, double[] timeBins) {
-		return 0; // TODO
+	public double gain(double energy) {
+		return this.averageGain*this.electronsPerDeuteron.evaluate(energy)*this.openAreaRatio;
 	}
 
 	/**

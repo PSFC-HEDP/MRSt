@@ -59,7 +59,7 @@ public class FocalPlanePlotter {
 		);
 
 		// select the energies
-		int N = 40;
+		int N = 64;
 		double[] energies = new double[N + 1];
 		for (int i = 0; i <= N; i ++)
 			energies[i] = 12 + 4.*i/N;

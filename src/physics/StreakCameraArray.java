@@ -26,6 +26,7 @@ package physics;
 import util.Math2;
 import util.Math2.DiscreteFunction;
 
+import static physics.Analysis.MC_RANDOM;
 import static physics.Analysis.NOISE_RANDOM;
 
 
@@ -38,8 +39,7 @@ public class StreakCameraArray extends Detector {
 	private final double[] slitLeftBounds; // (MeV neutron)
 	private final double[] slitRiteBounds; // (MeV neutron)
 	private final double gain; // (counts/deuteron)
-	private final double noiseDensity; // (counts^2/m^2)
-	private final double backgroundDensity; // (counts/m^2)
+	private final double pixelArea; // (m^2)
 
 	private final DiscreteFunction dxdE; // (MeV neutron -> m/MeV)
 	private final DiscreteFunction bowtieHite; // (MeV neutron -> m)
@@ -49,15 +49,20 @@ public class StreakCameraArray extends Detector {
 	 * @param slitLengths the length of each slit in the dispersion direccion (m)
 	 * @param slitWidths the height of each slit in the nondispersion direccion (m)
 	 * @param sweepTime the amount of time it takes to sweep (s)
-	 * @param noiseDensity the inherent noise level in the detector (counts^2/m^2)
-	 * @param backgroundDensity the inherent background level in the detector (counts/m^2)
+	 * @param backgroundDensity the inherent background level in the detector (counts/pixel)
+	 * @param noiseDensity the inherent noise level in the detector (counts^2/pixel)
 	 * @param slitPositions the centers of the slits on the focal plane
 	 * @param optics the ion optics system (needed to set up efficient calculacion)
 	 */
 	public StreakCameraArray(
 		  double[] slitPositions, double[] slitLengths, double[] slitWidths,
-		  double sweepTime, double gain, double noiseDensity, double backgroundDensity,
-		  IonOptics optics) {
+		  double sweepTime, double gain, double backgroundDensity,
+		  double noiseDensity, double saturationLimitDensity,
+		  double pixelArea, IonOptics optics) {
+		super(backgroundDensity*Math2.gamma(4, 4, MC_RANDOM),
+			  noiseDensity*Math2.gamma(4, 4, MC_RANDOM),
+			  saturationLimitDensity);
+
 		if (slitPositions.length != slitWidths.length)
 			throw new IllegalArgumentException("number of slits must match");
 		for (double slitWidth: slitWidths)
@@ -99,35 +104,22 @@ public class StreakCameraArray extends Detector {
 
 		this.streakSpeed = Math2.min(slitLengths)/sweepTime; // (m/s in photocathode scale)
 		this.gain = gain;
-		this.backgroundDensity = backgroundDensity;//*NumericalMethods.gamma(4, 4, MC_RANDOM); // (counts/ns*MeV)
-		this.noiseDensity = noiseDensity;
+		this.pixelArea = pixelArea;
 	}
 
 	@Override
-	public double efficiency(double energy) {
-		int i;
-		if ((i = whichSlit(energy)) >= 0)
-			return Math.min(1, slitWidths[i]/bowtieHite.evaluate(energy));
+	public double gain(double energy) {
+		int i = whichSlit(energy);
+		if (i >= 0)
+			return this.gain*Math.min(1, slitWidths[i]/bowtieHite.evaluate(energy));
 		return 0;
 	}
 
 	@Override
-	public double gain() {
-		return this.gain;
-	}
-
-	@Override
-	public double noise(double energy, double[] energyBins, double[] timeBins) {
-		double binScale = dxdE.evaluate(energy)*streakSpeed*1e-9; // (m^2/(MeV*ns))
-		return noiseDensity*binScale
-			  *(energyBins[1] - energyBins[0])*(timeBins[1] - timeBins[0]);
-	}
-
-	@Override
-	public double background(double energy, double[] energyBins, double[] timeBins) {
-		double binScale = dxdE.evaluate(energy)*streakSpeed*1e-9; // (m^2/(MeV*ns))
-		return backgroundDensity*binScale
-			  *(energyBins[1] - energyBins[0])*(timeBins[1] - timeBins[0]);
+	public double pixelsPerBin(double energy, double[] energyBins, double[] timeBins) {
+		double binSize = (energyBins[1] - energyBins[0]) * (timeBins[1] - timeBins[0]); // (MeV*ns/bin)
+		double dispersion = dxdE.evaluate(energy)*streakSpeed*1e-9; // (m^2/(MeV*ns))
+		return binSize*dispersion/pixelArea;
 	}
 
 	@Override
@@ -159,12 +151,12 @@ public class StreakCameraArray extends Detector {
 				outSpectrum[i][j] = background(energy, energyBins, timeBins);
 			int slit = whichSlit(energy);
 			if (slit >= 0) {
-				double efficiency = this.efficiency(energy);
+				double gain = this.gain(energy);
 				for (int j = 0; j < timeBins.length - 1; j ++) {
 					for (int l = 0; l < timeResponses[slit].length; l ++) {
 						int dj = l - timeResponses[slit].length/2;
 						if (j + dj >= 0 && j + dj < timeBins.length - 1)
-							outSpectrum[i][j] += efficiency*gain*timeResponses[slit][l]*inSpectrum[i][j + dj];
+							outSpectrum[i][j] += gain*timeResponses[slit][l]*inSpectrum[i][j + dj];
 					}
 				}
 				if (stochastic) {

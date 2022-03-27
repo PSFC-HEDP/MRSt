@@ -60,7 +60,8 @@ public class Analysis {
 		  "Total yield (10^15)", "Bang time (ns)", "Burn width (ns)",
 		  "Burn skewness", "Burn kurtosis", "Stagnation - BT (ns)",
 		  "Burn-average Ti (keV)", "Peak Ti (keV)",
-		  "Ti at BT (keV)", "dTi/dt at BT (keV/ns)", "d^2Ti/dt^2 at BT (keV/ns^2)",
+		  "Ti at stagnation (keV)", "Ti at BT (keV)",
+		  "dTi/dt at BT (keV/ns)", "d^2Ti/dt^2 at BT (keV/ns^2)",
 		  "Burn-average \u03C1R (g/cm^2)", "\u03C1R at stagnation (g/cm^2)",
 		  "\u03C1R at BT (g/cm^2)", "d\u03C1R/dt at BT (g/cm^2/ns)", "d^2V/dt^2/V at BT (1/ns^2)",
 		}; // the names, units, and order of time-dependent burn parameters
@@ -80,7 +81,7 @@ public class Analysis {
 //	private static final double TIME_DILATION = 20;
 //	private static final double MCT_POROSITY = .70;
 //	private static final double MCT_GAIN = 1e4;
-//
+
 
 	private final IonOptics ionOptics; // the ion optic system
 	private final Detector detector; // the detector system
@@ -220,18 +221,20 @@ public class Analysis {
 			  apertureDistance, apertureWidth, apertureHeight,
 			  MIN_E, MAX_E, cosyMapping, focalTilt,
 			  calibrationPrecision, reuseMatrix);
-		//		this.detector = new PulseDilationDriftTube(
-		//				ion, SUBSTRATE_THICKNESS, PHOTOCATHODE_THICKNESS,
-		//				focalTilt, PDDT_BIAS, MESH_LENGTH, DRIFT_LENGTH,
-		//				TIME_DILATION, MCT_POROSITY, MCT_GAIN, 100);
+//				this.detector = new PulseDilationDriftTube(
+//						Particle.D, SUBSTRATE_THICKNESS, PHOTOCATHODE_THICKNESS,
+//						focalTilt, PDDT_BIAS, MESH_LENGTH, DRIFT_LENGTH,
+//						TIME_DILATION, MCT_POROSITY, MCT_GAIN, 100);
 		this.detector = new StreakCameraArray(
 			  slitPositions, slitLengths,
 			  slitWidths, streakTime,
 			  2.4/Math.cos(Math.toRadians(focalTilt)) * 51,
-			  81/(25e-6*25e-6),
-			  81/(25e-6*25e-6),
+			  81,
+			  81,
+			  40_000,
+			  25e-6*25e-6,
 			  ionOptics);
-		//		this.detector = new PerfectDetector();
+//		this.detector = new PerfectDetector();
 
 		this.precision = precision;
 
@@ -304,19 +307,9 @@ public class Analysis {
 		return this.ionOptics.computeResolution(referenceEnergy);
 	}
 
-	public double efficiency() {
-		double meanEfficiency = 0;
-		int res = 10;
-		for (int i = -res; i <= res; i ++) // perform an unweited mean over [13.5, 14.5] MeV
-			meanEfficiency += this.ionOptics.efficiency(14 + 0.5*i/res)*this.detector.quantumEfficiency(14 + 0.5*i/res);
-		meanEfficiency /= 2.*res + 1;
-		return meanEfficiency;
-	}
-
-	public double gain() {
-		return this.ionOptics.efficiency(14)
-				*this.detector.efficiency(14)
-				*this.detector.gain();
+	public double gain(double energy) {
+		return this.ionOptics.efficiency(energy)
+				*this.detector.gain(energy);
 	}
 
 	/**
@@ -368,8 +361,8 @@ public class Analysis {
 		logger.info(String.format(Locale.US, "completed in %.2f minutes.",
 			                      (endTime - startTime)/60000.));
 
-		double saturation = 1;/*NumericalMethods.max(deuteronSpectrum)/
-			  this.detector.saturationLimit(energyBins, timeBins);*/
+		double saturation = Math2.max(deuteronSpectrum)/
+			  this.detector.saturationLimit(14, energyBins, timeBins);
 		if (saturation >= 1)
 			logger.warning(String.format("The detector is saturating by about %.2f%%",
 										 saturation/1e-2));
@@ -426,7 +419,7 @@ public class Analysis {
 			double background = this.detector.background(energyAxis[i], energyBins, timeBins);
 			for (int j = 0; j < spectrum[i].length; j ++) {
 				naiveNeutronYield[j] += Math.max(
-					  0, (spectrum[i][j] - background)/this.gain())/(timeStep*1e15); // the spectrum scaled by the efficiency of the system
+					  0, (spectrum[i][j] - background)/this.gain(14))/(timeStep*1e15); // the spectrum scaled by the efficiency of the system
 			}
 		}
 
@@ -470,9 +463,12 @@ public class Analysis {
 			  naiveNeutronYield, yieldScale, lowerBound, upperBound); // 10^15/ns
 
 		// determine the bounds of the region that's worth optimizing
-		double[] statistics = new double[M]; // TODO: do this check every iteration
+		double[] statistics = new double[M];
 		for (int j = 0; j < M; j ++)
-			statistics[j] = neutronYield[j]*1e15*this.efficiency()*timeStep; // TODO: because of the high numbers I get here where it should actually be zero, I think efficiency is not very accurate
+			statistics[j] = neutronYield[j]*1e15
+				  *ionOptics.efficiency(14)
+				  *detector.quantumEfficiency(13.5, 14.5)
+				  *timeStep;
 		final int peak = Math2.argmax(statistics);
 		int left = -1;
 		for (int j = peak - 2; j >= -1; j --) { // scan backward for the start of the signal
@@ -667,8 +663,11 @@ public class Analysis {
 		else if (errorMode == ErrorMode.STATISTICS) {
 			covarianceMatrix = new double[N*M][N*M];
 			for (int j = 0; j < rite - left; j ++) {
-				double primaryStatistics = 1 + neutronYield[j]*timeStep*1e15*this.gain(); // total deuteron yield from this neutron time bin
-				double dsStatistics = 1 + neutronYield[j]*timeStep*1e15*this.gain()*arealDensity[j]/21.;
+				double primaryStatistics = 1 +
+					  neutronYield[j]*1e15*
+					  ionOptics.efficiency(14)*
+					  timeStep; // total signal deuteron yield from this neutron time bin
+				double dsStatistics = 1 + primaryStatistics*arealDensity[j]/21.;
 				covarianceMatrix[    j][    j] = Math.pow(neutronYield[j], 2)/primaryStatistics;
 				covarianceMatrix[  M+j][  M+j] = Math.pow(ionTemperature[j], 2)*2/(primaryStatistics - 1);
 				covarianceMatrix[2*M+j][2*M+j] = Math.pow(arealDensity[j], 2)/dsStatistics;
@@ -700,6 +699,7 @@ public class Analysis {
 			  peakCompress.minus(bangTime),
 			  Math2.average(this.ionTemperature, this.neutronYield, left, rite),
 			  Math2.quadInterp(this.ionTemperature, iTPeak),
+			  Math2.quadInterp(this.ionTemperature, iPC),
 			  Math2.quadInterp(this.ionTemperature, iBT),
 			  Math2.derivative(timeAxis, this.ionTemperature, bangTime, .12, 1),
 			  Math2.derivative(timeAxis, this.ionTemperature, bangTime, .12, 2),
@@ -707,6 +707,7 @@ public class Analysis {
 			  Math2.quadInterp(this.arealDensity, iPC),
 			  Math2.quadInterp(this.arealDensity, iBT),
 			  Math2.derivative(timeAxis, this.arealDensity, bangTime, .12, 1),
+			  Math2.derivative(timeAxis, this.arealDensity, peakCompress, .12, 1),
 			  Math2.derivative(timeAxis, V, bangTime, .12, 2).over(Math2.quadInterp(V, iBT)),
 		}; // collect the figures of merit
 		
@@ -718,14 +719,15 @@ public class Analysis {
 		logger.info(String.format("Peak compression:  %s ps + BT", res[6].over(1e-3).toString(covarianceMatrix)));
 		logger.info(String.format("Burn-averaged Ti:  %s keV", res[7].toString(covarianceMatrix)));
 		logger.info(String.format("Ti at peak:        %s keV", res[8].toString(covarianceMatrix)));
-		logger.info(String.format("Ti at BT:          %s keV", res[9].toString(covarianceMatrix)));
-		logger.info(String.format("dTi/dt at BT:      %s keV/(100 ps)", res[10].over(1e1).toString(covarianceMatrix)));
-		logger.info(String.format("d^2Ti/dt^2 at BT:  %s keV/ns^2", res[11].toString(covarianceMatrix)));
-		logger.info(String.format("Burn-averaged \u03C1R:  %s g/cm^2", res[12].toString(covarianceMatrix)));
-		logger.info(String.format("\u03C1R at peak:        %s g/cm^2", res[13].toString(covarianceMatrix)));
-		logger.info(String.format("\u03C1R at BT:          %s g/cm^2", res[14].toString(covarianceMatrix)));
-		logger.info(String.format("d\u03C1R/dt at BT:      %s g/cm^2/(100 ps)", res[15].over(1e1).toString(covarianceMatrix)));
-		logger.info(String.format("d^2V/dt^2/V at BT: %s 1/ns^2", res[16].toString(covarianceMatrix)));
+		logger.info(String.format("Ti at compression: %s keV", res[9].toString(covarianceMatrix)));
+		logger.info(String.format("Ti at BT:          %s keV", res[10].toString(covarianceMatrix)));
+		logger.info(String.format("dTi/dt at BT:      %s keV/(100 ps)", res[11].over(1e1).toString(covarianceMatrix)));
+		logger.info(String.format("d^2Ti/dt^2 at BT:  %s keV/ns^2", res[12].toString(covarianceMatrix)));
+		logger.info(String.format("Burn-averaged \u03C1R:  %s g/cm^2", res[13].toString(covarianceMatrix)));
+		logger.info(String.format("\u03C1R at compression: %s g/cm^2", res[14].toString(covarianceMatrix)));
+		logger.info(String.format("\u03C1R at BT:          %s g/cm^2", res[15].toString(covarianceMatrix)));
+		logger.info(String.format("d\u03C1R/dt at BT:      %s g/cm^2/(100 ps)", res[16].over(1e1).toString(covarianceMatrix)));
+		logger.info(String.format("d^2V/dt^2/V at BT: %s 1/ns^2", res[17].toString(covarianceMatrix)));
 		return res;
 	}
 
@@ -759,7 +761,6 @@ public class Analysis {
 		double[][] signal = this.response(
 			  energyBins, timeBins, neutrons, false, false);
 
-		double gain = detector.gain();
 		double totalError = 0; // negative log likelihood
 		for (int j = 0; j < timeAxis.length; j ++) {
 			int numEnergies = (sumInEnergy) ? 1 : spectrum.length;
@@ -775,14 +776,18 @@ public class Analysis {
 				backgrounds[index] = detector.background(energyAxis[i], energyBins, timeBins);
 			}
 			for (int i = 0; i < numEnergies; i ++) {
+				double gain;
+				if (sumInEnergy) gain = detector.averageGain(13.5, 14.5);
+				else             gain = detector.gain(energyAxis[i]);
 				double theorNumber = (theorValues[i] - backgrounds[i])/gain;
 				double experNumber = (experValues[i] - backgrounds[i])/gain;
 				if (variances[i] > 0) { // if this detector has significant noise
-					double variance = variances[i] + theorNumber*gain*gain; // include pre-amplification poisson noise
+					double variance = variances[i] + (theorValues[i] - backgrounds[i])*gain; // include pre-amplification poisson noise
 					totalError += Math.pow(experValues[i] - theorValues[i], 2)/
 						  (2*variance); // and use a Gaussian approximation
 				}
 				else { // if the detector noise is zero
+					assert !Double.isNaN(theorNumber);
 					if (theorNumber > 0) {
 						totalError += theorNumber - experNumber*Math.log(theorNumber); // use the exact Poisson distribution
 					}
