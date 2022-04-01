@@ -63,7 +63,8 @@ public class Analysis {
 		  "Ti at stagnation (keV)", "Ti at BT (keV)",
 		  "dTi/dt at BT (keV/ns)", "d^2Ti/dt^2 at BT (keV/ns^2)",
 		  "Burn-average \u03C1R (g/cm^2)", "\u03C1R at stagnation (g/cm^2)",
-		  "\u03C1R at BT (g/cm^2)", "d\u03C1R/dt at BT (g/cm^2/ns)", "d^2V/dt^2/V at BT (1/ns^2)",
+		  "\u03C1R at BT (g/cm^2)", "d\u03C1R/dt at BT (g/cm^2/ns)",
+		  "d\u03C1R/dt at stagnation (g/cm^2/ns)", "d^2V/dt^2/V at BT (1/ns^2)",
 		}; // the names, units, and order of time-dependent burn parameters
 	public static final String[] HEADERS_WITH_ERRORS = appendErrorsToHeader();
 
@@ -701,13 +702,13 @@ public class Analysis {
 			  Math2.quadInterp(this.ionTemperature, iTPeak),
 			  Math2.quadInterp(this.ionTemperature, iPC),
 			  Math2.quadInterp(this.ionTemperature, iBT),
-			  Math2.derivative(timeAxis, this.ionTemperature, bangTime, .12, 1),
-			  Math2.derivative(timeAxis, this.ionTemperature, bangTime, .12, 2),
+			  Math2.derivative(timeAxis, this.ionTemperature, bangTime, .10, 1),
+			  Math2.derivative(timeAxis, this.ionTemperature, bangTime, .10, 2),
 			  Math2.average(this.arealDensity, this.neutronYield, left, rite),
 			  Math2.quadInterp(this.arealDensity, iPC),
 			  Math2.quadInterp(this.arealDensity, iBT),
-			  Math2.derivative(timeAxis, this.arealDensity, bangTime, .12, 1),
-			  Math2.derivative(timeAxis, this.arealDensity, peakCompress, .12, 1),
+			  Math2.derivative(timeAxis, this.arealDensity, peakCompress, .10, 1),
+			  Math2.derivative(timeAxis, this.arealDensity, bangTime, .10, 1),
 			  Math2.derivative(timeAxis, V, bangTime, .12, 2).over(Math2.quadInterp(V, iBT)),
 		}; // collect the figures of merit
 		
@@ -726,8 +727,9 @@ public class Analysis {
 		logger.info(String.format("Burn-averaged \u03C1R:  %s g/cm^2", res[13].toString(covarianceMatrix)));
 		logger.info(String.format("\u03C1R at compression: %s g/cm^2", res[14].toString(covarianceMatrix)));
 		logger.info(String.format("\u03C1R at BT:          %s g/cm^2", res[15].toString(covarianceMatrix)));
-		logger.info(String.format("d\u03C1R/dt at BT:      %s g/cm^2/(100 ps)", res[16].over(1e1).toString(covarianceMatrix)));
-		logger.info(String.format("d^2V/dt^2/V at BT: %s 1/ns^2", res[17].toString(covarianceMatrix)));
+		logger.info(String.format("d\u03C1R/dt at compr.:  %s g/cm^2/(100 ps)", res[16].over(1e1).toString(covarianceMatrix)));
+		logger.info(String.format("d\u03C1R/dt at BT:      %s g/cm^2/(100 ps)", res[17].over(1e1).toString(covarianceMatrix)));
+		logger.info(String.format("d^2V/dt^2/V at BT: %s 1/ns^2", res[18].toString(covarianceMatrix)));
 		return res;
 	}
 

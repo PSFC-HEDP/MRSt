@@ -31,6 +31,7 @@ import physics.SpectrumGenerator;
 import util.CSV;
 
 import java.io.File;
+import java.io.IOError;
 import java.io.IOException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -53,12 +54,12 @@ public class ConsoleEvaluator {
 	public static void main(String[] args) throws SecurityException, IOException, InterruptedException {
 
 		// first, parse the arguments
-		StringBuilder filename = new StringBuilder("ensemble");
+		StringBuilder prospectiveFilename = new StringBuilder("ensemble");
 		String prospectiveImplosionName = "og with falling temp";
 		int prospectiveNumYields = 1000;
 		int numCores = Math.min(10, Runtime.getRuntime().availableProcessors());
-		IonOpticConfiguration prospectiveIonConfig = IonOpticConfiguration.HIGH_EFFICIENCY;
-		DetectorConfiguration prospectiveDetectorConfig = DetectorConfiguration.SINGLE_STREAK_CAMERA;
+		IonOpticConfiguration prospectiveIonConfig = null;
+		DetectorConfiguration prospectiveDetectorConfig = null;
 		double prospectiveUncertainty = 0;
 		double prospectiveEnergyBin = 50e-3;
 		double prospectiveTimeBin = 20e-3;
@@ -120,7 +121,7 @@ public class ConsoleEvaluator {
 				}
 
 				String tag = value.replace(" ", "");
-				filename.append(String.format(tagFormat, tag));
+				prospectiveFilename.append(String.format(tagFormat, tag));
 			}
 			else {
 				System.err.println("I don't understand '"+arg+"'.");
@@ -130,15 +131,21 @@ public class ConsoleEvaluator {
 		// convert them to their final forms
 		final String implosionName = prospectiveImplosionName;
 		final int numYields = prospectiveNumYields;
-		final DetectorConfiguration detectorConfiguration = prospectiveDetectorConfig;
 		final IonOpticConfiguration ionOpticConfiguration = prospectiveIonConfig;
+		final DetectorConfiguration detectorConfiguration = prospectiveDetectorConfig;
 		final double uncertainty = prospectiveUncertainty;
 		final double energyBin = prospectiveEnergyBin;
 		final double timeBin = prospectiveTimeBin;
 		final double tolerance = prospectiveTolerance;
-		
-		filename.append(String.format("_%tF", System.currentTimeMillis()));
-		final String filepath = "output/"+filename;
+
+		if (ionOpticConfiguration == null)
+			throw new IllegalArgumentException("you need to always specify the ion optic configuration from now on.");
+		if (detectorConfiguration == null)
+			throw new IllegalArgumentException("you need to always specify the detector configuration from now on.");
+
+		final String filename = String.format("output/%s_%tF",
+											  prospectiveFilename,
+											  System.currentTimeMillis());
 
 		// set up the logging
 		System.setProperty("java.util.logging.SimpleFormatter.format",
@@ -152,12 +159,12 @@ public class ConsoleEvaluator {
 		consoleHandler.setLevel(Level.FINE);
 		consoleHandler.setFormatter(formatter);
 		logger.addHandler(consoleHandler);
-		Handler logfileHandler = new FileHandler(filepath+".log");
+		Handler logfileHandler = new FileHandler(filename+".log");
 		logfileHandler.setLevel(Level.INFO);
 		logfileHandler.setFormatter(formatter);
 		logger.addHandler(logfileHandler);
 		logger.log(Level.INFO, "beginning "+prospectiveNumYields+" evaluations on "+numCores+" cores");
-		logger.log(Level.INFO, "results will be saved to '"+filepath+".csv'.");
+		logger.log(Level.INFO, "results will be saved to '"+filename+".csv'.");
 
 		final double[] eBins = CSV.readColumn(new File("input/energy.txt"));
 		final double[] tBins = CSV.readColumn(new File("input/time "+implosionName+".txt"));
@@ -170,7 +177,13 @@ public class ConsoleEvaluator {
 		else
 			spectrum = initialSpec;
 
-		ExecutorService threads = Executors.newFixedThreadPool(numCores);
+		ExecutorService threads = Executors.newFixedThreadPool(numCores, (Runnable r) -> {
+				final Thread thread = new Thread(r);
+				thread.setUncaughtExceptionHandler((Thread t, Throwable e) -> {
+					logger.log(Level.SEVERE, e.getMessage(), e); // XXX I wish this workd...
+				});
+				return thread;
+		});
 		double[][] results = new double[prospectiveNumYields][Analysis.HEADERS_WITH_ERRORS.length];
 		for (int k = 0; k < numYields; k ++) {
 			final int K = k;
@@ -208,27 +221,37 @@ public class ConsoleEvaluator {
 					logger.log(Level.SEVERE, e.getMessage(), e);
 					result = null;
 				}
-				results[K][0] = yield;
-				if (result != null)
-					System.arraycopy(result, 0, results[K], 1, result.length);
-				else
-					for (int i = 1; i < results[K].length; i ++)
-						results[K][i] = Double.NaN;
 
-				if (K%10 == 9)
-					save(results, filepath+".csv", logger);
+				try {
+					results[K][0] = yield;
+					if (result != null)
+						System.arraycopy(result, 0, results[K], 1, result.length);
+					else
+						for (int i = 1; i < results[K].length; i++)
+							results[K][i] = Double.NaN;
+				} catch (IndexOutOfBoundsException e) {
+					logger.log(Level.SEVERE, e.getMessage(), e);
+				}
+
+				if (K%10 == 9) {
+					try {
+						save(results, filename + ".csv", logger);
+					} catch (IOError e) {
+						logger.log(Level.SEVERE, e.getMessage(), e);
+					}
+				}
 			});
 		}
 
 		threads.shutdown();
 		threads.awaitTermination(3, TimeUnit.DAYS); // wait for all threads to finish
-		save(results, filepath, logger); // and then, finally, save the result
+		save(results, filename + ".csv", logger); // and then, finally, save the result
 	}
 	
 	private static void save(double[][] results, String filepath, Logger logger) {
 		try {
-			CSV.write(results, new File(filepath+".csv"), ',', Analysis.HEADERS_WITH_ERRORS);
-			logger.log(Level.INFO, "Saved ensemble results to "+filepath+".");
+			CSV.write(results, new File(filepath), ',', Analysis.HEADERS_WITH_ERRORS);
+			logger.log(Level.INFO, "Saved ensemble results to '"+filepath+"'.");
 		} catch (IOException e) {
 			logger.log(Level.SEVERE, e.getMessage(), e);
 		}
