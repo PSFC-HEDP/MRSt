@@ -99,20 +99,45 @@ public class IonOptics {
 	private final DiscreteFunction energyVsDistance; // inverse stopping distance info
 	private final DiscreteFunction energyVsPosition; // map between location on detector and energy going into lens
 
+	/**
+	 * generate an IonOptic object from a configuration preset
+	 * @param config the foil/aperture configuration
+	 * @param tiltAngle the angle of the detector (degrees)
+	 * @param precision how accurately we expect to know the resolution (ratio)
+	 * @param reuseMatrix whether to load the nominal response matrix from disk
+	 */
+	public IonOptics(IonOpticConfiguration config,
+					 String cosyFile, double tiltAngle,
+					 double precision, boolean reuseMatrix) throws IOException {
+		this(3.0e-3,
+			 2*config.foilRadius,
+			 2*config.foilRadius,
+			 config.foilThickness,
+			 6.0e+0,
+			 config.apertureWidth,
+			 20.0e-3,
+			 12, 16,
+			 CSV.readCosyCoefficients(new File(String.format(
+				   "input/%s.txt", cosyFile)),
+				  3, Particle.D, 12.45),
+			 tiltAngle,
+			 precision,
+			 reuseMatrix);
+	}
 
 	/**
 	 * put together the ion optic simulacion
-	 * @param foilDistance the distance from TCC to the foil [m]
-	 * @param foilWidth the total width of the foil [m]
-	 * @param foilHeight the total hite of the foil [m]
-	 * @param foilThickness the thickness of the foil [m]
-	 * @param apertureDistance the distance from TCC to the aperture [m]
-	 * @param apertureWidth the width of the aperture [m]
-	 * @param apertureHeight the hite of the aperture [m]
-	 * @param minEn the loest neutron energy to hit the detector [MeV]
-	 * @param maxEn the hiest neutron energy to hit the detector [MeV]
+	 * @param foilDistance the distance from TCC to the foil (m)
+	 * @param foilWidth the total width of the foil (m)
+	 * @param foilHeight the total hite of the foil (m)
+	 * @param foilThickness the thickness of the foil (m)
+	 * @param apertureDistance the distance from TCC to the aperture (m)
+	 * @param apertureWidth the width of the aperture (m)
+	 * @param apertureHeight the hite of the aperture (m)
+	 * @param minEn the loest neutron energy to hit the detector (MeV)
+	 * @param maxEn the hiest neutron energy to hit the detector (MeV)
 	 * @param cosyMapping the COSY coefficient matrix
-	 * @param focalTilt angle of the focal plane (0 means untilted) [deg]
+	 * @param focalTilt angle of the focal plane (0 means untilted) (deg)
 	 * @throws IOException if it can't find the stopping power file
 	 * @throws NumberFormatException if the stopping power file accepts bribes
 	 */

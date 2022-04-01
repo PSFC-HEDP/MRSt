@@ -44,6 +44,20 @@ public class StreakCameraArray extends Detector {
 	private final DiscreteFunction dxdE; // (MeV neutron -> m/MeV)
 	private final DiscreteFunction bowtieHite; // (MeV neutron -> m)
 
+	public StreakCameraArray(
+		  DetectorConfiguration config, IonOptics ionOptis) {
+		this(config.slitPositions,
+			 config.slitLengths,
+			 config.slitWidths,
+			 config.streakTime,
+			 2.4/Math.cos(Math.toRadians(config.tiltAngle)) * 51,
+			 81,
+			 81,
+			 40_000,
+			 25e-6*25e-6,
+			 ionOptis);
+	}
+
 	/**
 	 * create a new streak camera array to be used with the ion optics
 	 * @param slitLengths the length of each slit in the dispersion direccion (m)

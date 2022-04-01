@@ -20,7 +20,13 @@ if 'euteron' in title:
 
 print(Z)
 
-plt.pcolormesh(X, Y, Z, cmap='plasma', norm=matplotlib.colors.SymLogNorm(vmin=0, vmax=Z.max(), linthresh=max(1, Z.max()/1e4), linscale=1/np.log(10)))
+if Z.max() / Z.min() > 3e3:
+	norm = matplotlib.colors.SymLogNorm(vmin=0, vmax=Z.max(), linthresh=max(1, Z.max()/3e3), linscale=1/np.log(10))
+elif Z.max() / Z.min() > 3e1:
+	norm = matplotlib.colors.LogNorm(vmin=Z.min(), vmax=Z.max())
+else:
+	norm = matplotlib.colors.Normalize(vmin=0, vmax=Z.max())
+plt.pcolormesh(X, Y, Z, cmap='plasma', norm=norm)
 plt.xlabel(xlabel, fontsize=18)
 plt.ylabel(ylabel, fontsize=18)
 plt.gca().xaxis.set_tick_params(labelsize=18)
