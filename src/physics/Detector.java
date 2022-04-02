@@ -144,7 +144,7 @@ public abstract class Detector {
 										0.00000, 11.5e-9,
 										new double[] {-0.75e-2},
 										new double[] {2.5e-2},
-										new double[] {500e-6});
+										new double[] {200e-6});
 		public static DetectorConfiguration DOUBLE_STREAK_CAMERA =
 			  new DetectorConfiguration("MRSt_IRF_FP_70deg",
 										66.58565, 4.5e-9,

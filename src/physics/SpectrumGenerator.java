@@ -28,6 +28,10 @@ import util.Math2;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Arrays;
 
 /**
  * @author Justin Kunimune
@@ -216,33 +220,40 @@ public class SpectrumGenerator {
 //		for (int i = 0; i < eBins.length - 1; i ++) {
 //			System.out.printf("[%f, %f, %f],\n", (eBins[i] + eBins[i+1])/2, primary[i], full[i]);
 //		}
-		for (String filename : new String[] {"failed", "marginal", "high", "og", "og with falling temp"}) {
-			double[][] thing;
-			double[] eBins;
-			thing = CSV.read(new File("input/trajectories "+filename+".csv"), ',', 1);
-			eBins = CSV.readColumn(new File("input/energy.txt"));
+		for (Path file : (Iterable<Path>) Files.walk(Paths.get("input/"))::iterator) {
+			if (file.getFileName().toString().startsWith("trajectories ")) {
+				String key = file.getFileName().toString();
+				key = key.substring(13, key.length() - 4);
+				double[][] thing;
+				try {
+					thing = CSV.read(file.toFile(), ',', 1);
+				} catch (NumberFormatException e) {
+					thing = CSV.read(file.toFile(), ' ', 1);
+				}
+				double[] eBins = CSV.readColumn(new File("input/energy.txt"));
 
-			double[] time = new double[thing.length];
-			double[] ρR = new double[thing.length];
-			double[] Yn = new double[thing.length];
-			double[] Ti = new double[thing.length];
-			double[] zero = new double[thing.length];
-			for (int i = 0; i < thing.length; i ++) {
-				time[i] = thing[i][0];
-				Yn[i] = thing[i][1]*.1*1e6/1e-6/(14e6*1.6e-19)/1e15*1e-9; // convert from 0.1MJ/μs to 1e15n/ns
-				Ti[i] = thing[i][4];
-				ρR[i] = thing[i][3];
-				zero[i] = 0;
+				double[] time = new double[thing.length];
+				double[] ρR = new double[thing.length];
+				double[] Yn = new double[thing.length];
+				double[] Ti = new double[thing.length];
+				double[] zero = new double[thing.length];
+				for (int i = 0; i < thing.length; i++) {
+					time[i] = thing[i][0];
+					Yn[i] = thing[i][1]*.1*1e6/1e-6/(14e6*1.6e-19)/1e15*1e-9; // convert from 0.1MJ/μs to 1e15n/ns
+					Ti[i] = thing[i][4];
+					ρR[i] = thing[i][3];
+					zero[i] = 0;
+				}
+				double[] tBins = new double[time.length + 1];
+				tBins[0] = (3*time[0] - time[1])/2.;
+				for (int i = 1; i < time.length; i++)
+					tBins[i] = (time[i - 1] + time[i])/2.;
+				tBins[time.length] = (3*time[time.length - 1] - time[time.length - 2])/2.;
+				double[][] spectrum = generateSpectrum(Yn, Ti, zero, zero, ρR, eBins, tBins);
+
+				CSV.writeColumn(tBins, new File("input/time " + key + ".txt"));
+				CSV.write(spectrum, new File("input/spectrum " + key + ".txt"), '\t');
 			}
-			double[] tBins = new double[time.length + 1];
-			tBins[0] = (3*time[0] - time[1])/2.;
-			for (int i = 1; i < time.length; i ++)
-				tBins[i] = (time[i-1] + time[i])/2.;
-			tBins[time.length] = (3*time[time.length-1] - time[time.length-2])/2.;
-			double[][] spectrum = generateSpectrum(Yn, Ti, zero, zero, ρR, eBins, tBins);
-
-			CSV.writeColumn(tBins, new File("input/time "+filename+".txt"));
-			CSV.write(spectrum, new File("input/spectrum "+filename+".txt"), '\t');
 		}
 
 		System.out.println("done");

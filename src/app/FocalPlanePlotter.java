@@ -36,7 +36,7 @@ import java.io.IOException;
 public class FocalPlanePlotter {
 	public static void main(String[] args) throws IOException {
 		// select constants
-		DetectorConfiguration slits = DetectorConfiguration.DOWNSCATTER_SLIT;
+		DetectorConfiguration slits = DetectorConfiguration.DOUBLE_STREAK_CAMERA;
 		COSYMapping cosyMapping = CSV.readCosyCoefficients(
 			  new File(String.format("input/%s.txt", slits.cosyFile)),
 			  3, Particle.D, 12.45);

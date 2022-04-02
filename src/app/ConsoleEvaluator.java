@@ -29,6 +29,7 @@ import physics.Detector.DetectorConfiguration;
 import physics.IonOptics.IonOpticConfiguration;
 import physics.SpectrumGenerator;
 import util.CSV;
+import util.InputParser;
 
 import java.io.File;
 import java.io.IOError;
@@ -46,106 +47,19 @@ import java.util.logging.SimpleFormatter;
 
 
 /**
- * the class that handles the GUI.
+ * evaluate error bars at a large number of yields
  * 
  * @author Justin Kunimune
  */
 public class ConsoleEvaluator {
 	public static void main(String[] args) throws SecurityException, IOException, InterruptedException {
 
-		// first, parse the arguments
-		StringBuilder prospectiveFilename = new StringBuilder("ensemble");
-		String prospectiveImplosionName = "og with falling temp";
-		int prospectiveNumYields = 1000;
-		int numCores = Math.min(10, Runtime.getRuntime().availableProcessors());
-		IonOpticConfiguration prospectiveIonConfig = null;
-		DetectorConfiguration prospectiveDetectorConfig = null;
-		double prospectiveUncertainty = 0;
-		double prospectiveEnergyBin = 50e-3;
-		double prospectiveTimeBin = 20e-3;
-		double prospectiveTolerance = 0.1;
-		for (String arg : args) {
-			if (arg.contains("=")) {
-				String key = arg.substring(0, arg.indexOf('='));
-				String value = arg.substring(arg.indexOf('=') + 1);
-				String tagFormat = "_%.6s";
-				switch (key) {
-					case "implosion":
-						prospectiveImplosionName = value;
-						break;
-					case "yields":
-						prospectiveNumYields = Integer.parseInt(value);
-						break;
-					case "cores":
-						numCores = Integer.parseInt(value);
-						tagFormat = "";
-						break;
-					case "uncertainty":
-						prospectiveUncertainty = Double.parseDouble(value);
-						tagFormat = "_%sc";
-						break;
-					case "energyBin":
-						prospectiveEnergyBin = Double.parseDouble(value)*1e-3;
-						tagFormat = "_%skeV";
-						break;
-					case "timeBin":
-						prospectiveTimeBin = Double.parseDouble(value)*1e-3;
-						tagFormat = "_%sps";
-						break;
-					case "tolerance":
-						prospectiveTolerance = Double.parseDouble(value);
-						break;
-					case "optics":
-						if (value.toLowerCase().startsWith("h"))
-							prospectiveIonConfig = IonOpticConfiguration.HIGH_EFFICIENCY;
-						else if (value.toLowerCase().startsWith("m"))
-							prospectiveIonConfig = IonOpticConfiguration.MID_EFFICIENCY;
-						else if (value.toLowerCase().startsWith("l"))
-							prospectiveIonConfig = IonOpticConfiguration.LOW_EFFICIENCY;
-						else
-							System.err.println("I don't know the '" + value + "' configuration");
-						break;
-					case "detector":
-						if (value.toLowerCase().startsWith("1"))
-							prospectiveDetectorConfig = DetectorConfiguration.SINGLE_STREAK_CAMERA;
-						else if (value.toLowerCase().startsWith("2"))
-							prospectiveDetectorConfig = DetectorConfiguration.DOUBLE_STREAK_CAMERA;
-						else if (value.toLowerCase().startsWith("d"))
-							prospectiveDetectorConfig = DetectorConfiguration.DOWNSCATTER_SLIT;
-						else
-							System.err.println("I don't know the '" + value + "' camera");
-						break;
-					default:
-						System.err.println("I don't know to what '" + key + "' refers");
-						break;
-				}
+		final InputParser setup = new InputParser("ensemble", args);
 
-				String tag = value.replace(" ", "");
-				prospectiveFilename.append(String.format(tagFormat, tag));
-			}
-			else {
-				System.err.println("I don't understand '"+arg+"'.");
-			}
-		}
-
-		// convert them to their final forms
-		final String implosionName = prospectiveImplosionName;
-		final int numYields = prospectiveNumYields;
-		final IonOpticConfiguration ionOpticConfiguration = prospectiveIonConfig;
-		final DetectorConfiguration detectorConfiguration = prospectiveDetectorConfig;
-		final double uncertainty = prospectiveUncertainty;
-		final double energyBin = prospectiveEnergyBin;
-		final double timeBin = prospectiveTimeBin;
-		final double tolerance = prospectiveTolerance;
-
-		if (ionOpticConfiguration == null)
+		if (setup.opticsConfig == null)
 			throw new IllegalArgumentException("you need to always specify the ion optic configuration from now on.");
-		if (detectorConfiguration == null)
+		if (setup.detectorConfig == null)
 			throw new IllegalArgumentException("you need to always specify the detector configuration from now on.");
-
-		final String filename = String.format("output/%s_%tF",
-											  prospectiveFilename,
-											  System.currentTimeMillis());
 
 		// set up the logging
 		System.setProperty("java.util.logging.SimpleFormatter.format",
@@ -159,16 +73,16 @@ public class ConsoleEvaluator {
 		consoleHandler.setLevel(Level.FINE);
 		consoleHandler.setFormatter(formatter);
 		logger.addHandler(consoleHandler);
-		Handler logfileHandler = new FileHandler(filename+".log");
+		Handler logfileHandler = new FileHandler(setup.filename+".log");
 		logfileHandler.setLevel(Level.INFO);
 		logfileHandler.setFormatter(formatter);
 		logger.addHandler(logfileHandler);
-		logger.log(Level.INFO, "beginning "+prospectiveNumYields+" evaluations on "+numCores+" cores");
-		logger.log(Level.INFO, "results will be saved to '"+filename+".csv'.");
+		logger.log(Level.INFO, "beginning "+setup.numYields+" evaluations on "+setup.numCores+" cores");
+		logger.log(Level.INFO, "results will be saved to '"+setup.filename+".csv'.");
 
 		final double[] eBins = CSV.readColumn(new File("input/energy.txt"));
-		final double[] tBins = CSV.readColumn(new File("input/time "+implosionName+".txt"));
-		double[][] initialSpec = CSV.read(new File("input/spectrum "+implosionName+".txt"), '\t');
+		final double[] tBins = CSV.readColumn(new File("input/time "+setup.implosionName+".txt"));
+		double[][] initialSpec = CSV.read(new File("input/spectrum "+setup.implosionName+".txt"), '\t');
 		final double[][] spectrum;
 		if (initialSpec.length != eBins.length-1 || initialSpec[0].length != tBins.length-1) {
 			System.out.println("interpreting a weird spectrum file...");
@@ -177,26 +91,26 @@ public class ConsoleEvaluator {
 		else
 			spectrum = initialSpec;
 
-		ExecutorService threads = Executors.newFixedThreadPool(numCores, (Runnable r) -> {
-				final Thread thread = new Thread(r);
-				thread.setUncaughtExceptionHandler((Thread t, Throwable e) -> {
-					logger.log(Level.SEVERE, e.getMessage(), e); // XXX I wish this workd...
-				});
-				return thread;
+		ExecutorService threads = Executors.newFixedThreadPool(setup.numCores, (Runnable r) -> {
+			final Thread thread = new Thread(r);
+			thread.setUncaughtExceptionHandler((Thread t, Throwable e) -> {
+				logger.log(Level.SEVERE, e.getMessage(), e); // XXX I wish this workd...
+			});
+			return thread;
 		});
-		double[][] results = new double[prospectiveNumYields][Analysis.HEADERS_WITH_ERRORS.length];
-		for (int k = 0; k < numYields; k ++) {
+		double[][] results = new double[setup.numYields][Analysis.HEADERS_WITH_ERRORS.length];
+		for (int k = 0; k < setup.numYields; k ++) {
 			final int K = k;
 
 			threads.submit(() -> {
 				Analysis mc;
 				try {
 					mc = new Analysis(
-						  ionOpticConfiguration,
-						  detectorConfiguration,
-						  uncertainty*1e-2,
+						  setup.opticsConfig,
+						  setup.detectorConfig,
+						  setup.uncertainty*1e-2,
 						  false,
-						  energyBin, timeBin, tolerance,
+						  setup.energyBin, setup.timeBin, setup.tolerance,
 						  logger); // make the simulation
 				} catch (IOException e) {
 					e.printStackTrace();
@@ -208,15 +122,15 @@ public class ConsoleEvaluator {
 					  spectrum, yield);
 
 				logger.log(Level.INFO, String.format("Yn = %.4g (%d/%d)", yield,
-						K, numYields));
+													 K, setup.numYields));
 
 				double[] result;
 				try {
 					result = mc.respondAndAnalyze(
-							eBins,
-							tBins,
-							scaledSpectrum,
-							ErrorMode.HESSIAN); // and run it many times!
+						  eBins,
+						  tBins,
+						  scaledSpectrum,
+						  ErrorMode.HESSIAN); // and run it many times!
 				} catch (Exception e) {
 					logger.log(Level.SEVERE, e.getMessage(), e);
 					result = null;
@@ -235,7 +149,7 @@ public class ConsoleEvaluator {
 
 				if (K%10 == 9) {
 					try {
-						save(results, filename + ".csv", logger);
+						save(results, setup.filename + ".csv", logger);
 					} catch (IOError e) {
 						logger.log(Level.SEVERE, e.getMessage(), e);
 					}
@@ -245,7 +159,7 @@ public class ConsoleEvaluator {
 
 		threads.shutdown();
 		threads.awaitTermination(3, TimeUnit.DAYS); // wait for all threads to finish
-		save(results, filename + ".csv", logger); // and then, finally, save the result
+		save(results, setup.filename + ".csv", logger); // and then, finally, save the result
 	}
 	
 	private static void save(double[][] results, String filepath, Logger logger) {

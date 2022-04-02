@@ -450,37 +450,37 @@ public class Analysis {
 					null, true, 1),
 			  naiveNeutronYield, yieldScale, lowerBound, upperBound); // 10^15/ns
 
-		try {
-			double[][] trueTrajectories = CSV.read(new File("input/trajectories og with falling temp.csv"), ',', 1);
-			double[] time = new double[trueTrajectories.length];
-			double[] ρR = new double[trueTrajectories.length];
-			double[] Yn = new double[trueTrajectories.length];
-			double[] Ti = new double[trueTrajectories.length];
-			for (int i = 0; i < trueTrajectories.length; i++) {
-				time[i] = trueTrajectories[i][0];
-				Yn[i] = trueTrajectories[i][1]*.1*1e6/1e-6/(14e6*1.6e-19)/1e15*1e-9; // convert from 0.1MJ/μs to 1e15n/ns
-				Ti[i] = trueTrajectories[i][4];
-				ρR[i] = trueTrajectories[i][3];
-			}
-			for (int j = 0; j < timeAxis.length; j ++) {
-				if (timeAxis[j] < time[0]) {
-					neutronYield[j] = 0;
-					ionTemperature[j] = Ti[0];
-					arealDensity[j] = ρR[0];
-				} else if (timeAxis[j] > time[time.length-1]) {
-					neutronYield[j] = 0;
-					ionTemperature[j] = Ti[time.length-1];
-					arealDensity[j] = ρR[time.length-1];
-				} else {
-					neutronYield[j] = Math2.interp(timeAxis[j], time, Yn);
-					ionTemperature[j] = Math2.interp(timeAxis[j], time, Ti);
-					arealDensity[j] = Math2.interp(timeAxis[j], time, ρR);
-				}
-			}
-		}
-		catch (IOException e) {
-			System.err.println("the test thing didn't work.");
-		}
+//		try {
+//			double[][] trueTrajectories = CSV.read(new File("input/trajectories og with falling temp.csv"), ',', 1);
+//			double[] time = new double[trueTrajectories.length];
+//			double[] ρR = new double[trueTrajectories.length];
+//			double[] Yn = new double[trueTrajectories.length];
+//			double[] Ti = new double[trueTrajectories.length];
+//			for (int i = 0; i < trueTrajectories.length; i++) {
+//				time[i] = trueTrajectories[i][0];
+//				Yn[i] = trueTrajectories[i][1]*.1*1e6/1e-6/(14e6*1.6e-19)/1e15*1e-9; // convert from 0.1MJ/μs to 1e15n/ns
+//				Ti[i] = trueTrajectories[i][4];
+//				ρR[i] = trueTrajectories[i][3];
+//			}
+//			for (int j = 0; j < timeAxis.length; j ++) {
+//				if (timeAxis[j] < time[0]) {
+//					neutronYield[j] = 0;
+//					ionTemperature[j] = Ti[0];
+//					arealDensity[j] = ρR[0];
+//				} else if (timeAxis[j] > time[time.length-1]) {
+//					neutronYield[j] = 0;
+//					ionTemperature[j] = Ti[time.length-1];
+//					arealDensity[j] = ρR[time.length-1];
+//				} else {
+//					neutronYield[j] = Math2.interp(timeAxis[j], time, Yn);
+//					ionTemperature[j] = Math2.interp(timeAxis[j], time, Ti);
+//					arealDensity[j] = Math2.interp(timeAxis[j], time, ρR);
+//				}
+//			}
+//		}
+//		catch (IOException e) {
+//			System.err.println("the test thing didn't work.");
+//		}
 
 		// determine the bounds of the region that's worth optimizing
 		double[] statistics = new double[M];
