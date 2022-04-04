@@ -152,9 +152,9 @@ public abstract class Detector {
 										new double[] {2.5e-2, 2.5e-2},
 										new double[] {500e-6, 500e-6});
 		public static DetectorConfiguration DOWNSCATTER_SLIT =
-			  new DetectorConfiguration("MRSt_IRF_FP_80deg",
-										70, 4.5e-9,
-										new double[] {-11.5e-2, 0},
+			  new DetectorConfiguration("MRSt_IRF_FP_60deg",
+										62.44417, 4.5e-9,
+										new double[] {-13.0e-2, 0},
 										new double[] {2.5e-2, 2.5e-2},
 										new double[] {500e-6, 500e-6});
 		public static DetectorConfiguration DRIFT_TUBE =

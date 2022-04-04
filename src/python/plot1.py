@@ -67,6 +67,9 @@ for i in range(n):
 	axes[i].fill_between((XA - x0)*1000, YAs[i] - ΔAs[i], YAs[i] + ΔAs[i], color='C'+str(i), alpha=0.3)
 	axes[i].set_ylabel(ylabels[i])
 	axes[i].set_ylim(*rainge)
+	if "MeV" in xlabel:
+		axes[i].set_yscale('log')
+
 
 	if ylabels[i].startswith('Y'):
 		Ymax = YAs[i].max(initial=0, where=np.isfinite(YAs[i]))

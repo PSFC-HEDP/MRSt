@@ -23,15 +23,6 @@
  */
 package app;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.logging.ConsoleHandler;
-import java.util.logging.Level;
-import java.util.logging.LogRecord;
-import java.util.logging.Logger;
-import java.util.logging.StreamHandler;
-
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -52,15 +43,23 @@ import javafx.scene.text.Font;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import physics.Analysis;
+import physics.Analysis.ErrorMode;
 import physics.Detector.DetectorConfiguration;
 import physics.Particle;
 import physics.SpectrumGenerator;
 import util.COSYMapping;
 import util.CSV;
-import physics.Analysis.ErrorMode;
 import util.Math2;
 import util.PythonPlot;
 import util.Spinner;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.logging.ConsoleHandler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
+import java.util.logging.StreamHandler;
 
 
 /**
@@ -277,22 +276,28 @@ public class SpectrumViewer extends Application {
 					try { // send the data to python for plotting
 						PythonPlot.plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), smallSpec,
 						                       "Original neutron spectrum");
-						PythonPlot.plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getCorrectedSpectrum(),
-						            "Synthetic deuteron spectrum");
-						PythonPlot.plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getInferredSpectrum(),
+						PythonPlot.plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getSignalDistribution(),
+						            "Synthetic signal distribution");
+						PythonPlot.plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getFitNeutronSpectrum(),
 						            "Fitted neutron spectrum");
-						PythonPlot.plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getFittedSpectrum(),
-						            "Fitted deuteron spectrum");
+						PythonPlot.plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getFitSignalDistribution(),
+						            "Fitted signal distribution");
 						PythonPlot.plotLines(spectrumName,
 								mc.getTimeAxis(), "Time (ns)",
 						 		mc.getNeutronYield(), mc.getNeutronYieldError(), "Yn (10^15/ns)",
 								mc.getIonTemperature(), mc.getIonTemperatureError(), "Ti (keV)",
 								mc.getArealDensity(), mc.getArealDensityError(), "ρR (g/cm^2)"
 						);
-						PythonPlot.compareHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getCorrectedSpectrum(), mc.getFittedSpectrum(),
-								"Time", "Energy (MeV)", "Synthetic deuteron spectrum", "Fitted deuteron spectrum");
-						PythonPlot.compareHeatmap(mc.getTimeBins(), mc.getEnergyBins(), smallSpec, mc.getInferredSpectrum(),
-								"Time", "Energy (MeV)", "Original neutron spectrum", "Fitted neutron spectrum");
+						PythonPlot.compareHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getSignalDistribution(), mc.getFitSignalDistribution(),
+								"Time", "Energy (MeV)", "Synthetic signal", "Fit signal");
+						PythonPlot.compareHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getDeuteronSpectrum(), mc.getFitDeuteronSpectrum(),
+												  "Time", "Energy (MeV)", "Synthetic deuteron spectrum", "Fit deuteron spectrum");
+						PythonPlot.compareHeatmap(mc.getTimeBins(), mc.getEnergyBins(), smallSpec, mc.getFitNeutronSpectrum(),
+												  "Time", "Energy (MeV)", "Original neutron spectrum", "Fit neutron spectrum");
+						PythonPlot.plotLines("-",
+											 mc.getEnergyAxis(), "Energy (MeV)",
+											 timeIntegrate(mc.getDeuteronSpectrum()), null, "Deuterons",
+											 timeIntegrate(mc.getSignalDistribution()), null, "Signal");
 					} catch (IOException e) {
 						logger.log(Level.SEVERE, "Could not access plotting scripts and/or plots", e);
 					}
@@ -392,6 +397,14 @@ public class SpectrumViewer extends Application {
 			for (int j = 0; j < old[i].length; j ++)
 				now[i][j] = old[i][j];
 		return now;
+	}
+
+
+	private static double[] timeIntegrate(double[][] spectrum) {
+		double[] output = new double[spectrum.length];
+		for (int i = 0; i < spectrum.length; i ++)
+			output[i] = Math2.sum(spectrum[i]);
+		return output;
 	}
 	
 	

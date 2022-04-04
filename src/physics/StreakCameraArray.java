@@ -161,11 +161,12 @@ public class StreakCameraArray extends Detector {
 		double[][] outSpectrum = new double[energyBins.length-1][timeBins.length-1];
 		for (int i = 0; i < energyBins.length-1; i ++) {
 			double energy = (energyBins[i] + energyBins[i+1])/2;
-			for (int j = 0; j < timeBins.length - 1; j ++)
-				outSpectrum[i][j] = background(energy, energyBins, timeBins);
 			int slit = whichSlit(energy);
 			if (slit >= 0) {
-				double gain = this.gain(energy);
+				for (int j = 0; j < timeBins.length - 1; j ++) // add the background
+					outSpectrum[i][j] = background(energy, energyBins, timeBins);
+
+				double gain = this.gain(energy); // then convolve in the signal
 				for (int j = 0; j < timeBins.length - 1; j ++) {
 					for (int l = 0; l < timeResponses[slit].length; l ++) {
 						int dj = l - timeResponses[slit].length/2;
@@ -173,7 +174,7 @@ public class StreakCameraArray extends Detector {
 							outSpectrum[i][j] += gain*timeResponses[slit][l]*inSpectrum[i][j + dj];
 					}
 				}
-				if (stochastic) {
+				if (stochastic) { // add noise
 					for (int j = 0; j < timeBins.length - 1; j ++) {
 						double σ = Math.sqrt(noise(energy, energyBins, timeBins));
 						if (outSpectrum[i][j] > 0)

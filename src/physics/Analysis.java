@@ -34,12 +34,10 @@ import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.PowellOptimizer;
 import physics.Detector.DetectorConfiguration;
 import physics.IonOptics.IonOpticConfiguration;
 import util.COSYMapping;
-import util.CSV;
 import util.Math2;
 import util.Math2.Quantity;
 import util.Optimization;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Locale;
@@ -92,8 +90,10 @@ public class Analysis {
 	private final double[] energyBins; // endpoints of E bins for inferred spectrum [MeV]
 	private double[] timeBins; // endpoints of time bins for inferred spectrum [ns]
 	private double[][] deuteronSpectrum; // time-corrected deuteron counts
+	private double[][] signalDistribution; // 2D-resolved signal measurement
 	private double[][] fitNeutronSpectrum; // backward-fit neutron counts
 	private double[][] fitDeuteronSpectrum; // backward-fit deuteron counts (this should be similar to deuteronSpectrum)
+	private double[][] fitSignalDistribution; // backward-fit deuteron counts
 	
 	private final double[] energyAxis; // centers of energy bins [ns]
 	private final double preferredTimeStep;
@@ -248,19 +248,6 @@ public class Analysis {
 		for (int i = 0; i < timeBins.length; i ++)
 			this.timeBins[i] = minT + i*(maxT - minT)/(timeBins.length-1);
 		
-//		double[][] actual;
-//		try {
-//			actual = CSV.read(new File("input/trajectories og with falling temp.csv"), ',', 1);
-//		} catch (NumberFormatException e) {
-//			actual = null;
-//		} catch (IOException e) {
-//			actual = null;
-//		}
-//		this.timeBins = new double[actual.length+1];
-//		for (int i = 0; i < timeBins.length-1; i ++)
-//			this.timeBins[i] = actual[i][0] - (actual[1][0] - actual[0][0])/2.;
-//		this.timeBins[timeBins.length-1] = actual[actual.length-1][0] + (actual[1][0] - actual[0][0])/2.;
-		
 		this.timeStep = timeBins[1] - timeBins[0];
 		this.timeAxis = new double[timeBins.length-1];
 		for (int i = 0; i < timeBins.length-1; i ++)
@@ -298,29 +285,11 @@ public class Analysis {
 	}
 
 	/**
-	 * what does the detector see if the given neutron spectrum goes thru the
-	 * ion optics
-	 */
-	public double[][] response(double[] energyBins, double[] timeBins,
-							   double[][] spectrum,
-							   boolean stochastic, boolean actual) {
-//		System.out.println("responding...");
-//		System.out.println(NumericalMethods.sum(spectrum));
-//		System.out.println(NumericalMethods.sum(this.ionOptics.response(energyBins, timeBins, spectrum, stochastic, actual)));
-//		System.out.println(NumericalMethods.sum(this.detector.response(energyBins, timeBins, ionOptics.response(energyBins, timeBins, spectrum, false, actual), false)));
-		return this.detector.response(
-			  energyBins, timeBins,
-			  this.ionOptics.response(
-			  	  energyBins, timeBins, spectrum, stochastic, actual),
-			  stochastic);
-	}
-	
-	/**
 	 * compute the total response to an implosion with the given neutron spectrum
 	 * and save and analyze it.
 	 * @param energies the energies that describe the rows of counts [MeV]
 	 * @param times the times that describe the columns of counts [ns]
-	 * @param spectrum the time- and energy- resolved neutron spectrum in number
+	 * @param neutronSpectrum the time- and energy- resolved neutron spectrum in number
 	 *                 of neutrons. each row corresponds to one element of
 	 *                 energies, and each column one element of times. [#/MeV/ns]
 	 * @param errorBars whether to bother computing error bars
@@ -329,24 +298,28 @@ public class Analysis {
 	 *          \< rho R \>, err, d(rho R)/dt, err, \<Ti\>, err, dTi/dt, err,
 	 *          \<vi\>, err, dvi/dt, err}
 	 */
-	public double[] respondAndAnalyze(double[] energies, double[] times, double[][] spectrum, ErrorMode errorBars) {
-		if (spectrum.length != energies.length-1 || spectrum[0].length != times.length-1)
+	public double[] respondAndAnalyze(double[] energies, double[] times,
+									  double[][] neutronSpectrum,
+									  ErrorMode errorBars) {
+		if (neutronSpectrum.length != energies.length-1 || neutronSpectrum[0].length != times.length-1)
 			throw new IllegalArgumentException("These dimensions don't make any sense.");
 
 		this.instantiateTimeAxis(times); // first, create the detector time bins
 
-		spectrum = Math2.downsample(
-				times, energies, spectrum, timeBins, energyBins); // first rebin the spectrum
+		neutronSpectrum = Math2.downsample(
+				times, energies, neutronSpectrum, timeBins, energyBins); // first rebin the spectrum
 
 		logger.info("beginning Monte Carlo computation.");
 		long startTime = System.currentTimeMillis();
-		this.deuteronSpectrum = this.response(
-				energyBins, timeBins, spectrum, true, true);
+		this.deuteronSpectrum = this.ionOptics.response(
+				energyBins, timeBins, neutronSpectrum, true, true);
+		this.signalDistribution = this.detector.response(
+			  energyBins, timeBins, deuteronSpectrum, true);
 		long endTime = System.currentTimeMillis();
 		logger.info(String.format(Locale.US, "completed in %.2f minutes.",
 			                      (endTime - startTime)/60000.));
 
-		double saturation = Math2.max(deuteronSpectrum)/
+		double saturation = Math2.max(signalDistribution)/
 			  this.detector.saturationLimit(14, energyBins, timeBins);
 		if (saturation >= 1)
 			logger.warning(String.format("The detector is saturating by about %.2f%%",
@@ -355,7 +328,7 @@ public class Analysis {
 			logger.info(String.format("The detector is %.2f%% of the way to saturation",
 									  saturation/1e-2));
 
-		Quantity[] values = analyze(deuteronSpectrum, errorBars);
+		Quantity[] values = analyze(signalDistribution, errorBars);
 
 		if (values != null) {
 			double[] output = new double[2*values.length];
@@ -373,27 +346,27 @@ public class Analysis {
 	/**
 	 * take the time-corrected spectrum and use it to compute and store time-resolved values
 	 * for ion temperature, areal density, and yield.
-	 * @param spectrum the time-corrected spectrum we want to understand
+	 * @param signal the time-corrected spectrum we want to understand
 	 * @param errorMode should error bars be computed (it's rather intensive)?
 	 * @return {computation time, Yn, BT, BW, skewness, kurtosis, peak compression, rho R (BT),
 	 * \< rho R \>, d(rho R)/dt, \<Ti\>, dTi/dt, \<vi\>, dvi/dt} or null if it can't even
 	 */
-	private Quantity[] analyze(double[][] spectrum, ErrorMode errorMode) {
-		if (spectrum.length != energyBins.length-1 || spectrum[0].length != timeBins.length-1)
+	private Quantity[] analyze(double[][] signal, ErrorMode errorMode) {
+		if (signal.length != energyBins.length-1 || signal[0].length != timeBins.length-1)
 			throw new IllegalArgumentException("These dimensions are wrong.");
 
-		if (Math2.max(spectrum) == 0) {
+		if (Math2.max(signal) == 0) {
 			logger.log(Level.SEVERE, "There were no deuterons detected.");
 			return null;
 		}
 		else {
-			logger.log(Level.INFO, String.format("There were %.1g deuterons detected.", Math2.sum(spectrum)));
+			logger.log(Level.INFO, String.format("There were %.1g deuterons detected.", Math2.sum(signal)));
 		}
 
 		logger.info("beginning fit process.");
 		long startTime = System.currentTimeMillis();
 
-		for (double[] doubles: spectrum)
+		for (double[] doubles: signal)
 			for (double value: doubles)
 				if (Double.isNaN(value))
 					throw new IllegalArgumentException("well fuck you too");
@@ -402,12 +375,12 @@ public class Analysis {
 		final int M = timeAxis.length;
 
 		// start with the simplest possible reconstruction
-		double[] naiveNeutronYield = new double[spectrum[0].length];
-		for (int i = 0; i < spectrum.length; i ++) {
+		double[] naiveNeutronYield = new double[signal[0].length];
+		for (int i = 0; i < signal.length; i ++) {
 			double background = this.detector.background(energyAxis[i], energyBins, timeBins);
-			for (int j = 0; j < spectrum[i].length; j ++) {
+			for (int j = 0; j < signal[i].length; j ++) {
 				naiveNeutronYield[j] += Math.max(
-					  0, (spectrum[i][j] - background)/this.gain(14))/(timeStep*1e15); // the spectrum scaled by the efficiency of the system
+					  0, (signal[i][j] - background)/this.gain(14))/(timeStep*1e15); // the spectrum scaled by the efficiency of the system
 			}
 		}
 
@@ -441,7 +414,7 @@ public class Analysis {
 		double[] finalArealDensity = arealDensity;
 		double[] neutronYield = optimize(
 			  (double[] x) -> logPosterior(
-					spectrum,
+					signal,
 					x,
 					finalIonTemperature,
 					electronTemperature,
@@ -518,7 +491,7 @@ public class Analysis {
 
 		double lastValue;
 		double thisValue = logPosterior(
-			  spectrum, neutronYield,
+			  signal, neutronYield,
 			  ionTemperature, electronTemperature,
 			  bulkFlowVelocity, arealDensity,
 			  active, false, finalSmoothing);
@@ -532,7 +505,7 @@ public class Analysis {
 
 			final double[] ionTemperatureNewGess = optimize(
 				  (double[] x) -> logPosterior(
-						spectrum,
+						signal,
 						neutronYieldInitialGess,
 						x,
 						electronTemperature,
@@ -546,7 +519,7 @@ public class Analysis {
 
 			final double[] arealDensityNewGess = optimize(
 				  (double[] x) -> logPosterior(
-					  spectrum,
+					  signal,
 					  neutronYieldInitialGess,
 					  ionTemperatureNewGess,
 					  electronTemperature,
@@ -560,7 +533,7 @@ public class Analysis {
 
 			final double[] neutronYieldNewGess = optimize(
 				  (double[] x) -> logPosterior(
-						spectrum,
+						signal,
 						x,
 						ionTemperatureNewGess,
 						electronTemperature,
@@ -576,7 +549,7 @@ public class Analysis {
 
 			lastValue = thisValue;
 			thisValue = logPosterior(
-				  spectrum, neutronYield,
+				  signal, neutronYield,
 				  ionTemperature, electronTemperature,
 				  bulkFlowVelocity, arealDensity,
 				  active, false, finalSmoothing);
@@ -636,8 +609,10 @@ public class Analysis {
 		this.fitNeutronSpectrum = SpectrumGenerator.generateSpectrum( // and then interpret it
 				neutronYield, ionTemperature, electronTemperature,
 				bulkFlowVelocity, arealDensity, energyBins, timeBins);
-		this.fitDeuteronSpectrum = this.response(
+		this.fitDeuteronSpectrum = this.ionOptics.response(
 			  energyBins, timeBins, fitNeutronSpectrum, false, false);
+		this.fitSignalDistribution = this.detector.response(
+			  energyBins, timeBins, fitDeuteronSpectrum, false);
 		
 		Quantity iBT = Math2.quadargmax(this.neutronYield); // index of max yield
 		Quantity bangTime = Math2.interp(timeAxis, iBT); // time of max yield
@@ -662,7 +637,7 @@ public class Analysis {
 				System.arraycopy(x, 0  , testNeutronYield, j0, m);
 				System.arraycopy(x, 1*m, testIonTemperature, j0, m);
 				System.arraycopy(x, 2*m, testArealDensity, j0, m);
-				return this.logPosterior(spectrum, testNeutronYield,
+				return this.logPosterior(signal, testNeutronYield,
 										 testIonTemperature, electronTemperature,
 										 bulkFlowVelocity, testArealDensity,
 										 active, false, finalSmoothing);
@@ -779,8 +754,10 @@ public class Analysis {
 		double[][] neutrons = SpectrumGenerator.generateSpectrum(
 			  neutronYield, ionTemperature, electronTemperature, bulkFlowVelocity, arealDensity,
 			  energyBins, timeBins); // generate the neutron spectrum based on those
-		double[][] signal = this.response(
+		double[][] deuterons = this.ionOptics.response(
 			  energyBins, timeBins, neutrons, false, false);
+		double[][] signal = this.detector.response(
+			  energyBins, timeBins, deuterons, false);
 
 		double totalError = 0; // negative log likelihood
 		for (int j = 0; j < timeAxis.length; j ++) {
@@ -963,19 +940,27 @@ public class Analysis {
 	public double[] getEnergyBins() {
 		return this.energyBins;
 	}
-	
-	public double[][] getCorrectedSpectrum() {
+
+	public double[][] getDeuteronSpectrum() {
 		return this.deuteronSpectrum;
 	}
-	
-	public double[][] getInferredSpectrum() {
+
+	public double[][] getSignalDistribution() {
+		return this.signalDistribution;
+	}
+
+	public double[][] getFitNeutronSpectrum() {
 		return this.fitNeutronSpectrum;
 	}
-	
-	public double[][] getFittedSpectrum() {
+
+	public double[][] getFitDeuteronSpectrum() {
 		return this.fitDeuteronSpectrum;
 	}
-	
+
+	public double[][] getFitSignalDistribution() {
+		return this.fitSignalDistribution;
+	}
+
 	/**
 	 * get the time bin centers in [ns]
 	 */

@@ -61,6 +61,8 @@ public class PythonPlot {
 			ys[i] = (double[]) yDatums[3*i];
 			Δs[i] = (double[]) yDatums[3*i+1];
 			yLabels[i] = (String) yDatums[3*i+2];
+			if (Δs[i] == null)
+				Δs[i] = new double[ys[i].length];
 		}
 
 		new File("output/").mkdir();
