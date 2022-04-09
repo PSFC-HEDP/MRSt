@@ -24,10 +24,10 @@ quantiles = np.linspace(0, 1, 9)
 x = []
 y = []
 for e, Y in zip(energies, particles):
-	x.append(Y[:,0].mean()*1e2)
+	x.append(Y[:, 0].mean()*1e2)
 	y.append([])
 	for q in quantiles:
-		y[-1].append(np.quantile(Y[:,1], q)*1e2)
+		y[-1].append(np.quantile(Y[:, 1], q)*1e2)
 x = np.array(x)
 y = np.array(y)
 
@@ -36,30 +36,31 @@ plt.figure(figsize=(9, 3.5))
 # major_line_freq = max(1, (quantiles.size - 1)//4)
 # for i in range(quantiles.size):
 # 	plt.plot(x, y[:,i], linewidth=(2 if i%major_line_freq==0 else 1)*1.1, color='#D36EA9')
-plt.fill_between(x, y[:,0], y[:,-1], color='#D36EA9')
+plt.fill_between(x, y[:, 0], y[:, -1], color='#D36EA9')
 
 crampd = None
-for e, Y in zip(energies[::8], particles[::8]):
-	# histogram, x_bins, y_bins = np.histogram2d(Y[:,0]*1e2, Y[:,1]*1e2, bins=20)
-	# x_points, y_points = np.meshgrid((x_bins[:-1] + x_bins[1:])/2, (y_bins[:-1] + y_bins[1:])/2, indexing="ij")
-	# plt.contour(x_points, y_points, histogram, levels=histogram.max()*np.linspace(0, 1, 21), colors="C2")
-	x_min, x_max = Y[:,0].min()*1e2, Y[:,0].max()*1e2
-	y_min, y_max = Y[:,1].min()*1e2, Y[:,1].max()*1e2
-	if crampd is None:
-		crampd = x_min > xlim[0]/2
-	major = (round(e) == round(e, 6)) if not crampd else (round(e/2) == round(e/2, 6))
-	linewidth = 1.6 if major else 0.8
-	linestyle = "solid"#(0, (2, 1)) if major else (0, (4, 2))
-	plt.plot([x_min, x_min, x_max, x_max, x_min],
-	         [y_min, y_max, y_max, y_min, y_min],
-	         linewidth=linewidth, color='#516EB6')
-	plt.plot([(x_min + x_max)/2]*2, [ 100, y_max], color='#516EB6', linestyle=linestyle, linewidth=linewidth)
-	plt.plot([(x_min + x_max)/2]*2, [-100, y_min], color='#516EB6', linestyle=linestyle, linewidth=linewidth)
-	if major:
-		if x_min - 2.0 > xlim[0] and x_min < xlim[1]:
-			plt.text(x_min, ylim[0]*0.8, f"{e:.0f} MeV", horizontalalignment="right")
-		elif x_max > xlim[0] and x_max + 2.0 < xlim[1]:
-			plt.text(x_max, ylim[0]*0.8, f"{e:.0f} MeV", horizontalalignment="left")
+for e, Y in zip(energies, particles):
+	if round(e*2) == round(e*2, 6):
+		# histogram, x_bins, y_bins = np.histogram2d(Y[:,0]*1e2, Y[:,1]*1e2, bins=20)
+		# x_points, y_points = np.meshgrid((x_bins[:-1] + x_bins[1:])/2, (y_bins[:-1] + y_bins[1:])/2, indexing="ij")
+		# plt.contour(x_points, y_points, histogram, levels=histogram.max()*np.linspace(0, 1, 21), colors="C2")
+		x_min, x_max = Y[:, 0].min()*1e2, Y[:, 0].max()*1e2
+		y_min, y_max = Y[:, 1].min()*1e2, Y[:, 1].max()*1e2
+		if crampd is None:
+			crampd = x_min > xlim[0]/2
+		major = (round(e) == round(e, 6)) if not crampd else (round(e/2) == round(e/2, 6))
+		linewidth = 1.6 if major else 0.8
+		linestyle = "solid" # (0, (2, 1)) if major else (0, (4, 2))
+		plt.plot([x_min, x_min, x_max, x_max, x_min],
+		         [y_min, y_max, y_max, y_min, y_min],
+		         linewidth=linewidth, color='#516EB6')
+		plt.plot([(x_min + x_max)/2]*2, [ 100, y_max], color='#516EB6', linestyle=linestyle, linewidth=linewidth)
+		plt.plot([(x_min + x_max)/2]*2, [-100, y_min], color='#516EB6', linestyle=linestyle, linewidth=linewidth)
+		if major:
+			if x_min - 2.0 > xlim[0] and x_min < xlim[1]:
+				plt.text(x_min, ylim[0]*0.8, f"{e:.0f} MeV", horizontalalignment="right")
+			elif x_max > xlim[0] and x_max + 2.0 < xlim[1]:
+				plt.text(x_max, ylim[0]*0.8, f"{e:.0f} MeV", horizontalalignment="left")
 
 for x, w, h in zip(slit_positions, slit_lengths, slit_widths):
 	plt.plot(np.multiply([x -w/2, x -w/2, x +w/2, x +w/2, x -w/2], 1e2),

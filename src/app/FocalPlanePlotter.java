@@ -59,18 +59,20 @@ public class FocalPlanePlotter {
 		);
 
 		// select the energies
-		int N = 64;
+		int N = 35;
 		double[] energies = new double[N + 1];
-		for (int i = 0; i <= N; i ++)
-			energies[i] = 12 + 4.*i/N;
+		energies[0] = 12*8/9.;
+		for (int i = 1; i < N; i ++)
+			energies[i] = 10.7 + 3.5*i/N;
+		energies[N] = 16*8/9.;
 
 		// then collect the values
 		int M = 1000;
 		double[][] positions = new double[N + 1][3*M];
 		for (int i = 0; i <= N; i ++) {
-			System.out.printf("%d/%d\n", i, N + 1);
+			System.out.printf("%d/%d: %.2f MeV <- %.2f MeV\n", i, N + 1, energies[i], energies[i]*9/8.);
 			for (int k = 0; k < M; k ++) {
-				double[] xyzt = io.simulate(energies[i], 0, false);
+				double[] xyzt = io.simulate(energies[i]*9/8., 0, false);
 				positions[i][3*k  ] = xyzt[0]/Math.cos(Math.toRadians(slits.tiltAngle));
 				positions[i][3*k+1] = xyzt[1];
 				positions[i][3*k+2] = xyzt[3];
