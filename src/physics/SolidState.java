@@ -32,11 +32,12 @@ public class SolidState extends Detector {
 	public SolidState() {
 		super(0,
 			  0,
-			  1_000);
+			  1_000,
+			  1);
 	}
 
 	@Override
-	public double gain(double energy) {
+	public double efficiency(double energy) {
 		return 1;
 	}
 

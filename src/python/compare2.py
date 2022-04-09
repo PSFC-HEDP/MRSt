@@ -9,7 +9,7 @@ if len(sys.argv) <= 1:
 	import os
 	os.chdir('../..')
 	print(os.getcwd())
-	xlabel, ylabel, titleA, titleB = 'Energy', 'Count', 'Synthetic deuteron spectrum', 'Fitted deuteron spectrum'
+	xlabel, ylabel, titleA, titleB = 'Energy', 'Count', 'Original neutron spectrum', 'Fitted neutron spectrum'
 else:
 	xlabel, ylabel, titleA, titleB = sys.argv[1:]
 

@@ -9,17 +9,19 @@ if len(sys.argv) <= 1:
 	os.chdir('../..')
 	print(os.getcwd())
 	# xlabel, ylabels, title, answer, n = 'Time (ns)', 'Yn (10^15/ns)\nTi (keV)\nρR (g/cm^2)', 'data', 'marginal', 3
-	xlabel, ylabels, title, answer, n = 'Time (ns)', 'Yn (10^15/ns)\nTi (keV)', 'data', 'og with falling temp', 2
+	xlabel, ylabels, title, answer, n = 'Energy (MeV)', 'Deuterons\nDeuterons\nSignal', 'data', '-', 3
 else:
 	xlabel, ylabels, title, answer, n = sys.argv[1:]
 
 ylabels = ylabels.split('\n')
-n = int(n)
-assert n == len(ylabels)
+n_curves = int(n)
+assert n_curves == len(ylabels)
+n_plots = len(set(ylabels))
+assert n_plots <= n_curves
 
 XA = np.loadtxt(f'output/{title}_x.csv', delimiter=',')
-YAs = [np.loadtxt(f'output/{title}_y_{i}.csv', delimiter=',') for i in range(n)]
-ΔAs = [np.loadtxt(f'output/{title}_err_{i}.csv', delimiter=',') for i in range(n)]
+YAs = [np.loadtxt(f'output/{title}_y_{i}.csv', delimiter=',') for i in range(n_curves)]
+ΔAs = [np.loadtxt(f'output/{title}_err_{i}.csv', delimiter=',') for i in range(n_curves)]
 
 x0 = XA[np.argmax(YAs[0])]
 
@@ -38,38 +40,45 @@ if answer != '-':
 	except IOError:
 		print(f"didn't find {answer}")
 		XB, YBs = None, None
+else:
+	XB, YBs = None, None
 
 fig, host_ax = plt.subplots(figsize=(9,5))
-fig.subplots_adjust(right=1 - (0.12*(n-1)))
+fig.subplots_adjust(right=1 - (0.12*(n_plots-1)))
 axes = [host_ax]
 plots = []
-for i in range(n):
-	if i > 0:
+j = 0
+for i in range(n_curves):
+	if i > 0 and ylabels[i] not in ylabels[:i]:
+		j += 1
+
+	if j > 0:
 		axes.append(axes[0].twinx())
-		axes[i].spines['right'].set_position(('axes', 1 + (i-1)*.18))
-	if i > 1:
-		axes[i].set_frame_on(True)
-		axes[i].patch.set_visible(False)
-		for sp in axes[i].spines.values(): sp.set_visible(False)
-		axes[i].spines['right'].set_visible(True)
+		axes[j].spines['right'].set_position(('axes', 1 + (j-1)*.18))
+	if j > 1:
+		axes[j].set_frame_on(True)
+		axes[j].patch.set_visible(False)
+		for sp in axes[j].spines.values(): sp.set_visible(False)
+		axes[j].spines['right'].set_visible(True)
 
 	rainge = {
 		'Y':(0, None),
 		'T':(0, 10),
 		'ρ':(0, 2.0),
 		'V':(-100, 100),
-		'a':(-1, 1)
+		'a':(-1, 1),
+		'D':(0, None),
+		'S':(0, None),
 	}.get(ylabels[i][0], (None, None))
 	YAs[i][np.isnan(ΔAs[i])] = np.nan
-	plots.append(axes[i].plot((XA - x0)*1000, YAs[i], '-o', label=ylabels[i], color=f'C{i}')[0])
+	plots.append(axes[j].plot((XA - x0)*1000, YAs[i], '-o', label=ylabels[i], color=f'C{i}')[0])
 	if XB is not None:
-		axes[i].plot((XB - x0)*1000, YBs[i], '--', color=f'C{i}')[0]
-	axes[i].fill_between((XA - x0)*1000, YAs[i] - ΔAs[i], YAs[i] + ΔAs[i], color='C'+str(i), alpha=0.3)
-	axes[i].set_ylabel(ylabels[i])
-	axes[i].set_ylim(*rainge)
-	if "MeV" in xlabel:
-		axes[i].set_yscale('log')
-
+		axes[j].plot((XB - x0)*1000, YBs[i], '--', color=f'C{i}')[0]
+	axes[j].fill_between((XA - x0)*1000, YAs[i] - ΔAs[i], YAs[i] + ΔAs[i], color='C'+str(i), alpha=0.3)
+	axes[j].set_ylabel(ylabels[i])
+	axes[j].set_ylim(*rainge)
+	# if "MeV" in xlabel:
+	# 	axes[j].set_yscale('symlog', linthresh=max(1, YAs[i].max()/1e3), linscale=1/np.log(10))
 
 	if ylabels[i].startswith('Y'):
 		Ymax = YAs[i].max(initial=0, where=np.isfinite(YAs[i]))
@@ -84,7 +93,7 @@ axes[0].set_xlabel(xlabel.replace("ns", "ps"))
 plt.tight_layout()
 
 # fig, axis = plt.subplots()
-# for i in range(n):
+# for i in range(n_curves):
 # 	if ylabels[i][0] == 'T':
 # 		i_temp = i
 # 	elif ylabels[i][0] == 'ρ':

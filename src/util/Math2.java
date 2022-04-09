@@ -68,48 +68,11 @@ public class Math2 {
 	 * draw a number from a Gaussian distribution.
 	 * @param μ mean
 	 * @param σ standard deviation
-	 * @return the number
-	 */
-	public static double normal(double μ, double σ) {
-		return normal(μ, σ, Math.random(), Math.random());
-	}
-
-	/**
-	 * draw a number from a Gaussian distribution.
-	 * @param μ mean
-	 * @param σ standard deviation
 	 * @param random the rng to use
 	 * @return the number
 	 */
 	public static double normal(double μ, double σ, Random random) {
-		return normal(μ, σ, random.nextDouble(), random.nextDouble());
-	}
-
-	/**
-	 * draw a number from a Gaussian distribution using the given random numbers.
-	 * @param μ mean
-	 * @param σ standard deviation
-	 * @param u1 a number randomly distributed in [0, 1)
-	 * @param u2 a number randomly distributed in [0, 1)
-	 * @return the number
-	 */
-	private static double normal(double μ, double σ, double u1, double u2) {
-		if (σ < 0)
-			throw new IllegalArgumentException("standard deviation must not be negative");
-		double z = Math.sqrt(-2*Math.log(u1))*Math.cos(2*Math.PI*u2);
-		return σ*z + μ;
-	}
-
-	/**
-	 * draw a number from a Poisson distribution.
-	 * @param λ expected number
-	 * @return the number
-	 */
-	public static int poisson(double λ) {
-		if (λ < 20)
-			return poisson(λ, Math.random());
-		else
-			return (int) Math.max(0., Math.round(normal(λ, Math.sqrt(λ))));
+		return μ + σ*random.nextGaussian();
 	}
 
 	/**
@@ -214,6 +177,35 @@ public class Math2 {
 		}
 		else {
 			return Math.max(0., normal(a/b, Math.sqrt(a)/b, random));
+		}
+	}
+
+	public static double binomial(int n, double p, Random random) {
+		if (p < 0 || p > 1)
+			throw new IllegalArgumentException("p must be in [0, 1] but you passd "+p);
+		if (n < 0)
+			throw new IllegalArgumentException("n must > 0 but you passd "+n);
+		else if (n == 0)
+			return 0;
+		else if (p*n < 20) {
+			double[] P = new double[n + 1];
+			for (int i = 0; i <= Math.min(n, 40); i ++)
+				P[i] = Math.pow(1 - p, i) * Math.pow(p, n - i);
+			double total = Math2.sum(P);
+			double u = random.nextDouble()*total;
+			for (int i = 0; i <= n; i ++) {
+				if (u < P[i])
+					return i;
+				else
+					u -= P[i];
+			}
+			throw new IllegalArgumentException("math is broken: "+ Arrays.toString(P)+", "+total);
+		}
+		else if ((1 - p)*n < 20) {
+			return n - binomial(n, 1 - p, random);
+		}
+		else {
+			return normal(n*p, Math.sqrt(n*p*(1 - p)), random);
 		}
 	}
 
@@ -509,19 +501,12 @@ public class Math2 {
 			r ++;
 		return r;
 	}
-	
-	public static int firstAbove(double cutoff, double[] v) {
-		for (int i = 0; i < v.length; i ++)
-			if (v[i] > cutoff)
-				return i;
-		return v.length;
-	}
-	
-	public static int lastAbove(double cutoff, double[] v) {
-		for (int i = v.length-1; i >= 0; i --)
-			if (v[i] > cutoff)
-				return i;
-		return -1;
+
+	public static double[][] deepCopy(double[][] orig) {
+		double[][] copy = new double[orig.length][];
+		for (int i = 0; i < copy.length; i ++)
+			copy[i] = Arrays.copyOf(orig[i], orig[i].length);
+		return copy;
 	}
 
 	public static double min(double[] arr) {
@@ -935,6 +920,22 @@ public class Math2 {
 	}
 
 
+	public static double[] full(double value, int size) {
+		double[] array = new double[size];
+		for (int i = 0; i < size; i ++)
+			array[i] = value;
+		return array;
+	}
+
+
+	public static Quantity[] full(Quantity value, int size) {
+		Quantity[] array = new Quantity[size];
+		for (int i = 0; i < size; i ++)
+			array[i] = value;
+		return array;
+	}
+
+
 	/**
 	 * coerce x into the range [min, max]
 	 * @param min inclusive minimum
@@ -1039,7 +1040,25 @@ public class Math2 {
 			y[i] = Math.sqrt(x[i].variance(covariance));
 		return y;
 	}
-	
+
+	/**
+	 * do the convolution of a vector with a 1d kernel.  b should be odd in length
+	 * because I don't know how to center it otherwise, and symmetric because I
+	 * don't know which way it's going to be oriented here.
+	 * @param a vector
+	 * @param b vector
+	 * @return A.v vector
+	 */
+	public static double[] convolve(double[] a, double[] b) {
+		assert b.length%2 == 1;
+		double[] c = new double[a.length];
+		for (int i = 0; i < a.length; i ++)
+			for (int j = 0; j < b.length; j ++)
+				if (i + j - b.length/2 >= 0 && i + j - b.length/2 < c.length)
+					c[i + j - b.length/2] += a[i]*b[j];
+		return c;
+	}
+
 	/**
 	 * multiply a vector by a matrix
 	 * @param A matrix
@@ -1358,7 +1377,7 @@ public class Math2 {
 		for (int i = 0; i < hessian.length; i ++) {
 			double r = step[i];
 			double[] xL = Arrays.copyOf(x0, x0.length);
-			xL[i] += -dx[i];
+			xL[i] -= dx[i];
 			double l = function.apply(xL);
 			if (Double.isFinite(l)) {
 				hessian[i][i] = (r - 2*c + l)/(dx[i]*dx[i]); // approximate it as paraboloidic

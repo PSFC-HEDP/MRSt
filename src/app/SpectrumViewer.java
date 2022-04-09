@@ -297,6 +297,7 @@ public class SpectrumViewer extends Application {
 						PythonPlot.plotLines("-",
 											 mc.getEnergyAxis(), "Energy (MeV)",
 											 timeIntegrate(mc.getDeuteronSpectrum()), null, "Deuterons",
+											 timeIntegrate(mc.guessDeuteronSpectrum()), null, "Deuterons",
 											 timeIntegrate(mc.getSignalDistribution()), null, "Signal");
 					} catch (IOException e) {
 						logger.log(Level.SEVERE, "Could not access plotting scripts and/or plots", e);

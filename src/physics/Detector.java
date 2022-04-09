@@ -37,17 +37,23 @@ public abstract class Detector {
 	 * the greatest amount of signal in a space unit that is measured linearly (signal/space)
 	 */
 	private final double saturationLimitPerPixel;
+	/**
+	 * the amount of signal generated for each deuteron that is detected (signal/deuteron)
+	 */
+	public final double gain;
 
 	/**
 	 * supply the basic parameters for a generic Detector
 	 * @param background the background level in a single space unit (signal/space)
 	 * @param noise the background variance in a single space unit (signal^2/space)
 	 * @param saturation the signal density at which it saturates (signal/space)
+	 * @param gain the amount of signal generated for each deuteron that is detected (signal/deuteron)
 	 */
-	protected Detector(double background, double noise, double saturation) {
+	protected Detector(double background, double noise, double saturation, double gain) {
 		this.backgroundPerPixel = background;
 		this.noisePerPixel = noise;
 		this.saturationLimitPerPixel = saturation;
+		this.gain = gain;
 	}
 
 	/**
@@ -62,7 +68,7 @@ public abstract class Detector {
 	 * @param energy energy of the neutron (MeV)
 	 * @return the gain (signal/deuteron)
 	 */
-	abstract double gain(double energy);
+	abstract double efficiency(double energy);
 
 	/**
 	 * the size of one bin in whatever unit is relevant to the detector; this
@@ -70,7 +76,7 @@ public abstract class Detector {
 	 * @param energy the energy at which to evaluate it (MeV)
 	 * @param energyBins the energy bin edges (MeV)
 	 * @param timeBins the time bin edges (ns)
-	 * @return a conversion factor (space/bin)
+	 * @return a conversion factor (space/bin^2)
 	 */
 	protected double pixelsPerBin(double energy, double[] energyBins, double[] timeBins) {
 		return 1;
@@ -81,11 +87,14 @@ public abstract class Detector {
 	 * @param energy the energy at which to evaluate it (MeV)
 	 * @param energyBins the energy bin edges (MeV)
 	 * @param timeBins the time bin edges (ns)
-	 * @return a variance (signal^2/bin)
+	 * @return a variance (signal^2/bin^2)
 	 */
 	public final double noise(double energy, double[] energyBins, double[] timeBins) {
-		return this.noisePerPixel
-			  *this.pixelsPerBin(energy, energyBins, timeBins);
+		if (this.efficiency(energy) > 0)
+			return this.noisePerPixel
+				  *this.pixelsPerBin(energy, energyBins, timeBins);
+		else
+			return 0;
 	}
 
 	/**
@@ -93,48 +102,25 @@ public abstract class Detector {
 	 * @param energy the energy at which to evaluate it (MeV)
 	 * @param energyBins the energy bin edges (MeV)
 	 * @param timeBins the time bin edges (ns)
+	 * @return the bin value (signal/bin^2)
 	 */
 	public final double background(double energy, double[] energyBins, double[] timeBins) {
-		return this.backgroundPerPixel
-			  *this.pixelsPerBin(energy, energyBins, timeBins);
+		if (this.efficiency(energy) > 0)
+			return this.backgroundPerPixel
+				  *this.pixelsPerBin(energy, energyBins, timeBins);
+		else
+			return 0;
 	}
 
 	/**
 	 * the signal level in one bin that will cause it to start saturating.
 	 * @param energyBins the energy bin edges (MeV)
 	 * @param timeBins the time bin edges (ns)
+	 * @return the maximum value at which the response is linear (signal/bin^2)
 	 */
 	public final double saturationLimit(double energy, double[] energyBins, double[] timeBins) {
 		return this.saturationLimitPerPixel
 			  *this.pixelsPerBin(energy, energyBins, timeBins);
-	}
-
-	/**
-	 * the mean gain over the given energies
-	 * @param minEnergy the lower neutron energy bound (MeV n)
-	 * @param maxEnergy the upper neutron energy bound (MeV n)
-	 */
-	public double averageGain(double minEnergy, double maxEnergy) {
-		double totalGain = 0;
-		int res = 20;
-		for (int i = -res; i <= res; i ++) // perform an unweited mean over [13.5, 14.5] MeV
-			totalGain += this.gain(minEnergy + (maxEnergy - minEnergy)*i/res);
-		return totalGain / (2.*res + 1);
-	}
-
-	/**
-	 * the fraction of deuterons in this energy range that make it thru
-	 * @param minEnergy the lower neutron energy bound (MeV n)
-	 * @param maxEnergy the upper neutron energy bound (MeV n)
-	 * @return a number in [0, 1]
-	 */
-	public final double quantumEfficiency(double minEnergy, double maxEnergy) {
-		double survivingDeuterons = 0;
-		int res = 20;
-		for (int i = -res; i <= res; i ++) // perform an unweited mean over [13.5, 14.5] MeV
-			if (this.gain(minEnergy + (maxEnergy - minEnergy)*i/res) > 0)
-				survivingDeuterons += 1;
-		return survivingDeuterons / (2.*res + 1);
 	}
 
 
@@ -142,9 +128,9 @@ public abstract class Detector {
 		public static DetectorConfiguration SINGLE_STREAK_CAMERA =
 			  new DetectorConfiguration("MRSt_IRF_FP_00deg",
 										0.00000, 11.5e-9,
-										new double[] {-0.75e-2},
-										new double[] {2.5e-2},
-										new double[] {200e-6});
+										new double[] {-8.0e-2, 1.0e-2},
+										new double[] {2.5e-2, 2.5e-2},
+										new double[] {200e-6, 200e-6});
 		public static DetectorConfiguration DOUBLE_STREAK_CAMERA =
 			  new DetectorConfiguration("MRSt_IRF_FP_70deg",
 										66.58565, 4.5e-9,

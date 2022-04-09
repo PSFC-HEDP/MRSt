@@ -59,7 +59,6 @@ public class PulseDilationDriftTube extends Detector {
 	private final double driftLength; // [m]
 	private final double dilation;
 	private final double openAreaRatio;
-	private final double averageGain;
 
 	private final double energyFactor;
 
@@ -84,7 +83,7 @@ public class PulseDilationDriftTube extends Detector {
 	 * @param driftLength the length of the the PDDT [m]
 	 * @param dilation the factor by which the signal is time-dilated
 	 * @param openAreaRatio the fraccion of the MCT that is open
-	 * @param averageGain the average number of electrons an MCT cascade produces
+	 * @param gain the average number of electrons an MCT cascade produces
 	 * @throws IOException if it can't find the stopping power file
 	 */
 	public PulseDilationDriftTube(Particle ion,
@@ -93,11 +92,12 @@ public class PulseDilationDriftTube extends Detector {
 								  double bias,
 								  double meshLength, double driftLength,
 								  double dilation,
-								  double openAreaRatio, double averageGain,
+								  double openAreaRatio, double gain,
 								  int integrationResolution) throws IOException {
 		super(0, // TODO
 			  0, // TODO
-			  Double.POSITIVE_INFINITY);
+			  Double.POSITIVE_INFINITY,
+			  gain);
 
 		double A = ion.mass/Particle.N.mass;
 		this.energyFactor = 4*A/Math.pow(A + 1, 2);
@@ -107,7 +107,6 @@ public class PulseDilationDriftTube extends Detector {
 		this.driftLength = driftLength;
 		this.dilation = dilation;
 		this.openAreaRatio = openAreaRatio;
-		this.averageGain = averageGain;
 
 		double[][] stoppingDataSi = CSV.read(
 				new File(String.format(SUBSTRATE_STOPPING_FILENAME, ion.name)),
@@ -165,15 +164,15 @@ public class PulseDilationDriftTube extends Detector {
 				for (int j = 0; j < timeBins.length-1; j ++)
 					outSpectrum[i][j] = Math2.erlang(
 						  Math2.poisson(outSpectrum[i][j], NOISE_RANDOM),
-						  averageGain, NOISE_RANDOM);
+						  gain, NOISE_RANDOM);
 		}
 
 		return outSpectrum;
 	}
 
 	@Override
-	public double gain(double energy) {
-		return this.averageGain*this.electronsPerDeuteron.evaluate(energy)*this.openAreaRatio;
+	public double efficiency(double energy) {
+		return this.electronsPerDeuteron.evaluate(energy)*this.openAreaRatio;
 	}
 
 	/**
@@ -295,7 +294,7 @@ public class PulseDilationDriftTube extends Detector {
 					blurredDist[i] += kernel[j]*dist[i - j];
 
 			System.out.println("Energy: " + energy);
-			System.out.println("Signal amplification: " + (Math2.sum(dist)/detector.averageGain/n));
+			System.out.println("Signal amplification: " + (Math2.sum(dist)/detector.gain/n));
 			System.out.println("Effective time resolution degradation: " + Math2.fwhm(axis, dist) + " ps");
 			if (energy == 12.5) {
 //				PythonPlot.plotLines("Energy histogram", axis, "Time [ps]", dist, errors, "Electrons");

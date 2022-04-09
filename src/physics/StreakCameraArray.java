@@ -75,7 +75,7 @@ public class StreakCameraArray extends Detector {
 		  double pixelArea, IonOptics optics) {
 		super(backgroundDensity*Math2.gamma(4, 4, MC_RANDOM),
 			  noiseDensity*Math2.gamma(4, 4, MC_RANDOM),
-			  saturationLimitDensity);
+			  saturationLimitDensity, gain);
 
 		if (slitPositions.length != slitWidths.length)
 			throw new IllegalArgumentException("number of slits must match");
@@ -122,10 +122,10 @@ public class StreakCameraArray extends Detector {
 	}
 
 	@Override
-	public double gain(double energy) {
+	public double efficiency(double energy) {
 		int i = whichSlit(energy);
 		if (i >= 0)
-			return this.gain*Math.min(1, slitWidths[i]/bowtieHite.evaluate(energy));
+			return Math.min(1, slitWidths[i]/bowtieHite.evaluate(energy));
 		return 0;
 	}
 
@@ -147,6 +147,7 @@ public class StreakCameraArray extends Detector {
 		double[][] timeResponses = new double[slitWidths.length][];
 		for (int i = 0; i < slitWidths.length; i ++) {
 			double timeWidth = slitWidths[i]/streakSpeed/1e-9; // (ns)
+//			System.out.println("the slit degrades the resolution by "+timeWidth*1e3+"ps");
 			double timeStep = timeBins[1] - timeBins[0]; // (ns)
 			int kernelSize = (int) Math.ceil(timeWidth/timeStep);
 			if (kernelSize%2 != 1)
@@ -161,30 +162,41 @@ public class StreakCameraArray extends Detector {
 		double[][] outSpectrum = new double[energyBins.length-1][timeBins.length-1];
 		for (int i = 0; i < energyBins.length-1; i ++) {
 			double energy = (energyBins[i] + energyBins[i+1])/2;
+			double σ = stochastic ? Math.sqrt(noise(energy, energyBins, timeBins)) : 0;
+
 			int slit = whichSlit(energy);
 			if (slit >= 0) {
-				for (int j = 0; j < timeBins.length - 1; j ++) // add the background
-					outSpectrum[i][j] = background(energy, energyBins, timeBins);
+				for (int j = 0; j < timeBins.length - 1; j ++) { // add the background
+					double level = background(energy, energyBins, timeBins);
+					if (stochastic)
+						outSpectrum[i][j] = Math2.normal(level, σ, NOISE_RANDOM);
+					else
+						outSpectrum[i][j] = level;
+				}
 
-				double gain = this.gain(energy); // then convolve in the signal
-				for (int j = 0; j < timeBins.length - 1; j ++) {
+				for (int j = 0; j < timeBins.length - 1; j ++) { // then convolve in the signal
 					for (int l = 0; l < timeResponses[slit].length; l ++) {
 						int dj = l - timeResponses[slit].length/2;
-						if (j + dj >= 0 && j + dj < timeBins.length - 1)
-							outSpectrum[i][j] += gain*timeResponses[slit][l]*inSpectrum[i][j + dj];
-					}
-				}
-				if (stochastic) { // add noise
-					for (int j = 0; j < timeBins.length - 1; j ++) {
-						double σ = Math.sqrt(noise(energy, energyBins, timeBins));
-						if (outSpectrum[i][j] > 0)
-							outSpectrum[i][j] = Math2.normal(outSpectrum[i][j], σ, NOISE_RANDOM);
+						if (j + dj >= 0 && j + dj < timeBins.length - 1) {
+							double source = inSpectrum[i][j + dj];
+							double portion = this.efficiency(energy)*timeResponses[slit][l]; // accounting for quantum efficiency
+							if (stochastic)
+								outSpectrum[i][j] += gain*Math2.binomial(
+									  (int)source, portion, NOISE_RANDOM); // as well as gain
+							else
+								outSpectrum[i][j] += gain*source*portion;
+						}
 					}
 				}
 			}
 		}
 
 		return outSpectrum;
+	}
+
+	public double spectralRange() {
+		return slitRiteBounds[slitRiteBounds.length-1] -
+			  slitLeftBounds[slitLeftBounds.length-1];
 	}
 
 	/**

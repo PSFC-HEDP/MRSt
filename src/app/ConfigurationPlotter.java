@@ -90,7 +90,7 @@ public class ConfigurationPlotter {
 					}
 					
 					System.out.printf("[%g, %g, %g, %g, %g, %g, %g, %g, %g, %g],\n",
-							rFoil, tFoil, wAperture, 20e-3, energyRes, timeRes, mc.gain(14), errs[0], errs[1], errs[2]);
+							rFoil, tFoil, wAperture, 20e-3, energyRes, timeRes, mc.efficiency(14), errs[0], errs[1], errs[2]);
 				}
 			}
 		}
