@@ -98,10 +98,10 @@ public class Analysis {
 	private double[][] fitDeuteronSpectrum; // backward-fit deuteron counts (this should be similar to deuteronSpectrum)
 	private double[][] fitSignalDistribution; // backward-fit deuteron counts
 	
-	private final double[] energyAxis; // centers of energy bins [ns]
+	private final double[] energyAxis; // centers of energy bins (MeV)
 	private final double preferredTimeStep;
 	private double timeStep;
-	private double[] timeAxis; // centers of time bins [ns]
+	private double[] timeAxis; // centers of time bins (ns)
 	private Quantity[] neutronYield; // 1e15/ns
 	private Quantity[] ionTemperature; // keV
 	private Quantity[] arealDensity; // g/cm^2
@@ -601,6 +601,19 @@ public class Analysis {
 //		catch (IOException e) {
 //			System.err.println("the test thing didn't work.");
 //		}
+							neutronYield[j] = 0;
+							ionTemperature[j] = Ti[time.length-1];
+							arealDensity[j] = ρR[time.length-1];
+						} else {
+							neutronYield[j] = Math2.interp(timeAxis[j], time, Yn);
+							ionTemperature[j] = Math2.interp(timeAxis[j], time, Ti);
+							arealDensity[j] = Math2.interp(timeAxis[j], time, ρR);
+						}
+					}
+				}
+				catch (IOException e) {
+					System.err.println("the test thing didn't work.");
+				}
 
 		// determine the bounds of the region that's worth optimizing
 		double[] statistics = new double[M];

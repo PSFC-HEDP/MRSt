@@ -180,7 +180,7 @@ public class Math2 {
 		}
 	}
 
-	public static double binomial(int n, double p, Random random) {
+	public static int binomial(int n, double p, Random random) {
 		if (p < 0 || p > 1)
 			throw new IllegalArgumentException("p must be in [0, 1] but you passd "+p);
 		if (n < 0)
@@ -189,8 +189,10 @@ public class Math2 {
 			return 0;
 		else if (p*n < 20) {
 			double[] P = new double[n + 1];
+			double logp = Math.log(p);
+			double logq = Math.log(1 - p);
 			for (int i = 0; i <= Math.min(n, 40); i ++)
-				P[i] = Math.pow(1 - p, i) * Math.pow(p, n - i);
+				P[i] = Math.exp(Math2.logChoose(n, i) + i*logp + (n - i)*logq);
 			double total = Math2.sum(P);
 			double u = random.nextDouble()*total;
 			for (int i = 0; i <= n; i ++) {
@@ -205,7 +207,8 @@ public class Math2 {
 			return n - binomial(n, 1 - p, random);
 		}
 		else {
-			return normal(n*p, Math.sqrt(n*p*(1 - p)), random);
+			return (int) Math.round(Math.max(0, Math.min(n,
+					normal(n*p, Math.sqrt(n*p*(1 - p)), random))));
 		}
 	}
 
@@ -1301,7 +1304,20 @@ public class Math2 {
 		}
 		return t * Math.exp(-z * z + 0.5 * (cof[0] + ty * d) - dd);
 	}
-	
+
+	/**
+	 * the log of the binomial coefficient function
+	 * @param n the number of possibilities
+	 * @param k the number in the selected set
+	 * @return the number of combinations
+	 */
+	public static double logChoose(int n, int k) {
+		double C = 1;
+		for (int i = 1; i <= k; i ++)
+			C += Math.log((double)(n - k + i)/i);
+		return C;
+	}
+
 	/**
 	 * Legendre polynomial of degree n
 	 * @param n the order of the polynomial
@@ -1847,9 +1863,23 @@ public class Math2 {
 ////		double[] pdf = {5, 3, 5, 8, 1, 0};
 ////		for (int i = 0; i < 100000; i ++)
 ////			System.out.printf("%.6f,\n", gamma(7.5, .06, new Random()));
-		Function<double[], Double> f = (double[] x) -> x[0]*x[0] - 3*x[1]*x[0] + 7*x[1]*x[1] + Math.exp(x[0] - 10);
-		double[] x0 = {10, 0};
-		double[] dx = {1e-3, 1e-3};
-		System.out.println(Arrays.deepToString(hessian(f, x0, dx)));
+//		Function<double[], Double> f = (double[] x) -> x[0]*x[0] - 3*x[1]*x[0] + 7*x[1]*x[1] + Math.exp(x[0] - 10);
+//		double[] x0 = {10, 0};
+//		double[] dx = {1e-3, 1e-3};
+//		System.out.println(Arrays.deepToString(hessian(f, x0, dx)));
+		Random random = new Random();
+		for (int i = 0; i < 100; i ++) {
+			int n = 2 + (int)(-6*Math.log(Math.random()));
+			double p = (Math.cos(Math.random()*Math.PI) + 1)/2.;
+			int draw = binomial(n, p, random);
+			System.out.printf("%d, %.3f, %d / %.3f = %.3f\n", n, p, draw, n*p, draw/(n*p));
+		}
+//		System.out.println(Math.exp(logChoose(1000, 5)));
+//		System.out.println(Math.exp(logChoose(1000, 6)));
+//		System.out.println(Math.exp(logChoose(1000, 7)));
+//		System.out.println(Math.exp(logChoose(1000, 8)));
+//		System.out.println(Math.exp(logChoose(1000, 9)));
+//		System.out.println(Math.exp(logChoose(1000, 20)));
+//		System.out.println(Math.exp(logChoose(1000, 50)));
 	}
 }

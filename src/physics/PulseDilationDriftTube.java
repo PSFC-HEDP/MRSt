@@ -299,7 +299,7 @@ public class PulseDilationDriftTube extends Detector {
 			if (energy == 12.5) {
 //				PythonPlot.plotLines("Energy histogram", axis, "Time [ps]", dist, errors, "Electrons");
 //				PythonPlot.plotLines("MCP response function", kernelAxis, "Time [ps]", kernel, errors, " ");
-				PythonPlot.plotLines("Measured signal", axis, "Time [ps]", blurredDist, errors, "Signal level");
+				PythonPlot.plotLines("Measured signal", null, axis, "Time [ps]", blurredDist, errors, "Signal level");
 			}
 		}
 	}

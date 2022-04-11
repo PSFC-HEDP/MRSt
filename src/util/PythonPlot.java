@@ -53,7 +53,8 @@ public class PythonPlot {
 	 *                for that data, ...}
 	 * @throws IOException if there's an issue talking to disk
 	 */
-	public static void plotLines(String name, double[] x, String xLabel, Object... yDatums) throws IOException {
+	public static void plotLines(String title, String name, double[] x, String xLabel,
+								 Object... yDatums) throws IOException {
 		double[][] ys = new double[yDatums.length/3][];
 		double[][] Δs = new double[yDatums.length/3][];
 		String[] yLabels = new String[yDatums.length/3];
@@ -66,14 +67,14 @@ public class PythonPlot {
 		}
 
 		new File("output/").mkdir();
-		CSV.writeColumn(x, new File(String.format("output/%s_x.csv", "data")));
+		CSV.writeColumn(x, new File(String.format("output/%s_x.csv", title)));
 		for (int i = 0; i < ys.length; i ++) {
-			CSV.writeColumn(ys[i], new File(String.format("output/%s_y_%d.csv", "Data", i)));
-			CSV.writeColumn(Δs[i], new File(String.format("output/%s_err_%d.csv", "Data", i)));
+			CSV.writeColumn(ys[i], new File(String.format("output/%s_y_%d.csv", title, i)));
+			CSV.writeColumn(Δs[i], new File(String.format("output/%s_err_%d.csv", title, i)));
 		}
 		ProcessBuilder plotPB = new ProcessBuilder("python", "src/python/plot1.py",
 		                                           xLabel, String.join("\n", yLabels),
-		                                           "data", name, Integer.toString(ys.length));
+		                                           title, name, Integer.toString(ys.length));
 		System.out.println(plotPB.command());
 		plotPB.start();
 	}

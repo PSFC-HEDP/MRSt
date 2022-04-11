@@ -119,8 +119,6 @@ public class Optimization {
 			if (f < lowestValue) { // keep track of the lowest value we could find just in case all fails
 				lowestPlace = med;
 				lowestValue = f;
-				if (Double.isNaN(lowestValue))
-					throw new IllegalStateException("I literally just asked you if f was NaN");
 			}
 			if (f > f0 + α*(med - x0)*δf0) { // if the decrease condition is not met
 				max = med; // we need to go closer
@@ -134,8 +132,6 @@ public class Optimization {
 					med = (max + min)/2;
 				}
 				else if (med == truMax) {
-//					if (Double.isNaN(func.apply(truMax)))
-//						throw new IllegalStateException("But I already asked if f(med) was NaN! "+f);
 					return truMax; // this might be the best we can get
 				}
 				else {
@@ -144,9 +140,7 @@ public class Optimization {
 				}
 				continue;
 			}
-			
-//			if (Double.isNaN(func.apply(med)))
-//				throw new IllegalArgumentException("What are you doing? I asked you if f was NaN and you sed no!");
+
 			return med; // if both are met, we're done here
 		}
 	}
@@ -201,9 +195,12 @@ public class Optimization {
 			int iBest = Math2.argmin(fx);
 			
 			boolean done = true;
-			for (int j = 0; j < scale.length; j ++)
-				if (Math.abs(x[iBest].get(0,j) - x[iWorst].get(0,j)) > tol*scale[j])
+			for (int j = 0; j < scale.length; j ++) {
+				if (Math.abs(x[iBest].get(0, j) - x[iWorst].get(0, j)) > tol*scale[j]) {
 					done = false;
+					break;
+				}
+			}
 			if (done)
 				return x[iBest].values[0];
 			
@@ -1097,7 +1094,7 @@ public class Optimization {
 			for (int i = 0; i < this.getN(); i ++)
 				for (int j = 0; j < this.getN(); j ++)
 					valuesClone[i][j] = this.values[i][j];
-			return new Matrix(invert(valuesClone));
+			return new Matrix(Math2.matinv(valuesClone));
 		}
 		
 		/**
@@ -1181,94 +1178,6 @@ public class Optimization {
 				str.append("],\n");
 			}
 			return str + "])";
-		}
-	}
-	
-	
-	/**
-	 * copied from https://www.sanfoundry.com/java-program-find-inverse-matrix/
-	 */
-	private static double[][] invert(double[][] a) {
-		int n = a.length;
-		double[][] x = new double[n][n];
-		double[][] b = new double[n][n];
-		int[] index = new int[n];
-		for (int i = 0; i < n; ++i)
-			b[i][i] = 1;
-
-		// Transform the matrix into an upper triangle
-		gaussian(a, index);
-
-		// Update the matrix b[i][j] with the ratios stored
-		for (int i = 0; i < n - 1; ++i)
-			for (int j = i + 1; j < n; ++j)
-				for (int k = 0; k < n; ++k)
-					b[index[j]][k] -= a[index[j]][i] * b[index[i]][k];
-
-		// Perform backward substitutions
-		for (int i = 0; i < n; ++i) {
-			x[n - 1][i] = b[index[n - 1]][i] / a[index[n - 1]][n - 1];
-			for (int j = n - 2; j >= 0; --j) {
-				x[j][i] = b[index[j]][i];
-				for (int k = j + 1; k < n; ++k) {
-					x[j][i] -= a[index[j]][k] * x[k][i];
-				}
-				x[j][i] /= a[index[j]][j];
-			}
-		}
-		return x;
-	}
-
-	/**
-	 * Method to carry out the partial-pivoting Gaussian
-	 * elimination. Here index[] stores pivoting order.
-	 */
-	private static void gaussian(double[][] a, int[] index) {
-		int n = index.length;
-		double[] c = new double[n];
-
-		// Initialize the index
-		for (int i = 0; i < n; ++i)
-			index[i] = i;
-
-		// Find the rescaling factors, one from each row
-		for (int i = 0; i < n; ++i) {
-			double c1 = 0;
-			for (int j = 0; j < n; ++j) {
-				double c0 = Math.abs(a[i][j]);
-				if (c0 > c1)
-					c1 = c0;
-			}
-			c[i] = c1;
-		}
-
-		// Search the pivoting element from each column
-		int k = 0;
-		for (int j = 0; j < n - 1; ++j) {
-			double pi1 = 0;
-			for (int i = j; i < n; ++i) {
-				double pi0 = Math.abs(a[index[i]][j]);
-				pi0 /= c[index[i]];
-				if (pi0 > pi1) {
-					pi1 = pi0;
-					k = i;
-				}
-			}
-
-			// Interchange rows according to the pivoting order
-			int itmp = index[j];
-			index[j] = index[k];
-			index[k] = itmp;
-			for (int i = j + 1; i < n; ++i) {
-				double pj = a[index[i]][j] / a[index[j]][j];
-
-				// Record pivoting ratios below the diagonal
-				a[index[i]][j] = pj;
-
-				// Modify other elements accordingly
-				for (int l = j + 1; l < n; ++l)
-					a[index[i]][l] -= pj * a[index[j]][l];
-			}
 		}
 	}
 	

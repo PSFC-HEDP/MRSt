@@ -128,7 +128,7 @@ public abstract class Detector {
 		public static DetectorConfiguration SINGLE_STREAK_CAMERA =
 			  new DetectorConfiguration("MRSt_IRF_FP_00deg",
 										0.00000, 11.5e-9,
-										new double[] {-8.0e-2, 1.0e-2},
+										new double[] {-8.0e-2, 0.5e-2},
 										new double[] {2.5e-2, 2.5e-2},
 										new double[] {200e-6, 200e-6});
 		public static DetectorConfiguration DOUBLE_STREAK_CAMERA =

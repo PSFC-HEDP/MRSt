@@ -8,8 +8,8 @@ if len(sys.argv) <= 1:
 	import os
 	os.chdir('../..')
 	print(os.getcwd())
-	# xlabel, ylabels, title, answer, n = 'Time (ns)', 'Yn (10^15/ns)\nTi (keV)\nρR (g/cm^2)', 'data', 'marginal', 3
-	xlabel, ylabels, title, answer, n = 'Energy (MeV)', 'Deuterons\nDeuterons\nSignal', 'data', '-', 3
+	# xlabel, ylabels, title, answer, n = 'Time (ns)', 'Yn (10^15/ns)\nTi (keV)\nρR (g/cm^2)', 'Trajectories', 'marginal', 3
+	xlabel, ylabels, title, answer, n = 'Energy (MeV)', 'Deuterons\nDeuterons\nSignal', 'Integrated spectra', '-', 3
 else:
 	xlabel, ylabels, title, answer, n = sys.argv[1:]
 
@@ -19,12 +19,12 @@ assert n_curves == len(ylabels)
 n_plots = len(set(ylabels))
 assert n_plots <= n_curves
 
+# load the A data from disc, where Java should have put it
 XA = np.loadtxt(f'output/{title}_x.csv', delimiter=',')
 YAs = [np.loadtxt(f'output/{title}_y_{i}.csv', delimiter=',') for i in range(n_curves)]
 ΔAs = [np.loadtxt(f'output/{title}_err_{i}.csv', delimiter=',') for i in range(n_curves)]
 
-x0 = XA[np.argmax(YAs[0])]
-
+# if an implosion name was given, load that as the B data
 if answer != '-':
 	try:
 		data = np.loadtxt(f'input/trajectories {answer}.csv', delimiter=',', skiprows=1) # get the true curves
@@ -36,12 +36,23 @@ if answer != '-':
 		# 	YBs[0] /= 10
 		YBs[0] *= np.sum(YAs[0]*np.gradient(XA))/np.sum(YBs[0]*np.gradient(XB))
 
-		x0 = XB[np.argmax(YBs[0])]
 	except IOError:
 		print(f"didn't find {answer}")
 		XB, YBs = None, None
+
 else:
 	XB, YBs = None, None
+
+# switch to a better coordinate system in x
+if "(ns)" in xlabel:
+	if XB is None:
+		x0 = XA[np.argmax(YAs[0])]
+	else:
+		x0 = XB[np.argmax(YBs[0])]
+	XA = (XA - x0)*1000
+	if XB is not None:
+		XB = (XB - x0)*1000
+	xlabel = xlabel.replace("ns", "ps")
 
 fig, host_ax = plt.subplots(figsize=(9,5))
 fig.subplots_adjust(right=1 - (0.12*(n_plots-1)))
@@ -71,10 +82,10 @@ for i in range(n_curves):
 		'S':(0, None),
 	}.get(ylabels[i][0], (None, None))
 	YAs[i][np.isnan(ΔAs[i])] = np.nan
-	plots.append(axes[j].plot((XA - x0)*1000, YAs[i], '-o', label=ylabels[i], color=f'C{i}')[0])
+	plots.append(axes[j].plot(XA, YAs[i], '-o', label=ylabels[i], color=f'C{i}')[0])
 	if XB is not None:
-		axes[j].plot((XB - x0)*1000, YBs[i], '--', color=f'C{i}')[0]
-	axes[j].fill_between((XA - x0)*1000, YAs[i] - ΔAs[i], YAs[i] + ΔAs[i], color='C'+str(i), alpha=0.3)
+		axes[j].plot(XB, YBs[i], '--', color=f'C{i}')[0]
+	axes[j].fill_between(XA, YAs[i] - ΔAs[i], YAs[i] + ΔAs[i], color='C'+str(i), alpha=0.3)
 	axes[j].set_ylabel(ylabels[i])
 	axes[j].set_ylim(*rainge)
 	# if "MeV" in xlabel:
@@ -82,9 +93,9 @@ for i in range(n_curves):
 
 	if ylabels[i].startswith('Y'):
 		Ymax = YAs[i].max(initial=0, where=np.isfinite(YAs[i]))
-		lims = (np.min(XA[YAs[i]/Ymax >= 1e-3]) - x0)*1000, (np.max(XA[YAs[i]/Ymax >= 1e-3]) - x0)*1000
+		lims = np.min(XA[YAs[i]/Ymax >= 1e-3]), np.max(XA[YAs[i]/Ymax >= 1e-3])
 		if not all(np.isfinite(lims)):
-			lims = (XA[0] - x0)*1000, (XA[-1] - x0)*1000
+			lims = XA[0], XA[-1]
 		axes[0].set_xlim(*lims)
 axes[0].set_xlabel(xlabel.replace("ns", "ps"))
 

@@ -282,7 +282,7 @@ public class SpectrumViewer extends Application {
 						            "Fitted neutron spectrum");
 						PythonPlot.plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getFitSignalDistribution(),
 						            "Fitted signal distribution");
-						PythonPlot.plotLines(spectrumName,
+						PythonPlot.plotLines("Trajectories", spectrumName,
 								mc.getTimeAxis(), "Time (ns)",
 						 		mc.getNeutronYield(), mc.getNeutronYieldError(), "Yn (10^15/ns)",
 								mc.getIonTemperature(), mc.getIonTemperatureError(), "Ti (keV)",
@@ -294,7 +294,7 @@ public class SpectrumViewer extends Application {
 												  "Time", "Energy (MeV)", "Synthetic deuteron spectrum", "Fit deuteron spectrum");
 						PythonPlot.compareHeatmap(mc.getTimeBins(), mc.getEnergyBins(), smallSpec, mc.getFitNeutronSpectrum(),
 												  "Time", "Energy (MeV)", "Original neutron spectrum", "Fit neutron spectrum");
-						PythonPlot.plotLines("-",
+						PythonPlot.plotLines("Integrated spectra", "-",
 											 mc.getEnergyAxis(), "Energy (MeV)",
 											 timeIntegrate(mc.getDeuteronSpectrum()), null, "Deuterons",
 											 timeIntegrate(mc.guessDeuteronSpectrum()), null, "Deuterons",
