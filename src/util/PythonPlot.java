@@ -75,7 +75,6 @@ public class PythonPlot {
 		ProcessBuilder plotPB = new ProcessBuilder("python", "src/python/plot1.py",
 		                                           xLabel, String.join("\n", yLabels),
 		                                           title, name, Integer.toString(ys.length));
-		System.out.println(plotPB.command());
 		plotPB.start();
 	}
 

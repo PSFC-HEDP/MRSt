@@ -20,20 +20,21 @@ Z = (
 	np.genfromtxt('output/{}_z.csv'.format(titleB), delimiter=','),
 )
 
-if 'euteron' in titleA:
-	Y *= 8/9
-
-X = (X[1:] + X[:-1])/2
 Y = (Y[1:] + Y[:-1])/2
+
+if "(ns)" in xlabel:
+	x0 = X[np.argmax(np.sum(Z[0], axis=0))]
+	X = (X - x0)*1000
+	xlabel = xlabel.replace("ns", "ps")
 
 fig, ax = plt.subplots()
 plt.subplots_adjust(bottom=0.2)
 
 axis = plt.axes([0.20, 0.05, 0.60, 0.03])
-slider = Slider = Slider(axis, 'Time', X[0], X[-1], valinit=X[len(X)//2])
+slider = Slider = Slider(axis, xlabel, X[0], X[-1], valinit=X[len(X)//2])
 def update(*args):
-	t = slider.val
-	j = int(round(np.interp(t, X, np.arange(len(X)))))
+	x = slider.val
+	j = np.minimum(np.digitize(x, X) - 1, Z[0].shape[1] - 1)
 	ax.clear()
 	ax.plot(Y, Z[0][:, j], '-', label=titleA)
 	ax.plot(Y, Z[1][:, j], '--', label=titleB)

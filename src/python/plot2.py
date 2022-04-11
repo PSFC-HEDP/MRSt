@@ -15,9 +15,6 @@ X = np.genfromtxt('output/{}_x.csv'.format(title), delimiter=',')
 Y = np.genfromtxt('output/{}_y.csv'.format(title), delimiter=',')
 Z = np.genfromtxt('output/{}_z.csv'.format(title), delimiter=',')
 
-if 'euteron' in title:
-	Y *= 8/9
-
 print(Z)
 
 if Z.max() / Z.min() > 3e3:

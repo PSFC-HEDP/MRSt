@@ -144,7 +144,7 @@ public class StreakCameraArray extends Detector {
 				if (Double.isNaN(val))
 					throw new IllegalArgumentException("this can't be nan.");
 
-		double[][] timeResponses = new double[slitWidths.length][];
+		double[][] timeResponses = new double[slitWidths.length][]; // TODO: account for inherent streak camera spatial resolution
 		for (int i = 0; i < slitWidths.length; i ++) {
 			double timeWidth = slitWidths[i]/streakSpeed/1e-9; // (ns)
 //			System.out.println("the slit degrades the resolution by "+timeWidth*1e3+"ps");
@@ -162,18 +162,9 @@ public class StreakCameraArray extends Detector {
 		double[][] outSpectrum = new double[energyBins.length-1][timeBins.length-1];
 		for (int i = 0; i < energyBins.length-1; i ++) {
 			double energy = (energyBins[i] + energyBins[i+1])/2;
-			double σ = stochastic ? Math.sqrt(noise(energy, energyBins, timeBins)) : 0;
 
 			int slit = whichSlit(energy);
 			if (slit >= 0) {
-				for (int j = 0; j < timeBins.length - 1; j ++) { // add the background
-					double level = background(energy, energyBins, timeBins);
-					if (stochastic)
-						outSpectrum[i][j] = Math2.normal(level, σ, NOISE_RANDOM);
-					else
-						outSpectrum[i][j] = level;
-				}
-
 				for (int j = 0; j < timeBins.length - 1; j ++) { // then convolve in the signal
 					for (int l = 0; l < timeResponses[slit].length; l ++) {
 						int dj = l - timeResponses[slit].length/2;
@@ -188,6 +179,17 @@ public class StreakCameraArray extends Detector {
 						}
 					}
 				}
+
+				for (int j = 0; j < timeBins.length - 1; j ++) { // add the background
+					double level = background(energy, energyBins, timeBins);
+					if (stochastic) {
+						double σ2 = noise(energy, energyBins, timeBins) + outSpectrum[i][j];
+						outSpectrum[i][j] += Math2.normal(level, Math.sqrt(σ2), NOISE_RANDOM);
+					}
+					else
+						outSpectrum[i][j] += level;
+				}
+
 			}
 		}
 

@@ -87,7 +87,7 @@ public class IonOptics {
 	private final double calibrationPrecision; // the error in the transfer function
 	private final boolean reuseMatrix; // if this is true, it ignores all this and loads whatever it had last time
 
-	private final double energyFactor; // conversion factor between neutron and ion energies []
+	public final double energyFactor; // conversion factor between neutron and ion energies []
 	private final double probHitsFoil; // probability that the neutron goes through the foil
 
 	private double[] energyBins; // the energy bins that were last used to compute the transfer matrix

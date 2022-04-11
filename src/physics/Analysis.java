@@ -90,15 +90,17 @@ public class Analysis {
 
 	private final double precision; // factor by which to ease the convergence conditions
 
-	private final double[] energyBins; // endpoints of E bins for inferred spectrum [MeV]
+	private final double[] energyBins; // endpoints of E bins for inferred spectrum (MeV n)
+	private final double[] deuteronEnergyBins; // endpoints of E bins for inferred spectrum (MeV d)
 	private double[] timeBins; // endpoints of time bins for inferred spectrum [ns]
 	private double[][] deuteronSpectrum; // time-corrected deuteron counts
 	private double[][] signalDistribution; // 2D-resolved signal measurement
 	private double[][] fitNeutronSpectrum; // backward-fit neutron counts
 	private double[][] fitDeuteronSpectrum; // backward-fit deuteron counts (this should be similar to deuteronSpectrum)
 	private double[][] fitSignalDistribution; // backward-fit deuteron counts
-	
-	private final double[] energyAxis; // centers of energy bins (MeV)
+
+	private final double[] energyAxis; // centers of energy bins (MeV neutron)
+	private final double[] deuteronEnergyAxis; // centers of energy bins (MeV deuteron)
 	private final double preferredTimeStep;
 	private double timeStep;
 	private double[] timeAxis; // centers of time bins (ns)
@@ -227,12 +229,18 @@ public class Analysis {
 		this.precision = precision;
 
 		this.energyBins = new double[(int) ((MAX_E - MIN_E)/eBin + 1)];
-		for (int i = 0; i < energyBins.length; i ++)
-			this.energyBins[i] = (MIN_E + i*(MAX_E - MIN_E)/(energyBins.length-1));
+		this.deuteronEnergyBins = new double[energyBins.length];
+		for (int i = 0; i < energyBins.length; i ++) {
+			this.energyBins[i] = (MIN_E + i*(MAX_E - MIN_E)/(energyBins.length - 1));
+			this.deuteronEnergyBins[i] = this.energyBins[i]*ionOptics.energyFactor;
+		}
 
 		this.energyAxis = new double[energyBins.length-1];
-		for (int i = 0; i < energyBins.length-1; i ++)
-			this.energyAxis[i] = (this.energyBins[i] + this.energyBins[i+1])/2;
+		this.deuteronEnergyAxis = new double[energyBins.length-1];
+		for (int i = 0; i < energyBins.length-1; i ++) {
+			this.energyAxis[i] = (this.energyBins[i] + this.energyBins[i + 1])/2;
+			this.deuteronEnergyAxis[i] = this.energyAxis[i]*ionOptics.energyFactor;
+		}
 
 		this.preferredTimeStep = tBin;
 
@@ -848,7 +856,7 @@ public class Analysis {
 
 		// fit each band individually given the time resolution and efficiency at that energy
 		double[] primaryNeutrons = fitInBand(primarySignal, 6.0, 0, cutoff, MAX_E);
-		double[] dsNeutrons = fitInBand(dsSignal, 0, 1, cutoff, MAX_E); // note that this is primary yield times ρR/(g/cm^2)
+		double[] dsNeutrons = fitInBand(dsSignal, 0, 1, 0, cutoff); // note that this is primary yield times ρR/(g/cm^2)
 
 		// finally, infer the burn history and rhoR point-by-point
 		for (int j = 0; j < timeAxis.length; j ++) {
@@ -909,7 +917,9 @@ public class Analysis {
 				double theorNumber = (theorValues[i] - backgrounds[i])/detector.gain;
 				double experNumber = (experValues[i] - backgrounds[i])/detector.gain;
 				if (variances[i] > 0) { // if this detector has significant noise
-					double variance = variances[i] + theorNumber*Math.pow(detector.gain, 2); // include pre-amplification poisson noise
+					double variance = variances[i]
+						  + theorNumber*detector.gain // include the poisson noise of the signal electrons
+						  + theorNumber*detector.gain*detector.gain; // include pre-amplification poisson noise
 					totalError += Math.pow(experValues[i] - theorValues[i], 2)/
 						  (2*variance); // and use a Gaussian approximation
 				}
@@ -946,15 +956,15 @@ public class Analysis {
 				  (Math.exp(slope1 - slope0) - Math.exp((slope1 - slope0)/2)*2 + 1); // encourage a smooth burn history with no local mins
 		}
 		for (int j = 0; j < timeAxis.length; j ++)
-			totalPenalty += arealDensity[j]/5.0 - Math.log(arealDensity[j]/50.0); // gamma prior on areal density
+			totalPenalty += arealDensity[j]/5.0 - Math.log(arealDensity[j])/50.0; // gamma prior on areal density
 		for (int j = 0; j < timeAxis.length; j ++)
 			totalPenalty += Math.pow((Math.log(ionTemperature[j]) - 0.2)/2.5, 2); // log-normal prior on Ti
 		for (double[] x: new double[][] {ionTemperature, arealDensity}) {
-			for (int j = 0; j < timeAxis.length - 3; j ++) {
-				if (active == null || (active[j] && active[j+1] && active[j+2] && active[j+3])) {
-					double Ψpp = (x[j] - 3*x[j+1] + 3*x[j+2] - x[j+3])/
+			for (int j = 0; j < timeAxis.length - 2; j ++) {
+				if (active == null || (active[j] && active[j+1] && active[j+2])) {
+					double Ψpp = (x[j] - 2*x[j+1] + x[j+2])/
 						  Math.pow(timeStep, 3);
-					double Ψ = (x[j] + x[j+1] + x[j+2] + x[j+3])/4;
+					double Ψ = (x[j] + x[j+1] + x[j+2])/3;
 					totalPenalty += smoothing*1e-10*Math.pow(Ψpp/Ψ, 2); // encourage a smooth Ti and ρR
 				}
 			}
@@ -1101,9 +1111,13 @@ public class Analysis {
 	public double[] getTimeBins() {
 		return this.timeBins;
 	}
-	
+
 	public double[] getEnergyBins() {
 		return this.energyBins;
+	}
+
+	public double[] getDeuteronEnergyBins() {
+		return this.deuteronEnergyBins;
 	}
 
 	public double[][] getDeuteronSpectrum() {
@@ -1126,6 +1140,15 @@ public class Analysis {
 		return this.fitSignalDistribution;
 	}
 
+	public double[][] getBackgroundSpectrum() {
+		double[][] background = new double[energyAxis.length][timeAxis.length];
+		for (int i = 0; i < energyAxis.length; i ++)
+			background[i] = Math2.full(
+				  detector.background(energyAxis[i], energyBins, timeBins),
+				  timeAxis.length);
+		return background;
+	}
+
 	public double[][] guessDeuteronSpectrum() {
 		double[][] deuterons = new double[energyAxis.length][timeAxis.length];
 		for (int i = 0; i < energyAxis.length; i ++) {
@@ -1145,14 +1168,21 @@ public class Analysis {
 	public double[] getTimeAxis() {
 		return this.timeAxis;
 	}
-	
+
 	/**
 	 * get the energy bin centers in MeV
 	 */
 	public double[] getEnergyAxis() {
 		return this.energyAxis;
 	}
-	
+
+	/**
+	 * get the energy bin centers in MeV
+	 */
+	public double[] getDeuteronEnergyAxis() {
+		return this.deuteronEnergyAxis;
+	}
+
 	/**
 	 * get the neutron yield mean values in [10^15/ns]
 	 */
