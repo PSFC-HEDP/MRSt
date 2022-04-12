@@ -5,20 +5,26 @@ from matplotlib.widgets import Slider
 import sys
 matplotlib.rc('font', size=16)
 
+def true_max(*args):
+	return max([np.max(arg, where=~np.isnan(arg), initial=-np.inf) for arg in args])
+
+def true_min(*args):
+	return min([np.min(arg, where=~np.isnan(arg), initial=np.inf) for arg in args])
+
 if len(sys.argv) <= 1:
 	import os
 	os.chdir('../..')
-	print(os.getcwd())
-	xlabel, ylabel, titleA, titleB = 'Energy', 'Count', 'Original neutron spectrum', 'Fitted neutron spectrum'
+	# xlabel, ylabel, titleA, titleB = "Time (ns)", "Energy (MeV)", "Synthetic signal distribution", "Detector background"
+	xlabel, ylabel, titleA, titleB = "Time (ns)", "Energy (MeV)", "Corrected signal distribution", "Synthetic deuteron spectrum"
 else:
 	xlabel, ylabel, titleA, titleB = sys.argv[1:]
 
 X = np.genfromtxt('output/{}_x.csv'.format(titleA), delimiter=',')
 Y = np.genfromtxt('output/{}_y.csv'.format(titleA), delimiter=',')
-Z = (
+Z = [
 	np.genfromtxt('output/{}_z.csv'.format(titleA), delimiter=','),
 	np.genfromtxt('output/{}_z.csv'.format(titleB), delimiter=','),
-)
+]
 
 Y = (Y[1:] + Y[:-1])/2
 
@@ -38,9 +44,9 @@ def update(*args):
 	ax.clear()
 	ax.plot(Y, Z[0][:, j], '-', label=titleA)
 	ax.plot(Y, Z[1][:, j], '--', label=titleB)
-	ax.legend()
-	if np.max([Z[0][:, j], Z[1][:, j]]) > 0:
-		ax.set_yscale('symlog', linthresh=max(1, np.max([Z[0][:, j], Z[1][:, j]])/100), linscale=1/np.log(10))
+	# ax.legend()
+	if Z[1][:, j].max()/Z[1][:, j].min(initial=np.inf, where=Z[1][:, j] > 0) > 1e3:
+		ax.set_yscale('symlog', linthresh=max(1, true_max(Z[0][:, j], Z[1][:, j])/100), linscale=1/np.log(10))
 	ax.set_xlabel(ylabel)
 	ax.set_title("Slice comparison of {} & {}".format(titleA, titleB))
 slider.on_changed(update)

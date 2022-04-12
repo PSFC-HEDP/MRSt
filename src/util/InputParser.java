@@ -37,6 +37,7 @@ public class InputParser {
 	public double energyBin;
 	public double timeBin;
 	public double tolerance;
+
 	public InputParser(String name, String[] args) {
 		// first, parse the arguments
 		StringBuilder filename = new StringBuilder(name);
@@ -49,6 +50,7 @@ public class InputParser {
 		this.energyBin = 50e-3;
 		this.timeBin = 20e-3;
 		this.tolerance = 0.1;
+
 		for (String arg : args) {
 			if (arg.contains("=")) {
 				String key = arg.substring(0, arg.indexOf('='));
@@ -80,6 +82,14 @@ public class InputParser {
 					case "tolerance":
 						this.tolerance = Double.parseDouble(value);
 						break;
+					case "width":
+						if (this.detectorConfig != null)
+							for (int i = 0; i < this.detectorConfig.slitWidths.length; i ++)
+								detectorConfig.slitWidths[i] = Double.parseDouble(value)*1e-6;
+						else
+							throw new IllegalArgumentException("error! slit width was supplied before detector configuration");
+						tagFormat = "_%sum";
+						break;
 					case "optics":
 						if (value.toLowerCase().startsWith("h"))
 							this.opticsConfig = IonOpticConfiguration.HIGH_EFFICIENCY;
@@ -97,6 +107,8 @@ public class InputParser {
 							this.detectorConfig = DetectorConfiguration.DOUBLE_STREAK_CAMERA;
 						else if (value.toLowerCase().startsWith("d"))
 							this.detectorConfig = DetectorConfiguration.DOWNSCATTER_SLIT;
+						else if (value.toLowerCase().startsWith("m"))
+							this.detectorConfig = DetectorConfiguration.MAXIMUM_COVERAGE;
 						else
 							System.err.println("I don't know the '" + value + "' camera");
 						break;
@@ -116,5 +128,10 @@ public class InputParser {
 										  filename,
 										  System.currentTimeMillis());
 		}
+
+		if (this.opticsConfig == null)
+			throw new IllegalArgumentException("you need to always specify the ion optic configuration from now on.");
+		if (this.detectorConfig == null)
+			throw new IllegalArgumentException("you need to always specify the detector configuration from now on.");
 	}
 }

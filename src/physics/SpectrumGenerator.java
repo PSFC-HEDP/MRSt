@@ -222,6 +222,7 @@ public class SpectrumGenerator {
 //		}
 		for (Path file : (Iterable<Path>) Files.walk(Paths.get("input/"))::iterator) {
 			if (file.getFileName().toString().startsWith("trajectories ")) {
+				System.out.println(file.getFileName());
 				String key = file.getFileName().toString();
 				key = key.substring(13, key.length() - 4);
 				double[][] thing;

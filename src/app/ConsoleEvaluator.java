@@ -25,8 +25,6 @@ package app;
 
 import physics.Analysis;
 import physics.Analysis.ErrorMode;
-import physics.Detector.DetectorConfiguration;
-import physics.IonOptics.IonOpticConfiguration;
 import physics.SpectrumGenerator;
 import util.CSV;
 import util.InputParser;
@@ -55,11 +53,6 @@ public class ConsoleEvaluator {
 	public static void main(String[] args) throws SecurityException, IOException, InterruptedException {
 
 		final InputParser setup = new InputParser("ensemble", args);
-
-		if (setup.opticsConfig == null)
-			throw new IllegalArgumentException("you need to always specify the ion optic configuration from now on.");
-		if (setup.detectorConfig == null)
-			throw new IllegalArgumentException("you need to always specify the detector configuration from now on.");
 
 		// set up the logging
 		System.setProperty("java.util.logging.SimpleFormatter.format",

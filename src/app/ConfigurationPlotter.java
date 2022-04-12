@@ -50,7 +50,7 @@ public class ConfigurationPlotter {
 //					System.out.println("setting up simulation");
 					Analysis mc = new Analysis(
 						  new IonOpticConfiguration(tFoil, rFoil, wAperture),
-						  DetectorConfiguration.SINGLE_STREAK_CAMERA,
+						  DetectorConfiguration.MAXIMUM_COVERAGE,
 						  0,
 						  false,
 						  null); // make the simulation

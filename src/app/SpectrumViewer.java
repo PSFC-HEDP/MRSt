@@ -247,7 +247,7 @@ public class SpectrumViewer extends Application {
 								apertureHeight.getValue()*1e-3,
 								cosyMapping,
 								(focalPlaneTilt.getValue() == 0) ?
-									DetectorConfiguration.SINGLE_STREAK_CAMERA :
+									DetectorConfiguration.MAXIMUM_COVERAGE :
 							  		DetectorConfiguration.DOWNSCATTER_SLIT,
 								0,
 								reuseMatrix.isSelected(),
@@ -278,10 +278,10 @@ public class SpectrumViewer extends Application {
 						                       "Original neutron spectrum");
 						PythonPlot.plotHeatmap(mc.getTimeBins(), mc.getDeuteronEnergyBins(), mc.getSignalDistribution(),
 						            "Synthetic signal distribution");
-						PythonPlot.plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getFitNeutronSpectrum(),
-						            "Fitted neutron spectrum");
-						PythonPlot.plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getFitSignalDistribution(),
-						            "Fitted signal distribution");
+//						PythonPlot.plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getFitNeutronSpectrum(),
+//						            "Fitted neutron spectrum");
+//						PythonPlot.plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getFitSignalDistribution(),
+//						            "Fitted signal distribution");
 						PythonPlot.plotLines("Trajectories", spectrumName,
 								mc.getTimeAxis(), "Time (ns)",
 						 		mc.getNeutronYield(), mc.getNeutronYieldError(), "Yn (10^15/ns)",
@@ -289,14 +289,14 @@ public class SpectrumViewer extends Application {
 								mc.getArealDensity(), mc.getArealDensityError(), "ρR (g/cm^2)"
 						);
 						PythonPlot.compareHeatmap(mc.getTimeBins(), mc.getDeuteronEnergyBins(), mc.getSignalDistribution(), mc.getFitSignalDistribution(),
-								"Time", "Energy (MeV)", "Synthetic signal", "Fit signal");
+								"Time (ns)", "Energy (MeV)", "Synthetic signal", "Fit signal");
 //						PythonPlot.compareHeatmap(mc.getTimeBins(), mc.getDeuteronEnergyBins(), mc.getDeuteronSpectrum(), mc.getFitDeuteronSpectrum(),
 //												  "Time", "Energy (MeV)", "Synthetic deuteron spectrum", "Fit deuteron spectrum");
 						PythonPlot.compareHeatmap(mc.getTimeBins(), mc.getEnergyBins(), smallSpec, mc.getFitNeutronSpectrum(),
 												  "Time (ns)", "Energy (MeV)", "Original neutron spectrum", "Fit neutron spectrum");
 						PythonPlot.compareHeatmap(mc.getTimeBins(), mc.getDeuteronEnergyBins(),
-												  mc.getDeuteronSpectrum(), mc.guessDeuteronSpectrum(),
-												  "Time (ns)", "Energy (MeV)", "Synthetic deuteron spectrum", "Corrected signal distribution");
+												  mc.guessDeuteronSpectrum(), mc.getDeuteronSpectrum(),
+												  "Time (ns)", "Energy (MeV)", "Corrected signal distribution", "Synthetic deuteron spectrum");
 						PythonPlot.compareHeatmap(mc.getTimeBins(), mc.getDeuteronEnergyBins(),
 												  mc.getSignalDistribution(), mc.getBackgroundSpectrum(),
 												  "Time (ns)", "Energy (MeV)", "Synthetic signal distribution", "Detector background");

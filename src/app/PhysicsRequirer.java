@@ -60,11 +60,6 @@ public class PhysicsRequirer {
 		// first, parse the program arguments
 		final InputParser setup = new InputParser("comparison", args);
 
-		if (setup.opticsConfig == null)
-			throw new IllegalArgumentException("you need to always specify the ion optic configuration from now on.");
-		if (setup.detectorConfig == null)
-			throw new IllegalArgumentException("you need to always specify the detector configuration from now on.");
-
 		// set up the logging
 		System.setProperty("java.util.logging.SimpleFormatter.format",
 						   "%1$tF %1$tT | %4$-7s | %5$s%6$s%n");

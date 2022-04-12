@@ -97,7 +97,7 @@ public class IonOptics {
 
 	private final DiscreteFunction distanceVsEnergy; // stopping distance info
 	private final DiscreteFunction energyVsDistance; // inverse stopping distance info
-	private final DiscreteFunction energyVsPosition; // map between location on detector and energy going into lens
+	public final DiscreteFunction energyVsPosition; // map between location on detector and energy going into lens
 
 	/**
 	 * generate an IonOptic object from a configuration preset
@@ -180,8 +180,7 @@ public class IonOptics {
 		double[] detectorPosition = new double[calibEnergies.length];
 		for (int i = 0; i < calibEnergies.length; i ++) {
 			calibEnergies[i] = (minEd + (this.maxEd - minEd)*i/(calibEnergies.length-1));
-			double[] v = {0, 0, Math.sqrt(2*calibEnergies[i]/ion.mass)};
-			double[] r = computeFocusedPosition(new double[] {0,0,0}, v, 0);
+			double[] r = map(calibEnergies[i]/energyFactor/MeV);
 			detectorPosition[i] = r[x]/Math.cos(focalPlaneAngle);
 		}
 		this.energyVsPosition = new DiscreteFunction(calibEnergies, detectorPosition).inv()

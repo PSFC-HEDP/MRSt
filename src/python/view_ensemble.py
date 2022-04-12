@@ -9,6 +9,9 @@ plt.rcParams.update({'font.family': 'sans', 'font.size': 11})
 import warnings
 warnings.filterwarnings("ignore")
 
+PLOT_ENVELOPE = False
+PLOT_THEORETICAL_ERROR_BARS = True
+
 # INCLUDE_ERRORS = False
 # COLUMNS = 3
 # SIZE = (12, 3.5)
@@ -19,8 +22,8 @@ warnings.filterwarnings("ignore")
 # MARGIN = dict(bottom=.07, top=.93, left=.06, right=.99, wspace=.35, hspace=.05)
 INCLUDE_ERRORS = True
 COLUMNS = 1
-SIZE = (8, 5)
-MARGIN = dict(bottom=.10, top=.90, left=.13, right=.99, wspace=.35, hspace=.05)
+SIZE = (8, 7)
+MARGIN = dict(bottom=.08, top=.92, left=.10, right=.97, wspace=.36, hspace=.05)
 # INCLUDE_ERRORS = False
 # COLUMNS = 2
 # SIZE = (7.5, 9.0)
@@ -40,8 +43,7 @@ MARGIN = dict(bottom=.10, top=.90, left=.13, right=.99, wspace=.35, hspace=.05)
 
 
 if len(sys.argv) <= 1:
-	FILENAME = '../../output/ensemble_high_15c_2022-03-21.csv'
-	# FILENAME = '../../output with varying response/ensemble_5_0_1000_og_2022-02-09.csv'
+	FILENAME = '../../output/ensemble_medium_downsc_5c_2022-04-11.csv'
 else:
 	FILENAME = '../../output/'+sys.argv[1]
 BIN_WIDTH = 0.3 # in bels
@@ -50,11 +52,11 @@ REFERENCE_YIELDS = [1e16, 1e17, 1e18, 1e19]
 X_LABEL = "Yield"
 
 Y_LABELS = [
-	("Burn width (ps)", 56, 67.68, 87, 7, False),
+	("Burn width (ps)", 49, 67.68, 86, 7, False),
 	("Ti at BT (keV)", 5.8, 7.54, 9.2, 5e-2, True),
-	("dTi/dt at BT (keV/100ps)", -1.6, 0.80, 3.2, 0.5, False),
-	# ("ρR at BT (g/cm^2)", 0.67, 0.970, 1.13, 7e-2, True),
-	# ("dρR/dt at BT (g/cm^2/100ps)", -2.1, -0.95, 1.1, 0.6, False),
+	("dTi/dt at BT (keV/100ps)", -1.6, 0.80, 3.2, 0.8, False),
+	("ρR at BT (g/cm^2)", 0.67, 0.970, 1.13, 7e-2, True),
+	("dρR/dt at BT (g/cm^2/100ps)", -2.1, -0.95, 1.1, 0.95, False),
 ]
 
 
@@ -87,9 +89,9 @@ def smooth_average(y, bessel_correction=False):
 	output[valid] = rolling_average(
 		rolling_average(
 			y[valid],
-			n=min((np.sum(valid)-1)//2, 72),
+			n=min((np.sum(valid)-1)//2, 36),
 			bessel_correction=bessel_correction),
-		n=min((np.sum(valid)-1)//2, 72))
+		n=min((np.sum(valid)-1)//2, 36))
 	output[~valid] = (output[np.roll(~valid, 1)] + output[np.roll(~valid, -1)])/2
 	return output
 
@@ -184,8 +186,9 @@ for i, (axis, y_min, y_original, y_max, presis, percent) in enumerate(Y_LABELS):
 			y_true[order]*(1 - presis), y_true[order]*(1 + presis), color='#F7DFC8')
 	ax.plot(x[order], y_true[order], 'C1-', zorder=1, label="Based on original data")
 	ax.scatter(x[order], y[order], s=1, zorder=2, label="Based on fit to synthetic data")
-	# ax.plot(x[order], μ + σ, 'C0-', linewidth=1, zorder=1, label="1σ variation")
-	# ax.plot(x[order], μ - σ, 'C0-', linewidth=1, zorder=1)
+	if PLOT_ENVELOPE:
+		ax.plot(x[order], μ + σ, 'C0-', linewidth=1, zorder=1, label="1σ variation")
+		ax.plot(x[order], μ - σ, 'C0-', linewidth=1, zorder=1)
 	if y_min > 0 and y_max/y_min > 10:
 		ax.set_yscale('log')
 	ax.set_ylim(y_min, y_max)
@@ -200,7 +203,8 @@ if INCLUDE_ERRORS:
 		y = simulations[axis].values
 		ɛ = simulations[axis+" error"].values
 
-		ax.set_xlim(x.min(), x.max())
+		ax.set_xlim(10**round(np.log10(x.min())),
+		            10**round(np.log10(x.max()))) # set up the x axis
 		if 'ield' in X_LABEL:
 			ax.set_xscale('log')
 		if i//COLUMNS == axs.shape[0]-1:
@@ -215,7 +219,8 @@ if INCLUDE_ERRORS:
 		if axis is None:
 			ax.plot([], [], 'C1--', label="Required accuracy")
 			ax.plot([], [], 'C0-', label="Standard deviation from actuality")
-			ax.plot([], [], 'C3--', label="Reported error bar size")
+			if PLOT_THEORETICAL_ERROR_BARS:
+				ax.plot([], [], 'C3--', label="Reported error bar size")
 			ax.legend()
 			ax.yaxis.set_visible(False)
 			continue
@@ -243,17 +248,14 @@ if INCLUDE_ERRORS:
 
 		stds = np.sqrt(smooth_average(np.square(dy[order]), bessel_correction=True))
 		errs = smooth_average(ɛ[order])
-		if not percent:
-			ax.plot(x[order], stds, 'C0-', label="Standard deviation from actuality")
-			ax.plot(x[order], np.full(order.shape, presis), 'C1--', label="Required accuracy")
-			ax.plot(x[order], errs, 'C3--', label="Reported error bar size")
-		else:
-			ax.plot(x[order], stds, 'C0-', label="Standard deviation from actuality")
-			ax.plot(x[order], np.full(order.shape, presis), 'C1--', label="Required accuracy")
+		ax.plot(x[order], stds, 'C0-', label="Standard deviation from actuality")
+		ax.plot(x[order], np.full(order.shape, presis), 'C1--', label="Required accuracy")
+		if PLOT_THEORETICAL_ERROR_BARS:
 			ax.plot(x[order], errs, 'C3--', label="Reported error bar size")
 		# if np.max(errs)/np.max(errs) > 10:
 		ax.set_yscale('log')
-		ax.set_ylim(np.min(presis)*3.2e-2, np.max(presis)*5)
+		ax.set_ylim(np.min(presis)*1e-1, np.max(presis)*1e+1)
+		# ax.grid(which='major', axis='y')
 		# else:
 		# 	ax.set_ylim(0, None)
 		if 'ield' in X_LABEL:
