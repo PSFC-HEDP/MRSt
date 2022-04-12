@@ -137,7 +137,7 @@ public class StreakCameraArray extends Detector {
 
 	@Override
 	public double[][] response(double[] energyBins, double[] timeBins,
-							   double[][] inSpectrum, boolean stochastic) {
+							   double[][] inSpectrum, boolean stochastic, boolean background) {
 		for (double[] row : inSpectrum)
 			for (double val: row)
 				if (Double.isNaN(val))
@@ -179,16 +179,17 @@ public class StreakCameraArray extends Detector {
 					}
 				}
 
-				for (int j = 0; j < timeBins.length - 1; j ++) { // add the background
-					double level = background(energy, energyBins, timeBins);
-					if (stochastic) {
-						double σ2 = noise(energy, energyBins, timeBins) + outSpectrum[i][j];
-						outSpectrum[i][j] += Math2.normal(level, Math.sqrt(σ2), NOISE_RANDOM);
+				if (background) {
+					for (int j = 0; j < timeBins.length - 1; j++) { // add the background
+						double level = background(energy, energyBins, timeBins);
+						if (stochastic) {
+							double σ2 = noise(energy, energyBins, timeBins) + outSpectrum[i][j];
+							outSpectrum[i][j] += Math2.normal(level, Math.sqrt(σ2), NOISE_RANDOM);
+						}
+						else
+							outSpectrum[i][j] += level;
 					}
-					else
-						outSpectrum[i][j] += level;
 				}
-
 			}
 		}
 

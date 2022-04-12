@@ -337,14 +337,12 @@ public class Analysis {
 		double[][] typicalOpticsResponse = this.ionOptics.response(
 			  energyBins, timeBins, genericNeutronSpectrum, false, false);
 		double[][] fullResponse = this.detector.response(
-			  energyBins, timeBins, typicalOpticsResponse, false);
+			  energyBins, timeBins, typicalOpticsResponse, false, false);
 		double[] bandResponse = new double[timeAxis.length];
 		for (int i = 0; i < energyAxis.length; i ++)
-			for (int j = 0; j < timeAxis.length; j ++)
-				if (energyAxis[i] >= minEnergy && energyAxis[i] < maxEnergy)
+			if (energyAxis[i] >= minEnergy && energyAxis[i] < maxEnergy)
+				for (int j = 0; j < timeAxis.length; j ++)
 					bandResponse[j] += fullResponse[i][j];
-		for (int j = 0; j < timeAxis.length; j ++)
-			bandResponse[j] -= this.totalBackground(minEnergy, maxEnergy);
 		System.out.println("I mite be confusing myself, but I think "+Math2.sum(bandResponse)+" should work out to about "+this.averageEfficiency(temperature, arealDensity, minEnergy, maxEnergy)*this.detector.gain);
 		return bandResponse;
 	}
@@ -407,7 +405,7 @@ public class Analysis {
 		this.deuteronSpectrum = this.ionOptics.response(
 				energyBins, timeBins, neutronSpectrum, true, true);
 		this.signalDistribution = this.detector.response(
-			  energyBins, timeBins, deuteronSpectrum, true);
+			  energyBins, timeBins, deuteronSpectrum, true, true);
 
 		long endTime = System.currentTimeMillis();
 		logger.info(String.format(Locale.US, "completed in %.2f minutes.",
@@ -433,9 +431,9 @@ public class Analysis {
 		logger.info("beginning fit process.");
 		startTime = System.currentTimeMillis();
 
-		if (this.detector instanceof StreakCameraArray && ((StreakCameraArray)detector).spectralRange() < .25)
-			altAnalyze(signalDistribution, errorBars);
-		else
+//		if (this.detector instanceof StreakCameraArray && ((StreakCameraArray)detector).spectralRange() < .4)
+//			altAnalyze(signalDistribution, errorBars);
+//		else
 			analyze(signalDistribution, errorBars);
 
 		int dofs = covarianceMatrix.length;
@@ -449,7 +447,7 @@ public class Analysis {
 		this.fitDeuteronSpectrum = this.ionOptics.response(
 			  energyBins, timeBins, fitNeutronSpectrum, false, false);
 		this.fitSignalDistribution = this.detector.response(
-			  energyBins, timeBins, fitDeuteronSpectrum, false);
+			  energyBins, timeBins, fitDeuteronSpectrum, false, true);
 
 		endTime = System.currentTimeMillis();
 		logger.info(String.format("completed in %.2f minutes.",
@@ -578,50 +576,38 @@ public class Analysis {
 					null, true, 1),
 			  naiveNeutronYield, yieldScale, lowerBound, upperBound); // 10^15/ns
 
-//		try {
-//			double[][] trueTrajectories = CSV.read(new File("input/trajectories og with falling temp.csv"), ',', 1);
-//			double[] time = new double[trueTrajectories.length];
-//			double[] ρR = new double[trueTrajectories.length];
-//			double[] Yn = new double[trueTrajectories.length];
-//			double[] Ti = new double[trueTrajectories.length];
-//			for (int i = 0; i < trueTrajectories.length; i++) {
-//				time[i] = trueTrajectories[i][0];
-//				Yn[i] = trueTrajectories[i][1]*.1*1e6/1e-6/(14e6*1.6e-19)/1e15*1e-9; // convert from 0.1MJ/μs to 1e15n/ns
-//				Ti[i] = trueTrajectories[i][4];
-//				ρR[i] = trueTrajectories[i][3];
-//			}
-//			for (int j = 0; j < timeAxis.length; j ++) {
-//				if (timeAxis[j] < time[0]) {
-//					neutronYield[j] = 0;
-//					ionTemperature[j] = Ti[0];
-//					arealDensity[j] = ρR[0];
-//				} else if (timeAxis[j] > time[time.length-1]) {
-//					neutronYield[j] = 0;
-//					ionTemperature[j] = Ti[time.length-1];
-//					arealDensity[j] = ρR[time.length-1];
-//				} else {
-//					neutronYield[j] = Math2.interp(timeAxis[j], time, Yn);
-//					ionTemperature[j] = Math2.interp(timeAxis[j], time, Ti);
-//					arealDensity[j] = Math2.interp(timeAxis[j], time, ρR);
+//				try {
+//					double[][] trueTrajectories = CSV.read(new File("input/trajectories og with falling temp.csv"), ',', 1);
+//					double[] time = new double[trueTrajectories.length];
+//					double[] ρR = new double[trueTrajectories.length];
+//					double[] Yn = new double[trueTrajectories.length];
+//					double[] Ti = new double[trueTrajectories.length];
+//					for (int i = 0; i < trueTrajectories.length; i++) {
+//						time[i] = trueTrajectories[i][0];
+//						Yn[i] = trueTrajectories[i][1]*.1*1e6/1e-6/(14e6*1.6e-19)/1e15*1e-9; // convert from 0.1MJ/μs to 1e15n/ns
+//						Ti[i] = trueTrajectories[i][4];
+//						ρR[i] = trueTrajectories[i][3];
+//					}
+//					for (int j = 0; j < timeAxis.length; j ++) {
+//						if (timeAxis[j] < time[0]) {
+//							neutronYield[j] = 0;
+//							ionTemperature[j] = Ti[0];
+//							arealDensity[j] = ρR[0];
+//						} else if (timeAxis[j] > time[time.length-1]) {
+//							neutronYield[j] = 0;
+//							ionTemperature[j] = Ti[time.length-1];
+//							arealDensity[j] = ρR[time.length-1];
+//						} else {
+//							neutronYield[j] = Math2.interp(timeAxis[j], time, Yn);
+//							ionTemperature[j] = Math2.interp(timeAxis[j], time, Ti);
+//							arealDensity[j] = Math2.interp(timeAxis[j], time, ρR);
+//						}
+//					}
+//					System.out.println("took the correct anser as the initial gess");
 //				}
-//			}
-//		}
-//		catch (IOException e) {
-//			System.err.println("the test thing didn't work.");
-//		}
-							neutronYield[j] = 0;
-							ionTemperature[j] = Ti[time.length-1];
-							arealDensity[j] = ρR[time.length-1];
-						} else {
-							neutronYield[j] = Math2.interp(timeAxis[j], time, Yn);
-							ionTemperature[j] = Math2.interp(timeAxis[j], time, Ti);
-							arealDensity[j] = Math2.interp(timeAxis[j], time, ρR);
-						}
-					}
-				}
-				catch (IOException e) {
-					System.err.println("the test thing didn't work.");
-				}
+//				catch (IOException e) {
+//					System.err.println("the test thing didn't work.");
+//				}
 
 		// determine the bounds of the region that's worth optimizing
 		double[] statistics = new double[M];
@@ -848,9 +834,9 @@ public class Analysis {
 		for (int i = 0; i < energyAxis.length; i ++) {
 			for (int j = 0; j < timeAxis.length; j ++) {
 				if (energyAxis[i] < cutoff)
-					primarySignal[j] += signal[i][j];
-				else
 					dsSignal[j] += signal[i][j];
+				else
+					primarySignal[j] += signal[i][j];
 			}
 		}
 
@@ -859,6 +845,9 @@ public class Analysis {
 		double[] dsNeutrons = fitInBand(dsSignal, 0, 1, 0, cutoff); // note that this is primary yield times ρR/(g/cm^2)
 
 		// finally, infer the burn history and rhoR point-by-point
+		this.neutronYield = new Quantity[timeAxis.length];
+		this.arealDensity = new Quantity[timeAxis.length];
+		this.ionTemperature = new Quantity[timeAxis.length];
 		for (int j = 0; j < timeAxis.length; j ++) {
 			this.neutronYield[j] = new Quantity(primaryNeutrons[j], 0);
 			this.arealDensity[j] = new Quantity(dsNeutrons[j]/primaryNeutrons[j], 0);
@@ -897,7 +886,7 @@ public class Analysis {
 		double[][] deuterons = this.ionOptics.response(
 			  energyBins, timeBins, neutrons, false, false);
 		double[][] signal = this.detector.response(
-			  energyBins, timeBins, deuterons, false);
+			  energyBins, timeBins, deuterons, false, true);
 
 		double totalError = 0; // negative log likelihood
 		for (int j = 0; j < timeAxis.length; j ++) {
@@ -988,25 +977,33 @@ public class Analysis {
 
 		double bandBackground = this.totalBackground(minEnergy, maxEnergy); // (signal/bin)
 		double bandVariance = this.totalVariance(minEnergy, maxEnergy); // (signal/bin)
+		double bandEfficiency = this.averageEfficiency(temperature, arealDensity, minEnergy, maxEnergy);
 		double[] bandResponse = this.averageResponse(temperature, arealDensity, minEnergy, maxEnergy);
 		double bandGain = Math2.sum(bandResponse);
 		double[] bandNeutronsInitial = new double[timeAxis.length];
-		for (int j = 0; j < timeAxis.length; j ++)
-			bandNeutronsInitial[j] = bandSignal[j]/bandGain;
+		double[] bandScale = new double[timeAxis.length];
+		for (int j = 0; j < timeAxis.length; j ++) {
+			bandNeutronsInitial[j] = Math.max(1, (bandSignal[j] - bandBackground)/bandGain)/bandEfficiency/(timeStep*1e15);
+			bandScale[j] = bandNeutronsInitial[j]/1.5;
+		}
 		return optimize(
 			  (double[] bandNeutronsGess) -> {
 				  double[] theorSignal = Math2.convolve(bandNeutronsGess, bandResponse);
-				  for (int j = 0; j < timeAxis.length; j ++)
-					  theorSignal[j] += bandBackground;
 				  double logLikelihood = 0;
 				  for (int j = 0; j < timeAxis.length; j ++) {
 					  double theorVariance = bandVariance + theorSignal[j]/detector.gain;
-					  logLikelihood += Math.pow(theorSignal[j] - bandSignal[j], 2)/theorVariance;
+					  logLikelihood += Math.pow(theorSignal[j] - bandSignal[j] + bandBackground, 2)/theorVariance;
 				  }
-				  return logLikelihood;
+				  double logPrior = 0;
+				  for (int j = 0; j < timeAxis.length - 2; j ++)
+					  logPrior += 1e-15*Math.pow(
+							(bandNeutronsGess[j] - 2*bandNeutronsGess[j+1] + bandNeutronsGess[j+2])/(timeStep*timeStep)/
+								  (bandNeutronsGess[j] + bandNeutronsGess[j+1] + bandNeutronsGess[j+2])/3.,
+							2);
+				  return logPrior + logLikelihood;
 			  },
 			  bandNeutronsInitial,
-			  bandNeutronsInitial, lowerBound, upperBound);
+			  bandScale, lowerBound, upperBound);
 	}
 
 	/**

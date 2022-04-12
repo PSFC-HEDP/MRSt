@@ -61,7 +61,7 @@ public abstract class Detector {
 	 * @param stochastic whether to apply noise to the result
 	 */
 	abstract double[][] response(double[] energyBins, double[] timeBins,
-								 double[][] inSpectrum, boolean stochastic);
+								 double[][] inSpectrum, boolean stochastic, boolean background);
 
 	/**
 	 * the total of signal units for every incident deuteron
@@ -125,7 +125,7 @@ public abstract class Detector {
 
 
 	public static class DetectorConfiguration {
-		public static DetectorConfiguration SINGLE_STREAK_CAMERA =
+		public static DetectorConfiguration MAXIMUM_COVERAGE =
 			  new DetectorConfiguration("MRSt_IRF_FP_00deg",
 										0.00000, 11.5e-9,
 										new double[] {-8.0e-2, 0.5e-2},
