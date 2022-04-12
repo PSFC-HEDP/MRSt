@@ -90,16 +90,15 @@ public class StreakCameraArray extends Detector {
 		double[] hRef = new double[FP_RESOLUTION];
 		for (int i = 0; i < FP_RESOLUTION; i ++) {
 			ERef[i] = 12. + 4.*i/(FP_RESOLUTION - 1); // (MeV neutron)
-			double num = 0, xSum = 0, yMax = 0;
+			double[] rtCentral = optics.map(ERef[i]);
+			xRef[i] = Math.hypot(rtCentral[0], rtCentral[2])*Math.signum(rtCentral[0]);
+			double yMax = 0;
 			for (int k = 0; k < 1000; k ++) {
-				double[] rt = optics.map(ERef[i]);
+				double[] rt = optics.simulate(ERef[i], 0, false);
 				if (!Double.isNaN(rt[0])) {
-					num += 1;
-					xSum += Math.hypot(rt[0], rt[2])*Math.signum(rt[0]);
-					if (rt[1] > yMax) yMax = rt[1];
+					if (Math.abs(rt[1]) > yMax) yMax = Math.abs(rt[1]);
 				}
 			}
-			xRef[i] = xSum/num;
 			hRef[i] = yMax*2;
 		}
 		DiscreteFunction fpPosition = new DiscreteFunction(ERef, xRef, true);
