@@ -100,16 +100,19 @@ public class PythonPlot {
 	 * show a graphic of the focal plane given these measurements
 	 * @param energies the energies at which particles were generated
 	 * @param particles for each energy, a flattend array of random {x, y, t}
+	 * @param spectrum the spectral density in each energy bin
 	 * @param slitPositions the position of the center of each slit (m)
 	 * @param slitLengths the length of each slit (m)
 	 * @param slitWidths the width of each slit (m)
 	 * @throws IOException if it can't rite the files it needs
 	 */
 	public static void plotFocalPlane(double[] energies, double[][] particles,
+									  double[] spectrum,
 									  double[] slitPositions, double[] slitLengths,
 									  double[] slitWidths) throws IOException {
 		CSV.writeColumn(energies, new File("output/focal plane energies.csv"));
 		CSV.write(particles, new File("output/focal plane particles.csv"), ',');
+		CSV.writeColumn(spectrum, new File("output/focal plane spectrum.csv"));
 		CSV.writeColumn(slitLengths, new File("output/focal plane lengths.csv"));
 		CSV.writeColumn(slitWidths, new File("output/focal plane widths.csv"));
 		CSV.writeColumn(slitPositions, new File("output/focal plane positions.csv"));

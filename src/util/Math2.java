@@ -183,6 +183,10 @@ public class Math2 {
 	public static int binomial(int n, double p, Random random) {
 		if (p < 0 || p > 1)
 			throw new IllegalArgumentException("p must be in [0, 1] but you passd "+p);
+		else if (p == 0)
+			return 0;
+		else if (p == 1)
+			return n;
 		if (n < 0)
 			throw new IllegalArgumentException("n must > 0 but you passd "+n);
 		else if (n == 0)
@@ -201,7 +205,7 @@ public class Math2 {
 				else
 					u -= P[i];
 			}
-			throw new IllegalArgumentException("math is broken: "+ Arrays.toString(P)+", "+total);
+			throw new IllegalArgumentException("math is broken: "+n+","+p+":"+ Arrays.toString(P)+", "+total);
 		}
 		else if ((1 - p)*n < 20) {
 			return n - binomial(n, 1 - p, random);
@@ -954,6 +958,13 @@ public class Math2 {
 		else
 			return (int) x;
 	}
+
+	public static double[][] transpose(double[] collum) {
+		double[][] output = new double[collum.length][];
+		for (int i = 0; i < collum.length; i ++)
+			output[i] = new double[] {collum[i]};
+		return output;
+	}
 	
 	/**
 	 * convert this 2d histogram to a lower resolution. the output bins must be uniform.
@@ -1050,7 +1061,7 @@ public class Math2 {
 	 * don't know which way it's going to be oriented here.
 	 * @param a vector
 	 * @param b vector
-	 * @return A.v vector
+	 * @return vector with the same length as a
 	 */
 	public static double[] convolve(double[] a, double[] b) {
 		assert b.length%2 == 1;

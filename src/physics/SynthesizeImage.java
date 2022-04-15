@@ -47,6 +47,7 @@ public class SynthesizeImage {
 		}
 
 		double pixelEdge = 100e-6;//25e-6;
+		double resolution = 102e-6;
 		double[][] xBins = new double[numSlits][];
 		for (int s = 0; s < numSlits; s ++) {
 			xBins[s] = new double[(int) (detector.slitLengths[0]/pixelEdge) + 1];
@@ -77,10 +78,15 @@ public class SynthesizeImage {
 				energy = 14 - Math2.gamma(2, 1.0, random);
 			double[] position = optics.simulate(energy, time, true);
 			for (int s = 0; s < numSlits; s ++) {
-				if (Math.abs(position[1]) < detector.slitWidths[s]/2) {
-					double x = position[0]/Math.cos(Math.toRadians(detector.tiltAngle));
+				double y = Math2.normal(
+					  position[1],
+					  resolution, random);
+				if (Math.abs(y) < detector.slitWidths[s]/2) {
+					double x = Math2.normal(
+						  position[0]/Math.cos(Math.toRadians(detector.tiltAngle)),
+						  resolution, random);
 					if (Math.abs(x - detector.slitPositions[s]) < detector.slitLengths[s]/2) {
-						double y = position[1] + (position[3] - slitTimes[s])/detector.streakTime*detector.slitLengths[s];
+						y += (position[3] - slitTimes[s])/detector.streakTime*detector.slitLengths[s];
 						int i = Math2.bin(x/1e-2, xBins[s]);
 						int j = Math2.bin(y/1e-2, yBins);
 //						System.out.println(i + " " + x + "  " + Arrays.toString(xBins[s]));

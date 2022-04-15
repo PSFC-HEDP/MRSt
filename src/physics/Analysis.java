@@ -560,7 +560,7 @@ public class Analysis {
 		double[] ionTemperature = Math2.full(4, M); // keV
 		double[] electronTemperature = Math2.full(ELECTRON_TEMPERATURE, M); // keV
 		double[] bulkFlowVelocity = Math2.full(BULK_FLOW_VELOCITY, M); // μm/ns
-		double[] arealDensity = Math2.full(200e-3, M); // g/cm^2 TODO: does it still work if this is 100e-3?
+		double[] arealDensity = Math2.full(100e-3, M); // g/cm^2
 
 		// then do the second simplest reconstruction for the burn history
 		double[] finalIonTemperature = ionTemperature;
