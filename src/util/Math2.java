@@ -462,12 +462,23 @@ public class Math2 {
 		return s;
 	}
 
-	public static double[] elementwiseSum(double[]... arrs) {
-		double[] s = new double[arrs[0].length];
-		for (double[] row: arrs)
-			for (int j = 0; j < row.length; j++)
-				s[j] += row[j];
-		return s;
+	public static double[] sum(double[][] arr, int axis) {
+		if (axis == 0) {
+			double[] s = new double[arr[0].length];
+			for (double[] row: arr)
+				for (int j = 0; j < row.length; j++)
+					s[j] += row[j];
+			return s;
+		}
+		else if (axis == 1) {
+			double[] output = new double[arr.length];
+			for (int i = 0; i < arr.length; i ++)
+				output[i] = Math2.sum(arr[i]);
+			return output;
+		}
+		else {
+			throw new IllegalArgumentException(Integer.toString(axis));
+		}
 	}
 
 	public static double mean(double[] arr) {

@@ -1,3 +1,4 @@
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -15,6 +16,7 @@ slit_lengths = np.atleast_1d(np.loadtxt("output/focal plane lengths.csv"))
 slit_widths = np.atleast_1d(np.loadtxt("output/focal plane widths.csv"))
 slit_positions = np.atleast_1d(np.loadtxt("output/focal plane positions.csv"))
 energies = np.loadtxt("output/focal plane energies.csv")
+spectrum = np.loadtxt("output/focal plane spectrum.csv")
 particles = np.loadtxt("output/focal plane particles.csv",
                        delimiter=",")
 particles = particles.reshape((particles.shape[0], -1, 3))
@@ -37,6 +39,12 @@ plt.figure(figsize=(9, 3.5))
 # for i in range(quantiles.size):
 # 	plt.plot(x, y[:,i], linewidth=(2 if i%major_line_freq==0 else 1)*1.1, color='#D36EA9')
 plt.fill_between(x, y[:, 0], y[:, -1], color='#D36EA9')
+# n = spectrum/(np.diff(x)*(y[:-1, -1] + y[1:, -1]))
+# for i in range(x.size - 1):
+# 	plt.fill_between([x[i],       x[i+1]],
+# 	                 [ y[i, -1],  y[i+1, -1]],
+# 	                 [-y[i, -1], -y[i+1, -1]],
+# 	                 color=matplotlib.cm.get_cmap('magma')(1 - n[i]/n.max()/2))
 
 crampd = None
 for e, Y in zip(energies, particles):
@@ -57,10 +65,10 @@ for e, Y in zip(energies, particles):
 		plt.plot([(x_min + x_max)/2]*2, [ 100, y_max], color='#516EB6', linestyle=linestyle, linewidth=linewidth)
 		plt.plot([(x_min + x_max)/2]*2, [-100, y_min], color='#516EB6', linestyle=linestyle, linewidth=linewidth)
 		if major:
-			if x_min - 2.0 > xlim[0] and x_min < xlim[1]:
-				plt.text(x_min, ylim[0]*0.8, f"{e:.0f} MeV", horizontalalignment="right")
-			elif x_max > xlim[0] and x_max + 2.0 < xlim[1]:
-				plt.text(x_max, ylim[0]*0.8, f"{e:.0f} MeV", horizontalalignment="left")
+			if x_min - 0.8 > xlim[0] and x_min < xlim[1]:
+				plt.text(x_min, ylim[0], f" {e:.0f} MeV", horizontalalignment="right", rotation='vertical')
+			elif x_max > xlim[0] and x_max + 0.8 < xlim[1]:
+				plt.text(x_max, ylim[0], f" {e:.0f} MeV", horizontalalignment="left", rotation="vertical")
 
 for x, w, h in zip(slit_positions, slit_lengths, slit_widths):
 	plt.plot(np.multiply([x -w/2, x -w/2, x +w/2, x +w/2, x -w/2], 1e2),

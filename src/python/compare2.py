@@ -29,7 +29,7 @@ Z = [
 Y = (Y[1:] + Y[:-1])/2
 
 if "(ns)" in xlabel:
-	x0 = X[np.argmax(np.sum(Z[0], axis=0))]
+	x0 = X[np.argmax(np.sum(Z[1], axis=0))]
 	X = (X - x0)*1000
 	xlabel = xlabel.replace("ns", "ps")
 

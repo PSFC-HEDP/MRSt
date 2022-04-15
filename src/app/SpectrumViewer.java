@@ -402,14 +402,6 @@ public class SpectrumViewer extends Application {
 	}
 
 
-	private static double[] timeIntegrate(double[][] spectrum) {
-		double[] output = new double[spectrum.length];
-		for (int i = 0; i < spectrum.length; i ++)
-			output[i] = Math2.sum(spectrum[i]);
-		return output;
-	}
-	
-	
 	private interface Callback {
 		void process(File file) throws IOException;
 	}
