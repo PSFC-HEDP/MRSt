@@ -34,14 +34,15 @@ public class PythonPlot {
 	 * send 2D data to a Python script for plotting in MatPlotLib
 	 * @throws IOException if there's an issue talking to disc
 	 */
-	public static void plotHeatmap(double[] x, double[] y, double[][] z,
-	                                String title) throws IOException {
+	public static void plotHeatmap(
+			double[] x, double[] y, double[][] z,
+			String xLabel, String yLabel, String title) throws IOException {
 		new File("output/").mkdir();
 		CSV.writeColumn(x, new File(String.format("output/%s_x.csv", title)));
 		CSV.writeColumn(y, new File(String.format("output/%s_y.csv", title)));
 		CSV.write(z, new File(String.format("output/%s_z.csv", title)), ',');
 		ProcessBuilder plotPB = new ProcessBuilder("python", "src/python/plot2.py",
-		                                           "Time (ns)", "Energy (MeV)", title);
+		                                           xLabel, yLabel, title);
 		plotPB.start();
 	}
 

@@ -34,10 +34,12 @@ import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.PowellOptimizer;
 import physics.Detector.DetectorConfiguration;
 import physics.IonOptics.IonOpticConfiguration;
 import util.COSYMapping;
+import util.CSV;
 import util.Math2;
 import util.Math2.Quantity;
 import util.Optimization;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Locale;
@@ -584,7 +586,7 @@ public class Analysis {
 //					double[] Ti = new double[trueTrajectories.length];
 //					for (int i = 0; i < trueTrajectories.length; i++) {
 //						time[i] = trueTrajectories[i][0];
-//						Yn[i] = trueTrajectories[i][1]*.1*1e6/1e-6/(14e6*1.6e-19)/1e15*1e-9; // convert from 0.1MJ/μs to 1e15n/ns
+//						Yn[i] = 10*trueTrajectories[i][1]*.1*1e6/1e-6/(14e6*1.6e-19)/1e15*1e-9; // convert from 0.1MJ/μs to 1e15n/ns
 //						Ti[i] = trueTrajectories[i][4];
 //						ρR[i] = trueTrajectories[i][3];
 //					}
@@ -707,45 +709,6 @@ public class Analysis {
 				  bulkFlowVelocity, arealDensity,
 				  active, false, finalSmoothing);
 		} while (lastValue - thisValue > this.precision);
-
-		//		try {
-		//			double ultimatePosterior = this.logPosterior(spectrum, neutronYield, ionTemperature, electronTemperature, bulkFlowVelocity, arealDensity, left, rite, false, finalSmoothing);
-		//			double ultimateBayesor = this.logPosterior(spectrum, neutronYield, ionTemperature, electronTemperature, bulkFlowVelocity, arealDensity, left, rite, false, 0);
-		//			double[][] trueTrajectories;
-		//			trueTrajectories = CSV.read(new File("input/trajectories og with falling temp.csv"), ',', 1);
-		//			double[] time = new double[trueTrajectories.length];
-		//			double[] ρR = new double[trueTrajectories.length];
-		//			double[] Yn = new double[trueTrajectories.length];
-		//			double[] Ti = new double[trueTrajectories.length];
-		//			for (int i = 0; i < trueTrajectories.length; i++) {
-		//				time[i] = trueTrajectories[i][0];
-		//				Yn[i] = trueTrajectories[i][1]*.1*1e6/1e-6/(14e6*1.6e-19)/1e15*1e-9; // convert from 0.1MJ/μs to 1e15n/ns
-		//				Ti[i] = trueTrajectories[i][4];
-		//				ρR[i] = trueTrajectories[i][3];
-		//			}
-		//			for (int j = NumericalMethods.argmax(neutronYield); j <= NumericalMethods.argmax(neutronYield)+1; j ++) {
-		//				if (timeAxis[j] < time[0]) {
-		////					neutronYield[j] = 0;
-		//					ionTemperature[j] = Ti[0];
-		//					arealDensity[j] = ρR[0];
-		//				} else if (timeAxis[j] > time[time.length-1]) {
-		////					neutronYield[j] = 0;
-		//					ionTemperature[j] = Ti[time.length-1];
-		//					arealDensity[j] = ρR[time.length-1];
-		//				}
-		//				else {
-		////					neutronYield[j] = NumericalMethods.interp(timeAxis[j], time, Yn);
-		//					ionTemperature[j] = NumericalMethods.interp(timeAxis[j], time, Ti);
-		//					arealDensity[j] = NumericalMethods.interp(timeAxis[j], time, ρR);
-		//				}
-		//			}
-		//			double truePosterior = this.logPosterior(spectrum, neutronYield, ionTemperature, electronTemperature, bulkFlowVelocity, arealDensity, left, rite, false, finalSmoothing);
-		//			double trueBayesor = this.logPosterior(spectrum, neutronYield, ionTemperature, electronTemperature, bulkFlowVelocity, arealDensity, left, rite, false, 0);
-		//			System.out.printf("it got to %g, but the true anser is actually at %g.  in terms of likelihood alone, that's %g and %g.\n", ultimatePosterior, truePosterior, ultimateBayesor, trueBayesor);
-		//		}
-		//		catch (IOException e) {
-		//			System.err.println("the test thing didn't work.");
-		//		}
 
 		this.neutronYield = new Quantity[M];
 		this.ionTemperature = new Quantity[M];
@@ -947,14 +910,14 @@ public class Analysis {
 		for (int j = 0; j < timeAxis.length; j ++)
 			totalPenalty += arealDensity[j]/5.0 - Math.log(arealDensity[j])/50.0; // gamma prior on areal density
 		for (int j = 0; j < timeAxis.length; j ++)
-			totalPenalty += Math.pow((Math.log(ionTemperature[j]) - 0.2)/2.5, 2); // log-normal prior on Ti
+			totalPenalty += Math.pow((Math.log(ionTemperature[j]/4.0))/2.5, 2); // log-normal prior on Ti
 		for (double[] x: new double[][] {ionTemperature, arealDensity}) {
 			for (int j = 0; j < timeAxis.length - 2; j ++) {
 				if (active == null || (active[j] && active[j+1] && active[j+2])) {
 					double Ψpp = (x[j] - 2*x[j+1] + x[j+2])/
 						  Math.pow(timeStep, 3);
 					double Ψ = (x[j] + x[j+1] + x[j+2])/3;
-					totalPenalty += smoothing*1e-10*Math.pow(Ψpp/Ψ, 2); // encourage a smooth Ti and ρR
+					totalPenalty += smoothing*1e-11*Math.pow(Ψpp/Ψ, 2); // encourage a smooth Ti and ρR
 				}
 			}
 		}

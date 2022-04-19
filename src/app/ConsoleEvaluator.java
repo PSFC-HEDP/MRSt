@@ -32,6 +32,7 @@ import util.InputParser;
 import java.io.File;
 import java.io.IOError;
 import java.io.IOException;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -84,18 +85,12 @@ public class ConsoleEvaluator {
 		else
 			spectrum = initialSpec;
 
-		ExecutorService threads = Executors.newFixedThreadPool(setup.numCores, (Runnable r) -> {
-			final Thread thread = new Thread(r);
-			thread.setUncaughtExceptionHandler((Thread t, Throwable e) -> {
-				logger.log(Level.SEVERE, e.getMessage(), e); // XXX I wish this workd...
-			});
-			return thread;
-		});
+		ExecutorService threads = Executors.newFixedThreadPool(setup.numCores);
 		double[][] results = new double[setup.numYields][Analysis.HEADERS_WITH_ERRORS.length];
 		for (int k = 0; k < setup.numYields; k ++) {
 			final int K = k;
 
-			threads.submit(() -> {
+			Callable<Void> task = () -> {
 				Analysis mc;
 				try {
 					mc = new Analysis(
@@ -107,7 +102,7 @@ public class ConsoleEvaluator {
 						  logger); // make the simulation
 				} catch (IOException e) {
 					e.printStackTrace();
-					return;
+					return null;
 				}
 
 				double yield = 1e+19*Math.pow(10, -3.0*Math.random());
@@ -147,7 +142,9 @@ public class ConsoleEvaluator {
 						logger.log(Level.SEVERE, e.getMessage(), e);
 					}
 				}
-			});
+				return null;
+			};
+			threads.submit(task);
 		}
 
 		threads.shutdown();

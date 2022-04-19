@@ -109,6 +109,8 @@ public class InputParser {
 							this.detectorConfig = DetectorConfiguration.DOWNSCATTER_SLIT;
 						else if (value.toLowerCase().startsWith("m"))
 							this.detectorConfig = DetectorConfiguration.MAXIMUM_COVERAGE;
+						else if (value.toLowerCase().startsWith("c"))
+							this.detectorConfig = DetectorConfiguration.CENTERED;
 						else
 							System.err.println("I don't know the '" + value + "' camera");
 						break;

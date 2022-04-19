@@ -43,7 +43,7 @@ MARGIN = dict(bottom=.08, top=.92, left=.10, right=.97, wspace=.36, hspace=.05)
 
 
 if len(sys.argv) <= 1:
-	FILENAME = '../../output/ensemble_medium_downsc_5c_2022-04-11.csv'
+	FILENAME = '../../output/ensemble_medium_1slit_100um_5c_2022-04-15.csv'
 else:
 	FILENAME = '../../output/'+sys.argv[1]
 BIN_WIDTH = 0.3 # in bels
@@ -56,7 +56,7 @@ Y_LABELS = [
 	("Ti at BT (keV)", 5.8, 7.54, 9.2, 5e-2, True),
 	("dTi/dt at BT (keV/100ps)", -1.6, 0.80, 3.2, 0.8, False),
 	("ρR at BT (g/cm^2)", 0.67, 0.970, 1.13, 7e-2, True),
-	("dρR/dt at BT (g/cm^2/100ps)", -2.1, -0.95, 1.1, 0.95, False),
+	# ("dρR/dt at BT (g/cm^2/100ps)", -2.1, -0.95, 1.1, 0.95, False),
 ]
 
 

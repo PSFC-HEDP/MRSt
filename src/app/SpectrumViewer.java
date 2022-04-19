@@ -247,7 +247,7 @@ public class SpectrumViewer extends Application {
 								apertureHeight.getValue()*1e-3,
 								cosyMapping,
 								(focalPlaneTilt.getValue() == 0) ?
-									DetectorConfiguration.MAXIMUM_COVERAGE :
+									DetectorConfiguration.SINGLE_STREAK_CAMERA :
 							  		DetectorConfiguration.DOWNSCATTER_SLIT,
 								0,
 								reuseMatrix.isSelected(),
@@ -275,9 +275,9 @@ public class SpectrumViewer extends Application {
 					double[][] smallSpec = Math2.downsample(tBins, eBins, spec, mc.getTimeBins(), mc.getEnergyBins());
 					try { // send the data to python for plotting
 						PythonPlot.plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), smallSpec,
-						                       "Original neutron spectrum");
+						                       "Time (ns)", "Energy (MeV)", "Original neutron spectrum");
 						PythonPlot.plotHeatmap(mc.getTimeBins(), mc.getDeuteronEnergyBins(), mc.getSignalDistribution(),
-						            "Synthetic signal distribution");
+						            "Time (ns)", "Energy (MeV)", "Synthetic signal distribution");
 //						PythonPlot.plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getFitNeutronSpectrum(),
 //						            "Fitted neutron spectrum");
 //						PythonPlot.plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getFitSignalDistribution(),

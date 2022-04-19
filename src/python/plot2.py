@@ -16,16 +16,21 @@ Y = np.genfromtxt('output/{}_y.csv'.format(title), delimiter=',')
 Z = np.genfromtxt('output/{}_z.csv'.format(title), delimiter=',')
 
 print(Z)
+first_nonzero = (Z.sum(axis=1) > 0).argmax()
+last_nonzero = Z.shape[0] - (Z.sum(axis=1) > 0)[::-1].argmax()
+maximum = Z.max(where=Z != 0, initial=-np.inf)
+minimum = Z.min(where=Z != 0, initial=np.inf)
 
-if Z.max() / Z.min() > 3e3:
-	norm = matplotlib.colors.SymLogNorm(vmin=0, vmax=Z.max(), linthresh=max(1, Z.max()/3e3), linscale=1/np.log(10))
-elif Z.max() / Z.min() > 3e1:
-	norm = matplotlib.colors.LogNorm(vmin=Z.min(), vmax=Z.max())
+if maximum / minimum > 5e3:
+	norm = matplotlib.colors.SymLogNorm(vmin=0, vmax=maximum, linthresh=max(1, maximum/3e3), linscale=1/np.log(10))
+elif maximum / minimum > 5e1:
+	norm = matplotlib.colors.LogNorm(vmin=minimum, vmax=maximum)
 else:
-	norm = matplotlib.colors.Normalize(vmin=0, vmax=Z.max())
+	norm = matplotlib.colors.Normalize(vmin=0, vmax=maximum)
 plt.pcolormesh(X, Y, Z, cmap='plasma', norm=norm)
 plt.xlabel(xlabel, fontsize=18)
 plt.ylabel(ylabel, fontsize=18)
+plt.ylim(Y[first_nonzero], Y[last_nonzero])
 plt.gca().xaxis.set_tick_params(labelsize=18)
 plt.gca().yaxis.set_tick_params(labelsize=18)
 cbar = plt.colorbar()

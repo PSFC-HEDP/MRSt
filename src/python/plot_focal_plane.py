@@ -55,7 +55,7 @@ for e, Y in zip(energies, particles):
 		x_min, x_max = Y[:, 0].min()*1e2, Y[:, 0].max()*1e2
 		y_min, y_max = Y[:, 1].min()*1e2, Y[:, 1].max()*1e2
 		if crampd is None:
-			crampd = x_min > xlim[0]/2
+			crampd = x_min > xlim[0]/4
 		major = (round(e) == round(e, 6)) if not crampd else (round(e/2) == round(e/2, 6))
 		linewidth = 1.6 if major else 0.8
 		linestyle = "solid" # (0, (2, 1)) if major else (0, (4, 2))
