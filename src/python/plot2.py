@@ -26,7 +26,7 @@ if maximum / minimum > 5e3:
 elif maximum / minimum > 5e1:
 	norm = matplotlib.colors.LogNorm(vmin=minimum, vmax=maximum)
 else:
-	norm = matplotlib.colors.Normalize(vmin=0, vmax=maximum)
+	norm = matplotlib.colors.Normalize(vmax=maximum)
 plt.pcolormesh(X, Y, Z, cmap='plasma', norm=norm)
 plt.xlabel(xlabel, fontsize=18)
 plt.ylabel(ylabel, fontsize=18)

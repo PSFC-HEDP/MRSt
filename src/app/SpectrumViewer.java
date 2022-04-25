@@ -248,7 +248,7 @@ public class SpectrumViewer extends Application {
 								cosyMapping,
 								(focalPlaneTilt.getValue() == 0) ?
 									DetectorConfiguration.SINGLE_STREAK_CAMERA :
-							  		DetectorConfiguration.DOWNSCATTER_SLIT,
+							  		DetectorConfiguration.DOUBLE_STREAK_CAMERA,
 								0,
 								reuseMatrix.isSelected(),
 								logger); // make the simulation
@@ -295,8 +295,11 @@ public class SpectrumViewer extends Application {
 						PythonPlot.compareHeatmap(mc.getTimeBins(), mc.getEnergyBins(), smallSpec, mc.getFitNeutronSpectrum(),
 												  "Time (ns)", "Energy (MeV)", "Original neutron spectrum", "Fit neutron spectrum");
 						PythonPlot.compareHeatmap(mc.getTimeBins(), mc.getDeuteronEnergyBins(),
-												  mc.guessDeuteronSpectrum(), mc.getDeuteronSpectrum(),
-												  "Time (ns)", "Energy (MeV)", "Corrected signal distribution", "Synthetic deuteron spectrum");
+						                          mc.efficiencyCorrect(mc.getSignalDistribution()),
+						                          mc.efficiencyCorrect(mc.getFitSignalDistribution()),
+						                          mc.efficiencyCorrect(mc.getIdealSignalDistribution()),
+						                          "Time (ns)", "Energy (MeV)",
+						                          "Corrected signal distribution", "Fit signal distribution", "True spectrum");
 						PythonPlot.compareHeatmap(mc.getTimeBins(), mc.getDeuteronEnergyBins(),
 												  mc.getSignalDistribution(), mc.getBackgroundSpectrum(),
 												  "Time (ns)", "Energy (MeV)", "Synthetic signal distribution", "Detector background");

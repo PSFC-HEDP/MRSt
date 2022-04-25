@@ -29,7 +29,8 @@ public class PerfectDetector extends Detector {
 	}
 
 	@Override
-	public double[][] response(double[] energyBins, double[] timeBins, double[][] inSpectrum, boolean stochastic, boolean background) {
+	public double[][] response(double[] energyBins, double[] timeBins, double[][] inSpectrum,
+	                           boolean stochastic, boolean background, boolean gaps) {
 		return inSpectrum;
 	}
 

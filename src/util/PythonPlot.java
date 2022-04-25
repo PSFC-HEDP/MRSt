@@ -85,7 +85,7 @@ public class PythonPlot {
 	 * @throws IOException if there's an issue talking to disk
 	 */
 	public static void compareHeatmap(double[] x, double[] y, double[][] z0, double[][] z1,
-	                                   String xLabel, String yLabel, String title0, String title1) throws IOException {
+	                                  String xLabel, String yLabel, String title0, String title1) throws IOException {
 		new File("output/").mkdir();
 		CSV.writeColumn(x, new File(String.format("output/%s_x.csv", title0)));
 		CSV.writeColumn(y, new File(String.format("output/%s_y.csv", title0)));
@@ -93,6 +93,26 @@ public class PythonPlot {
 		CSV.write(z1, new File(String.format("output/%s_z.csv", title1)), ',');
 		ProcessBuilder plotPB = new ProcessBuilder("python", "src/python/compare2.py",
 		                                           xLabel, yLabel, title0, title1);
+		plotPB.start();
+	}
+
+
+	/**
+	 * send 1D data to a Python script for plotting in MatPlotLib
+	 * @throws IOException if there's an issue talking to disk
+	 */
+	public static void compareHeatmap(double[] x, double[] y,
+	                                  double[][] z0, double[][] z1, double[][] z2,
+	                                  String xLabel, String yLabel,
+	                                  String title0, String title1, String title2) throws IOException {
+		new File("output/").mkdir();
+		CSV.writeColumn(x, new File(String.format("output/%s_x.csv", title0)));
+		CSV.writeColumn(y, new File(String.format("output/%s_y.csv", title0)));
+		CSV.write(z0, new File(String.format("output/%s_z.csv", title0)), ',');
+		CSV.write(z1, new File(String.format("output/%s_z.csv", title1)), ',');
+		CSV.write(z2, new File(String.format("output/%s_z.csv", title2)), ',');
+		ProcessBuilder plotPB = new ProcessBuilder("python", "src/python/compare2.py",
+		                                           xLabel, yLabel, title0, title1, title2);
 		plotPB.start();
 	}
 

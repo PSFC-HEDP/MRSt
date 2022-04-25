@@ -60,11 +60,11 @@ public class StreakCameraArray extends Detector {
 			 config.slitWidths,
 			 config.streakTime,
 			 2.4/Math.cos(Math.toRadians(config.tiltAngle)) * 51,
-			 81,
-			 81,
-			 40_000,
-			 25e-6*25e-6,
-			 102e-6,
+			 81./config.shielding,
+			 81.,
+			 40_000.,
+			 25.e-6*25.e-6,
+			 102.e-6,
 			 ionOptis);
 	}
 
@@ -152,7 +152,8 @@ public class StreakCameraArray extends Detector {
 
 	@Override
 	public double[][] response(double[] energyBins, double[] timeBins,
-							   double[][] inSpectrum, boolean stochastic, boolean background) {
+							   double[][] inSpectrum, boolean stochastic,
+							   boolean background, boolean gaps) {
 		makeSureWeHaveResponseCurves(energyBins, timeBins);
 
 		for (double[] row : inSpectrum)
@@ -165,6 +166,9 @@ public class StreakCameraArray extends Detector {
 			double energy = (energyBins[i] + energyBins[i+1])/2;
 
 			int slit = whichSlit(energy);
+			if (slit == -1 && !gaps)
+				slit = 0;
+
 			if (slit >= 0) {
 				// first construct this row according to the energy blurring
 				double[] blurdSpectrum = new double[timeBins.length - 1];

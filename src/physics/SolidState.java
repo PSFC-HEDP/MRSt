@@ -51,7 +51,8 @@ public class SolidState extends Detector {
 
 	@Override
 	public double[][] response(double[] energyBins, double[] timeBins,
-							   double[][] timeResolved, boolean stochastic, boolean background) {
+							   double[][] timeResolved, boolean stochastic,
+							   boolean background, boolean gaps) {
 		double[][] timeIntegrated = new double[energyBins.length - 1][timeBins.length - 1];
 		int j0 = (timeBins.length - 1)/2;
 		for (int i = 0; i < timeResolved.length; i ++)

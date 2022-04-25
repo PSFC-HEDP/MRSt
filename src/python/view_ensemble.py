@@ -20,10 +20,10 @@ PLOT_THEORETICAL_ERROR_BARS = True
 # COLUMNS = 2
 # SIZE = (16, 7.5)
 # MARGIN = dict(bottom=.07, top=.93, left=.06, right=.99, wspace=.35, hspace=.05)
-INCLUDE_ERRORS = True
-COLUMNS = 1
-SIZE = (8, 7)
-MARGIN = dict(bottom=.08, top=.92, left=.10, right=.97, wspace=.36, hspace=.05)
+# INCLUDE_ERRORS = True
+# COLUMNS = 1
+# SIZE = (8, 7)
+# MARGIN = dict(bottom=.08, top=.92, left=.10, right=.97, wspace=.36, hspace=.05)
 # INCLUDE_ERRORS = False
 # COLUMNS = 2
 # SIZE = (7.5, 9.0)
@@ -36,14 +36,14 @@ MARGIN = dict(bottom=.08, top=.92, left=.10, right=.97, wspace=.36, hspace=.05)
 # COLUMNS = 1
 # SIZE = (4.5, 6)
 # MARGIN = dict(bottom=.08, top=.92, left=.19, right=.99, wspace=.25, hspace=.05)
-# INCLUDE_ERRORS = False
-# COLUMNS = 1
-# SIZE = (6, 4)
-# MARGIN = dict(bottom=.15, top=.95, left=.15, right=.95)
+INCLUDE_ERRORS = True
+COLUMNS = 1
+SIZE = (7, 5)
+MARGIN = dict(bottom=.10, top=.90, left=.12, right=.96, wspace=.35, hspace=.05)
 
 
 if len(sys.argv) <= 1:
-	FILENAME = '../../output/ensemble_medium_1slit_100um_5c_2022-04-15.csv'
+	FILENAME = '../../output/ensemble_high_2slit_500um_0c_2022-04-20.csv'
 else:
 	FILENAME = '../../output/'+sys.argv[1]
 BIN_WIDTH = 0.3 # in bels
@@ -55,7 +55,7 @@ Y_LABELS = [
 	("Burn width (ps)", 49, 67.68, 86, 7, False),
 	("Ti at BT (keV)", 5.8, 7.54, 9.2, 5e-2, True),
 	("dTi/dt at BT (keV/100ps)", -1.6, 0.80, 3.2, 0.8, False),
-	("ρR at BT (g/cm^2)", 0.67, 0.970, 1.13, 7e-2, True),
+	# ("ρR at BT (g/cm^2)", 0.67, 0.970, 1.13, 7e-2, True),
 	# ("dρR/dt at BT (g/cm^2/100ps)", -2.1, -0.95, 1.1, 0.95, False),
 ]
 
@@ -178,12 +178,13 @@ for i, (axis, y_min, y_original, y_max, presis, percent) in enumerate(Y_LABELS):
 	μ = smooth_average(y[order])
 	σ = np.sqrt(smooth_average((y[order] - μ)**2, bessel_correction=False))
 
-	if not percent: # plot the actual stuff
-		ax.fill_between(x[order],
-			y_true[order] - presis, y_true[order] + presis, color='#F7DFC8')
-	else:
-		ax.fill_between(x[order],
-			y_true[order]*(1 - presis), y_true[order]*(1 + presis), color='#F7DFC8')
+	if presis is not None:
+		if not percent:
+			ax.fill_between(x[order],
+				y_true[order] - presis, y_true[order] + presis, color='#F7DFC8')
+		else:
+			ax.fill_between(x[order],
+				y_true[order]*(1 - presis), y_true[order]*(1 + presis), color='#F7DFC8')
 	ax.plot(x[order], y_true[order], 'C1-', zorder=1, label="Based on original data")
 	ax.scatter(x[order], y[order], s=1, zorder=2, label="Based on fit to synthetic data")
 	if PLOT_ENVELOPE:
@@ -228,13 +229,6 @@ if INCLUDE_ERRORS:
 		if 'yield' in axis:  y_true = simulations["Yield"].values
 		else:                y_true = y_original*np.ones(len(simulations.index))
 
-		if percent:
-			presis *= y_true[order]
-		# if presis <= 1e-2 and "(n" in axis:
-		# 	axis = axis.replace("(n", "(p")
-		# 	presis *= 1e3
-		# 	y_true *= 1e3
-
 		dy = y - y_true
 		# if percent:
 		# 	dy /= y_true
@@ -249,15 +243,18 @@ if INCLUDE_ERRORS:
 		stds = np.sqrt(smooth_average(np.square(dy[order]), bessel_correction=True))
 		errs = smooth_average(ɛ[order])
 		ax.plot(x[order], stds, 'C0-', label="Standard deviation from actuality")
-		ax.plot(x[order], np.full(order.shape, presis), 'C1--', label="Required accuracy")
+		if presis is not None:
+			if percent:
+				presis *= y_true[order]
+			ax.plot(x[order], np.full(order.shape, presis), 'C1--', label="Required accuracy")
 		if PLOT_THEORETICAL_ERROR_BARS:
 			ax.plot(x[order], errs, 'C3--', label="Reported error bar size")
-		# if np.max(errs)/np.max(errs) > 10:
 		ax.set_yscale('log')
-		ax.set_ylim(np.min(presis)*1e-1, np.max(presis)*1e+1)
-		# ax.grid(which='major', axis='y')
-		# else:
-		# 	ax.set_ylim(0, None)
+		if presis is not None:
+			ax.set_ylim(np.min(presis)*1e-1, np.max(presis)*1e+1)
+		else:
+			ax.set_ylim(np.median(stds)*1e-1, np.median(stds)*1e+1)
+		ax.grid(which='major', axis='y')
 		if 'ield' in X_LABEL:
 			ax.set_xscale('log')
 		if "(" in axis:

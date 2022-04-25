@@ -90,6 +90,13 @@ public class InputParser {
 							throw new IllegalArgumentException("error! slit width was supplied before detector configuration");
 						tagFormat = "_%sum";
 						break;
+					case "shielding":
+						if (this.detectorConfig != null)
+							this.detectorConfig.shielding = Double.parseDouble(value);
+						else
+							throw new IllegalArgumentException("error! shielding was supplied before detector configuration");
+						tagFormat = "_%sx";
+						break;
 					case "optics":
 						if (value.toLowerCase().startsWith("h"))
 							this.opticsConfig = IonOpticConfiguration.HIGH_EFFICIENCY;

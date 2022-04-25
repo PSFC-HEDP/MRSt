@@ -61,7 +61,8 @@ public abstract class Detector {
 	 * @param stochastic whether to apply noise to the result
 	 */
 	abstract double[][] response(double[] energyBins, double[] timeBins,
-								 double[][] inSpectrum, boolean stochastic, boolean background);
+								 double[][] inSpectrum, boolean stochastic,
+								 boolean background, boolean gaps);
 
 	/**
 	 * the total of signal units for every incident deuteron
@@ -130,19 +131,19 @@ public abstract class Detector {
 										0.00000, 11.5e-9,
 										new double[] {-7.5e-2, 0.2e-2},
 										new double[] {2.5e-2, 2.5e-2},
-										new double[] {200e-6, 100e-6});
+										new double[] {500e-6, 500e-6});
 		public static DetectorConfiguration SINGLE_STREAK_CAMERA =
 				new DetectorConfiguration("MRSt_IRF_FP_00deg",
 				                          0.00000, 11.5e-9,
 				                          new double[] {-1.2e-2},
 				                          new double[] {2.5e-2},
-				                          new double[] {200e-6});
+				                          new double[] {500e-6});
 		public static DetectorConfiguration CENTERED =
 				new DetectorConfiguration("MRSt_IRF_FP_00deg",
 				                          0.00000, 11.5e-9,
 				                          new double[] {0.0e-2},
 				                          new double[] {2.5e-2},
-				                          new double[] {200e-6});
+				                          new double[] {500e-6});
 		public static DetectorConfiguration DOUBLE_STREAK_CAMERA =
 			  new DetectorConfiguration("MRSt_IRF_FP_70deg",
 										66.58565, 4.5e-9,
@@ -168,6 +169,7 @@ public abstract class Detector {
 		public final double[] slitPositions;
 		public final double[] slitLengths;
 		public final double[] slitWidths;
+		public double shielding;
 
 		public DetectorConfiguration(
 			  String cosyFile, double tiltAngle, double streakTime,
@@ -178,6 +180,7 @@ public abstract class Detector {
 			this.slitPositions = slitPositions;
 			this.slitLengths = slitLengths;
 			this.slitWidths = slitWidths;
+			this.shielding = 100; // idk if this belongs here; maybe I'll move it later if I settle on a value
 		}
 	}
 

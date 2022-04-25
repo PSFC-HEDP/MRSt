@@ -46,8 +46,11 @@ public class SynthesizeImage {
 			slitTimes[s] = optics.map(slitEnergy)[3];
 		}
 
+		Random random = new Random();
+
 		double pixelEdge = 100e-6;//25e-6;
 		double resolution = 102e-6;
+		double gain = 122.4;
 		double[][] yBins = new double[numSlits][];
 		for (int s = 0; s < numSlits; s ++) {
 			yBins[s] = new double[(int) (detector.slitLengths[0]/pixelEdge) + 1];
@@ -61,22 +64,27 @@ public class SynthesizeImage {
 			xBins[i] = detector.slitLengths[0]*i/(yBins[0].length - 1.) - detector.slitLengths[0]/2;
 			xBins[i] /= 1e-2;
 		}
-//		double[] tBins = new double[xBins.length];
-//		for (int i = 0; i < xBins.length; i ++)
-//			tBins[i] = xBins[i]/detector.slitLengths[0]*detector.streakTime;
 		double[][][] counts = new double[numSlits][][];
-		for (int s = 0; s < numSlits; s ++)
+		for (int s = 0; s < numSlits; s ++) {
 			counts[s] = new double[yBins[s].length - 1][xBins.length - 1];
+			for (int i = 0; i < counts[s].length; i ++)
+				for (int j = 0; j < counts[s][i].length; j ++)
+					counts[s][i][j] = Math2.poisson(81*Math.pow(pixelEdge/25e-6, 2), random);
+		}
 
-		Random random = new Random();
+		double[] energyBins = new double[101];
+		for (int i = 0; i < energyBins.length; i ++)
+			energyBins[i] = 12 + 4.*i/(energyBins.length - 1);
+		double[] spectrum = SpectrumGenerator.generateSpectrum(
+				1, 7., 7., 0., .8, energyBins);
+
+		long total = 0, detected = 0;
 		for (int k = 0; k < 4e17*optics.efficiency(14); k ++) {
 			double time = Math2.normal(0, 100e-12, random);
-			double energy;
-			if (Math.random() < .95)
-				energy = Math2.normal(14, .300, random);
-			else
-				energy = 14 - Math2.gamma(2, 1.0, random);
+			double energy = Math2.drawFromProbabilityDistribution(
+					energyBins, spectrum, random);
 			double[] position = optics.simulate(energy, time, true);
+//			System.out.printf("[%.5f,%.5f],\n", position[0], position[1]);
 			for (int s = 0; s < numSlits; s ++) {
 				double y = Math2.normal(
 					  position[1],
@@ -90,11 +98,14 @@ public class SynthesizeImage {
 						int i = Math2.bin(x/1e-2, yBins[s]);
 						int j = Math2.bin(y/1e-2, xBins);
 						if (i >= 0 && j >= 0)
-							counts[s][i][j]++;
+							counts[s][i][j] += gain;
+						detected ++;
 					}
 				}
 			}
+			total ++;
 		}
+		System.out.printf("out of 4e17 total particles, %d made it thru the ion optics and %d of those were detected (for efficiencies of %.3g and %.3g)\n", total, detected, (float) total/4e17, (float) detected/total);
 
 		for (int s = 0; s < counts.length; s ++)
 			PythonPlot.plotHeatmap(xBins, yBins[s], counts[s],

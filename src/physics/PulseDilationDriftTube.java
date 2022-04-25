@@ -147,7 +147,8 @@ public class PulseDilationDriftTube extends Detector {
 
 	@Override
 	public double[][] response(double[] energyBins, double[] timeBins,
-							   double[][] inSpectrum, boolean stochastic, boolean background) {
+							   double[][] inSpectrum, boolean stochastic,
+							   boolean background, boolean gaps) {
 		if (this.responseFunction == null ||
 				!Arrays.equals(energyBins, this.energyBins) ||
 				!Arrays.equals(timeBins, this.timeBins)) // the full nmxnm believed transfer matrix

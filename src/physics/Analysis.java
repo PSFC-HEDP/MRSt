@@ -34,12 +34,10 @@ import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.PowellOptimizer;
 import physics.Detector.DetectorConfiguration;
 import physics.IonOptics.IonOpticConfiguration;
 import util.COSYMapping;
-import util.CSV;
 import util.Math2;
 import util.Math2.Quantity;
 import util.Optimization;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Locale;
@@ -95,6 +93,7 @@ public class Analysis {
 	private final double[] energyBins; // endpoints of E bins for inferred spectrum (MeV n)
 	private final double[] deuteronEnergyBins; // endpoints of E bins for inferred spectrum (MeV d)
 	private double[] timeBins; // endpoints of time bins for inferred spectrum [ns]
+	private double[][] neutronSpectrum; // input neutron counts
 	private double[][] deuteronSpectrum; // time-corrected deuteron counts
 	private double[][] signalDistribution; // 2D-resolved signal measurement
 	private double[][] fitNeutronSpectrum; // backward-fit neutron counts
@@ -310,10 +309,11 @@ public class Analysis {
 		double[] weits = SpectrumGenerator.generateSpectrum(
 			  1, temperature, temperature, 0, arealDensity,
 			  energyBins, temperature == 0);
+		weits = ionOptics.response(energyBins, weits, false, false);
 		double weitedEfficiency = 0;
 		for (int i = 0; i < energyAxis.length; i ++) // perform a weited mean
 			if (energyAxis[i] >= minEnergy && energyAxis[i] < maxEnergy)
-				weitedEfficiency += weits[i]*this.efficiency(energyAxis[i]);
+				weitedEfficiency += weits[i]*detector.efficiency(energyAxis[i]);
 		return weitedEfficiency;
 	}
 
@@ -337,9 +337,11 @@ public class Analysis {
 		for (int i = 0; i < energyAxis.length; i ++)
 			genericNeutronSpectrum[i][timeAxis.length/2] = genericNeutronDistribution[i];
 		double[][] typicalOpticsResponse = this.ionOptics.response(
-			  energyBins, timeBins, genericNeutronSpectrum, false, false);
+			  energyBins, timeBins, genericNeutronSpectrum,
+			  false, false);
 		double[][] fullResponse = this.detector.response(
-			  energyBins, timeBins, typicalOpticsResponse, false, false);
+			  energyBins, timeBins, typicalOpticsResponse,
+			  false, false, true);
 		double[] bandResponse = new double[timeAxis.length];
 		for (int i = 0; i < energyAxis.length; i ++)
 			if (energyAxis[i] >= minEnergy && energyAxis[i] < maxEnergy)
@@ -398,16 +400,17 @@ public class Analysis {
 
 		this.instantiateTimeAxis(times); // first, create the detector time bins
 
-		neutronSpectrum = Math2.downsample(
-				times, energies, neutronSpectrum, timeBins, energyBins); // first rebin the spectrum
-
 		logger.info("beginning Monte Carlo computation.");
 		long startTime = System.currentTimeMillis();
 
+		this.neutronSpectrum = Math2.downsample(
+				times, energies, neutronSpectrum, timeBins, energyBins); // first rebin the spectrum
 		this.deuteronSpectrum = this.ionOptics.response(
-				energyBins, timeBins, neutronSpectrum, true, true);
+				energyBins, timeBins, this.neutronSpectrum,
+				true, true);
 		this.signalDistribution = this.detector.response(
-			  energyBins, timeBins, deuteronSpectrum, true, true);
+			  energyBins, timeBins, deuteronSpectrum,
+			  true, true, true);
 
 		long endTime = System.currentTimeMillis();
 		logger.info(String.format(Locale.US, "completed in %.2f minutes.",
@@ -421,6 +424,10 @@ public class Analysis {
 		else
 			logger.info(String.format("The detector is %.2f%% of the way to saturation",
 									  saturation/1e-2));
+
+		double totalEfficiency = this.averageEfficiency(7., .8, 12, 16);
+		double opticsEfficiency = this.ionOptics.efficiency(14);
+		System.out.printf("I think the ion-optic efficiency is %.3g and detector efficiency is %.3g\n", opticsEfficiency, totalEfficiency/opticsEfficiency);
 
 		if (Math2.max(signalDistribution) == 0) {
 			logger.log(Level.SEVERE, "There were no deuterons detected.");
@@ -447,9 +454,11 @@ public class Analysis {
 			  this.getArealDensity(),
 			  energyBins, timeBins);
 		this.fitDeuteronSpectrum = this.ionOptics.response(
-			  energyBins, timeBins, fitNeutronSpectrum, false, false);
+			  energyBins, timeBins, fitNeutronSpectrum,
+			  false, false);
 		this.fitSignalDistribution = this.detector.response(
-			  energyBins, timeBins, fitDeuteronSpectrum, false, true);
+			  energyBins, timeBins, fitDeuteronSpectrum,
+			  false, true, true);
 
 		endTime = System.currentTimeMillis();
 		logger.info(String.format("completed in %.2f minutes.",
@@ -847,9 +856,11 @@ public class Analysis {
 			  neutronYield, ionTemperature, electronTemperature, bulkFlowVelocity, arealDensity,
 			  energyBins, timeBins); // generate the neutron spectrum based on those
 		double[][] deuterons = this.ionOptics.response(
-			  energyBins, timeBins, neutrons, false, false);
+			  energyBins, timeBins, neutrons,
+			  false, false);
 		double[][] signal = this.detector.response(
-			  energyBins, timeBins, deuterons, false, true);
+			  energyBins, timeBins, deuterons,
+			  false, true, true);
 
 		double totalError = 0; // negative log likelihood
 		for (int j = 0; j < timeAxis.length; j ++) {
@@ -917,7 +928,7 @@ public class Analysis {
 					double Ψpp = (x[j] - 2*x[j+1] + x[j+2])/
 						  Math.pow(timeStep, 3);
 					double Ψ = (x[j] + x[j+1] + x[j+2])/3;
-					totalPenalty += smoothing*1e-11*Math.pow(Ψpp/Ψ, 2); // encourage a smooth Ti and ρR
+					totalPenalty += smoothing*1e-10*Math.pow(Ψpp/Ψ, 2); // encourage a smooth Ti and ρR
 				}
 			}
 		}
@@ -1100,6 +1111,16 @@ public class Analysis {
 		return this.fitSignalDistribution;
 	}
 
+	public double[][] getIdealSignalDistribution() {
+		return this.detector.response(
+				energyBins, timeBins,
+				this.ionOptics.response(
+						energyBins, timeBins,
+						this.neutronSpectrum,
+						false, false),
+				false, false, false);
+	}
+
 	public double[][] getBackgroundSpectrum() {
 		double[][] background = new double[energyAxis.length][timeAxis.length];
 		for (int i = 0; i < energyAxis.length; i ++)
@@ -1109,17 +1130,17 @@ public class Analysis {
 		return background;
 	}
 
-	public double[][] guessDeuteronSpectrum() {
-		double[][] deuterons = new double[energyAxis.length][timeAxis.length];
-		for (int i = 0; i < energyAxis.length; i ++) {
-			for (int j = 0; j < timeAxis.length; j ++) {
-				double z = this.signalDistribution[i][j];
+	public double[][] efficiencyCorrect(double[][] distribution) {
+		double[][] spectrum = new double[distribution.length][distribution[0].length];
+		for (int i = 0; i < spectrum.length; i ++) {
+			for (int j = 0; j < spectrum[i].length; j ++) {
+				double z = distribution[i][j];
 				double z0 = detector.background(energyAxis[i], energyBins, timeBins);
 				double η = detector.efficiency(energyAxis[i])*detector.gain;
-				deuterons[i][j] = (z - z0)/η;
+				spectrum[i][j] = (z - z0)/η;
 			}
 		}
-		return deuterons;
+		return spectrum;
 	}
 
 	/**
