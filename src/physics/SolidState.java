@@ -37,7 +37,7 @@ public class SolidState extends Detector {
 	}
 
 	@Override
-	public double efficiency(double energy) {
+	public double efficiency(double energy, boolean gaps) {
 		return 1;
 	}
 

@@ -45,6 +45,8 @@ import javafx.stage.Stage;
 import physics.Analysis;
 import physics.Analysis.ErrorMode;
 import physics.Detector.DetectorConfiguration;
+import physics.IonOptics;
+import physics.IonOptics.IonOpticConfiguration;
 import physics.Particle;
 import physics.SpectrumGenerator;
 import util.COSYMapping;
@@ -106,6 +108,8 @@ public class SpectrumViewer extends Application {
 		leftPane.setHgap(SPACING_1);
 		leftPane.setVgap(SPACING_1);
 		int row = 0;
+
+		IonOpticConfiguration config = IonOpticConfiguration.HIGH_EFFICIENCY;
 		
 		this.foilDistance = new Spinner<Double>(0.5, 10.0, 3.0, 0.1);
 		leftPane.add(new Label("Foil distance"), 0, row);
@@ -113,19 +117,19 @@ public class SpectrumViewer extends Application {
 		leftPane.add(new Label("mm"), 2, row);
 		row ++;
 		
-		this.foilWidth = new Spinner<Double>(0.1, 2.0, 0.4, 0.01); // TODO maybe throw a warning if the radius >~ the distance
+		this.foilWidth = new Spinner<Double>(0.1, 2.0, config.foilRadius*2/1e-3, 0.01); // TODO maybe throw a warning if the radius >~ the distance
 		leftPane.add(new Label("Foil width"), 0, row);
 		leftPane.add(foilWidth, 1, row);
 		leftPane.add(new Label("mm"), 2, row);
 		row ++;
 		
-		this.foilHeight = new Spinner<Double>(0.1, 2.0, 0.4, 0.01); // TODO maybe throw a warning if the radius >~ the distance
+		this.foilHeight = new Spinner<Double>(0.1, 2.0, config.foilRadius*2/1e-3, 0.01); // TODO maybe throw a warning if the radius >~ the distance
 		leftPane.add(new Label("Foil height"), 0, row);
 		leftPane.add(foilHeight, 1, row);
 		leftPane.add(new Label("mm"), 2, row);
 		row ++;
 		
-		this.foilThickness = new Spinner<Double>(5., 500., 40., 5.);
+		this.foilThickness = new Spinner<Double>(5., 500., config.foilThickness/1e-6, 5.);
 		leftPane.add(new Label("Foil thickness"), 0, row);
 		leftPane.add(foilThickness, 1, row);
 		leftPane.add(new Label("μm"), 2, row);
@@ -137,7 +141,7 @@ public class SpectrumViewer extends Application {
 		leftPane.add(new Label("m"), 2, row);
 		row ++;
 		
-		this.apertureWidth = new Spinner<Double>(0.1, 50.0, 3.0, 1.0);
+		this.apertureWidth = new Spinner<Double>(0.1, 50.0, config.apertureWidth/1e-3, 1.0);
 		leftPane.add(new Label("Aper. width"), 0, row);
 		leftPane.add(apertureWidth, 1, row);
 		leftPane.add(new Label("mm"), 2, row);
@@ -295,9 +299,9 @@ public class SpectrumViewer extends Application {
 						PythonPlot.compareHeatmap(mc.getTimeBins(), mc.getEnergyBins(), smallSpec, mc.getFitNeutronSpectrum(),
 												  "Time (ns)", "Energy (MeV)", "Original neutron spectrum", "Fit neutron spectrum");
 						PythonPlot.compareHeatmap(mc.getTimeBins(), mc.getDeuteronEnergyBins(),
-						                          mc.efficiencyCorrect(mc.getSignalDistribution()),
-						                          mc.efficiencyCorrect(mc.getFitSignalDistribution()),
-						                          mc.efficiencyCorrect(mc.getIdealSignalDistribution()),
+						                          mc.efficiencyCorrect(mc.getSignalDistribution(), true),
+						                          mc.efficiencyCorrect(mc.getFitSignalDistribution(), false),
+						                          mc.efficiencyCorrect(mc.getIdealSignalDistribution(), false),
 						                          "Time (ns)", "Energy (MeV)",
 						                          "Corrected signal distribution", "Fit signal distribution", "True spectrum");
 						PythonPlot.compareHeatmap(mc.getTimeBins(), mc.getDeuteronEnergyBins(),

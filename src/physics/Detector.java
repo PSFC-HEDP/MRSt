@@ -67,9 +67,10 @@ public abstract class Detector {
 	/**
 	 * the total of signal units for every incident deuteron
 	 * @param energy energy of the neutron (MeV)
+	 * @param gaps whether to set the efficiency to 0 where there are gaps
 	 * @return the gain (signal/deuteron)
 	 */
-	abstract double efficiency(double energy);
+	abstract double efficiency(double energy, boolean gaps);
 
 	/**
 	 * the size of one bin in whatever unit is relevant to the detector; this
@@ -90,8 +91,8 @@ public abstract class Detector {
 	 * @param timeBins the time bin edges (ns)
 	 * @return a variance (signal^2/bin^2)
 	 */
-	public final double noise(double energy, double[] energyBins, double[] timeBins) {
-		if (this.efficiency(energy) > 0)
+	public final double noise(double energy, double[] energyBins, double[] timeBins, boolean gaps) {
+		if (this.efficiency(energy, gaps) > 0)
 			return this.noisePerPixel
 				  *this.pixelsPerBin(energy, energyBins, timeBins);
 		else
@@ -105,8 +106,8 @@ public abstract class Detector {
 	 * @param timeBins the time bin edges (ns)
 	 * @return the bin value (signal/bin^2)
 	 */
-	public final double background(double energy, double[] energyBins, double[] timeBins) {
-		if (this.efficiency(energy) > 0)
+	public final double background(double energy, double[] energyBins, double[] timeBins, boolean gaps) {
+		if (this.efficiency(energy, gaps) > 0)
 			return this.backgroundPerPixel
 				  *this.pixelsPerBin(energy, energyBins, timeBins);
 		else
@@ -122,6 +123,15 @@ public abstract class Detector {
 	public final double saturationLimit(double energy, double[] energyBins, double[] timeBins) {
 		return this.saturationLimitPerPixel
 			  *this.pixelsPerBin(energy, energyBins, timeBins);
+	}
+
+
+	public static Detector newDetector(DetectorConfiguration config, IonOptics optics) {
+		if (!Double.isNaN(config.streakTime))
+			return new StreakCameraArray(config, optics);
+		else
+//			return new PulseDilationDriftTube(config);
+			return new PerfectDetector();
 	}
 
 
@@ -180,7 +190,7 @@ public abstract class Detector {
 			this.slitPositions = slitPositions;
 			this.slitLengths = slitLengths;
 			this.slitWidths = slitWidths;
-			this.shielding = 100; // idk if this belongs here; maybe I'll move it later if I settle on a value
+			this.shielding = 1; // idk if this belongs here; maybe I'll move it later if I settle on a value
 		}
 	}
 

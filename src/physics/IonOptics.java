@@ -72,7 +72,7 @@ public class IonOptics {
 	private static final int STOPPING_DISTANCE_RESOLUTION = 64;
 	private static final String STOPPING_POWER_FILENAME = "input/stopping_power_%ss_CD.csv";
 
-	private static final int TRANSFER_MATRIX_TRIES = 10000; // the number of points to sample in each column of the transfer matrix
+	private static final int TRANSFER_MATRIX_TRIES = 100000; // the number of points to sample in each column of the transfer matrix
 
 	private final double foilDistance; // z coordinate of midplane of foil [m]
 	private final double foilWidth; // extent of foil in dispersion direccion [m]

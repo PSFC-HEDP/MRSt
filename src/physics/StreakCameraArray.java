@@ -54,7 +54,7 @@ public class StreakCameraArray extends Detector {
 	private double[][] timeResponses; // (each row sums to 1)
 
 	public StreakCameraArray(
-		  DetectorConfiguration config, IonOptics ionOptis) {
+		  DetectorConfiguration config, IonOptics ionOptics) {
 		this(config.slitPositions,
 			 config.slitLengths,
 			 config.slitWidths,
@@ -64,8 +64,8 @@ public class StreakCameraArray extends Detector {
 			 81.,
 			 40_000.,
 			 25.e-6*25.e-6,
-			 102.e-6,
-			 ionOptis);
+			 1.e-6,
+			 ionOptics);
 	}
 
 	/**
@@ -136,8 +136,10 @@ public class StreakCameraArray extends Detector {
 	}
 
 	@Override
-	public double efficiency(double energy) {
+	public double efficiency(double energy, boolean gaps) {
 		int i = whichSlit(energy);
+		if (!gaps)
+			i = Math.max(0, i);
 		if (i >= 0)
 			return Math.min(1, slitWidths[i]/bowtieHite.evaluate(energy));
 		return 0;
@@ -193,7 +195,7 @@ public class StreakCameraArray extends Detector {
 					for (int j = 0; j < timeBins.length - 1; j ++) {
 						if (j + dj >= 0 && j + dj < timeBins.length - 1) {
 							double source = blurdSpectrum[j + dj];
-							double portion = this.efficiency(energy)*timeResponses[slit][l]; // accounting for quantum efficiency
+							double portion = this.efficiency(energy, gaps)*timeResponses[slit][l]; // accounting for quantum efficiency
 							if (stochastic)
 								outSpectrum[i][j] += gain*Math2.binomial(
 									  (int)source, portion, NOISE_RANDOM); // as well as gain
@@ -205,9 +207,9 @@ public class StreakCameraArray extends Detector {
 
 				if (background) {
 					for (int j = 0; j < timeBins.length - 1; j++) { // add the background
-						double level = background(energy, energyBins, timeBins);
+						double level = background(energy, energyBins, timeBins, gaps);
 						if (stochastic) {
-							double σ2 = noise(energy, energyBins, timeBins) + outSpectrum[i][j];
+							double σ2 = noise(energy, energyBins, timeBins, gaps) + outSpectrum[i][j];
 							outSpectrum[i][j] += Math2.normal(level, Math.sqrt(σ2), NOISE_RANDOM);
 						}
 						else

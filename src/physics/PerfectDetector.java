@@ -35,7 +35,7 @@ public class PerfectDetector extends Detector {
 	}
 
 	@Override
-	double efficiency(double energy) {
+	double efficiency(double energy, boolean gaps) {
 		return 1;
 	}
 

@@ -34,8 +34,8 @@ import java.util.Random;
 public class SynthesizeImage {
 
 	public static void main(String[] args) throws IOException { // TODO: background
-		IonOpticConfiguration config = IonOpticConfiguration.MID_EFFICIENCY;
-		DetectorConfiguration detector = DetectorConfiguration.SINGLE_STREAK_CAMERA;
+		IonOpticConfiguration config = IonOpticConfiguration.HIGH_EFFICIENCY;
+		DetectorConfiguration detector = DetectorConfiguration.DOUBLE_STREAK_CAMERA;
 		IonOptics optics = new IonOptics(config, detector.cosyFile, detector.tiltAngle, 0.1, false);
 		int numSlits = detector.slitPositions.length;
 

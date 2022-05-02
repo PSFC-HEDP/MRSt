@@ -28,7 +28,7 @@ Zs = np.array([
 Y = (Y[1:] + Y[:-1])/2
 
 if "(ns)" in xlabel:
-	x0 = X[np.argmax(np.sum(Zs[1, :, :], axis=0))]
+	x0 = X[np.argmax(np.sum(Zs[-1, :, :], axis=0))]
 	X = (X - x0)*1000
 	xlabel = xlabel.replace("ns", "ps")
 
@@ -41,12 +41,16 @@ def update(*args):
 	x = slider.val
 	j = np.minimum(np.digitize(x, X) - 1, Zs.shape[2] - 1)
 	ax.clear()
+	if Zs[0, :, j].max()/Zs[0, :, j].min(initial=np.inf, where=Zs[1, :, j] > 0) > 1e3:
+		ax.set_yscale('symlog', linthresh=max(1, Zs[0, :, j].max()/100), linscale=1/np.log(10))
+	limits = None
 	for i in range(Zs.shape[0]):
 		fmt = ["C0-", "C1--", "C2--"]
 		ax.plot(Y, Zs[i, :, j], fmt[i], label=titles[i])
-	# ax.legend()
-	if Zs[1, :, j].max()/Zs[1, :, j].min(initial=np.inf, where=Zs[1, :, j] > 0) > 1e3:
-		ax.set_yscale('symlog', linthresh=max(1, Zs[:, :, j].max()/100), linscale=1/np.log(10))
+		if limits is None:
+			limits = ax.axis()
+	ax.axis(limits)
+	ax.set_ylim(0, None)
 	ax.set_xlabel(ylabel)
 	ax.set_title(f"Slice comparison of {' & '.join(titles)}")
 slider.on_changed(update)

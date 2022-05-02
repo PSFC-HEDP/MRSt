@@ -71,6 +71,15 @@ public class PulseDilationDriftTube extends Detector {
 	private double[][] responseFunction;
 
 
+	public PulseDilationDriftTube(DetectorConfiguration configuration) throws IOException {
+		this(Particle.D, 100e-6, 1000e-10,
+		     configuration.tiltAngle,
+		     1e3, 1e-3, 1e0,
+		     20, .70, 1e4,
+		     100);
+	}
+
+
 	/**
 	 * put together the photocathode/PDDT simulacion
 	 * @param ion either Particle.P or Particle.D
@@ -172,7 +181,7 @@ public class PulseDilationDriftTube extends Detector {
 	}
 
 	@Override
-	public double efficiency(double energy) {
+	public double efficiency(double energy, boolean gaps) {
 		return this.electronsPerDeuteron.evaluate(energy)*this.openAreaRatio;
 	}
 
