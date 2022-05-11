@@ -24,73 +24,64 @@
 package app;
 
 import physics.Analysis;
-import physics.Analysis.ErrorMode;
 import physics.Detector.DetectorConfiguration;
 import physics.IonOptics.IonOpticConfiguration;
-import physics.SpectrumGenerator;
-import util.CSV;
 
-import java.io.File;
 import java.io.IOException;
 
 /**
  * @author Justin Kunimune
  */
 public class ConfigurationPlotter {
-	
-	private static final int[] MEASUREMENTS = {6, 22, 24}; // indices for burn width, vi, and dTdt
-	private static final double[] TARGETS = {.066711, 67.33, 1.83};
-	private static final int NUM_RUNS = 4;
-	
-	
 	public static void main(String[] args) throws NumberFormatException, IOException {
-		for (double rFoil = 200e-6; rFoil < 201e-6; rFoil += 100e-6) {
-			for (double tFoil = 25e-6; tFoil < 110e-6; tFoil += 15e-6) {
-				for (double wAperture = 1.0e-3; wAperture < 5.1e-3; wAperture += 1.0e-3) {
+			for (double rFoil = 0; rFoil < 451e-6; rFoil += 500e-6) {
+				for (double tFoil = 0; tFoil < 91e-6; tFoil += 15e-6) {
+					for (double wAperture = 0; wAperture < 5.1e-3; wAperture += 1e-3) {
 //					System.out.println("setting up simulation");
+
+//					double[] errs = new double[MEASUREMENTS.length];
+//					double[] eBins = CSV.readColumn(new File("input/energy.txt"));
+//					double[] tBins = CSV.readColumn(new File("input/time og.txt"));
+//					double[][] spec = CSV.read(new File("input/time og.txt"), '\t');
+//					if (spec.length != eBins.length-1 || spec[0].length != tBins.length-1) {
+//						System.out.println("interpreting a weird spectrum file...");
+//						spec = SpectrumGenerator.interpretSpectrumFile(tBins, eBins, spec);
+//					}
+
 					Analysis mc = new Analysis(
-						  new IonOpticConfiguration(tFoil, rFoil, wAperture),
-						  DetectorConfiguration.MAXIMUM_COVERAGE,
-						  0,
-						  false,
-						  null); // make the simulation
+							new IonOpticConfiguration(tFoil, rFoil, wAperture),
+							DetectorConfiguration.DRIFT_TUBE,
+							0,
+							false,
+							null); // make the simulation
 
 					double[] resolutions = mc.computeResolution(14);
 					double timeRes = resolutions[1]; // [ps]
 					double energyRes = resolutions[0]; // [keV]
+
+//					for (int i = 0; i < NUM_RUNS; i ++) {
+//						double[] result = null;
+//						while (result == null) {
+//							try {
+//								result =mc.respondAndAnalyze(
+//															eBins,
+//															tBins,
+//															spec,
+//															ErrorMode.NONE); // and run it many times!
+//							}
+//							catch (IllegalStateException e) {
+//								System.out.println("fuck");
+//							}
+//						}
+//						for (int j = 0; j < errs.length; j ++)
+//							errs[j] += Math.pow(result[MEASUREMENTS[j]] - TARGETS[j], 2)/NUM_RUNS;
+//					}
+//					for (int j = 0; j < errs.length; j ++) {
+//						errs[j] = Math.sqrt(errs[j]);
+//					}
 					
-					double[] errs = new double[MEASUREMENTS.length];
-					double[] eBins = CSV.readColumn(new File("data/Energy bins.txt"));
-					double[] tBins = CSV.readColumn(new File("data/nsp_150327_16p26_time - copia.txt"));
-					double[][] spec = CSV.read(new File("data/nsp_150327_16p26.txt"), '\t');
-					if (spec.length != eBins.length-1 || spec[0].length != tBins.length-1) {
-						System.out.println("interpreting a weird spectrum file...");
-						spec = SpectrumGenerator.interpretSpectrumFile(tBins, eBins, spec);
-					}
-					
-					for (int i = 0; i < NUM_RUNS; i ++) {
-						double[] result = null;
-						while (result == null) {
-							try {
-								result =mc.respondAndAnalyze(
-															eBins,
-															tBins,
-															spec,
-															ErrorMode.NONE); // and run it many times!
-							}
-							catch (IllegalStateException e) {
-								System.out.println("fuck");
-							}
-						}
-						for (int j = 0; j < errs.length; j ++)
-							errs[j] += Math.pow(result[MEASUREMENTS[j]] - TARGETS[j], 2)/NUM_RUNS;
-					}
-					for (int j = 0; j < errs.length; j ++) {
-						errs[j] = Math.sqrt(errs[j]);
-					}
-					
-					System.out.printf("[%g, %g, %g, %g, %g, %g, %g, %g, %g, %g],\n",
-							rFoil, tFoil, wAperture, 20e-3, energyRes, timeRes, mc.efficiency(14), errs[0], errs[1], errs[2]);
+					System.out.printf("[%g, %g, %g, %g, %g, %g, %g],\n",
+							rFoil, tFoil, wAperture, 20e-3, energyRes, timeRes, mc.efficiency(14));
 				}
 			}
 		}

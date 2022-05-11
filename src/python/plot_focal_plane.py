@@ -10,7 +10,8 @@ if "python" in os.getcwd():
 	os.chdir('../..')
 
 xlim = (-26.5, 14)
-ylim = (-2, 2)
+ylim = (-1.8, 1.8)
+figsize = (9, 3.2)
 
 slit_lengths = np.atleast_1d(np.loadtxt("output/focal plane lengths.csv"))
 slit_widths = np.atleast_1d(np.loadtxt("output/focal plane widths.csv"))
@@ -33,7 +34,7 @@ for e, Y in zip(energies, particles):
 x = np.array(x)
 y = np.array(y)
 
-plt.figure(figsize=(9, 3.5))
+plt.figure(figsize=figsize)
 
 # major_line_freq = max(1, (quantiles.size - 1)//4)
 # for i in range(quantiles.size):
@@ -57,13 +58,12 @@ for e, Y in zip(energies, particles):
 		if crampd is None:
 			crampd = x_min > xlim[0]/4
 		major = (round(e) == round(e, 6)) if not crampd else (round(e/2) == round(e/2, 6))
-		linewidth = 1.6 if major else 0.8
 		linestyle = "solid" # (0, (2, 1)) if major else (0, (4, 2))
 		plt.plot([x_min, x_min, x_max, x_max, x_min],
 		         [y_min, y_max, y_max, y_min, y_min],
-		         linewidth=linewidth, color='#516EB6')
-		plt.plot([(x_min + x_max)/2]*2, [ 100, y_max], color='#516EB6', linestyle=linestyle, linewidth=linewidth)
-		plt.plot([(x_min + x_max)/2]*2, [-100, y_min], color='#516EB6', linestyle=linestyle, linewidth=linewidth)
+		         linewidth=0.8, color='#3f558c')
+		plt.plot([(x_min + x_max)/2]*2, [ 100, y_max], color='#3f558c', linestyle=linestyle, linewidth=0.8)
+		plt.plot([(x_min + x_max)/2]*2, [-100, y_min], color='#3f558c', linestyle=linestyle, linewidth=0.8)
 		if major:
 			if x_min - 0.8 > xlim[0] and x_min < xlim[1]:
 				plt.text(x_min, ylim[0], f" {e:.0f} MeV", horizontalalignment="right", rotation='vertical')

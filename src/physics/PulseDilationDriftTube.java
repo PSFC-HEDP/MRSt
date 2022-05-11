@@ -305,7 +305,7 @@ public class PulseDilationDriftTube extends Detector {
 
 			System.out.println("Energy: " + energy);
 			System.out.println("Signal amplification: " + (Math2.sum(dist)/detector.gain/n));
-			System.out.println("Effective time resolution degradation: " + Math2.fwhm(axis, dist) + " ps");
+			System.out.println("Effective time resolution degradation: " + Math2.fwhm(bins, dist) + " ps");
 			if (energy == 12.5) {
 //				PythonPlot.plotLines("Energy histogram", axis, "Time [ps]", dist, errors, "Electrons");
 //				PythonPlot.plotLines("MCP response function", kernelAxis, "Time [ps]", kernel, errors, " ");

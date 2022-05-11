@@ -125,6 +125,7 @@ public class Analysis {
 		this(new IonOptics(ionOpticConfiguration,
 						   detectorConfiguration.cosyFile,
 						   detectorConfiguration.tiltAngle,
+						   detectorConfiguration.offset,
 						   calibrationPrecision,
 						   reuseMatrix),
 			 detectorConfiguration,
@@ -145,6 +146,7 @@ public class Analysis {
 		this(new IonOptics(ionOpticConfiguration,
 						   detectorConfiguration.cosyFile,
 						   detectorConfiguration.tiltAngle,
+						   detectorConfiguration.offset,
 						   calibrationPrecision, reuseMatrix),
 			 detectorConfiguration,
 			 eBin, tBin, analysisPrecision,
@@ -176,7 +178,7 @@ public class Analysis {
 				foilDistance, foilWidth, foilHeight, foilThickness,
 				apertureDistance, apertureWidth, apertureHeight,
 				MIN_E, MAX_E, cosyMapping, detectorConfiguration.tiltAngle,
-				calibrationPrecision, reuseMatrix),
+				detectorConfiguration.offset, calibrationPrecision, reuseMatrix),
 		     detectorConfiguration,logger);
 	}
 
@@ -558,9 +560,10 @@ public class Analysis {
 		double[] naiveNeutronYield = new double[signal[0].length];
 		for (int i = 0; i < signal.length; i ++) {
 			double background = this.detector.background(energyAxis[i], energyBins, timeBins, true);
+			double efficiency = this.averageEfficiency(4, .1, 0, Double.POSITIVE_INFINITY);
 			for (int j = 0; j < signal[i].length; j ++) {
 				naiveNeutronYield[j] += Math.max(
-					  0, (signal[i][j] - background)/detector.gain/this.efficiency(14))/(timeStep*1e15); // the spectrum scaled by the efficiency of the system
+					  0, (signal[i][j] - background)/detector.gain/efficiency)/(timeStep*1e15); // the spectrum scaled by the efficiency of the system
 			}
 		}
 

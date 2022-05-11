@@ -9,7 +9,7 @@ if len(sys.argv) > 1:
 else:
 	import os
 	os.chdir('../..')
-	xlabel, ylabel, title = 'Time (ns)', 'Energy (MeV)', 'Synthetic deuteron spectrum'
+	xlabel, ylabel, title = 'Streak direction (cm)', 'Slit direction (cm)', 'Camera 0 image'
 
 X = np.genfromtxt('output/{}_x.csv'.format(title), delimiter=',')
 Y = np.genfromtxt('output/{}_y.csv'.format(title), delimiter=',')

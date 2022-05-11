@@ -16,34 +16,41 @@ PLOT_THEORETICAL_ERROR_BARS = True
 # COLUMNS = 3
 # SIZE = (12, 3.5)
 # MARGIN = dict(bottom=.15, top=.97, left=.07, right=.99, wspace=.40, hspace=.05)
+
 # INCLUDE_ERRORS = True
 # COLUMNS = 2
 # SIZE = (16, 7.5)
 # MARGIN = dict(bottom=.07, top=.93, left=.06, right=.99, wspace=.35, hspace=.05)
-# INCLUDE_ERRORS = True
-# COLUMNS = 1
-# SIZE = (8, 7)
-# MARGIN = dict(bottom=.08, top=.92, left=.10, right=.97, wspace=.36, hspace=.05)
+
+INCLUDE_ERRORS = True
+COLUMNS = 1
+SIZE = (8, 7)
+MARGIN = dict(bottom=.08, top=.92, left=.10, right=.97, wspace=.36, hspace=.05)
+
 # INCLUDE_ERRORS = False
 # COLUMNS = 2
 # SIZE = (7.5, 9.0)
 # MARGIN = dict(bottom=.06, top=.94, left=.12, right=.99, wspace=.30, hspace=.05)
+
 # INCLUDE_ERRORS = False
 # COLUMNS = 2
 # SIZE = (10, 6)
 # MARGIN = dict(bottom=.11, top=.89, left=.13, right=.99, wspace=.30, hspace=.05)
+
 # INCLUDE_ERRORS = False
 # COLUMNS = 1
 # SIZE = (4.5, 6)
 # MARGIN = dict(bottom=.08, top=.92, left=.19, right=.99, wspace=.25, hspace=.05)
-INCLUDE_ERRORS = True
-COLUMNS = 1
-SIZE = (7, 5)
-MARGIN = dict(bottom=.10, top=.90, left=.12, right=.96, wspace=.35, hspace=.05)
+
+# INCLUDE_ERRORS = True
+# COLUMNS = 1
+# SIZE = (7, 5)
+# MARGIN = dict(bottom=.10, top=.90, left=.11, right=.97, wspace=.37, hspace=.05)
 
 
 if len(sys.argv) <= 1:
-	FILENAME = '../../output/ensemble_high_maximu_500um_0c_100x_2022-04-30.csv'
+	FILENAME = '../../output/ensemble_high_2slit_500um_0c_1x_2022-05-03.csv'
+	# FILENAME = '../../output/ensemble_high_pddt_0c_2022-05-02.csv'
 else:
 	FILENAME = '../../output/'+sys.argv[1]
 BIN_WIDTH = 0.3 # in bels
@@ -52,11 +59,11 @@ REFERENCE_YIELDS = [1e16, 1e17, 1e18, 1e19]
 X_LABEL = "Yield"
 
 Y_LABELS = [
-	("Burn width (ps)", 49, 67.68, 86, 7, False),
-	("Ti at BT (keV)", 5.8, 7.54, 9.2, 5e-2, True),
-	("dTi/dt at BT (keV/100ps)", -1.6, 0.80, 3.2, 0.8, False),
-	# ("ρR at BT (g/cm^2)", 0.67, 0.970, 1.13, 7e-2, True),
-	# ("dρR/dt at BT (g/cm^2/100ps)", -2.1, -0.95, 1.1, 0.95, False),
+	("Burn width (ps)", 49, 67.75, 86, 7, False),
+	("Ti at BT (keV)", 5.8, 7.56, 9.2, 5e-2, True),
+	("dTi/dt at BT (keV/100ps)", -2.2, 1.4, 4.4, .89, False),
+	("ρR at BT (g/cm^2)", 0.67, 0.970, 1.13, 7e-2, True),
+	# ("dρR/dt at BT (g/cm^2/100ps)", -2.1, -1.1, 1.1, 0.95, False),
 ]
 
 
@@ -69,6 +76,17 @@ def text_wrap(s):
 			elif s[i-j] == ' ':
 				return s[:i-j] + '\n' + s[i-j+1:]
 	return s
+
+def hide_ticks(axis):
+	"""
+		hide the ticks on an axis without hiding the entire
+		axis (this way the grid won't go away)
+	"""
+	for tick in axis.get_major_ticks() + axis.get_minor_ticks():
+		tick.tick1line.set_visible(False)
+		tick.tick2line.set_visible(False)
+		tick.label1.set_visible(False)
+		tick.label2.set_visible(False)
 
 def rolling_average(y, n, bessel_correction=False):
 	""" rolling average of y, using n neighbors in each direction """
@@ -160,7 +178,8 @@ for i, (axis, y_min, y_original, y_max, presis, percent) in enumerate(Y_LABELS):
 		ax.xaxis.set_label_position('top')
 		ax.xaxis.tick_top()
 	else:
-		ax.xaxis.set_visible(False)
+		hide_ticks(ax.xaxis)
+	ax.grid()
 
 	if axis is None: # add a legend if there is space
 		ax.plot([], [], 'C1--', label="Original data")
@@ -215,7 +234,8 @@ if INCLUDE_ERRORS:
 			ax.xaxis.set_label_position('top')
 			ax.xaxis.tick_top()
 		else:
-			ax.xaxis.set_visible(False)
+			hide_ticks(ax.xaxis)
+		ax.grid()
 
 		if axis is None:
 			ax.plot([], [], 'C1--', label="Required accuracy")
@@ -250,11 +270,19 @@ if INCLUDE_ERRORS:
 		if PLOT_THEORETICAL_ERROR_BARS:
 			ax.plot(x[order], errs, 'C3--', label="Reported error bar size")
 		ax.set_yscale('log')
-		if presis is not None:
-			ax.set_ylim(np.min(presis)*1e-1, np.max(presis)*1e+1)
-		else:
-			ax.set_ylim(np.median(stds)*1e-1, np.median(stds)*1e+1)
-		ax.grid(which='major', axis='y')
+
+		# figure out the best y limits
+		y_min = np.min(presis)*1e-1
+		y_max = np.max(presis)*1e+1
+		if np.median(stds) < y_min:
+			y_max *= np.median(stds)/y_min
+			y_min = np.median(stds)
+		if np.min(presis) > y_max:
+			y_min *= np.min(presis)/y_max
+			y_max = np.min(presis)
+		ax.set_ylim(y_min, y_max)
+
+		# ax.grid(which='major', axis='y')
 		if 'ield' in X_LABEL:
 			ax.set_xscale('log')
 		if "(" in axis:

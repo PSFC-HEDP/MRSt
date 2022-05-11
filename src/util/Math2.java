@@ -390,8 +390,9 @@ public class Math2 {
 	 * @return the full-width at half-maximum
 	 */
 	public static double fwhm(double[] x, double[] y) {
-		if (x.length != y.length)
-			throw new IllegalArgumentException("the inputs must have the same length.");
+		if (x.length != y.length + 1)
+			throw new IllegalArgumentException("the inputs must have matching lengths.");
+		x = Math2.binCenters(x);
 		int max = argmax(y);
 		double xR = Double.POSITIVE_INFINITY;
 		for (int i = max + 1; i < x.length; i ++) {
@@ -975,6 +976,13 @@ public class Math2 {
 		for (int i = 0; i < collum.length; i ++)
 			output[i] = new double[] {collum[i]};
 		return output;
+	}
+
+	public static double[] binCenters(double[] edges) {
+		double[] centers = new double[edges.length - 1];
+		for (int i = 0; i < edges.length - 1; i ++)
+			centers[i] = (edges[i] + edges[i + 1])/2;
+		return centers;
 	}
 	
 	/**

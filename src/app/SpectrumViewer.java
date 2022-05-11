@@ -45,7 +45,6 @@ import javafx.stage.Stage;
 import physics.Analysis;
 import physics.Analysis.ErrorMode;
 import physics.Detector.DetectorConfiguration;
-import physics.IonOptics;
 import physics.IonOptics.IonOpticConfiguration;
 import physics.Particle;
 import physics.SpectrumGenerator;
@@ -251,7 +250,7 @@ public class SpectrumViewer extends Application {
 								apertureHeight.getValue()*1e-3,
 								cosyMapping,
 								(focalPlaneTilt.getValue() == 0) ?
-									DetectorConfiguration.SINGLE_STREAK_CAMERA :
+									DetectorConfiguration.MAXIMUM_COVERAGE :
 							  		DetectorConfiguration.DOUBLE_STREAK_CAMERA,
 								0,
 								reuseMatrix.isSelected(),
@@ -289,8 +288,8 @@ public class SpectrumViewer extends Application {
 						PythonPlot.plotLines("Trajectories", spectrumName,
 								mc.getTimeAxis(), "Time (ns)",
 						 		mc.getNeutronYield(), mc.getNeutronYieldError(), "Yn (10^15/ns)",
-								mc.getIonTemperature(), mc.getIonTemperatureError(), "Ti (keV)",
-								mc.getArealDensity(), mc.getArealDensityError(), "ρR (g/cm^2)"
+								mc.getIonTemperature(), mc.getIonTemperatureError(), "Ti (keV)"//,
+//								mc.getArealDensity(), mc.getArealDensityError(), "ρR (g/cm^2)"
 						);
 						PythonPlot.compareHeatmap(mc.getTimeBins(), mc.getDeuteronEnergyBins(), mc.getSignalDistribution(), mc.getFitSignalDistribution(),
 								"Time (ns)", "Energy (MeV)", "Synthetic signal", "Fit signal");

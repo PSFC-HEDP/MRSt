@@ -25,40 +25,22 @@ package app;
 
 import physics.Detector.DetectorConfiguration;
 import physics.IonOptics;
-import physics.Particle;
+import physics.IonOptics.IonOpticConfiguration;
 import physics.SpectrumGenerator;
-import util.COSYMapping;
-import util.CSV;
 import util.Math2;
 import util.PythonPlot;
 
-import java.io.File;
 import java.io.IOException;
 
 public class FocalPlanePlotter {
 	public static void main(String[] args) throws IOException {
 		// select constants
 		DetectorConfiguration slits = DetectorConfiguration.DOUBLE_STREAK_CAMERA;
-		COSYMapping cosyMapping = CSV.readCosyCoefficients(
-			  new File(String.format("input/%s.txt", slits.cosyFile)),
-			  3, Particle.D, 12.45);
-
 		// set up the simulation
 		IonOptics io = new IonOptics(
-				3e-3,
-				.8e-3,
-				.8e-3,
-				90e-6,
-				6e0,
-				5e-3,
-				20e-3,
-				12,
-				16,
-				cosyMapping,
-				slits.tiltAngle,
-				0,
-				false
-		);
+				IonOpticConfiguration.HIGH_EFFICIENCY,
+				slits.cosyFile, slits.tiltAngle, slits.offset,
+				0, false);
 
 		// select the energies
 		int N = 35;
@@ -77,10 +59,10 @@ public class FocalPlanePlotter {
 		for (int i = 0; i <= N; i ++) {
 			System.out.printf("%d/%d: %.2f MeV <- %.2f MeV\n", i, N + 1, energiesD[i], energiesN[i]);
 			for (int k = 0; k < M; k ++) {
-				double[] xyzt = io.simulate(energiesN[i], 0, false);
-				positions[i][3*k  ] = xyzt[0]/Math.cos(Math.toRadians(slits.tiltAngle));
-				positions[i][3*k+1] = xyzt[1];
-				positions[i][3*k+2] = xyzt[3];
+				double[] xyt = io.simulate(energiesN[i], 0, false);
+				positions[i][3*k  ] = xyt[0];
+				positions[i][3*k+1] = xyt[1];
+				positions[i][3*k+2] = xyt[2];
 			}
 		}
 

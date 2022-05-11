@@ -33,17 +33,19 @@ import java.util.Random;
 
 public class SynthesizeImage {
 
-	public static void main(String[] args) throws IOException { // TODO: background
+	public static void main(String[] args) throws IOException {
 		IonOpticConfiguration config = IonOpticConfiguration.HIGH_EFFICIENCY;
-		DetectorConfiguration detector = DetectorConfiguration.DOUBLE_STREAK_CAMERA;
-		IonOptics optics = new IonOptics(config, detector.cosyFile, detector.tiltAngle, 0.1, false);
+		DetectorConfiguration detector = DetectorConfiguration.DOWNSCATTER_SLIT;
+		IonOptics optics = new IonOptics(config, detector.cosyFile,
+		                                 detector.tiltAngle, detector.offset,
+		                                 0.1, false);
 		int numSlits = detector.slitPositions.length;
 
 		double[] slitTimes = new double[numSlits];
 		for (int s = 0; s < numSlits; s ++) {
 			double slitEnergy = optics.energyVsPosition.evaluate(detector.slitPositions[s]);
 			slitEnergy /= 1e6*-Particle.E.charge * 8/9.;
-			slitTimes[s] = optics.map(slitEnergy)[3];
+			slitTimes[s] = optics.map(slitEnergy)[2];
 		}
 
 		Random random = new Random();
@@ -80,6 +82,8 @@ public class SynthesizeImage {
 
 		long total = 0, detected = 0;
 		for (int k = 0; k < 4e17*optics.efficiency(14); k ++) {
+			if (k%10000 == 0)
+				System.out.println(k+"/"+(int)(4e17*optics.efficiency(14)));
 			double time = Math2.normal(0, 100e-12, random);
 			double energy = Math2.drawFromProbabilityDistribution(
 					energyBins, spectrum, random);
@@ -91,10 +95,10 @@ public class SynthesizeImage {
 					  resolution, random);
 				if (Math.abs(y) < detector.slitWidths[s]/2) {
 					double x = Math2.normal(
-						  position[0]/Math.cos(Math.toRadians(detector.tiltAngle)),
+						  position[0],
 						  resolution, random);
 					if (Math.abs(x - detector.slitPositions[s]) < detector.slitLengths[s]/2) {
-						y += (position[3] - slitTimes[s])/detector.streakTime*detector.slitLengths[s];
+						y += (position[2] - slitTimes[s])/detector.streakTime*detector.slitLengths[s];
 						int i = Math2.bin(x/1e-2, yBins[s]);
 						int j = Math2.bin(y/1e-2, xBins);
 						if (i >= 0 && j >= 0)
@@ -109,8 +113,8 @@ public class SynthesizeImage {
 
 		for (int s = 0; s < counts.length; s ++)
 			PythonPlot.plotHeatmap(xBins, yBins[s], counts[s],
-			                       "Streak direction (cm)",
-			                       "Slit direction",
+			                       "Time direction (cm)",
+			                       "Space direction (cm)",
 			                       "Camera "+s+" image");
 	}
 

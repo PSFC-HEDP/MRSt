@@ -64,7 +64,7 @@ public class StreakCameraArray extends Detector {
 			 81.,
 			 40_000.,
 			 25.e-6*25.e-6,
-			 1.e-6,
+			 0,//1.e-6/1.4,
 			 ionOptics);
 	}
 
@@ -102,14 +102,14 @@ public class StreakCameraArray extends Detector {
 		double[] hRef = new double[FP_RESOLUTION];
 		for (int i = 0; i < FP_RESOLUTION; i ++) {
 			ERef[i] = 12. + 4.*i/(FP_RESOLUTION - 1); // (MeV neutron)
-			double[] rtCentral = optics.map(ERef[i]);
-			xRef[i] = Math.hypot(rtCentral[0], rtCentral[2])*Math.signum(rtCentral[0]);
-			tRef[i] = rtCentral[3];
+			double[] xytCentral = optics.map(ERef[i]);
+			xRef[i] = xytCentral[0];
+			tRef[i] = xytCentral[2];
 			hRef[i] = 0;
 			for (int k = 0; k < 1000; k ++) {
-				double[] rt = optics.simulate(ERef[i], 0, false);
-				if (!Double.isNaN(rt[0])) {
-					if (2*Math.abs(rt[1]) > hRef[i]) hRef[i] = 2*Math.abs(rt[1]);
+				double[] xyt = optics.simulate(ERef[i], 0, false);
+				if (!Double.isNaN(xyt[0])) {
+					if (2*Math.abs(xyt[1]) > hRef[i]) hRef[i] = 2*Math.abs(xyt[1]);
 				}
 			}
 		}
@@ -245,7 +245,10 @@ public class StreakCameraArray extends Detector {
 					energyResponses[s] = new double[energyBins.length - 1];
 				for (int i = 0; i < energyResponses[s].length; i ++) {
 					int di = i - energyResponses[s].length/2;
-					energyResponses[s][i] = Math.exp(-Math.pow(di*energyStep/energyResolut, 2)/2.);
+					if (energyResolut >= energyStep/10.)
+						energyResponses[s][i] = Math.exp(-Math.pow(di*energyStep/energyResolut, 2)/2.);
+					else
+						energyResponses[s][i] = (di == 0) ? 1 : 0;
 				}
 				double energyTotal = Math2.sum(energyResponses[s]);
 				for (int i = 0; i < energyResponses[s].length; i ++)
@@ -264,7 +267,10 @@ public class StreakCameraArray extends Detector {
 					tubeTimeResponse = new double[timeBins.length - 1];
 				for (int j = 0; j < tubeTimeResponse.length; j ++) {
 					int dj = j - tubeTimeResponse.length/2;
-					tubeTimeResponse[j] = Math.exp(-Math.pow(dj*timeStep/timeResolut, 2)/2.);
+					if (timeResolut >= timeStep/10.)
+						tubeTimeResponse[j] = Math.exp(-Math.pow(dj*timeStep/timeResolut, 2)/2.);
+					else
+						tubeTimeResponse[j] = (dj == 0) ? 1 : 0;
 				}
 				double timeTotal = Math2.sum(tubeTimeResponse);
 				for (int j = 0; j < tubeTimeResponse.length; j ++)
