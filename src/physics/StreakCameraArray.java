@@ -60,8 +60,8 @@ public class StreakCameraArray extends Detector {
 			 config.slitWidths,
 			 config.streakTime,
 			 2.4/Math.cos(Math.toRadians(config.tiltAngle)) * 51,
-			 81./config.shielding,
-			 81.,
+			 100./config.shielding,
+			 100.,
 			 40_000.,
 			 25.e-6*25.e-6,
 			 0,//1.e-6/1.4,
@@ -277,7 +277,7 @@ public class StreakCameraArray extends Detector {
 					tubeTimeResponse[j] /= timeTotal;
 
 				double timeWidth = slitWidths[s]/streakSpeed/1e-9; // (ns)
-				System.out.println("the slit degrades the resolution by "+timeWidth*1e3+"ps");
+				System.out.println("the speed is "+streakSpeed+" so the slit degrades the resolution by "+timeWidth*1e3+"ps");
 				int kernelSize = (int)Math.ceil(timeWidth/timeStep);
 				if (kernelSize%2 != 1) kernelSize += 1;
 				double[] slitTimeResponse = new double[kernelSize]; // bild the time response funccion kernel

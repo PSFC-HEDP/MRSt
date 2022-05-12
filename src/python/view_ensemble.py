@@ -10,60 +10,63 @@ import warnings
 warnings.filterwarnings("ignore")
 
 PLOT_ENVELOPE = False
-PLOT_THEORETICAL_ERROR_BARS = True
+PLOT_THEORETICAL_ERROR_BARS = False
 
 # INCLUDE_ERRORS = False
 # COLUMNS = 3
-# SIZE = (12, 3.5)
+# SIZE = (12, 3.5/1)
 # MARGIN = dict(bottom=.15, top=.97, left=.07, right=.99, wspace=.40, hspace=.05)
 
 # INCLUDE_ERRORS = True
 # COLUMNS = 2
-# SIZE = (16, 7.5)
+# SIZE = (16, 7.5/4)
 # MARGIN = dict(bottom=.07, top=.93, left=.06, right=.99, wspace=.35, hspace=.05)
 
-INCLUDE_ERRORS = True
-COLUMNS = 1
-SIZE = (8, 7)
-MARGIN = dict(bottom=.08, top=.92, left=.10, right=.97, wspace=.36, hspace=.05)
+# INCLUDE_ERRORS = True
+# COLUMNS = 1
+# SIZE = (8, 7/4)
+# MARGIN = dict(bottom=.08, top=.92, left=.10, right=.97, wspace=.36, hspace=.05)
+
+INCLUDE_ERRORS = False
+COLUMNS = 2
+SIZE = (7.5, 9.0/5)
+MARGIN = dict(bottom=.06, top=.94, left=.12, right=.99, wspace=.30, hspace=.05)
 
 # INCLUDE_ERRORS = False
 # COLUMNS = 2
-# SIZE = (7.5, 9.0)
-# MARGIN = dict(bottom=.06, top=.94, left=.12, right=.99, wspace=.30, hspace=.05)
-
-# INCLUDE_ERRORS = False
-# COLUMNS = 2
-# SIZE = (10, 6)
+# SIZE = (10, 6/4)
 # MARGIN = dict(bottom=.11, top=.89, left=.13, right=.99, wspace=.30, hspace=.05)
 
 # INCLUDE_ERRORS = False
 # COLUMNS = 1
-# SIZE = (4.5, 6)
+# SIZE = (4.5, 6/4)
 # MARGIN = dict(bottom=.08, top=.92, left=.19, right=.99, wspace=.25, hspace=.05)
 
 # INCLUDE_ERRORS = True
 # COLUMNS = 1
-# SIZE = (7, 5)
+# SIZE = (7, 5/3)
 # MARGIN = dict(bottom=.10, top=.90, left=.11, right=.97, wspace=.37, hspace=.05)
 
 
 if len(sys.argv) <= 1:
-	FILENAME = '../../output/ensemble_high_2slit_500um_0c_1x_2022-05-03.csv'
-	# FILENAME = '../../output/ensemble_high_pddt_0c_2022-05-02.csv'
+	FILENAME = '../../output/ensemble_high_2slit_400um_0c_1x_2022-05-11.csv'
 else:
 	FILENAME = '../../output/'+sys.argv[1]
 BIN_WIDTH = 0.3 # in bels
-REFERENCE_YIELDS = [1e16, 1e17, 1e18, 1e19]
+REFERENCE_YIELDS = [3e16, 3e17, 3e18]
 
 X_LABEL = "Yield"
 
 Y_LABELS = [
 	("Burn width (ps)", 49, 67.75, 86, 7, False),
+	("Burn skewness", -1.6, -.698, -0.1, 3e-1, False),
+	("Burn kurtosis", -0.5, 4.7, 10.5, 3, False),
 	("Ti at BT (keV)", 5.8, 7.56, 9.2, 5e-2, True),
-	("dTi/dt at BT (keV/100ps)", -2.2, 1.4, 4.4, .89, False),
-	("ρR at BT (g/cm^2)", 0.67, 0.970, 1.13, 7e-2, True),
-	# ("dρR/dt at BT (g/cm^2/100ps)", -2.1, -1.1, 1.1, 0.95, False),
+	("Ti at stagnation (keV)", 3.8, 5.856, 7.2, 5e-2, True),
+	("dTi/dt at BT (keV/100ps)", -2.2, 1.4, 4.4, 1.4, False),
+	("ρR at BT (g/cm^2)", 0.77, 0.978, 1.13, 7e-2, True),
+	("ρR at stagnation (g/cm^2)", 1.27, 1.416, 1.63, 7e-2, True),
+	("dρR/dt at BT (g/cm^2/100ps)", -2.1, -1.1, 1.1, 0.95, False),
 ]
 
 
@@ -142,10 +145,12 @@ for parameter in simulations:
 	if '(g/' in parameter:
 		simulations[parameter.replace('(g/', '(mg/')] = simulations[parameter]/1e-3
 
+num_rows = (len(Y_LABELS) + COLUMNS - 1)//COLUMNS
 if INCLUDE_ERRORS:
-	fig, axs = plt.subplots((len(Y_LABELS) + COLUMNS-1)//COLUMNS, COLUMNS*2, figsize=SIZE)
+	num_columns = COLUMNS*2
 else:
-	fig, axs = plt.subplots((len(Y_LABELS) + COLUMNS-1)//COLUMNS, COLUMNS, figsize=SIZE)
+	num_columns = COLUMNS
+fig, axs = plt.subplots(num_rows, num_columns, figsize=(SIZE[0], SIZE[1]*num_rows))
 try:
 	if len(axs.shape) == 1: # force the axis matrix to be 2D since Matplotlib apparently automatically reduces any array where one of the dimensions is 1
 		axs = axs[:, np.newaxis]
@@ -156,6 +161,7 @@ except AttributeError:
 
 fig.subplots_adjust(**MARGIN)
 
+# first do the scatter plot
 for i, (axis, y_min, y_original, y_max, presis, percent) in enumerate(Y_LABELS): # iterate through each desired plot
 	if axis is None: continue
 	if INCLUDE_ERRORS:
@@ -214,14 +220,36 @@ for i, (axis, y_min, y_original, y_max, presis, percent) in enumerate(Y_LABELS):
 	ax.set_ylim(y_min, y_max)
 	ax.set_ylabel(text_wrap(axis.replace("^2", "²")))
 
-if INCLUDE_ERRORS:
-	for i, (axis, y_min, y_original, y_max, presis, percent) in enumerate(Y_LABELS):
-		if axis is None: continue
-		ax = axs[i//COLUMNS, i%COLUMNS * 2 + 1]
+print("               reference yields:", end='')
+for reference_yield in REFERENCE_YIELDS:
+	print(f"  {reference_yield:< 17.2e}", end='')
+print()
 
-		x = simulations[X_LABEL].values # and the corresponding data
-		y = simulations[axis].values
-		ɛ = simulations[axis+" error"].values
+# then go thru and do the errors
+for i, (axis, y_min, y_original, y_max, presis, percent) in enumerate(Y_LABELS):
+	if axis is None: continue
+
+	x = simulations[X_LABEL].values # and the corresponding data
+	y = simulations[axis].values
+	ɛ = simulations[axis+" error"].values
+
+	if 'yield' in axis:  y_true = simulations["Yield"].values
+	else:                y_true = y_original*np.ones(len(simulations.index))
+
+	dy = y - y_true
+	# if percent:
+	# 	dy /= y_true
+	# print(f"{axis} is actually {np.mean(y[~np.isnan(y)])}")
+	print(f"{axis:>25s} error:", end='')
+	for reference_yield in REFERENCE_YIELDS:
+		at_yield = (~np.isnan(y)) & (np.absolute(np.log10(x/reference_yield)) <= 0.15)
+		error_at_yield = np.sqrt(np.mean(np.square(dy[at_yield])))
+		number_at_yield = np.sum(at_yield)
+		print(f"  {error_at_yield:7.4f} ± {error_at_yield*np.sqrt(2/number_at_yield):7.4f}", end='')
+	print()
+
+	if INCLUDE_ERRORS:
+		ax = axs[i//COLUMNS, i%COLUMNS * 2 + 1]
 
 		ax.set_xlim(10**round(np.log10(x.min())),
 		            10**round(np.log10(x.max()))) # set up the x axis
@@ -245,20 +273,6 @@ if INCLUDE_ERRORS:
 			ax.legend()
 			ax.yaxis.set_visible(False)
 			continue
-
-		if 'yield' in axis:  y_true = simulations["Yield"].values
-		else:                y_true = y_original*np.ones(len(simulations.index))
-
-		dy = y - y_true
-		# if percent:
-		# 	dy /= y_true
-		# print(f"{axis} is actually {np.mean(y[~np.isnan(y)])}")
-		for reference_yield in REFERENCE_YIELDS:
-			print(f"reference yield: {reference_yield:.2e}")
-			at_yield = (~np.isnan(y)) & (np.absolute(np.log10(x/reference_yield)) <= 0.15)
-			error_at_yield = np.sqrt(np.mean(np.square(dy[at_yield])))
-			number_at_yield = np.sum(at_yield)
-			print(f"{axis} error:    {error_at_yield:.4f} ± {error_at_yield*np.sqrt(2/number_at_yield):.4f}")
 
 		stds = np.sqrt(smooth_average(np.square(dy[order]), bessel_correction=True))
 		errs = smooth_average(ɛ[order])

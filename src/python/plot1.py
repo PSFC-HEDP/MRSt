@@ -117,5 +117,6 @@ plt.tight_layout()
 # axis.set_ylabel("Ti (keV)")
 
 plt.savefig("output/inferred_trajectories.png", dpi=300)
+plt.savefig("output/inferred_trajectories.eps")
 
 plt.show()

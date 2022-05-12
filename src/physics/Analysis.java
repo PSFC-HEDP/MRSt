@@ -59,10 +59,10 @@ public class Analysis {
 		  "Burn skewness", "Burn kurtosis", "Stagnation - BT (ns)",
 		  "Burn-average Ti (keV)", "Peak Ti (keV)",
 		  "Ti at stagnation (keV)", "Ti at BT (keV)",
-		  "dTi/dt at BT (keV/ns)", "d^2Ti/dt^2 at BT (keV/ns^2)",
+		  "dTi/dt at stagnation (g/cm^2/ns)", "dTi/dt at BT (keV/ns)", "d^2Ti/dt^2 at BT (keV/ns^2)",
 		  "Burn-average \u03C1R (g/cm^2)", "\u03C1R at stagnation (g/cm^2)",
 		  "\u03C1R at BT (g/cm^2)", "d\u03C1R/dt at BT (g/cm^2/ns)",
-		  "d\u03C1R/dt at stagnation (g/cm^2/ns)", "d^2V/dt^2/V at BT (1/ns^2)",
+		  "d^2V/dt^2/V at BT (1/ns^2)",
 		}; // the names, units, and order of time-dependent burn parameters
 	public static final String[] HEADERS_WITH_ERRORS = appendErrorsToHeader();
 
@@ -503,12 +503,12 @@ public class Analysis {
 			  Math2.quadInterp(this.ionTemperature, iTPeak),
 			  Math2.quadInterp(this.ionTemperature, iPC),
 			  Math2.quadInterp(this.ionTemperature, iBT),
+			  Math2.derivative(timeAxis, this.ionTemperature, iPC, .10, 1),
 			  Math2.derivative(timeAxis, this.ionTemperature, bangTime, .10, 1),
 			  Math2.derivative(timeAxis, this.ionTemperature, bangTime, .10, 2),
 			  Math2.average(this.arealDensity, this.neutronYield, left, rite),
 			  Math2.quadInterp(this.arealDensity, iPC),
 			  Math2.quadInterp(this.arealDensity, iBT),
-			  Math2.derivative(timeAxis, this.arealDensity, peakCompress, .10, 1),
 			  Math2.derivative(timeAxis, this.arealDensity, bangTime, .10, 1),
 			  Math2.derivative(timeAxis, V, bangTime, .12, 2).over(Math2.quadInterp(V, iBT)),
 		}; // collect the figures of merit
@@ -523,12 +523,12 @@ public class Analysis {
 		logger.info(String.format("Ti at peak:        %s keV", res[8].toString(covarianceMatrix)));
 		logger.info(String.format("Ti at compression: %s keV", res[9].toString(covarianceMatrix)));
 		logger.info(String.format("Ti at BT:          %s keV", res[10].toString(covarianceMatrix)));
-		logger.info(String.format("dTi/dt at BT:      %s keV/(100 ps)", res[11].over(1e1).toString(covarianceMatrix)));
-		logger.info(String.format("d^2Ti/dt^2 at BT:  %s keV/ns^2", res[12].toString(covarianceMatrix)));
-		logger.info(String.format("Burn-averaged \u03C1R:  %s g/cm^2", res[13].toString(covarianceMatrix)));
-		logger.info(String.format("\u03C1R at compression: %s g/cm^2", res[14].toString(covarianceMatrix)));
-		logger.info(String.format("\u03C1R at BT:          %s g/cm^2", res[15].toString(covarianceMatrix)));
-		logger.info(String.format("d\u03C1R/dt at compr.:  %s g/cm^2/(100 ps)", res[16].over(1e1).toString(covarianceMatrix)));
+		logger.info(String.format("dTi/dt at compr.:  %s g/cm^2/(100 ps)", res[11].over(1e1).toString(covarianceMatrix)));
+		logger.info(String.format("dTi/dt at BT:      %s keV/(100 ps)", res[12].over(1e1).toString(covarianceMatrix)));
+		logger.info(String.format("d^2Ti/dt^2 at BT:  %s keV/ns^2", res[13].toString(covarianceMatrix)));
+		logger.info(String.format("Burn-averaged \u03C1R:  %s g/cm^2", res[14].toString(covarianceMatrix)));
+		logger.info(String.format("\u03C1R at compression: %s g/cm^2", res[15].toString(covarianceMatrix)));
+		logger.info(String.format("\u03C1R at BT:          %s g/cm^2", res[16].toString(covarianceMatrix)));
 		logger.info(String.format("d\u03C1R/dt at BT:      %s g/cm^2/(100 ps)", res[17].over(1e1).toString(covarianceMatrix)));
 		logger.info(String.format("d^2V/dt^2/V at BT: %s 1/ns^2", res[18].toString(covarianceMatrix)));
 
@@ -936,7 +936,7 @@ public class Analysis {
 					double Ψpp = (x[j] - 2*x[j+1] + x[j+2])/
 						  Math.pow(timeStep, 3);
 					double Ψ = (x[j] + x[j+1] + x[j+2])/3;
-					totalPenalty += smoothing*1e-9*Math.pow(Ψpp/Ψ, 2); // encourage a smooth Ti and ρR
+					totalPenalty += smoothing*1e-10*Math.pow(Ψpp/Ψ, 2); // encourage a smooth Ti and ρR
 				}
 			}
 		}

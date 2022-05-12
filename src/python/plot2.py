@@ -27,7 +27,7 @@ elif maximum / minimum > 5e1:
 	norm = matplotlib.colors.LogNorm(vmin=minimum, vmax=maximum)
 else:
 	norm = matplotlib.colors.Normalize(vmax=maximum)
-plt.pcolormesh(X, Y, Z, cmap='plasma', norm=norm)
+plt.pcolormesh(X, Y, Z, cmap='plasma', norm=norm, rasterized=True)
 plt.xlabel(xlabel, fontsize=18)
 plt.ylabel(ylabel, fontsize=18)
 plt.ylim(Y[first_nonzero], Y[last_nonzero])
@@ -38,4 +38,6 @@ cbar.ax.tick_params(labelsize=18)
 plt.title(title, fontsize=18)
 
 plt.tight_layout()
+plt.savefig(f"output/{title}.png", dpi=300)
+plt.savefig(f"output/{title}.eps")
 plt.show()

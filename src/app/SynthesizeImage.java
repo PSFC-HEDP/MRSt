@@ -21,10 +21,13 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package physics;
+package app;
 
 import physics.Detector.DetectorConfiguration;
+import physics.IonOptics;
 import physics.IonOptics.IonOpticConfiguration;
+import physics.Particle;
+import physics.SpectrumGenerator;
 import util.Math2;
 import util.PythonPlot;
 
@@ -35,7 +38,7 @@ public class SynthesizeImage {
 
 	public static void main(String[] args) throws IOException {
 		IonOpticConfiguration config = IonOpticConfiguration.HIGH_EFFICIENCY;
-		DetectorConfiguration detector = DetectorConfiguration.DOWNSCATTER_SLIT;
+		DetectorConfiguration detector = DetectorConfiguration.DOUBLE_STREAK_CAMERA;
 		IonOptics optics = new IonOptics(config, detector.cosyFile,
 		                                 detector.tiltAngle, detector.offset,
 		                                 0.1, false);
@@ -71,7 +74,7 @@ public class SynthesizeImage {
 			counts[s] = new double[yBins[s].length - 1][xBins.length - 1];
 			for (int i = 0; i < counts[s].length; i ++)
 				for (int j = 0; j < counts[s][i].length; j ++)
-					counts[s][i][j] = Math2.poisson(81*Math.pow(pixelEdge/25e-6, 2), random);
+					counts[s][i][j] = Math2.poisson(100*Math.pow(pixelEdge/25e-6, 2), random);
 		}
 
 		double[] energyBins = new double[101];
