@@ -8,7 +8,7 @@ if len(sys.argv) <= 1:
 	import os
 	os.chdir('../..')
 	print(os.getcwd())
-	xlabel, ylabels, title, answer, n = 'Time (ns)', 'Yn (10^15/ns)\nTi (keV)\nρR (g/cm^2)', 'Trajectories', 'hot', 3
+	xlabel, ylabels, title, answer, n = 'Time (ns)', 'Yn (10^15/ns)\nTi (keV)\nρR (g/cm^2)', 'Trajectories', 'input/{} hot.csv', 3
 	# xlabel, ylabels, title, answer, n = 'Energy (MeV)', 'Deuterons\nDeuterons\nSignal', 'Integrated spectra', '-', 3
 else:
 	xlabel, ylabels, title, answer, n = sys.argv[1:]
@@ -27,9 +27,9 @@ YAs = [np.loadtxt(f'output/{title}_y_{i}.csv', delimiter=',') for i in range(n_c
 # if an implosion name was given, load that as the B data
 if answer != '-':
 	try:
-		data = np.loadtxt(f'input/trajectories {answer}.csv', delimiter=',', skiprows=1) # get the true curves
-		XB = data[:,0]
-		YBs = [data[:,1], data[:,4], data[:,3], np.zeros(XB.shape)] # extract the relevant info from them
+		data = np.loadtxt(answer.format("trajectories"), delimiter=',', skiprows=1) # get the true curves
+		XB = data[:, 0]
+		YBs = [data[:, 1], data[:, 4], data[:, 3], np.zeros(XB.shape)] # extract the relevant info from them
 		YBs[0] *= (0.1e6/1e-6)/(1e15*14.1e6*1.6e-19/1e-9)
 
 		# while np.sum(YAs[0]*np.gradient(XA)) < np.sum(YBs[0]*(XB[1] - XB[0]))/3: # normalize the yield curves to account for any magnitude discrepancy
@@ -54,7 +54,7 @@ if "(ns)" in xlabel:
 		XB = (XB - x0)*1000
 	xlabel = xlabel.replace("ns", "ps")
 
-fig, host_ax = plt.subplots(figsize=(9,5))
+fig, host_ax = plt.subplots(figsize=(9, 5))
 fig.subplots_adjust(right=1 - (0.12*(n_plots-1)))
 axes = [host_ax]
 plots = []
@@ -69,22 +69,23 @@ for i in range(n_curves):
 	if j > 1:
 		axes[j].set_frame_on(True)
 		axes[j].patch.set_visible(False)
-		for sp in axes[j].spines.values(): sp.set_visible(False)
+		for sp in axes[j].spines.values():
+			sp.set_visible(False)
 		axes[j].spines['right'].set_visible(True)
 
 	rainge = {
-		'Y':(0, None),
-		'T':(0, 10.),
-		'ρ':(0, 2.0),
-		'V':(-100, 100),
-		'a':(-1, 1),
-		'D':(0, None),
-		'S':(0, None),
+		'Y': (0, None),
+		'T': (0, 10.),
+		'ρ': (0, 2.0),
+		'V': (-100, 100),
+		'a': (-1, 1),
+		'D': (0, None),
+		'S': (0, None),
 	}.get(ylabels[i][0], (None, None))
 	YAs[i][np.isnan(ΔAs[i])] = np.nan
 	plots.append(axes[j].plot(XA, YAs[i], '-o', label=ylabels[i], color=f'C{i}')[0])
 	if XB is not None:
-		axes[j].plot(XB, YBs[i], '--', color=f'C{i}')[0]
+		axes[j].plot(XB, YBs[i], '--', color=f'C{i}')
 	axes[j].fill_between(XA, YAs[i] - ΔAs[i], YAs[i] + ΔAs[i], color='C'+str(i), alpha=0.3)
 	axes[j].set_ylabel(ylabels[i])
 	axes[j].set_ylim(*rainge)

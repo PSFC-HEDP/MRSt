@@ -1,18 +1,18 @@
 /**
  * MIT License
- * 
+ *
  * Copyright (c) 2020 Justin Kunimune
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -31,7 +31,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
 
 /**
  * @author Justin Kunimune
@@ -138,8 +137,8 @@ public class SpectrumGenerator {
 		double[] IPrimary = new double[eBins.length];
 		for (int i = 0; i < eBins.length; i ++) {
 			double primaryComponent = (σ2 > 0) ?
-				  total*primary/Math.sqrt(2*Math.PI*σ2)*
-				  Math.exp(-Math.pow((eBins[i] - μ), 2)/(2*σ2)) : 0;
+					total*primary/Math.sqrt(2*Math.PI*σ2)*
+							Math.exp(-Math.pow((eBins[i] - μ), 2)/(2*σ2)) : 0;
 			double downscatComponent = total*ρR*DOWN_SCATTER_SPECTRUM.evaluate(eBins[i]);
 			double upscatComponent = total*upscat*ALPHA_KNOCKON_SPECTRUM.evaluate(eBins[i]);
 			if (onlyDS)
@@ -166,27 +165,46 @@ public class SpectrumGenerator {
 	}
 
 	/**
-	 * convert a time-cumulative spectrum, as read from an input file, into an array of counts.
-	 * also, edit energies to make it bin edges. this will remove the last row of energies.
-	 * given that the last row is over 29 MeV, I think that's fine.
+	 * check the spectrum to see if it is time-cumulative. if it is, convert it
+	 * into an array of counts. also, check the energies to see if they are bin
+	 * centers, and if so, edit energies to make it bin edges. this will remove
+	 * the last row of energies. given that the last row is over 29 MeV, I think
+	 * that's fine.
 	 * @param times the time bin boundaries [ns]
 	 * @param energies the energy bin midpoints [MeV]
-	 * @param spectrum array of the neutron spectrum integrated in time [#/MeV]
+	 * @param spectrum array of the neutron spectrum integrated in time (or not) [#/MeV]
 	 * @return spectrum array of the neutron spectrum [#]
 	 */
 	public static double[][] interpretSpectrumFile(
-		  double[] times, double[] energies, double[][] spectrum) {
-		for (int i = energies.length-1; i > 0; i --) // start by fixing the energies
-			energies[i] = (energies[i-1] + energies[i])/2;
-		energies[0] = 2*energies[0] - energies[1]; // for the last one, assume equal spacing
-
-		double[][] output = new double[energies.length-1][times.length-1];
-		for (int i = 0; i < energies.length-1; i ++) { // now for the spectrum
-			for (int j = 0; j < times.length-1; j ++)
-				output[i][j] = (spectrum[i][j+1] - spectrum[i][j])*(energies[i+1] - energies[i]); // you're just taking this derivative
+			double[] times, double[] energies, double[][] spectrum) {
+		if (spectrum.length != energies.length - 1) {
+			if (spectrum.length == energies.length) {
+				System.err.println("WARNING: these energies were bin centers. why?");
+				for (int i = energies.length - 1; i > 0; i--) // start by fixing the energies
+					energies[i] = (energies[i - 1] + energies[i])/2;
+				energies[0] = 2*energies[0] - energies[1]; // for the last one, assume equal spacing
+			}
+			else {
+				throw new IllegalArgumentException("the spectrum shape "+spectrum.length+"x"+spectrum[0].length+" is incompatible with "+energies.length+" energies");
+			}
 		}
-
-		return output;
+		if (spectrum[0].length != times.length - 1) {
+			if (spectrum[0].length == times.length) {
+				System.err.println("WARNING: this spectrum was cumulative. why??");
+				double[][] output = new double[energies.length - 1][times.length - 1];
+				for (int i = 0; i < energies.length - 1; i++) { // now for the spectrum
+					for (int j = 0; j < times.length - 1; j++)
+						output[i][j] = (spectrum[i][j + 1] - spectrum[i][j])*(energies[i + 1] - energies[i]);
+				}
+				return output;
+			}
+			else {
+				throw new IllegalArgumentException("the spectrum shape "+spectrum.length+"x"+spectrum[0].length+" is incompatible with "+times.length+" times");
+			}
+		}
+		else {
+			return spectrum;
+		}
 	}
 
 	/**
@@ -195,7 +213,7 @@ public class SpectrumGenerator {
 	 * @param yield the new yield to which to scale it
 	 */
 	public static double[][] modifySpectrum(double[][] spectrum,
-	                                  double yield) {
+	                                        double yield) {
 		double modifier = yield/Math2.sum(spectrum);
 
 		double[][] output = new double[spectrum.length][spectrum[0].length];
@@ -211,20 +229,20 @@ public class SpectrumGenerator {
 	 * trajectory CSVs.
 	 */
 	public static void main(String[] args) throws NumberFormatException, IOException {
-//		double[] eBins = CSV.readColumn(new File("input/energy.txt"));
-//		double[] eBins = new double[(int) ((16 - 12)/.05 + 1)];
-//		for (int i = 0; i < eBins.length; i ++)
-//			eBins[i] = (12 + i*(16. - 12.)/(eBins.length-1));
-//		double[] primary = generateSpectrum(5.2e21, 3, 4, 0, 0.0, eBins);
-//		double[] full = generateSpectrum(1, 3, 4, 0, 3.0, eBins);
-//		for (int i = 0; i < eBins.length - 1; i ++) {
-//			System.out.printf("[%f, %f, %f],\n", (eBins[i] + eBins[i+1])/2, primary[i], full[i]);
-//		}
+		//		double[] eBins = CSV.readColumn(new File("input/energy.txt"));
+		//		double[] eBins = new double[(int) ((16 - 12)/.05 + 1)];
+		//		for (int i = 0; i < eBins.length; i ++)
+		//			eBins[i] = (12 + i*(16. - 12.)/(eBins.length-1));
+		//		double[] primary = generateSpectrum(5.2e21, 3, 4, 0, 0.0, eBins);
+		//		double[] full = generateSpectrum(1, 3, 4, 0, 3.0, eBins);
+		//		for (int i = 0; i < eBins.length - 1; i ++) {
+		//			System.out.printf("[%f, %f, %f],\n", (eBins[i] + eBins[i+1])/2, primary[i], full[i]);
+		//		}
 		for (Path file : (Iterable<Path>) Files.walk(Paths.get("input/"))::iterator) {
 			if (file.getFileName().toString().startsWith("trajectories ")) {
 				System.out.println(file.getFileName());
-				String key = file.getFileName().toString();
-				key = key.substring(13, key.length() - 4);
+
+				String[] header = CSV.readHeader(file.toFile(), ',');
 				double[][] thing;
 				try {
 					thing = CSV.read(file.toFile(), ',', 1);
@@ -233,16 +251,47 @@ public class SpectrumGenerator {
 				}
 				double[] eBins = CSV.readColumn(new File("input/energy.txt"));
 
+				int timeIndex = -1, burnIndex = -1, tionIndex = -1, totalDensityIndex = -1;
+				for (int i = 0; i < header.length; i ++) {
+					String head = header[i].toLowerCase();
+					if (head.contains("time"))
+						timeIndex = i;
+					else if (head.contains("burn") || head.contains("eprod"))
+						burnIndex = i;
+					else if (head.contains("tion"))
+						tionIndex = i;
+					else if (head.contains("total") && head.contains("rhor"))
+						totalDensityIndex = i;
+				}
+				double timeUnit;
+				if (header[timeIndex].contains("us"))
+					timeUnit = 1e-6;
+				else if (header[timeIndex].contains("ns"))
+					timeUnit = 1e-9;
+				else
+					timeUnit = 1e-15;
+				double burnUnit;
+				if (header[burnIndex].contains("us^-1"))
+					burnUnit = 1e+6;
+				else if (header[timeIndex].contains("ns^-1"))
+					burnUnit = 1e+9;
+				else if (header[timeIndex].contains("ps^-1"))
+					burnUnit = 1e+12;
+				else if (header[timeIndex].contains("kJ/ps") || header[timeIndex].contains("MJ/ns"))
+					burnUnit = 1e+15/(14e6*1.6e-19);
+				else // 0.1MJ/μs
+					burnUnit = .1*1e+12/(14e6*1.6e-19);
+
 				double[] time = new double[thing.length];
 				double[] ρR = new double[thing.length];
 				double[] Yn = new double[thing.length];
 				double[] Ti = new double[thing.length];
 				double[] zero = new double[thing.length];
 				for (int i = 0; i < thing.length; i++) {
-					time[i] = thing[i][0];
-					Yn[i] = thing[i][1]*.1*1e6/1e-6/(14e6*1.6e-19)/1e15*1e-9; // convert from 0.1MJ/μs to 1e15n/ns
-					Ti[i] = thing[i][4];
-					ρR[i] = thing[i][3];
+					time[i] = thing[i][timeIndex]*timeUnit/1e-9; // convert to ns
+					Yn[i] = thing[i][burnIndex]*burnUnit/(1e15/1e-9); // convert to (1e15/ns)
+					Ti[i] = thing[i][tionIndex];
+					ρR[i] = thing[i][totalDensityIndex];
 					zero[i] = 0;
 				}
 				double[] tBins = new double[time.length + 1];
@@ -250,10 +299,14 @@ public class SpectrumGenerator {
 				for (int i = 1; i < time.length; i++)
 					tBins[i] = (time[i - 1] + time[i])/2.;
 				tBins[time.length] = (3*time[time.length - 1] - time[time.length - 2])/2.;
-				double[][] spectrum = generateSpectrum(Yn, Ti, zero, zero, ρR, eBins, tBins);
 
-				CSV.writeColumn(tBins, new File("input/time " + key + ".txt"));
-				CSV.write(spectrum, new File("input/spectrum " + key + ".txt"), '\t');
+				double[][] spectrum = generateSpectrum(Yn, Ti, zero, zero, ρR, eBins, tBins);
+				System.out.println("  Y = " + Math2.sum(spectrum));
+
+				CSV.writeColumn(tBins, new File(file.toString()
+						.replace("trajectories", "time").replace(".csv", ".txt")));
+				CSV.write(spectrum, new File(file.toString()
+						.replace("trajectories", "spectrum").replace(".csv", ".txt")), '\t');
 			}
 		}
 

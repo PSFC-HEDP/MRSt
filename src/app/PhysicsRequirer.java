@@ -76,11 +76,10 @@ public class PhysicsRequirer {
 		logfileHandler.setLevel(Level.INFO);
 		logfileHandler.setFormatter(formatter);
 		logger.addHandler(logfileHandler);
-		logger.log(Level.INFO, "beginning "+setup.numYields+" evaluations on "+setup.numCores+" cores");
+		logger.log(Level.INFO, "beginning "+setup.numRuns +" evaluations on "+setup.numCores+" cores");
 		logger.log(Level.INFO, "results will be saved to '"+setup.filename+".csv'.");
 
-		final double[] eBins = CSV.readColumn(new File("input/scan/energy.txt"));
-		final double[] tBins = CSV.readColumn(new File("input/scan/time.txt"));
+		final double[] eBins = CSV.readColumn(new File("input/energy.txt"));
 
 		ExecutorService threads = Executors.newFixedThreadPool(setup.numCores);
 
@@ -89,28 +88,24 @@ public class PhysicsRequirer {
 		System.arraycopy(Analysis.HEADERS_WITH_ERRORS, 0, headers, 0, Analysis.HEADERS_WITH_ERRORS.length);
 		List<double[]> results = new ArrayList<double[]>();
 
-		int caseIndex = 0;
-		int runIndex = 0;
-		for (Path path : (Iterable<Path>)Files.walk(Paths.get("input/scan/"))::iterator) {
-			if (path.getFileName().toString().startsWith("spectrum ")) {
-				final int J = caseIndex;
+		for (int runIndex = 0; runIndex < setup.numRuns; runIndex ++) {
+			final int K = runIndex;
 
-				String key = path.getFileName().toString();
-				key = key.substring(9, key.length() - 4);
+			int caseIndex = 0;
+			for (Path path : (Iterable<Path>)Files.walk(Paths.get("input/scans/"))::iterator) {
+				if (path.getFileName().toString().startsWith("trajectories ")) {
+					if (runIndex == 0)
+						logger.info("Loading scenario "+path);
+					final int J = caseIndex;
 
-				double[][] initialSpec = CSV.read(new File("input/spectrum " + key + ".txt"), '\t');
-				final double[][] spectrum;
-				if (initialSpec.length != eBins.length - 1 || initialSpec[0].length != tBins.length - 1) {
-					System.out.println("interpreting a weird spectrum file...");
-					spectrum = SpectrumGenerator.interpretSpectrumFile(tBins, eBins, initialSpec);
-				}
-				else {
-					spectrum = initialSpec;
-				}
+					String key = path.getFileName().toString();
+					key = key.substring(13, key.length() - 4);
 
-				for (int dk = 0; dk < setup.numYields; dk++) {
-					final int K = runIndex;
-					final boolean saveHere = dk == setup.numYields - 1;
+					double[] tBins = CSV.readColumn(new File("input/scans/time " + key + ".txt"));
+					double[][] spectrum = SpectrumGenerator.interpretSpectrumFile(
+							tBins, eBins,
+							CSV.read(new File("input/scans/spectrum " + key + ".txt"), '\t')
+					);
 
 					threads.submit(() -> {
 						Analysis mc;
@@ -123,23 +118,19 @@ public class PhysicsRequirer {
 								  setup.energyBin, setup.timeBin, setup.tolerance,
 								  logger); // make the simulation
 						} catch (IOException e) {
-							e.printStackTrace();
+							logger.log(Level.SEVERE, e.getMessage(), e);
 							return;
 						}
 
-						double yield = 1e+19*Math.pow(10, -3.0*Math.random());
-						double[][] scaledSpectrum = SpectrumGenerator.modifySpectrum(
-							  spectrum, yield);
-
-						logger.log(Level.INFO, String.format("Yn = %.4g (%d/%d)", yield,
-															 K, setup.numYields));
+						logger.log(Level.INFO, String.format("Spectrum %d, run %d/%d",
+															 J, K, setup.numRuns));
 
 						double[] result;
 						try {
 							result = mc.respondAndAnalyze(
 								  eBins,
 								  tBins,
-								  scaledSpectrum,
+								  spectrum,
 								  ErrorMode.HESSIAN); // and run it many times!
 						} catch (Exception e) {
 							logger.log(Level.SEVERE, e.getMessage(), e);
@@ -147,18 +138,18 @@ public class PhysicsRequirer {
 						}
 
 						try {
-							double[] resultSlot = results.get(K);
-							resultSlot[0] = J;
-							resultSlot[1] = yield;
+							double[] resultVector = new double[Analysis.HEADERS_WITH_ERRORS.length];
+							resultVector[0] = J;
 							if (result != null)
-								System.arraycopy(result, 0, resultSlot, 2, result.length);
+								System.arraycopy(result, 0, resultVector, 1, result.length);
 							else
-								for (int i = 1; i < results.get(K).length; i++)
-									results.get(K)[i] = Double.NaN;
+								for (int i = 1; i < resultVector.length; i++)
+									resultVector[i] = Double.NaN;
+							results.add(resultVector);
 						} catch (IndexOutOfBoundsException e) {
 							logger.log(Level.SEVERE, e.getMessage(), e);
 						}
-						if (saveHere) {
+						if (K%10 == 9) {
 							try {
 								save(results, setup.filename + ".csv", headers, logger);
 							} catch (IOError e) {
@@ -166,12 +157,18 @@ public class PhysicsRequirer {
 							}
 						}
 					});
+
+					caseIndex ++;
 				}
-				caseIndex ++;
 			}
+
+			if (caseIndex == 0)
+				logger.severe("No scenarios found");
 		}
+
 		threads.shutdown();
 		threads.awaitTermination(3, TimeUnit.DAYS); // wait for all threads to finish
+		save(results, setup.filename + ".csv", headers, logger); // then save the final result
 	}
 
 	private static void save(List<double[]> results, String filepath, String[] headers, Logger logger) {

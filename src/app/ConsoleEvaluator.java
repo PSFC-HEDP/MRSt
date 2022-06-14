@@ -71,23 +71,19 @@ public class ConsoleEvaluator {
 		logfileHandler.setLevel(Level.INFO);
 		logfileHandler.setFormatter(formatter);
 		logger.addHandler(logfileHandler);
-		logger.log(Level.INFO, "beginning "+setup.numYields+" evaluations on "+setup.numCores+" cores");
+		logger.log(Level.INFO, "beginning "+setup.numRuns +" evaluations on "+setup.numCores+" cores");
 		logger.log(Level.INFO, "results will be saved to '"+setup.filename+".csv'.");
 
 		final double[] eBins = CSV.readColumn(new File("input/energy.txt"));
 		final double[] tBins = CSV.readColumn(new File("input/time "+setup.implosionName+".txt"));
-		double[][] initialSpec = CSV.read(new File("input/spectrum "+setup.implosionName+".txt"), '\t');
-		final double[][] spectrum;
-		if (initialSpec.length != eBins.length-1 || initialSpec[0].length != tBins.length-1) {
-			System.out.println("interpreting a weird spectrum file...");
-			spectrum = SpectrumGenerator.interpretSpectrumFile(tBins, eBins, initialSpec);
-		}
-		else
-			spectrum = initialSpec;
+		final double[][] spectrum = SpectrumGenerator.interpretSpectrumFile(
+				tBins, eBins,
+				CSV.read(new File("input/spectrum "+setup.implosionName+".txt"), '\t')
+		);
 
 		ExecutorService threads = Executors.newFixedThreadPool(setup.numCores);
-		double[][] results = new double[setup.numYields][Analysis.HEADERS_WITH_ERRORS.length];
-		for (int k = 0; k < setup.numYields; k ++) {
+		double[][] results = new double[setup.numRuns][Analysis.HEADERS_WITH_ERRORS.length];
+		for (int k = 0; k < setup.numRuns; k ++) {
 			final int K = k;
 
 			Callable<Void> task = () -> {
@@ -110,7 +106,7 @@ public class ConsoleEvaluator {
 					  spectrum, yield);
 
 				logger.log(Level.INFO, String.format("Yn = %.4g (%d/%d)", yield,
-													 K, setup.numYields));
+													 K, setup.numRuns));
 
 				double[] result;
 				try {

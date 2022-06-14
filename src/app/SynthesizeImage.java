@@ -116,8 +116,8 @@ public class SynthesizeImage {
 
 		for (int s = 0; s < counts.length; s ++)
 			PythonPlot.plotHeatmap(xBins, yBins[s], counts[s],
-			                       "Time direction (cm)",
-			                       "Space direction (cm)",
+			                       "Streak direction (cm)",
+			                       "Slit direction (cm)",
 			                       "Camera "+s+" image");
 	}
 

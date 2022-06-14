@@ -148,12 +148,12 @@ public abstract class Detector {
 				                          new double[] {-1.2e-2},
 				                          new double[] {2.5e-2},
 				                          new double[] {400e-6});
-		public static DetectorConfiguration CENTERED =
+		public static DetectorConfiguration JOHAN =
 				new DetectorConfiguration("MRSt_IRF_FP_00deg",
-				                          0.00000, 11.5e-9,
-				                          new double[] {0.0e-2},
-				                          new double[] {2.5e-2},
-				                          new double[] {400e-6});
+				                          0.00000, 5.0e-9,
+				                          new double[] {-7.5e-2, 0.5e-2},
+				                          new double[] {2.5e-2, 2.5e-2},
+				                          new double[] {400e-6, 400e-6});
 		public static DetectorConfiguration DOUBLE_STREAK_CAMERA =
 			  new DetectorConfiguration("MRSt_IRF_FP_70deg",
 										66.58565, 4.5e-9, 0,//1000e-3,

@@ -29,7 +29,7 @@ import physics.IonOptics.IonOpticConfiguration;
 public class InputParser {
 	public String filename;
 	public String implosionName;
-	public int numYields;
+	public int numRuns;
 	public int numCores;
 	public IonOpticConfiguration opticsConfig;
 	public DetectorConfiguration detectorConfig;
@@ -42,7 +42,7 @@ public class InputParser {
 		// first, parse the arguments
 		StringBuilder filename = new StringBuilder(name);
 		this.implosionName = "og with falling temp";
-		this.numYields = 1000;
+		this.numRuns = 1000;
 		this.numCores = Math.min(10, Runtime.getRuntime().availableProcessors());
 		this.opticsConfig = null;
 		this.detectorConfig = null;
@@ -60,8 +60,8 @@ public class InputParser {
 					case "implosion":
 						this.implosionName = value;
 						break;
-					case "yields":
-						this.numYields = Integer.parseInt(value);
+					case "runs":
+						this.numRuns = Integer.parseInt(value);
 						break;
 					case "cores":
 						numCores = Integer.parseInt(value);
@@ -116,8 +116,8 @@ public class InputParser {
 							this.detectorConfig = DetectorConfiguration.DOWNSCATTER_SLIT;
 						else if (value.toLowerCase().startsWith("m"))
 							this.detectorConfig = DetectorConfiguration.MAXIMUM_COVERAGE;
-						else if (value.toLowerCase().startsWith("c"))
-							this.detectorConfig = DetectorConfiguration.CENTERED;
+						else if (value.toLowerCase().startsWith("j"))
+							this.detectorConfig = DetectorConfiguration.JOHAN;
 						else if (value.toLowerCase().startsWith("p"))
 							this.detectorConfig = DetectorConfiguration.DRIFT_TUBE;
 						else

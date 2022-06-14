@@ -383,9 +383,9 @@ public class Analysis {
 	 * and save and analyze it.
 	 * @param energies the energies that describe the rows of counts [MeV]
 	 * @param times the times that describe the columns of counts [ns]
-	 * @param neutronSpectrum the time- and energy- resolved neutron spectrum in number
-	 *                 of neutrons. each row corresponds to one element of
-	 *                 energies, and each column one element of times. [#/MeV/ns]
+	 * @param neutronSpectrum the number of neutrons in each time and energy bin.
+	 *                        each row corresponds to one energy, and each column
+	 *                        one time.
 	 * @param errorBars whether to bother computing error bars
 	 * @return {computation time, 0, Yn, err, BT, err, BW, err, skewness, err,
 	 *          kurtosis, err, peak compression, err, rho R (BT), err,
@@ -397,6 +397,9 @@ public class Analysis {
 									  ErrorMode errorBars) {
 		if (neutronSpectrum.length != energies.length-1 || neutronSpectrum[0].length != times.length-1)
 			throw new IllegalArgumentException("These dimensions don't make any sense.");
+
+//		logger.info("responding to spectrum with yield "+
+//				            Math2.sum(neutronSpectrum));
 
 		this.instantiateTimeAxis(times); // first, create the detector time bins
 
@@ -447,10 +450,7 @@ public class Analysis {
 		logger.info("beginning fit process.");
 		startTime = System.currentTimeMillis();
 
-//		if (this.detector instanceof StreakCameraArray && ((StreakCameraArray)detector).spectralRange() < .4)
-//			altAnalyze(signalDistribution, errorBars);
-//		else
-			analyze(signalDistribution, errorBars);
+		analyze(signalDistribution, errorBars);
 
 		int dofs = covarianceMatrix.length;
 
@@ -537,6 +537,7 @@ public class Analysis {
 			output[2*i + 0] = res[i].value;
 			output[2*i + 1] = Math.sqrt(res[i].variance(covarianceMatrix));
 		}
+		assert output.length == HEADERS_WITH_ERRORS.length - 1;
 		return output;
 	}
 

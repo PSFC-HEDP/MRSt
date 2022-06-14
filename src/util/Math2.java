@@ -301,37 +301,7 @@ public class Math2 {
 		}
 		return sum.over(N);
 	}
-	
-	/**
-	 * compute the 0th moment of the histogram
-	 * @param x the bin edges
-	 * @param y the number in each bin
-	 * @return the total number of things counted
-	 */
-	public static double definiteIntegral(double[] x, double[] y) {
-		return definiteIntegral(x, y, x[0], x[x.length-1]);
-	}
-	
-	/**
-	 * compute the 0th moment of the histogram
-	 * @param x the bin edges
-	 * @param y the number in each bin
-	 * @param a the lower integration bound
-	 * @param b the upper integration bound
-	 * @return the total number of things counted
-	 */
-	public static double definiteIntegral(double[] x, double[] y, double a, double b) {
-		if (x.length != y.length+1)
-			throw new IllegalArgumentException("Array lengths do not correspond.");
-		double s = 0;
-		for (int i = 0; i < y.length; i ++) {
-			double wl = Math.max(0, Math.min(1, (x[i+1] - a)/(x[i+1] - x[i])));
-			double wr = Math.max(0, Math.min(1, (b - x[i])/(x[i+1] - x[i])));
-			s += (wl+wr-1)*y[i];
-		}
-		return s;
-	}
-	
+
 	/**
 	 * compute the mean of the histogram
 	 * @param x the bin edges
@@ -485,7 +455,39 @@ public class Math2 {
 	public static double mean(double[] arr) {
 		return sum(arr)/arr.length;
 	}
-	
+
+	/**
+	 * compute the sum of a normalized histogram
+	 * @param x the bin edges corresponding to the outer index
+	 * @param y the density in each bin
+	 * @return the total value
+	 */
+	public static double integral(double[] x, double[] y) {
+		if (x.length != y.length + 1)
+			throw new IllegalArgumentException("the array lengths do not correspond");
+		double sum = 0;
+		for (int i = 0; i < x.length - 1; i ++)
+				sum += y[i]*(x[i + 1] - x[i]);
+		return sum;
+	}
+
+	/**
+	 * compute the sum of a normalized histogram
+	 * @param x the bin edges corresponding to the outer index
+	 * @param y the bin edges corresponding to the inner index
+	 * @param z the density in each bin
+	 * @return the total value
+	 */
+	public static double iintegral(double[] x, double[] y, double[][] z) {
+		if (x.length != z.length + 1 || y.length != z[0].length + 1)
+			throw new IllegalArgumentException("for a "+z.length+"x"+z[0].length+" array, the bin edges cannot be "+x.length+" and "+y.length);
+		double sum = 0;
+		for (int i = 0; i < x.length - 1; i ++)
+			for (int j = 0; j < y.length - 1; j ++)
+				sum += z[i][j]*(x[i + 1] - x[i])*(y[j + 1] - y[j]);
+		return sum;
+	}
+
 	public static double[] minus(double[] x) {
 		double[] out = new double[x.length];
 		for (int i = 0; i < out.length; i ++)
@@ -878,9 +880,6 @@ public class Math2 {
 			else
 				weights[i] = new Quantity(0, x0.getN());
 		}
-//		for (int i = 0; i < x.length; i ++)
-//			System.out.print(weights[i].value+", ");
-//		System.out.println();
 		
 		double[] xMoments = new double[5];
 		Quantity[] yMoments = new Quantity[3];
@@ -1114,13 +1113,9 @@ public class Math2 {
 	 * elements if they don't.
 	 */
 	public static void coercePositiveSemidefinite(double[][] A) {
-		for (double[] row: A) {
+		for (double[] row: A)
 			if (row.length != A.length)
 				throw new IllegalArgumentException("this method only works with square matrices.");
-//			for (int j = 0; j < A[i].length; j ++)
-//				if (Double.isFinite(A[i][j]) && A[i][j] != A[j][i])
-//					throw new IllegalArgumentException("this method only works with symmetric matrices.");
-		}
 
 		for (int i = 0; i < A.length; i ++)
 			if (A[i][i] < 0)
@@ -1879,24 +1874,6 @@ public class Math2 {
 	
 	
 	public static void main(String[] args) {
-//		double[][] cov = {{1, 0}, {0, 1}};
-//		Quantity x = new Quantity(5, new double[] {1, 0});
-//		Quantity y = new Quantity(12, new double[] {0, 1});
-//		System.out.println(x.toString(cov));
-//		System.out.println(y.toString(cov));
-//		System.out.println(x.plus(y).toString(cov));
-//		System.out.println(x.minus(y).toString(cov));
-//		System.out.println(x.times(y).toString(cov));
-//		System.out.println(x.over(y).toString(cov));
-//		System.out.println(x.mod(4).toString(cov));
-////		double[] x = {0, 1, 2, 3, 4, 5, 6};
-////		double[] pdf = {5, 3, 5, 8, 1, 0};
-////		for (int i = 0; i < 100000; i ++)
-////			System.out.printf("%.6f,\n", gamma(7.5, .06, new Random()));
-//		Function<double[], Double> f = (double[] x) -> x[0]*x[0] - 3*x[1]*x[0] + 7*x[1]*x[1] + Math.exp(x[0] - 10);
-//		double[] x0 = {10, 0};
-//		double[] dx = {1e-3, 1e-3};
-//		System.out.println(Arrays.deepToString(hessian(f, x0, dx)));
 		Random random = new Random();
 		for (int i = 0; i < 100; i ++) {
 			int n = 2 + (int)(-6*Math.log(Math.random()));
@@ -1904,12 +1881,5 @@ public class Math2 {
 			int draw = binomial(n, p, random);
 			System.out.printf("%d, %.3f, %d / %.3f = %.3f\n", n, p, draw, n*p, draw/(n*p));
 		}
-//		System.out.println(Math.exp(logChoose(1000, 5)));
-//		System.out.println(Math.exp(logChoose(1000, 6)));
-//		System.out.println(Math.exp(logChoose(1000, 7)));
-//		System.out.println(Math.exp(logChoose(1000, 8)));
-//		System.out.println(Math.exp(logChoose(1000, 9)));
-//		System.out.println(Math.exp(logChoose(1000, 20)));
-//		System.out.println(Math.exp(logChoose(1000, 50)));
 	}
 }

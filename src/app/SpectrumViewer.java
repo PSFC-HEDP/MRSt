@@ -186,7 +186,7 @@ public class SpectrumViewer extends Application {
 				(file) -> {
 					this.spectrum = CSV.read(file, '\t');
 					if (file.getName().startsWith("spectrum "))
-						this.spectrumName = file.getName().substring(9, file.getName().length()-4);
+						this.spectrumName = file.toString().replace("spectrum", "{}");
 					else
 						this.spectrumName = "-";
 				}));
@@ -225,12 +225,8 @@ public class SpectrumViewer extends Application {
 					try {
 						eBins = energyBins.clone(); // save the current values of these spectra
 						tBins = timeBins.clone();
-						if (spectrum.length != eBins.length-1 || spectrum[0].length != tBins.length-1) {
-							logger.info("interpreting weird spectrum file");
-							spec = SpectrumGenerator.interpretSpectrumFile(tBins, eBins, spectrum); // deal with the necessary differentiation etc
-						}
-						else
-							spec = deepClone(spectrum);
+						spec = deepClone(spectrum);
+						spec = SpectrumGenerator.interpretSpectrumFile(tBins, eBins, spec);
 						spec = SpectrumGenerator.modifySpectrum(spec, yieldFactor.getValue()/100.*Math2.sum(spec));
 					} catch (ArrayIndexOutOfBoundsException e) {
 						logger.severe("Invalid input spectrum file.");
@@ -363,7 +359,7 @@ public class SpectrumViewer extends Application {
 		Label label = new Label();
 		Button button = new Button("Chose file…");
 		FileChooser fileChooser = new FileChooser();
-		fileChooser.setTitle("Load "+title);
+		fileChooser.setTitle("Load "+title.toLowerCase());
 		fileChooser.setInitialDirectory(new File("input/"));
 		fileChooser.getExtensionFilters().addAll(
 				new FileChooser.ExtensionFilter("Data files", "*.csv", "*.tsv", "*.txt"),

@@ -48,7 +48,9 @@ public class CSV {
 	 * @param file the CSV file to open
 	 * @param delimiter the delimiting character, usually ',', sometimes '\t', occasionally '|'
 	 * @return I think the return value is pretty self-explanatory.
-	 * @throws IOException if file cannot be found or permission is denied
+	 * @throws IOException if file does not exist, is a directory rather than a
+	 *                     regular file, or for some other reason cannot be
+	 *                     opened for reading.
 	 * @throws NumberFormatException if elements are not parsable as doubles
 	 */
 	public static double[][] read(File file, char delimiter)
@@ -64,7 +66,9 @@ public class CSV {
 	 * @param delimiter the delimiting character, usually ',', sometimes '\t', occasionally '|'
 	 * @param headerRows the number of initial rows to skip
 	 * @return I think the return value is pretty self-explanatory.
-	 * @throws IOException if file cannot be found or permission is denied
+	 * @throws IOException if file does not exist, is a directory rather than a
+	 *                     regular file, or for some other reason cannot be
+	 *                     opened for reading.
 	 * @throws NumberFormatException if elements are not parsable as doubles
 	 */
 	public static double[][] read(File file, char delimiter, int headerRows)
@@ -95,7 +99,9 @@ public class CSV {
 	 * alone, and will be returned in a 1D array.
 	 * @param file the CSV file to open
 	 * @return 1D array of values from the list
-	 * @throws IOException if file cannot be found or permission is denied
+	 * @throws IOException if file does not exist, is a directory rather than a
+	 *                     regular file, or for some other reason cannot be
+	 *                     opened for reading.
 	 * @throws NumberFormatException if elements are not parsable as doubles
 	 */
 	public static double[] readColumn(File file)
@@ -109,7 +115,9 @@ public class CSV {
 	 * @param delimiter the delimiting character, usually ',', sometimes '\t', occasionally '|'
 	 * @param j index of the desired column
 	 * @return 1D array of values in column j
-	 * @throws IOException if file cannot be found or permission is denied
+	 * @throws IOException if file does not exist, is a directory rather than a
+	 *                     regular file, or for some other reason cannot be
+	 *                     opened for reading.
 	 * @throws NumberFormatException if elements are not parsable as doubles
 	 */
 	public static double[] readColumn(File file, char delimiter, int j)
@@ -119,6 +127,22 @@ public class CSV {
 		for (int i = 0; i < table.length; i ++)
 			out[i] = table[i][j];
 		return out;
+	}
+
+	/**
+	 * get the strings that comprise the first line of the CSV file
+	 * @param file the CSV file to open
+	 * @param delimiter the delimiting character, usually ',', sometimes '\t', occasionally '|'
+	 * @return array of unprocessd strings
+	 * @throws IOException if file does not exist, is a directory rather than a
+	 *                     regular file, or for some other reason cannot be
+	 *                     opened for reading.
+	 */
+	public static String[] readHeader(File file, char delimiter) throws IOException {
+		try (BufferedReader in = new BufferedReader(new FileReader(file))) {
+			String header = in.readLine();
+			return header.split("\\s*" + delimiter + "\\s*");
+		}
 	}
 
 	/**

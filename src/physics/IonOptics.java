@@ -110,7 +110,7 @@ public class IonOptics {
 	public IonOptics(IonOpticConfiguration config,
 					 String cosyFile, double tiltAngle, double offset,
 					 double precision, boolean reuseMatrix) throws IOException {
-		this(3.0e-3,
+		this(4.0e-3,
 			 2*config.foilRadius,
 			 2*config.foilRadius,
 			 config.foilThickness,

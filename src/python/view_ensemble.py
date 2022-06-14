@@ -27,20 +27,20 @@ PLOT_THEORETICAL_ERROR_BARS = False
 # SIZE = (8, 7/4)
 # MARGIN = dict(bottom=.08, top=.92, left=.10, right=.97, wspace=.36, hspace=.05)
 
-INCLUDE_ERRORS = False
-COLUMNS = 2
-SIZE = (7.5, 9.0/5)
-MARGIN = dict(bottom=.06, top=.94, left=.12, right=.99, wspace=.30, hspace=.05)
+# INCLUDE_ERRORS = False
+# COLUMNS = 2
+# SIZE = (7.5, 9.0/5)
+# MARGIN = dict(bottom=.06, top=.94, left=.12, right=.99, wspace=.30, hspace=.05)
 
 # INCLUDE_ERRORS = False
 # COLUMNS = 2
 # SIZE = (10, 6/4)
 # MARGIN = dict(bottom=.11, top=.89, left=.13, right=.99, wspace=.30, hspace=.05)
 
-# INCLUDE_ERRORS = False
-# COLUMNS = 1
-# SIZE = (4.5, 6/4)
-# MARGIN = dict(bottom=.08, top=.92, left=.19, right=.99, wspace=.25, hspace=.05)
+INCLUDE_ERRORS = False
+COLUMNS = 1
+SIZE = (4.0, 5/3)
+MARGIN = dict(bottom=.09, top=.91, left=.18, right=.95, hspace=.05)
 
 # INCLUDE_ERRORS = True
 # COLUMNS = 1
@@ -50,23 +50,24 @@ MARGIN = dict(bottom=.06, top=.94, left=.12, right=.99, wspace=.30, hspace=.05)
 
 if len(sys.argv) <= 1:
 	FILENAME = '../../output/ensemble_high_2slit_400um_0c_1x_2022-05-11.csv'
+	# FILENAME = '../../output/ensemble_medium_pddt_0c_1x_2022-05-11.csv'
 else:
 	FILENAME = '../../output/'+sys.argv[1]
 BIN_WIDTH = 0.3 # in bels
-REFERENCE_YIELDS = [3e16, 3e17, 3e18]
+REFERENCE_YIELDS = [1e17, 3e17, 1e18]
 
 X_LABEL = "Yield"
 
 Y_LABELS = [
 	("Burn width (ps)", 49, 67.75, 86, 7, False),
-	("Burn skewness", -1.6, -.698, -0.1, 3e-1, False),
-	("Burn kurtosis", -0.5, 4.7, 10.5, 3, False),
+	# ("Burn skewness", -1.6, -.698, -0.1, 3e-1, False),
+	# ("Burn kurtosis", -0.5, 4.7, 10.5, 3, False),
 	("Ti at BT (keV)", 5.8, 7.56, 9.2, 5e-2, True),
-	("Ti at stagnation (keV)", 3.8, 5.856, 7.2, 5e-2, True),
+	# ("Ti at stagnation (keV)", 3.8, 5.856, 7.2, 5e-2, True),
 	("dTi/dt at BT (keV/100ps)", -2.2, 1.4, 4.4, 1.4, False),
-	("ρR at BT (g/cm^2)", 0.77, 0.978, 1.13, 7e-2, True),
-	("ρR at stagnation (g/cm^2)", 1.27, 1.416, 1.63, 7e-2, True),
-	("dρR/dt at BT (g/cm^2/100ps)", -2.1, -1.1, 1.1, 0.95, False),
+	# ("ρR at BT (g/cm^2)", 0.77, 0.978, 1.13, 7e-2, True),
+	# ("ρR at stagnation (g/cm^2)", 1.27, 1.416, 1.63, 7e-2, True),
+	# ("dρR/dt at BT (g/cm^2/100ps)", -2.1, -1.1, 1.1, 0.95, False),
 ]
 
 
@@ -173,8 +174,7 @@ for i, (axis, y_min, y_original, y_max, presis, percent) in enumerate(Y_LABELS):
 	y = simulations[axis].values
 	ɛ = simulations[axis+" error"].values
 
-	ax.set_xlim(10**round(np.log10(x.min())),
-	            10**round(np.log10(x.max()))) # set up the x axis
+	ax.set_xlim(2e16, 5e18) # set up the x axis
 	if 'ield' in X_LABEL:
 		ax.set_xscale('log')
 	if i//COLUMNS == axs.shape[0]-1:
