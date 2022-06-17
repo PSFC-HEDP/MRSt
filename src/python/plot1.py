@@ -27,13 +27,19 @@ YAs = [np.loadtxt(f'output/{title}_y_{i}.csv', delimiter=',') for i in range(n_c
 # if an implosion name was given, load that as the B data
 if answer != '-':
 	try:
+		with open(answer.format("trajectories"), "r") as f:
+			data_header = f.readline().split(",")
 		data = np.loadtxt(answer.format("trajectories"), delimiter=',', skiprows=1) # get the true curves
 		XB = data[:, 0]
-		YBs = [data[:, 1], data[:, 4], data[:, 3], np.zeros(XB.shape)] # extract the relevant info from them
-		YBs[0] *= (0.1e6/1e-6)/(1e15*14.1e6*1.6e-19/1e-9)
+		if "rhor" in data_header[3].lower():
+			YBs = [data[:, 1], data[:, 4], data[:, 3], np.zeros(XB.shape)] # extract the relevant info from them
+		elif "rhor" in data_header[1].lower():
+			YBs = [data[:, 3], data[:, 4], data[:, 1], np.zeros(XB.shape)]
+		else:
+			raise Exception(f"do I have to actually read this format?: {data_header}")
 
-		# while np.sum(YAs[0]*np.gradient(XA)) < np.sum(YBs[0]*(XB[1] - XB[0]))/3: # normalize the yield curves to account for any magnitude discrepancy
-		# 	YBs[0] /= 10
+		while np.ptp(XB) < np.ptp(XA)/100:
+			XB *= 1e+3
 		YBs[0] *= np.sum(YAs[0]*np.gradient(XA))/np.sum(YBs[0]*np.gradient(XB))
 
 	except IOError:
@@ -75,7 +81,7 @@ for i in range(n_curves):
 
 	rainge = {
 		'Y': (0, None),
-		'T': (0, 10.),
+		'T': (0, 18.),
 		'ρ': (0, 2.0),
 		'V': (-100, 100),
 		'a': (-1, 1),
