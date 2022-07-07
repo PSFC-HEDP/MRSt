@@ -95,7 +95,7 @@ public class PhysicsRequirer {
 			for (Path path : (Iterable<Path>)Files.walk(Paths.get("input/scans/"))::iterator) {
 				if (path.getFileName().toString().startsWith("trajectories ")) {
 					if (runIndex == 0)
-						logger.info("Loading scenario "+path);
+						logger.info("Loading scenario " + caseIndex + ": " + path);
 					final int J = caseIndex;
 
 					String key = path.getFileName().toString();
