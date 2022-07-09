@@ -242,12 +242,10 @@ public class SpectrumViewer extends Application {
 								foilHeight.getValue()*1e-3,
 								foilThickness.getValue()*1e-6,
 								apertureDistance.getValue()*1e0,
-								apertureWidth.getValue()*1e-3,
+								0,
 								apertureHeight.getValue()*1e-3,
 								cosyMapping,
-								(focalPlaneTilt.getValue() == 0) ?
-									DetectorConfiguration.MAXIMUM_COVERAGE :
-							  		DetectorConfiguration.DOUBLE_STREAK_CAMERA,
+								DetectorConfiguration.PERFECT,
 								0,
 								reuseMatrix.isSelected(),
 								logger); // make the simulation

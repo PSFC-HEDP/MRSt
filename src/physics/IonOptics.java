@@ -48,6 +48,8 @@ public class IonOptics {
 			  new IonOpticConfiguration(40e-6, 200e-6, 3e-3);
 		public static IonOpticConfiguration LOW_EFFICIENCY =
 			  new IonOpticConfiguration(25e-6, 100e-6, 2e-3);
+		public static IonOpticConfiguration PERFECT =
+				new IonOpticConfiguration(0, 0, 0);
 
 		public final double foilThickness;
 		public final double foilRadius;
@@ -197,10 +199,16 @@ public class IonOptics {
 	 * @return the fraction of particles that are worth simulating
 	 */
 	public double efficiency(double energy) {
-		double n = 0.08e2; // I'm not sure what units this has or whence it came
-		double dσdΩ = 4.3228/Math.sqrt(energy) - 0.6523; // same with these ones
-		double dΩ = apertureWidth*apertureHeight / Math.pow(apertureDistance - foilDistance, 2);
-		return probHitsFoil * n*dσdΩ*dΩ*foilThickness; // assume the foil is thin so we don't have to worry about multiple collisions
+		if (apertureWidth != 0) {
+			System.out.println("something's wacky");
+			double n = 0.08e2; // I'm not sure what units this has or whence it came
+			double dσdΩ = 4.3228/Math.sqrt(energy) - 0.6523; // same with these ones
+			double dΩ = apertureWidth*apertureHeight/Math.pow(apertureDistance - foilDistance, 2);
+			return probHitsFoil*n*dσdΩ*dΩ*foilThickness; // assume the foil is thin so we don't have to worry about multiple collisions
+		}
+		else {
+			return 1;
+		}
 	}
 
 	/**
@@ -318,6 +326,7 @@ public class IonOptics {
 	public double[][] response(double[] energyBins, double[] timeBins, double[][] inSpectrum,
 	                           boolean stochastic, boolean actual) {
 		makeSureWeHaveTransferMatrix(energyBins, timeBins); // the full nmxnm believed transfer matrix
+		boolean perfect = this.apertureWidth == 0;
 
 		double[][] outSpectrum = new double[energyBins.length-1][timeBins.length-1];
 		for (int j = 0; j < timeBins.length - 1; j ++) {
@@ -341,7 +350,7 @@ public class IonOptics {
 			}
 		}
 
-		if (stochastic) { // to simulate stochasticity
+		if (stochastic && !perfect) { // to simulate stochasticity
 			for (int i = 0; i < energyBins.length-1; i ++)
 				for (int j = 0; j < timeBins.length-1; j ++)
 					outSpectrum[i][j] = Math2.poisson(outSpectrum[i][j], NOISE_RANDOM); // just jitter every cell
@@ -459,6 +468,7 @@ public class IonOptics {
 		double[][] matrix = new double
 				[(energyBins.length - 1)*(timeBins.length - 1)]
 				[energyBins.length - 1];
+		boolean perfect = this.apertureWidth == 0; // whether to make it perfect (rather than actually realistic)
 		double time0 = timeBins[timeBins.length/2]*1e-9;
 		double time1 = timeBins[timeBins.length/2 + 1]*1e-9;
 		for (int i = 0; i < energyBins.length - 1; i++) { // sweep through all energies
@@ -472,9 +482,13 @@ public class IonOptics {
 				double[] etUncorrected = simulate(energyI, timeI, true); // do the simulation!
 				if (!Double.isNaN(etUncorrected[0])) { // sometimes, they won't hit the CsI cathode. That's fine.
 					double[] et = backCalculate(etUncorrected); // de-skew
-					double energyO = et[0], timeO = et[1]/ns; // then convert to the same units as the bins
+					double energyO = et[0], timeO = et[1]; // then convert to the same units as the bins
+					if (perfect) {
+						energyO = energyI;
+						timeO = timeI;
+					}
 					int eBin = Math2.bin(energyO, energyBins);
-					int tBin = Math2.bin(timeO, timeBins);
+					int tBin = Math2.bin(timeO/ns, timeBins);
 					if (eBin >= 0 && tBin >= 0) // if it falls in detectable bounds
 						matrix[(timeBins.length - 1)*eBin + tBin][i] += weight; // add it to the row
 				}

@@ -84,8 +84,10 @@ public class Math2 {
 	public static int poisson(double λ, Random random) {
 		if (λ < 20)
 			return poisson(λ, random.nextDouble());
-		else
+		else if (λ < 2e+9)
 			return (int) Math.max(0., Math.round(normal(λ, Math.sqrt(λ), random)));
+		else
+			throw new IllegalArgumentException("this method will hit runoff issues if you go so hi.");
 	}
 
 	/**

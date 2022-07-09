@@ -104,6 +104,8 @@ public class InputParser {
 							this.opticsConfig = IonOpticConfiguration.MID_EFFICIENCY;
 						else if (value.toLowerCase().startsWith("l"))
 							this.opticsConfig = IonOpticConfiguration.LOW_EFFICIENCY;
+						else if (value.toLowerCase().startsWith("p"))
+							this.opticsConfig = IonOpticConfiguration.PERFECT;
 						else
 							System.err.println("I don't know the '" + value + "' configuration");
 						break;
@@ -118,8 +120,10 @@ public class InputParser {
 							this.detectorConfig = DetectorConfiguration.MAXIMUM_COVERAGE;
 						else if (value.toLowerCase().startsWith("j"))
 							this.detectorConfig = DetectorConfiguration.JOHAN;
-						else if (value.toLowerCase().startsWith("p"))
+						else if (value.toLowerCase().startsWith("t"))
 							this.detectorConfig = DetectorConfiguration.DRIFT_TUBE;
+						else if (value.toLowerCase().startsWith("p"))
+							this.detectorConfig = DetectorConfiguration.PERFECT;
 						else
 							System.err.println("I don't know the '" + value + "' camera");
 						break;
@@ -134,11 +138,11 @@ public class InputParser {
 			else {
 				System.err.println("I don't understand '"+arg+"'.");
 			}
-
-			this.filename = String.format("output/%s_%tF",
-										  filename,
-										  System.currentTimeMillis());
 		}
+
+		this.filename = String.format("output/%s_%tF",
+		                              filename,
+		                              System.currentTimeMillis());
 
 		if (this.opticsConfig == null)
 			throw new IllegalArgumentException("you need to always specify the ion optic configuration from now on.");

@@ -172,6 +172,12 @@ public abstract class Detector {
 										new double[] {0},
 										new double[] {1},
 										new double[] {1});
+		public static DetectorConfiguration PERFECT =
+				new DetectorConfiguration("perfect lens",
+				                          0, Double.NaN,
+				                          new double[] {0},
+				                          new double[] {1},
+				                          new double[] {1});
 
 		public final String cosyFile;
 		public final double tiltAngle;
