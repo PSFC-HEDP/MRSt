@@ -37,15 +37,23 @@ PLOT_THEORETICAL_ERROR_BARS = False
 # SIZE = (10, 6/4)
 # MARGIN = dict(bottom=.11, top=.89, left=.13, right=.99, wspace=.30, hspace=.05)
 
+# INCLUDE_ERRORS = False
+# COLUMNS = 1
+# SIZE = (4.0, 5/3)
+# MARGIN = dict(bottom=.09, top=.91, left=.18, right=.95, hspace=.05)
+
 INCLUDE_ERRORS = False
+INCLUDE_HISTOGRAMS = True
 COLUMNS = 1
-SIZE = (4.0, 5/3)
-MARGIN = dict(bottom=.09, top=.91, left=.18, right=.95, hspace=.05)
+SIZE = (5.2, 5/3)
+MARGIN = dict(bottom=.10, top=.90, left=.15, right=.98, hspace=.05, wspace=.04)
 
 # INCLUDE_ERRORS = True
 # COLUMNS = 1
 # SIZE = (7, 5/3)
 # MARGIN = dict(bottom=.10, top=.90, left=.11, right=.97, wspace=.37, hspace=.05)
+
+assert not (INCLUDE_ERRORS and INCLUDE_HISTOGRAMS)
 
 
 if len(sys.argv) <= 1:
@@ -54,7 +62,7 @@ if len(sys.argv) <= 1:
 else:
 	FILENAME = '../../output/'+sys.argv[1]
 BIN_WIDTH = 0.3 # in bels
-REFERENCE_YIELDS = [1e17, 3e17, 1e18]
+REFERENCE_YIELDS = [3e16, 3e17, 3e18]
 
 X_LABEL = "Yield"
 
@@ -62,7 +70,7 @@ Y_LABELS = [
 	("Burn width (ps)", 49, 67.75, 86, 7, False),
 	# ("Burn skewness", -1.6, -.698, -0.1, 3e-1, False),
 	# ("Burn kurtosis", -0.5, 4.7, 10.5, 3, False),
-	("Ti at BT (keV)", 5.8, 7.56, 9.2, 5e-2, True),
+	("Ti at BT (keV)", 6.3, 7.56, 8.7, 5e-2, True),
 	# ("Ti at stagnation (keV)", 3.8, 5.856, 7.2, 5e-2, True),
 	("dTi/dt at BT (keV/100ps)", -2.2, 1.4, 4.4, 1.4, False),
 	# ("ρR at BT (g/cm^2)", 0.77, 0.978, 1.13, 7e-2, True),
@@ -149,18 +157,21 @@ for parameter in simulations:
 num_rows = (len(Y_LABELS) + COLUMNS - 1)//COLUMNS
 if INCLUDE_ERRORS:
 	num_columns = COLUMNS*2
+	gridspec_keywords = dict()
+elif INCLUDE_HISTOGRAMS:
+	num_columns = COLUMNS*2
+	gridspec_keywords = dict(width_ratios=[2, 1]*COLUMNS)
 else:
 	num_columns = COLUMNS
-fig, axs = plt.subplots(num_rows, num_columns, figsize=(SIZE[0], SIZE[1]*num_rows))
-try:
-	if len(axs.shape) == 1: # force the axis matrix to be 2D since Matplotlib apparently automatically reduces any array where one of the dimensions is 1
-		axs = axs[:, np.newaxis]
-except AttributeError:
-	axs = np.array([[axs]])
-# if axs.shape[1] != COLUMNS: # and force it to be correct since Matplotlib apparently automatically transposes any array with one row‽‽
-# 	axs = axs.T
+	gridspec_keywords = dict()
+fig, axs = plt.subplots(num_rows, num_columns, figsize=(SIZE[0], SIZE[1]*num_rows), gridspec_kw=gridspec_keywords, squeeze=False)
 
 fig.subplots_adjust(**MARGIN)
+
+print("               reference yields:", end='')
+for reference_yield in REFERENCE_YIELDS:
+	print(f"  {reference_yield:< 17.2e}", end='')
+print()
 
 # first do the scatter plot
 for i, (axis, y_min, y_original, y_max, presis, percent) in enumerate(Y_LABELS): # iterate through each desired plot
@@ -205,11 +216,13 @@ for i, (axis, y_min, y_original, y_max, presis, percent) in enumerate(Y_LABELS):
 
 	if presis is not None:
 		if not percent:
-			ax.fill_between(x[order],
-				y_true[order] - presis, y_true[order] + presis, color='#F7DFC8')
+			shaded_region = (y_true[order] - presis, y_true[order] + presis)
 		else:
-			ax.fill_between(x[order],
-				y_true[order]*(1 - presis), y_true[order]*(1 + presis), color='#F7DFC8')
+			shaded_region = (y_true[order]*(1 - presis), y_true[order]*(1 + presis))
+		ax.fill_between(x[order], shaded_region[0], shaded_region[1], color='#F7DFC8')
+	else:
+		shaded_region = (y_true[order], y_true[order])
+
 	ax.plot(x[order], y_true[order], 'C1-', zorder=1, label="Based on original data")
 	ax.scatter(x[order], y[order], s=1, zorder=2, label="Based on fit to synthetic data")
 	if PLOT_ENVELOPE:
@@ -218,34 +231,47 @@ for i, (axis, y_min, y_original, y_max, presis, percent) in enumerate(Y_LABELS):
 	if y_min > 0 and y_max/y_min > 10:
 		ax.set_yscale('log')
 	ax.set_ylim(y_min, y_max)
-	ax.set_ylabel(text_wrap(axis.replace("^2", "²")))
+	ax.set_ylabel(text_wrap(axis.replace("^2", "²").replace("Ti", "Tᵢ")))
 
-print("               reference yields:", end='')
-for reference_yield in REFERENCE_YIELDS:
-	print(f"  {reference_yield:< 17.2e}", end='')
-print()
-
-# then go thru and do the errors
-for i, (axis, y_min, y_original, y_max, presis, percent) in enumerate(Y_LABELS):
-	if axis is None: continue
-
-	x = simulations[X_LABEL].values # and the corresponding data
-	y = simulations[axis].values
-	ɛ = simulations[axis+" error"].values
-
-	if 'yield' in axis:  y_true = simulations["Yield"].values
-	else:                y_true = y_original*np.ones(len(simulations.index))
+	# set up the histogram axes
+	if INCLUDE_HISTOGRAMS:
+		ax = axs[i//COLUMNS, i%COLUMNS * 2 + 1]
+		ax.set_xlim(0, len(REFERENCE_YIELDS))
+		x_tick_labels = [re.sub(r'([0-9.]+)e\+([0-9]+)', r"$\1\\times10^{\2}$", f"{Yn:.1g}") for Yn in REFERENCE_YIELDS]
+		ax.set_ylim(y_min, y_max)
+		ax.axhline(y_true[0], color='C1', zorder=2)
+		if i//COLUMNS == axs.shape[0]-1:
+			ax.set_xticks(np.arange(len(REFERENCE_YIELDS)), labels=x_tick_labels, rotation=-30, ha="left", rotation_mode='anchor')
+			ax.tick_params(axis='x', which='major', pad=-0)
+		elif i//COLUMNS == 0:
+			ax.set_xticks(np.arange(len(REFERENCE_YIELDS)), labels=x_tick_labels, rotation=30, ha="left", rotation_mode='anchor')
+			ax.tick_params(axis='x', which='major', pad=-0)
+			ax.xaxis.set_label_position('top')
+			ax.xaxis.tick_top()
+		else:
+			hide_ticks(ax.xaxis)
+		hide_ticks(ax.yaxis)
+		ax.grid()
 
 	dy = y - y_true
-	# if percent:
-	# 	dy /= y_true
-	# print(f"{axis} is actually {np.mean(y[~np.isnan(y)])}")
 	print(f"{axis:>25s} error:", end='')
-	for reference_yield in REFERENCE_YIELDS:
+	for j, reference_yield in enumerate(REFERENCE_YIELDS):
 		at_yield = (~np.isnan(y)) & (np.absolute(np.log10(x/reference_yield)) <= 0.15)
 		error_at_yield = np.sqrt(np.mean(np.square(dy[at_yield])))
 		number_at_yield = np.sum(at_yield)
 		print(f"  {error_at_yield:7.4f} ± {error_at_yield*np.sqrt(2/number_at_yield):7.4f}", end='')
+
+		if INCLUDE_HISTOGRAMS:
+			_, _, patches = ax.hist(
+				y[at_yield], bottom=j, color="C0", zorder=3,
+				bins=np.linspace(max(y_min, min(shaded_region[0].min(), y[at_yield].min())),
+				                 min(y_max, max(shaded_region[1].max(), y[at_yield].max())),
+				                 12),
+				orientation="horizontal")
+			peak = np.max(patches.datavalues)
+			for rectangle in patches.patches:
+				rectangle.set_width(rectangle.get_width()/peak*0.8)
+
 	print()
 
 	if INCLUDE_ERRORS:

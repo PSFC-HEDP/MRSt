@@ -49,7 +49,7 @@ plt.fill_between(x, y[:, 0], y[:, -1], color='#D36EA9')
 
 crampd = None
 for e, Y in zip(energies, particles):
-	if round(e*2) == round(e*2, 6):
+	if round(e*2) == round(e*2, 6) or e == energies[0] or e == energies[-1]:
 		# histogram, x_bins, y_bins = np.histogram2d(Y[:,0]*1e2, Y[:,1]*1e2, bins=20)
 		# x_points, y_points = np.meshgrid((x_bins[:-1] + x_bins[1:])/2, (y_bins[:-1] + y_bins[1:])/2, indexing="ij")
 		# plt.contour(x_points, y_points, histogram, levels=histogram.max()*np.linspace(0, 1, 21), colors="C2")
@@ -57,18 +57,26 @@ for e, Y in zip(energies, particles):
 		y_min, y_max = Y[:, 1].min()*1e2, Y[:, 1].max()*1e2
 		if crampd is None:
 			crampd = x_min > xlim[0]/4
-		major = (round(e) == round(e, 6)) if not crampd else (round(e/2) == round(e/2, 6))
+		major = not crampd or (round(e) == round(e, 6))
 		linestyle = "solid" # (0, (2, 1)) if major else (0, (4, 2))
 		plt.plot([x_min, x_min, x_max, x_max, x_min],
 		         [y_min, y_max, y_max, y_min, y_min],
 		         linewidth=0.8, color='#3f558c')
 		plt.plot([(x_min + x_max)/2]*2, [ 100, y_max], color='#3f558c', linestyle=linestyle, linewidth=0.8)
 		plt.plot([(x_min + x_max)/2]*2, [-100, y_min], color='#3f558c', linestyle=linestyle, linewidth=0.8)
-		if major:
-			if x_min - 0.8 > xlim[0] and x_min < xlim[1]:
-				plt.text(x_min, ylim[0], f" {e:.0f} MeV", horizontalalignment="right", rotation='vertical')
-			elif x_max > xlim[0] and x_max + 0.8 < xlim[1]:
-				plt.text(x_max, ylim[0], f" {e:.0f} MeV", horizontalalignment="left", rotation="vertical")
+		if major and x_max > xlim[0] and x_min < xlim[1]:
+			if x_min - 0.8 < xlim[0]:
+				on_the_left = False
+			elif x_min + 0.8 > xlim[1]:
+				on_the_left = True
+			elif crampd:
+				on_the_left = True
+			else:
+				on_the_left = e > energies[0] + 0.5
+			if on_the_left:
+				plt.text(x_min, ylim[0], f" {e:.1f} MeV", horizontalalignment="right", rotation='vertical')
+			else:
+				plt.text(x_max + 0.15, ylim[0], f" {e:.1f} MeV", horizontalalignment="left", rotation="vertical")
 
 for x, w, h in zip(slit_positions, slit_lengths, slit_widths):
 	plt.plot(np.multiply([x -w/2, x -w/2, x +w/2, x +w/2, x -w/2], 1e2),
