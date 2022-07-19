@@ -75,10 +75,10 @@ public class ConsoleEvaluator {
 		logger.log(Level.INFO, "results will be saved to '"+setup.filename+".csv'.");
 
 		final double[] eBins = CSV.readColumn(new File("input/energy.txt"));
-		final double[] tBins = CSV.readColumn(new File("input/time "+setup.implosionName+".txt"));
+		final double[] tBins = CSV.readColumn(new File("input/"+setup.implosionName+" time.txt"));
 		final double[][] spectrum = SpectrumGenerator.interpretSpectrumFile(
 				tBins, eBins,
-				CSV.read(new File("input/spectrum "+setup.implosionName+".txt"), '\t')
+				CSV.read(new File("input/"+setup.implosionName+" spectrum.txt"), '\t')
 		);
 
 		ExecutorService threads = Executors.newFixedThreadPool(setup.numCores);

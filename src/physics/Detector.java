@@ -151,21 +151,21 @@ public abstract class Detector {
 		public static DetectorConfiguration JOHAN =
 				new DetectorConfiguration("MRSt_IRF_FP_00deg",
 				                          0.00000, 5.0e-9,
-				                          new double[] {-7.5e-2, 0.5e-2},
+				                          new double[] {0.0e-2},
+				                          new double[] {1.1e-2},
+				                          new double[] {400e-6});
+		public static DetectorConfiguration DOUBLE_STREAK_CAMERA =
+				new DetectorConfiguration("MRSt_IRF_FP_70deg",
+				                          66.58565, 4.5e-9, 0,//1000e-3,
+				                          new double[] {-5.5e-2, 1.5e-2},
 				                          new double[] {2.5e-2, 2.5e-2},
 				                          new double[] {400e-6, 400e-6});
-		public static DetectorConfiguration DOUBLE_STREAK_CAMERA =
-			  new DetectorConfiguration("MRSt_IRF_FP_70deg",
-										66.58565, 4.5e-9, 0,//1000e-3,
-										new double[] {-5.5e-2, 1.5e-2},
-										new double[] {2.5e-2, 2.5e-2},
-										new double[] {400e-6, 400e-6});
-		public static DetectorConfiguration DOWNSCATTER_SLIT =
-			  new DetectorConfiguration("MRSt_IRF_FP_60deg",
-										62.44417, 4.5e-9,
-										new double[] {-17.5e-2, 0.0e-2},
-										new double[] {2.5e-2, 2.5e-2},
-										new double[] {400e-6, 400e-6});
+		public static DetectorConfiguration LONG_LONG =
+				new DetectorConfiguration("MRSt_IRF_FP_70deg",
+				                          66.58565, 7.0e-9, 0,//1000e-3,
+				                          new double[] {-5.5e-2, 1.5e-2},
+				                          new double[] {4.0e-2, 4.0e-2},
+				                          new double[] {400e-6, 400e-6});
 		public static DetectorConfiguration DRIFT_TUBE =
 			  new DetectorConfiguration("MRSt_IRF_FP_70deg",
 										66.58565, Double.NaN,

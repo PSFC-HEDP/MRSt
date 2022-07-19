@@ -56,22 +56,22 @@ public class SynthesizeImage {
 		double pixelEdge = 100e-6;//25e-6;
 		double resolution = 102e-6;
 		double gain = 122.4;
-		double[][] yBins = new double[numSlits][];
+		double[][] xBins = new double[numSlits][];
 		for (int s = 0; s < numSlits; s ++) {
-			yBins[s] = new double[(int) (detector.slitLengths[0]/pixelEdge) + 1];
-			for (int i = 0; i < yBins[s].length; i++) {
-				yBins[s][i] = detector.slitLengths[s]*i/(yBins[s].length - 1.) - detector.slitLengths[s]/2 + detector.slitPositions[s];
-				yBins[s][i] /= 1e-2;
+			xBins[s] = new double[(int) (detector.slitLengths[0]/pixelEdge) + 1];
+			for (int i = 0; i < xBins[s].length; i++) {
+				xBins[s][i] = detector.slitLengths[s]*i/(xBins[s].length - 1.) - detector.slitLengths[s]/2 + detector.slitPositions[s];
+				xBins[s][i] /= 1e-2;
 			}
 		}
-		double[] xBins = new double[yBins[0].length];
-		for (int i = 0; i < xBins.length; i ++) {
-			xBins[i] = detector.slitLengths[0]*i/(yBins[0].length - 1.) - detector.slitLengths[0]/2;
-			xBins[i] /= 1e-2;
+		double[] yBins = new double[xBins[0].length];
+		for (int i = 0; i < yBins.length; i ++) {
+			yBins[i] = detector.slitLengths[0]*i/(xBins[0].length - 1.) - detector.slitLengths[0]/2;
+			yBins[i] /= 1e-2;
 		}
 		double[][][] counts = new double[numSlits][][];
 		for (int s = 0; s < numSlits; s ++) {
-			counts[s] = new double[yBins[s].length - 1][xBins.length - 1];
+			counts[s] = new double[yBins.length - 1][xBins[s].length - 1];
 			for (int i = 0; i < counts[s].length; i ++)
 				for (int j = 0; j < counts[s][i].length; j ++)
 					counts[s][i][j] = Math2.poisson(100*Math.pow(pixelEdge/25e-6, 2), random);
@@ -102,8 +102,8 @@ public class SynthesizeImage {
 						  resolution, random);
 					if (Math.abs(x - detector.slitPositions[s]) < detector.slitLengths[s]/2) {
 						y += (position[2] - slitTimes[s])/detector.streakTime*detector.slitLengths[s];
-						int i = Math2.bin(x/1e-2, yBins[s]);
-						int j = Math2.bin(y/1e-2, xBins);
+						int i = Math2.bin(y/1e-2, yBins);
+						int j = Math2.bin(x/1e-2, xBins[s]);
 						if (i >= 0 && j >= 0)
 							counts[s][i][j] += gain;
 						detected ++;
@@ -115,9 +115,9 @@ public class SynthesizeImage {
 		System.out.printf("out of 4e17 total particles, %d made it thru the ion optics and %d of those were detected (for efficiencies of %.3g and %.3g)\n", total, detected, (float) total/4e17, (float) detected/total);
 
 		for (int s = 0; s < counts.length; s ++)
-			PythonPlot.plotHeatmap(xBins, yBins[s], counts[s],
-			                       "Streak direction (cm)",
-			                       "Slit direction (cm)",
+			PythonPlot.plotHeatmap(xBins[s], yBins, counts[s],
+			                       "x (cm)",
+			                       "y (cm)",
 			                       "Camera "+s+" image");
 	}
 

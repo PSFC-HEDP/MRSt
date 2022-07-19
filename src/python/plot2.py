@@ -9,7 +9,7 @@ if len(sys.argv) > 1:
 else:
 	import os
 	os.chdir('../..')
-	xlabel, ylabel, title = 'Streak direction (cm)', 'Slit direction (cm)', 'Camera 0 image'
+	xlabel, ylabel, title = 'x (cm)', 'y (cm)', 'Camera 1 image'
 
 X = np.genfromtxt('output/{}_x.csv'.format(title), delimiter=',')
 Y = np.genfromtxt('output/{}_y.csv'.format(title), delimiter=',')
@@ -34,8 +34,13 @@ plt.ylim(Y[first_nonzero], Y[last_nonzero])
 plt.gca().xaxis.set_tick_params(labelsize=18)
 plt.gca().yaxis.set_tick_params(labelsize=18)
 cbar = plt.colorbar()
-cbar.ax.tick_params(labelsize=18) 
+cbar.ax.tick_params(labelsize=18)
+cbar.set_label("Counts per bin")
 plt.title(title, fontsize=18)
+
+if "image" in title:
+	plt.arrow(X.min()*.72 + X.max()*.28, Y.min()*.85 + Y.max()*.15, 0, Y.ptp()*.2, width=.03, color="w", head_width=.15)
+	plt.text(X.min()*.95 + X.max()*.05, Y.min()*.95 + Y.max()*.05, "Sweep direction", verticalalignment="bottom", color="w")
 
 plt.tight_layout()
 plt.savefig(f"output/{title}.png", dpi=300)

@@ -58,12 +58,12 @@ for e, Y in zip(energies, particles):
 		if crampd is None:
 			crampd = x_min > xlim[0]/4
 		major = not crampd or (round(e) == round(e, 6))
-		linestyle = "solid" # (0, (2, 1)) if major else (0, (4, 2))
-		plt.plot([x_min, x_min, x_max, x_max, x_min],
-		         [y_min, y_max, y_max, y_min, y_min],
-		         linewidth=0.8, color='#3f558c')
-		plt.plot([(x_min + x_max)/2]*2, [ 100, y_max], color='#3f558c', linestyle=linestyle, linewidth=0.8)
-		plt.plot([(x_min + x_max)/2]*2, [-100, y_min], color='#3f558c', linestyle=linestyle, linewidth=0.8)
+		# plt.plot([x_min, x_min, x_max, x_max, x_min],
+		#          [y_min, y_max, y_max, y_min, y_min],
+		#          linewidth=0.8, color='#3f558c')
+		# plt.plot([(x_min + x_max)/2]*2, [ 100, y_max], color='#3f558c', linewidth=0.8)
+		# plt.plot([(x_min + x_max)/2]*2, [-100, y_min], color='#3f558c', linewidth=0.8)
+		plt.axvline((x_min + x_max)/2, color="#3f558c", linewidth=0.8)
 		if major and x_max > xlim[0] and x_min < xlim[1]:
 			if x_min - 0.8 < xlim[0]:
 				on_the_left = False
@@ -79,7 +79,7 @@ for e, Y in zip(energies, particles):
 				plt.text(x_max + 0.15, ylim[0], f" {e:.1f} MeV", horizontalalignment="left", rotation="vertical")
 
 for x, w, h in zip(slit_positions, slit_lengths, slit_widths):
-	plt.plot(np.multiply([x -w/2, x -w/2, x +w/2, x +w/2, x -w/2], 1e2),
+	plt.fill(np.multiply([x -w/2, x -w/2, x +w/2, x +w/2, x -w/2], 1e2),
 	         np.multiply([  -h/2,    h/2,    h/2,   -h/2,   -h/2], 1e2), '#000000')
 
 # plt.plot(

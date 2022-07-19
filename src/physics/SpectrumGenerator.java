@@ -239,7 +239,7 @@ public class SpectrumGenerator {
 		//			System.out.printf("[%f, %f, %f],\n", (eBins[i] + eBins[i+1])/2, primary[i], full[i]);
 		//		}
 		for (Path file : (Iterable<Path>) Files.walk(Paths.get("input/"))::iterator) {
-			if (file.getFileName().toString().startsWith("trajectories ")) {
+			if (file.getFileName().toString().contains("trajectories")) {
 				System.out.println(file.getFileName());
 
 				String[] header = CSV.readHeader(file.toFile(), ',');

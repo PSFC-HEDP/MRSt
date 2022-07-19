@@ -57,8 +57,8 @@ assert not (INCLUDE_ERRORS and INCLUDE_HISTOGRAMS)
 
 
 if len(sys.argv) <= 1:
-	FILENAME = '../../output/ensemble_high_2slit_400um_0c_1x_2022-05-11.csv'
-	# FILENAME = '../../output/ensemble_medium_pddt_0c_1x_2022-05-11.csv'
+	# FILENAME = '../../output/ensemble_high_2slits_400um_0c_1x_2022-07-18.csv'
+	FILENAME = '../../output/ensemble_medium_driftt_0c_1x_2022-07-19.csv'
 else:
 	FILENAME = '../../output/'+sys.argv[1]
 BIN_WIDTH = 0.3 # in bels
@@ -67,7 +67,7 @@ REFERENCE_YIELDS = [3e16, 3e17, 3e18]
 X_LABEL = "Yield"
 
 Y_LABELS = [
-	("Burn width (ps)", 49, 67.75, 86, 7, False),
+	("Burn width (ps)", 39, 56, 76, 7, False),
 	# ("Burn skewness", -1.6, -.698, -0.1, 3e-1, False),
 	# ("Burn kurtosis", -0.5, 4.7, 10.5, 3, False),
 	("Ti at BT (keV)", 6.3, 7.56, 8.7, 5e-2, True),
@@ -239,7 +239,9 @@ for i, (axis, y_min, y_original, y_max, presis, percent) in enumerate(Y_LABELS):
 		ax.set_xlim(0, len(REFERENCE_YIELDS))
 		x_tick_labels = [re.sub(r'([0-9.]+)e\+([0-9]+)', r"$\1\\times10^{\2}$", f"{Yn:.1g}") for Yn in REFERENCE_YIELDS]
 		ax.set_ylim(y_min, y_max)
-		ax.axhline(y_true[0], color='C1', zorder=2)
+		ax.axhline(y_true[0], color='C1', zorder=1.5)
+		ax.fill_between(np.linspace(0, len(REFERENCE_YIELDS) + 1, order.size),
+		                shaded_region[0], shaded_region[1], color='#F7DFC8')
 		if i//COLUMNS == axs.shape[0]-1:
 			ax.set_xticks(np.arange(len(REFERENCE_YIELDS)), labels=x_tick_labels, rotation=-30, ha="left", rotation_mode='anchor')
 			ax.tick_params(axis='x', which='major', pad=-0)
@@ -263,7 +265,7 @@ for i, (axis, y_min, y_original, y_max, presis, percent) in enumerate(Y_LABELS):
 
 		if INCLUDE_HISTOGRAMS:
 			_, _, patches = ax.hist(
-				y[at_yield], bottom=j, color="C0", zorder=3,
+				y[at_yield], bottom=j, color="C0", zorder=2,
 				bins=np.linspace(max(y_min, min(shaded_region[0].min(), y[at_yield].min())),
 				                 min(y_max, max(shaded_region[1].max(), y[at_yield].max())),
 				                 12),
@@ -271,6 +273,16 @@ for i, (axis, y_min, y_original, y_max, presis, percent) in enumerate(Y_LABELS):
 			peak = np.max(patches.datavalues)
 			for rectangle in patches.patches:
 				rectangle.set_width(rectangle.get_width()/peak*0.8)
+			deviation = np.std(y[at_yield])
+			mean = np.mean(y[at_yield])
+			for sign in [-1, 1]:
+				ax.arrow(j + .85, mean,
+				         0, sign*deviation,
+				         length_includes_head=True, zorder=2,
+				         head_width=.2, head_length=0, color="#000")
+			# ax.plot([j + 0.50, j + 0.50], [mean - deviation, mean + deviation], "k", zorder=5)
+			# ax.plot([j + 0.42, j + 0.50, j + 0.58], [mean - deviation + arrow_hite, mean - deviation, mean - deviation + arrow_hite], "k", zorder=5)
+			# ax.plot([j + 0.42, j + 0.50, j + 0.58], [mean + deviation - arrow_hite, mean + deviation, mean + deviation - arrow_hite], "k", zorder=5)
 
 	print()
 

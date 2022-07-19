@@ -76,7 +76,7 @@ public class SpectrumViewer extends Application {
 	private static final int SPACING_1 = 10;
 	private static final int SPACING_2 = 4;
 
-	private static final String DEFAULT_TRAJECTORY = "og with falling temp";
+	private static final String DEFAULT_TRAJECTORY = "scan/p2 p1 p4 burnoff";
 	
 	private Spinner<Double> foilDistance;
 	private Spinner<Double> foilWidth;
@@ -140,7 +140,7 @@ public class SpectrumViewer extends Application {
 		leftPane.add(new Label("m"), 2, row);
 		row ++;
 		
-		this.apertureWidth = new Spinner<Double>(0.1, 50.0, config.apertureWidth/1e-3, 1.0);
+		this.apertureWidth = new Spinner<Double>(0.0, 50.0, config.apertureWidth/1e-3, 1.0);
 		leftPane.add(new Label("Aper. width"), 0, row);
 		leftPane.add(apertureWidth, 1, row);
 		leftPane.add(new Label("mm"), 2, row);
@@ -177,15 +177,15 @@ public class SpectrumViewer extends Application {
 					this.energyBins = CSV.readColumn(file);
 				}));
 		
-		rightPane.getChildren().add(chooseFileWidget("Time bin file:", stage, "time "+DEFAULT_TRAJECTORY+".txt",
+		rightPane.getChildren().add(chooseFileWidget("Time bin file:", stage, DEFAULT_TRAJECTORY+" time.txt",
 				(file) -> {
 					this.timeBins = CSV.readColumn(file);
 				}));
 		
-		rightPane.getChildren().add(chooseFileWidget("Spectrum file:", stage, "spectrum "+DEFAULT_TRAJECTORY+".txt",
+		rightPane.getChildren().add(chooseFileWidget("Spectrum file:", stage, DEFAULT_TRAJECTORY+" spectrum.txt",
 				(file) -> {
 					this.spectrum = CSV.read(file, '\t');
-					if (file.getName().startsWith("spectrum "))
+					if (file.getName().endsWith(" spectrum.txt"))
 						this.spectrumName = file.toString().replace("spectrum", "{}");
 					else
 						this.spectrumName = "-";
@@ -242,10 +242,10 @@ public class SpectrumViewer extends Application {
 								foilHeight.getValue()*1e-3,
 								foilThickness.getValue()*1e-6,
 								apertureDistance.getValue()*1e0,
-								0,
+								apertureWidth.getValue()*1e-3,
 								apertureHeight.getValue()*1e-3,
 								cosyMapping,
-								DetectorConfiguration.PERFECT,
+								DetectorConfiguration.DOUBLE_STREAK_CAMERA,
 								0,
 								reuseMatrix.isSelected(),
 								logger); // make the simulation

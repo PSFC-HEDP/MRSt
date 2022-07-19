@@ -200,7 +200,6 @@ public class IonOptics {
 	 */
 	public double efficiency(double energy) {
 		if (apertureWidth != 0) {
-			System.out.println("something's wacky");
 			double n = 0.08e2; // I'm not sure what units this has or whence it came
 			double dσdΩ = 4.3228/Math.sqrt(energy) - 0.6523; // same with these ones
 			double dΩ = apertureWidth*apertureHeight/Math.pow(apertureDistance - foilDistance, 2);

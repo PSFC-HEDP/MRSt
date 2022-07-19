@@ -347,7 +347,6 @@ public class Analysis {
 			if (energyAxis[i] >= minEnergy && energyAxis[i] < maxEnergy)
 				for (int j = 0; j < timeAxis.length; j ++)
 					bandResponse[j] += fullResponse[i][j];
-		System.out.println("I mite be confusing myself, but I think "+Math2.sum(bandResponse)+" should work out to about "+this.averageEfficiency(temperature, arealDensity, minEnergy, maxEnergy)*this.detector.gain);
 		return bandResponse;
 	}
 
@@ -493,11 +492,12 @@ public class Analysis {
 		Quantity[] moments = new Quantity[5];
 		for (int k = 0; k < moments.length; k ++)
 			moments[k] = Math2.moment(k, timeBins, this.neutronYield);
+		Quantity burnWidth = Math2.fwhm(timeBins, this.neutronYield);
 
 		Quantity[] res = {
 			  new Quantity((endTime - startTime)/1000., dofs),
 			  moments[0].times(timeStep), bangTime,
-			  moments[2].sqrt().times(2.355), moments[3], moments[4],
+			  burnWidth, moments[3], moments[4],
 			  peakCompress.minus(bangTime),
 			  Math2.average(this.ionTemperature, this.neutronYield, left, rite),
 			  Math2.quadInterp(this.ionTemperature, iTPeak),
@@ -635,17 +635,18 @@ public class Analysis {
 			statistics[j] = neutronYield[j]*1e15
 				  *this.averageEfficiency(6, 0, MIN_E, MAX_E)
 				  *timeStep;
-		final int peak = Math2.argmax(statistics);
+		final int peak = Math.max(1, Math.min(statistics.length - 2,
+		                                      Math2.argmax(statistics)));
 		int left = -1;
 		for (int j = peak - 2; j >= -1; j --) { // scan backward for the start of the signal
-			if (left == -1 && (j < 0 || statistics[j] < 10)) // if the statistics are very lo
+			if (left == -1 && (j == -1 || statistics[j] < 10)) // if the statistics are very lo
 				left = j + 1; // this is probably the start
 			else if (j >= 0 && statistics[j] > 100) // if they earlier go somewhat hi, tho,
 				left = -1; // then we were mistaken
 		}
 		int rite = -1;
 		for (int j = peak + 2; j <= statistics.length; j ++) { // scan forward for the end of the signal
-			if (rite == -1 && (j >= statistics.length || statistics[j] < 10)) // if the statistics are very lo
+			if (rite == -1 && (j == statistics.length || statistics[j] < 10)) // if the statistics are very lo
 				rite = j; // this is probably the end
 			else if (j < statistics.length && statistics[j] > 100) // if they later go somewhat hi, tho,
 				rite = -1; // then we were mistaken
@@ -927,10 +928,15 @@ public class Analysis {
 			totalPenalty += 1e-0/timeStep*
 				  (Math.exp(slope1 - slope0) - Math.exp((slope1 - slope0)/2)*2 + 1); // encourage a smooth burn history with no local mins
 		}
+		double totalYield = Math2.sum(neutronYield)*timeStep;
+		for (int j = 0; j < timeAxis.length; j ++)
+			totalPenalty -= 0e-1*Math.pow(neutronYield[j]/totalYield, 2)*timeStep; // encourage a peaked Yn (short burn width)
 		for (int j = 0; j < timeAxis.length; j ++)
 			totalPenalty += arealDensity[j]/5.0 - Math.log(arealDensity[j])/50.0; // gamma prior on areal density
+		double expected_temperature = 4;//5.5e-4*Math.pow(totalYield*1e15, .25);
 		for (int j = 0; j < timeAxis.length; j ++)
-			totalPenalty += Math.pow((Math.log(ionTemperature[j]/4.0))/2.5, 2); // log-normal prior on Ti
+			totalPenalty += Math.pow((Math.log(ionTemperature[j]/expected_temperature))/1.5, 2); // log-normal prior on Ti
+		double expected_temperature_slope = 6.0*(Math.log10(totalYield) + 15) - 100.5;
 		for (double[] x: new double[][] {ionTemperature, arealDensity}) {
 			for (int j = 0; j < timeAxis.length - 2; j ++) {
 				if (active == null || (active[j] && active[j+1] && active[j+2])) {

@@ -110,17 +110,15 @@ public class InputParser {
 							System.err.println("I don't know the '" + value + "' configuration");
 						break;
 					case "detector":
-						if (value.toLowerCase().startsWith("1"))
-							this.detectorConfig = DetectorConfiguration.SINGLE_STREAK_CAMERA;
-						else if (value.toLowerCase().startsWith("2"))
+						if (value.toLowerCase().startsWith("2"))
 							this.detectorConfig = DetectorConfiguration.DOUBLE_STREAK_CAMERA;
-						else if (value.toLowerCase().startsWith("d"))
-							this.detectorConfig = DetectorConfiguration.DOWNSCATTER_SLIT;
 						else if (value.toLowerCase().startsWith("m"))
 							this.detectorConfig = DetectorConfiguration.MAXIMUM_COVERAGE;
 						else if (value.toLowerCase().startsWith("j"))
 							this.detectorConfig = DetectorConfiguration.JOHAN;
-						else if (value.toLowerCase().startsWith("t"))
+						else if (value.toLowerCase().startsWith("l"))
+							this.detectorConfig = DetectorConfiguration.LONG_LONG;
+						else if (value.toLowerCase().startsWith("d"))
 							this.detectorConfig = DetectorConfiguration.DRIFT_TUBE;
 						else if (value.toLowerCase().startsWith("p"))
 							this.detectorConfig = DetectorConfiguration.PERFECT;

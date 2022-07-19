@@ -353,7 +353,7 @@ public class Math2 {
 		}
 		return p1.over(p0);
 	}
-	
+
 	/**
 	 * find the full-width at half-maximum of a distribucion. if it is very noisy, this will
 	 * underestimate the width.
@@ -362,27 +362,48 @@ public class Math2 {
 	 * @return the full-width at half-maximum
 	 */
 	public static double fwhm(double[] x, double[] y) {
+		Quantity[] y_q = new Quantity[y.length];
+		for (int i = 0; i < y.length; i ++)
+			y_q[i] = new Quantity(y[0], 0);
+		Quantity width = fwhm(x, y_q);
+		if (width == null)
+			return Double.POSITIVE_INFINITY;
+		else
+			return width.value;
+	}
+
+	/**
+	 * find the full-width at half-maximum of a distribucion. if it is very noisy, this will
+	 * underestimate the width.
+	 * @param x the bin edges
+	 * @param y the number in each bin
+	 * @return the full-width at half-maximum
+	 */
+	public static Quantity fwhm(double[] x, Quantity[] y) {
 		if (x.length != y.length + 1)
 			throw new IllegalArgumentException("the inputs must have matching lengths.");
 		x = Math2.binCenters(x);
 		int max = argmax(y);
-		double xR = Double.POSITIVE_INFINITY;
+		Quantity xR = null;
 		for (int i = max + 1; i < x.length; i ++) {
-			if (y[i] < y[max]/2.) {
-				xR = interp(y[max]/2., y[i-1], y[i], x[i-1], x[i]);
+			if (y[i].value < y[max].value/2.) {
+				xR = interp(y[max].over(2.), y[i-1], y[i], x[i-1], x[i]);
 				break;
 			}
 		}
-		double xL = Double.NEGATIVE_INFINITY;
+		Quantity xL = null;
 		for (int i = max; i >= 1; i --) {
-			if (y[i-1] < y[max]/2.) {
-				xL = interp(y[max]/2., y[i-1], y[i], x[i-1], x[i]);
+			if (y[i-1].value < y[max].value/2.) {
+				xL = interp(y[max].over(2.), y[i-1], y[i], x[i-1], x[i]);
 				break;
 			}
 		}
-		return xR - xL;
+		if (xR == null || xL == null)
+			return null;
+		else
+			return xR.minus(xL);
 	}
-	
+
 	/**
 	 * compute the standard deviation of the histogram
 	 * @param x the bin edges
@@ -556,7 +577,7 @@ public class Math2 {
 					max = x;
 		return max;
 	}
-	
+
 	/**
 	 * find the last index of the highest value
 	 * @param x the array of values
@@ -569,8 +590,22 @@ public class Math2 {
 				argmax = i;
 		return argmax;
 	}
-	
-	
+
+
+	/**
+	 * find the last index of the highest value
+	 * @param x the array of values
+	 * @return i such that x[i] >= x[j] for all j
+	 */
+	public static int argmax(Quantity[] x) {
+		int argmax = -1;
+		for (int i = 0; i < x.length; i ++)
+			if (!Double.isNaN(x[i].value) && (argmax == -1 || x[i].value > x[argmax].value))
+				argmax = i;
+		return argmax;
+	}
+
+
 	/**
 	 * find the last index of the second highest value
 	 * @param x the array of values
@@ -720,14 +755,21 @@ public class Math2 {
 		int i0 = Math.max(0, Math.min(x.length-2, (int) i));
 		return (i0+1-i)*x[i0] + (i-i0)*x[i0+1];
 	}
-	
+
 	/**
 	 * interpolate a value onto a line
 	 */
 	public static double interp(double x, double x1, double x2, double y1, double y2) {
 		return y1 + (x - x1)/(x2 - x1)*(y2 - y1);
 	}
-	
+
+	/**
+	 * interpolate a value onto a line
+	 */
+	public static Quantity interp(Quantity x, Quantity x1, Quantity x2, double y1, double y2) {
+		return x.minus(x1).over(x2.minus(x1)).times(y2 - y1).plus(y1);
+	}
+
 	/**
 	 * take the floating-point index of an array using linear interpolation.
 	 * @param x the array of values
