@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 
 filename = "../../output/comparison_high_2slit_400um_0c_1x_200_2022-07-19.csv"
+# filename = "../../output/comparison_medium_"
 SIMPLE = True
 data = pd.read_csv(filename)
 

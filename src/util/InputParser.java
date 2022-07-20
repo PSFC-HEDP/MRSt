@@ -36,6 +36,7 @@ public class InputParser {
 	public double uncertainty;
 	public double energyBin;
 	public double timeBin;
+	public double offset;
 	public double tolerance;
 
 	public InputParser(String name, String[] args) {
@@ -49,6 +50,7 @@ public class InputParser {
 		this.uncertainty = 0;
 		this.energyBin = 50e-3;
 		this.timeBin = 20e-3;
+		this.offset = 0;
 		this.tolerance = 0.1;
 
 		for (String arg : args) {
@@ -79,6 +81,9 @@ public class InputParser {
 						this.timeBin = Double.parseDouble(value)*1e-3;
 						tagFormat = "_%sps";
 						break;
+					case "offset":
+						this.offset = Double.parseDouble(value)*1e-3;
+						tagFormat = "+%sps";
 					case "tolerance":
 						this.tolerance = Double.parseDouble(value);
 						break;

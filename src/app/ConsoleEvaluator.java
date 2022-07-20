@@ -94,7 +94,7 @@ public class ConsoleEvaluator {
 						  setup.detectorConfig,
 						  setup.uncertainty*1e-2,
 						  false,
-						  setup.energyBin, setup.timeBin, setup.tolerance,
+						  setup.energyBin, setup.timeBin, setup.offset, setup.tolerance,
 						  logger); // make the simulation
 				} catch (IOException e) {
 					e.printStackTrace();

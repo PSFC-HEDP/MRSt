@@ -103,6 +103,7 @@ public class Analysis {
 	private final double[] energyAxis; // centers of energy bins (MeV neutron)
 	private final double[] deuteronEnergyAxis; // centers of energy bins (MeV deuteron)
 	private final double preferredTimeStep;
+	private final double forceTimeOffset;
 	private double timeStep;
 	private double[] timeAxis; // centers of time bins (ns)
 	private Quantity[] neutronYield; // 1e15/ns
@@ -141,16 +142,16 @@ public class Analysis {
 		  IonOpticConfiguration ionOpticConfiguration,
 		  DetectorConfiguration detectorConfiguration,
 		  double calibrationPrecision, boolean reuseMatrix,
-		  double eBin, double tBin, double analysisPrecision,
-		  Logger logger) throws IOException {
+		  double eBin, double tBin, double tOffset,
+		  double analysisPrecision, Logger logger) throws IOException {
 		this(new IonOptics(ionOpticConfiguration,
 						   detectorConfiguration.cosyFile,
 						   detectorConfiguration.tiltAngle,
 						   detectorConfiguration.offset,
 						   calibrationPrecision, reuseMatrix),
 			 detectorConfiguration,
-			 eBin, tBin, analysisPrecision,
-			 logger);
+			 eBin, tBin, tOffset,
+			 analysisPrecision, logger);
 	}
 
 	/**
@@ -198,12 +199,12 @@ public class Analysis {
 	 */
 	public Analysis(
 		  IonOptics ionOptics, DetectorConfiguration detectorConfiguration,
-		  double eBin, double tBin, double analysisPrecision,
-		  Logger logger) {
+		  double eBin, double tBin, double tOffset,
+		  double analysisPrecision, Logger logger) {
 		this(ionOptics,
 		     Detector.newDetector(detectorConfiguration, ionOptics),
-		     eBin, tBin, analysisPrecision,
-		     logger);
+		     eBin, tBin, tOffset,
+		     analysisPrecision, logger);
 	}
 
 	/**
@@ -212,7 +213,7 @@ public class Analysis {
 	public Analysis(
 		  IonOptics ionOptics, Detector detector, Logger logger) {
 		this(ionOptics, detector,
-			 50e-3, 20e-3, 0.01,
+			 50e-3, 20e-3, 0, 0.01,
 			 logger);
 	}
 
@@ -221,8 +222,8 @@ public class Analysis {
 	 */
 	public Analysis(
 		  IonOptics ionOptics, Detector detector,
-		  double eBin, double tBin, double precision,
-		  Logger logger) {
+		  double eBin, double tBin, double tOffset,
+		  double precision, Logger logger) {
 
 		this.ionOptics = ionOptics;
 		this.detector = detector;
@@ -244,6 +245,7 @@ public class Analysis {
 		}
 
 		this.preferredTimeStep = tBin;
+		this.forceTimeOffset = tOffset;
 
 		this.logger = logger;
 	}
@@ -254,8 +256,8 @@ public class Analysis {
 	 *                         a reference
 	 */
 	private void instantiateTimeAxis(double[] spectrumTimeBins) {
-		double minT = spectrumTimeBins[0] - BUFFER*preferredTimeStep;
-		double maxT = spectrumTimeBins[spectrumTimeBins.length-1] + BUFFER*preferredTimeStep;
+		double minT = spectrumTimeBins[0] - BUFFER*preferredTimeStep + forceTimeOffset;
+		double maxT = spectrumTimeBins[spectrumTimeBins.length-1] + BUFFER*preferredTimeStep + forceTimeOffset;
 		this.timeBins = new double[(int) ((maxT - minT)/preferredTimeStep + 1)];
 		for (int i = 0; i < timeBins.length; i ++)
 			this.timeBins[i] = minT + i*(maxT - minT)/(timeBins.length-1);
@@ -798,47 +800,6 @@ public class Analysis {
 	}
 
 	/**
-	 * use an alternative tecneke to take the time-corrected spectrum and use it
-	 * to compute and store time-resolved values for ion temperature, areal
-	 * density, and yield.  this alternative tecneke discards spectral information
-	 * except for a single split into two energy bands, which are taken to be
-	 * primary and downscatter.  it should work better for some streak camera
-	 * configurations.
-	 * @param signal the time-corrected spectrum we want to understand
-	 * @param errorMode should error bars be computed (it's rather intensive)?
-	 */
-	private void altAnalyze(double[][] signal, ErrorMode errorMode) {
-		final double cutoff = 13;
-
-		// start by decomposing into two signal bands
-		double[] dsSignal = new double[timeAxis.length];
-		double[] primarySignal = new double[timeAxis.length];
-		for (int i = 0; i < energyAxis.length; i ++) {
-			for (int j = 0; j < timeAxis.length; j ++) {
-				if (energyAxis[i] < cutoff)
-					dsSignal[j] += signal[i][j];
-				else
-					primarySignal[j] += signal[i][j];
-			}
-		}
-
-		// fit each band individually given the time resolution and efficiency at that energy
-		double[] primaryNeutrons = fitInBand(primarySignal, 6.0, 0, cutoff, MAX_E);
-		double[] dsNeutrons = fitInBand(dsSignal, 0, 1, 0, cutoff); // note that this is primary yield times ρR/(g/cm^2)
-
-		// finally, infer the burn history and rhoR point-by-point
-		this.neutronYield = new Quantity[timeAxis.length];
-		this.arealDensity = new Quantity[timeAxis.length];
-		this.ionTemperature = new Quantity[timeAxis.length];
-		for (int j = 0; j < timeAxis.length; j ++) {
-			this.neutronYield[j] = new Quantity(primaryNeutrons[j], 0);
-			this.arealDensity[j] = new Quantity(dsNeutrons[j]/primaryNeutrons[j], 0);
-			this.ionTemperature[j] = new Quantity(Double.NaN, 0);
-		}
-		this.covarianceMatrix = new double[0][0];
-	}
-
-	/**
 	 * a utility function for the fitting: get the error in this spectrum fit
 	 * @param active whether to apply the prior to each timestep
 	 * @param sumInEnergy whether to combine energies when comparing
@@ -936,7 +897,7 @@ public class Analysis {
 		double expected_temperature = 4;//5.5e-4*Math.pow(totalYield*1e15, .25);
 		for (int j = 0; j < timeAxis.length; j ++)
 			totalPenalty += Math.pow((Math.log(ionTemperature[j]/expected_temperature))/1.5, 2); // log-normal prior on Ti
-		double expected_temperature_slope = 6.0*(Math.log10(totalYield) + 15) - 100.5;
+//		double expected_temperature_slope = 6.0*(Math.log10(totalYield) + 15) - 100.5;
 		for (double[] x: new double[][] {ionTemperature, arealDensity}) {
 			for (int j = 0; j < timeAxis.length - 2; j ++) {
 				if (active == null || (active[j] && active[j+1] && active[j+2])) {
@@ -949,50 +910,6 @@ public class Analysis {
 		}
 
 		return totalError + totalPenalty;
-	}
-
-	/**
-	 * attempt to extract the total energy-integrated neutron emission from a
-	 * clipped section of signal.  don't bother trying to deal with spectral
-	 * information.
-	 */
-	private double[] fitInBand(double[] bandSignal,
-							   double temperature, double arealDensity,
-							   double minEnergy, double maxEnergy) {
-		double[] lowerBound = new double[timeAxis.length];
-		double[] upperBound = new double[timeAxis.length];
-		for (int j = 0; j < timeAxis.length; j ++)
-			upperBound[j] = Double.POSITIVE_INFINITY;
-
-		double bandBackground = this.totalBackground(minEnergy, maxEnergy); // (signal/bin)
-		double bandVariance = this.totalVariance(minEnergy, maxEnergy); // (signal/bin)
-		double bandEfficiency = this.averageEfficiency(temperature, arealDensity, minEnergy, maxEnergy);
-		double[] bandResponse = this.averageResponse(temperature, arealDensity, minEnergy, maxEnergy);
-		double bandGain = Math2.sum(bandResponse);
-		double[] bandNeutronsInitial = new double[timeAxis.length];
-		double[] bandScale = new double[timeAxis.length];
-		for (int j = 0; j < timeAxis.length; j ++) {
-			bandNeutronsInitial[j] = Math.max(1, (bandSignal[j] - bandBackground)/bandGain)/bandEfficiency/(timeStep*1e15);
-			bandScale[j] = bandNeutronsInitial[j]/1.5;
-		}
-		return optimize(
-			  (double[] bandNeutronsGess) -> {
-				  double[] theorSignal = Math2.convolve(bandNeutronsGess, bandResponse);
-				  double logLikelihood = 0;
-				  for (int j = 0; j < timeAxis.length; j ++) {
-					  double theorVariance = bandVariance + theorSignal[j]/detector.gain;
-					  logLikelihood += Math.pow(theorSignal[j] - bandSignal[j] + bandBackground, 2)/theorVariance;
-				  }
-				  double logPrior = 0;
-				  for (int j = 0; j < timeAxis.length - 2; j ++)
-					  logPrior += 1e-15*Math.pow(
-							(bandNeutronsGess[j] - 2*bandNeutronsGess[j+1] + bandNeutronsGess[j+2])/(timeStep*timeStep)/
-								  (bandNeutronsGess[j] + bandNeutronsGess[j+1] + bandNeutronsGess[j+2])/3.,
-							2);
-				  return logPrior + logLikelihood;
-			  },
-			  bandNeutronsInitial,
-			  bandScale, lowerBound, upperBound);
 	}
 
 	/**
