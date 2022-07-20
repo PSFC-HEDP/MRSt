@@ -546,6 +546,14 @@ public class Math2 {
 		return r;
 	}
 
+	public static boolean[][] nonzero(double[][] values) {
+		boolean[][] nonzero = new boolean[values.length][values[0].length];
+		for (int i = 0; i < values.length; i ++)
+			for (int j = 0; j < values[i].length; j ++)
+				nonzero[i][j] = values[i][j] != 0;
+		return nonzero;
+	}
+
 	public static double[][] deepCopy(double[][] orig) {
 		double[][] copy = new double[orig.length][];
 		for (int i = 0; i < copy.length; i ++)

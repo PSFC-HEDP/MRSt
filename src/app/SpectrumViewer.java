@@ -51,7 +51,7 @@ public class SpectrumViewer {
 	public static void main(String[] args) throws NumberFormatException, IOException {
 		IonOpticConfiguration optics = IonOpticConfiguration.HIGH_EFFICIENCY;
 		DetectorConfiguration detector = DetectorConfiguration.DRIFT_TUBE;
-		String trajectory = "scan/p2 p1 p4 burnoff";
+		String simulationName = "scan/p2 p1 p4 burnoff";
 		double yieldFactor = 1;
 		boolean reuseMatrix = false;
 
@@ -65,8 +65,8 @@ public class SpectrumViewer {
 		logger.addHandler(commandlineHandler);
 
 		double[] energyBins = CSV.readColumn(new File("input/energy.txt"));
-		double[] timeBins = CSV.readColumn(new File("input/" + trajectory + " time.txt"));
-		double[][] spectrum = CSV.read(new File("input/" + trajectory + " spectrum.txt"), '\t');
+		double[] timeBins = CSV.readColumn(new File("input/" + simulationName + " time.txt"));
+		double[][] spectrum = CSV.read(new File("input/" + simulationName + " spectrum.txt"), '\t');
 		ErrorMode errorMode = ErrorMode.HESSIAN;
 
 		double[] eBins, tBins;
@@ -121,7 +121,7 @@ public class SpectrumViewer {
 //			            "Fitted neutron spectrum");
 //			PythonPlot.plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getFitSignalDistribution(),
 //			            "Fitted signal distribution");
-			PythonPlot.plotLines("Trajectories", trajectory + "{}",
+			PythonPlot.plotLines("Trajectories", "input/" + simulationName + " {}.csv",
 					mc.getTimeAxis(), "Time (ns)",
 			        mc.getNeutronYield(), mc.getNeutronYieldError(), "Yn (10^15/ns)",
 					mc.getIonTemperature(), mc.getIonTemperatureError(), "Ti (keV)"//,

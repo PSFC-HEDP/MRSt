@@ -8,7 +8,7 @@ if len(sys.argv) <= 1:
 	import os
 	os.chdir('../..')
 	print(os.getcwd())
-	xlabel, ylabels, title, answer, n = 'Time (ns)', 'Yn (10^15/ns)\nTi (keV)\nρR (g/cm^2)', 'Trajectories', 'input/{} hot.csv', 3
+	xlabel, ylabels, title, answer, n = 'Time (ns)', 'Yn (10^15/ns)\nTi (keV)\nρR (g/cm^2)', 'Trajectories', 'input/hot {}.csv', 3
 	# xlabel, ylabels, title, answer, n = 'Energy (MeV)', 'Deuterons\nDeuterons\nSignal', 'Integrated spectra', '-', 3
 else:
 	xlabel, ylabels, title, answer, n = sys.argv[1:]

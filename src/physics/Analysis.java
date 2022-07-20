@@ -595,7 +595,7 @@ public class Analysis {
 					electronTemperature,
 					bulkFlowVelocity,
 					finalArealDensity,
-					null, true, 1),
+					null, null, true, 1),
 			  naiveNeutronYield, yieldScale, lowerBound, upperBound); // 10^15/ns
 
 //				try {
@@ -665,12 +665,21 @@ public class Analysis {
 
 		final double finalSmoothing = 1;//smoothing;
 
+		boolean[][] signalSpread = Math2.nonzero(
+				this.detector.response(
+						energyBins, timeBins, this.ionOptics.response(
+								energyBins, timeBins, SpectrumGenerator.generateSpectrum(
+										neutronYield, ionTemperature, electronTemperature, bulkFlowVelocity, arealDensity,
+										energyBins, timeBins),
+								false, false),
+						false, true, true));
+
 		double lastValue;
 		double thisValue = logPosterior(
 			  signal, neutronYield,
 			  ionTemperature, electronTemperature,
 			  bulkFlowVelocity, arealDensity,
-			  active, false, finalSmoothing);
+			  active, signalSpread, false, finalSmoothing);
 
 		do {
 			final double[] neutronYieldInitialGess = neutronYield;
@@ -687,7 +696,7 @@ public class Analysis {
 						electronTemperature,
 						bulkFlowVelocity,
 						arealDensityInitialGess,
-						active, false, finalSmoothing),
+						active, signalSpread, false, finalSmoothing),
 				  ionTemperatureInitialGess,
 				  temperatureScale, lowerBound, upperBound, active);
 
@@ -701,7 +710,7 @@ public class Analysis {
 						electronTemperature,
 						bulkFlowVelocity,
 						x,
-						active, false, finalSmoothing),
+						active, signalSpread, false, finalSmoothing),
 				  arealDensityInitialGess,
 				  densityScale, lowerBound, upperBound, active);
 
@@ -715,7 +724,7 @@ public class Analysis {
 						electronTemperature,
 						bulkFlowVelocity,
 						arealDensityNewGess,
-						active, false, finalSmoothing),
+						active, signalSpread, false, finalSmoothing),
 				  neutronYieldInitialGess,
 				  yieldScale, lowerBound, upperBound, active);
 
@@ -728,7 +737,7 @@ public class Analysis {
 				  signal, neutronYield,
 				  ionTemperature, electronTemperature,
 				  bulkFlowVelocity, arealDensity,
-				  active, false, finalSmoothing);
+				  active, signalSpread,false, finalSmoothing);
 		} while (lastValue - thisValue > this.precision);
 
 		this.neutronYield = new Quantity[M];
@@ -766,7 +775,7 @@ public class Analysis {
 				return this.logPosterior(signal, testNeutronYield,
 										 testIonTemperature, electronTemperature,
 										 bulkFlowVelocity, testArealDensity,
-										 active, false, finalSmoothing);
+										 active, signalSpread, false, finalSmoothing);
 			}, x0, dx); // the do that
 			Math2.coercePositiveSemidefinite(hessian);
 			double[][] activeCovarianceMatrix = Math2.pseudoinv(hessian); // invert it to get the covariance
@@ -803,6 +812,7 @@ public class Analysis {
 	 * a utility function for the fitting: get the error in this spectrum fit
 	 * @param active whether to apply the prior to each timestep
 	 * @param sumInEnergy whether to combine energies when comparing
+	 * @param signalRegion only pay attention to pixels markd by signalRegion
 	 * @return the log of the inverse posterior value for this spectrum
 	 */
 	private double logPosterior(double[][] spectrum,
@@ -812,6 +822,7 @@ public class Analysis {
 								double[] bulkFlowVelocity,
 								double[] arealDensity,
 								boolean[] active,
+								boolean[][] signalRegion,
 								boolean sumInEnergy,
 								double smoothing) {
 		for (int j = 0; j < timeAxis.length; j ++)
@@ -841,11 +852,13 @@ public class Analysis {
 			double[] variances = new double[numEnergies];
 			double[] backgrounds = new double[numEnergies];
 			for (int i = 0; i < spectrum.length; i ++) {
-				int index = (sumInEnergy) ? 0 : i;
-				experValues[index] += spectrum[i][j];
-				theorValues[index] += signal[i][j];
-				variances[index] += detector.noise(energyAxis[i], energyBins, timeBins, true);
-				backgrounds[index] = detector.background(energyAxis[i], energyBins, timeBins, true);
+				if (signalRegion == null || signalRegion[i][j]) {
+					int index = (sumInEnergy) ? 0 : i;
+					experValues[index] += spectrum[i][j];
+					theorValues[index] += signal[i][j];
+					variances[index] += detector.noise(energyAxis[i], energyBins, timeBins, true);
+					backgrounds[index] = detector.background(energyAxis[i], energyBins, timeBins, true);
+				}
 			}
 			for (int i = 0; i < numEnergies; i ++) {
 				double theorNumber = (theorValues[i] - backgrounds[i])/detector.gain;
@@ -896,7 +909,7 @@ public class Analysis {
 			totalPenalty += arealDensity[j]/5.0 - Math.log(arealDensity[j])/50.0; // gamma prior on areal density
 		double expected_temperature = 4;//5.5e-4*Math.pow(totalYield*1e15, .25);
 		for (int j = 0; j < timeAxis.length; j ++)
-			totalPenalty += Math.pow((Math.log(ionTemperature[j]/expected_temperature))/1.5, 2); // log-normal prior on Ti
+			totalPenalty += Math.pow((Math.log(ionTemperature[j]/expected_temperature))/2.5, 2); // log-normal prior on Ti
 //		double expected_temperature_slope = 6.0*(Math.log10(totalYield) + 15) - 100.5;
 		for (double[] x: new double[][] {ionTemperature, arealDensity}) {
 			for (int j = 0; j < timeAxis.length - 2; j ++) {
