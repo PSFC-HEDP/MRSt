@@ -50,7 +50,7 @@ import java.util.logging.SimpleFormatter;
  * 
  * @author Justin Kunimune
  */
-public class ConsoleEvaluator {
+public class ConfigurationEvaluator {
 	public static void main(String[] args) throws SecurityException, IOException, InterruptedException {
 
 		final InputParser setup = new InputParser("ensemble", args);
@@ -94,8 +94,8 @@ public class ConsoleEvaluator {
 						  setup.detectorConfig,
 						  setup.uncertainty*1e-2,
 						  false,
-						  setup.energyBin, setup.timeBin, setup.offset, setup.tolerance,
-						  logger); // make the simulation
+						  setup.energyBin, setup.timeBin, setup.offset,
+						  setup.tolerance, logger); // make the simulation
 				} catch (IOException e) {
 					e.printStackTrace();
 					return null;
