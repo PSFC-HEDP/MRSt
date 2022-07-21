@@ -1,18 +1,18 @@
 /**
  * MIT License
- * 
+ *
  * Copyright (c) 2018 Justin Kunimune
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -48,7 +48,7 @@ import java.util.logging.Logger;
 
 /**
  * the class where all the math is.
- * 
+ *
  * @author Justin Kunimune
  */
 public class Analysis {
@@ -110,7 +110,7 @@ public class Analysis {
 	private Quantity[] ionTemperature; // keV
 	private Quantity[] arealDensity; // g/cm^2
 	private double[][] covarianceMatrix; // and covariances that go with all of these
-	
+
 	private final Logger logger; // for logging
 
 	/**
@@ -168,27 +168,27 @@ public class Analysis {
 	 *                     accessd for any reason
 	 */
 	public Analysis(
-		  double foilDistance, double foilWidth, double foilHeight, double foilThickness,
-		  double apertureDistance, double apertureWidth, double apertureHeight,
-		  COSYMapping cosyMapping,
-		  DetectorConfiguration detectorConfiguration,
-		  double calibrationPrecision, boolean reuseMatrix,
-		  Logger logger) throws IOException {
+			double foilDistance, double foilWidth, double foilHeight, double foilThickness,
+			double apertureDistance, double apertureWidth, double apertureHeight,
+			COSYMapping cosyMapping,
+			DetectorConfiguration detectorConfiguration,
+			double calibrationPrecision, boolean reuseMatrix,
+			Logger logger) throws IOException {
 
 		this(new IonOptics(
 				foilDistance, foilWidth, foilHeight, foilThickness,
 				apertureDistance, apertureWidth, apertureHeight,
 				MIN_E, MAX_E, cosyMapping, detectorConfiguration.tiltAngle,
 				detectorConfiguration.offset, calibrationPrecision, reuseMatrix),
-		     detectorConfiguration,logger);
+		     detectorConfiguration, logger);
 	}
 
 	/**
 	 * perform some preliminary calculations for the provided configuration.
 	 */
 	public Analysis(
-		  IonOptics ionOptics, DetectorConfiguration detectorConfiguration,
-		  Logger logger) {
+			IonOptics ionOptics, DetectorConfiguration detectorConfiguration,
+			Logger logger) {
 		this(ionOptics,
 		     Detector.newDetector(detectorConfiguration, ionOptics),
 		     logger);
@@ -211,7 +211,7 @@ public class Analysis {
 	 * perform some preliminary calculations for the provided configuration.
 	 */
 	public Analysis(
-		  IonOptics ionOptics, Detector detector, Logger logger) {
+			IonOptics ionOptics, Detector detector, Logger logger) {
 		this(ionOptics, detector,
 			 50e-3, 20e-3, 0, 0.01,
 			 logger);
@@ -261,7 +261,7 @@ public class Analysis {
 		this.timeBins = new double[(int) ((maxT - minT)/preferredTimeStep + 1)];
 		for (int i = 0; i < timeBins.length; i ++)
 			this.timeBins[i] = minT + i*(maxT - minT)/(timeBins.length-1);
-		
+
 		this.timeStep = timeBins[1] - timeBins[0];
 		this.timeAxis = new double[timeBins.length-1];
 		for (int i = 0; i < timeBins.length-1; i ++)
@@ -293,6 +293,11 @@ public class Analysis {
 		return this.ionOptics.computeResolution(referenceEnergy);
 	}
 
+
+	/**
+	 * the detection efficiency of the complete system
+	 * @param energy the energy at which to evaluate the efficiency
+	 */
 	public double efficiency(double energy) {
 		return this.ionOptics.efficiency(energy)
 				*this.detector.efficiency(energy, true);
@@ -300,7 +305,7 @@ public class Analysis {
 
 
 	/**
-	 * the weighted average of the efficiency
+	 * the weighted average of the efficiency of the complete system
 	 * @param temperature the ion temperature with which to weit it
 	 * @param arealDensity the ρR with which to weit it
 	 * @param minEnergy the lower neutron energy bound (MeV n)
@@ -309,13 +314,13 @@ public class Analysis {
 	public double averageEfficiency(double temperature, double arealDensity,
 									double minEnergy, double maxEnergy) {
 		double[] weits = SpectrumGenerator.generateSpectrum(
-			  1, temperature, temperature, 0, arealDensity,
-			  energyBins, temperature == 0);
-		weits = ionOptics.response(energyBins, weits, false, false);
+				1, temperature, temperature, 0, arealDensity,
+				energyBins, temperature == 0);
+		double[] ionOpticEfficiency = ionOptics.response(energyBins, weits, false, false);
 		double weitedEfficiency = 0;
 		for (int i = 0; i < energyAxis.length; i ++) // perform a weited mean
 			if (energyAxis[i] >= minEnergy && energyAxis[i] < maxEnergy)
-				weitedEfficiency += weits[i]*detector.efficiency(energyAxis[i], true);
+				weitedEfficiency += ionOpticEfficiency[i]*detector.efficiency(energyAxis[i], true);
 		return weitedEfficiency;
 	}
 
@@ -331,7 +336,7 @@ public class Analysis {
 	 * (signal/bin), without background
 	 */
 	public double[] averageResponse(double temperature, double arealDensity,
-									double minEnergy, double maxEnergy) {
+	                                double minEnergy, double maxEnergy) {
 		double[] genericNeutronDistribution = SpectrumGenerator.generateSpectrum(
 			  1, temperature, temperature, 0, arealDensity,
 			  energyBins, temperature == 0);
@@ -339,8 +344,8 @@ public class Analysis {
 		for (int i = 0; i < energyAxis.length; i ++)
 			genericNeutronSpectrum[i][timeAxis.length/2] = genericNeutronDistribution[i];
 		double[][] typicalOpticsResponse = this.ionOptics.response(
-			  energyBins, timeBins, genericNeutronSpectrum,
-			  false, false);
+				energyBins, timeBins, genericNeutronSpectrum,
+				false, false);
 		double[][] fullResponse = this.detector.response(
 			  energyBins, timeBins, typicalOpticsResponse,
 			  false, false, true);
@@ -394,8 +399,8 @@ public class Analysis {
 	 *          \<vi\>, err, dvi/dt, err}
 	 */
 	public double[] respondAndAnalyze(double[] energies, double[] times,
-									  double[][] neutronSpectrum,
-									  ErrorMode errorBars) {
+	                                  double[][] neutronSpectrum,
+	                                  ErrorMode errorBars) {
 		if (neutronSpectrum.length != energies.length-1 || neutronSpectrum[0].length != times.length-1)
 			throw new IllegalArgumentException("These dimensions don't make any sense.");
 
@@ -425,13 +430,13 @@ public class Analysis {
 
 		long endTime = System.currentTimeMillis();
 		logger.info(String.format(Locale.US, "completed in %.2f minutes.",
-			                      (endTime - startTime)/60000.));
+		                          (endTime - startTime)/60000.));
 
 		double saturation = Math2.max(signalDistribution)/
-			  this.detector.saturationLimit(14, energyBins, timeBins);
+				this.detector.saturationLimit(14, energyBins, timeBins);
 		if (saturation >= 1)
 			logger.warning(String.format("The detector is saturating by about %.2f%%",
-										 saturation/1e-2));
+			                             saturation/1e-2));
 		else
 			logger.info(String.format("The detector is %.2f%% of the way to saturation",
 									  saturation/1e-2));
@@ -456,11 +461,11 @@ public class Analysis {
 		int dofs = covarianceMatrix.length;
 
 		this.fitNeutronSpectrum = SpectrumGenerator.generateSpectrum(
-			  this.getNeutronYield(), this.getIonTemperature(),
-			  Math2.full(ELECTRON_TEMPERATURE, timeAxis.length),
-			  Math2.full(BULK_FLOW_VELOCITY, timeAxis.length),
-			  this.getArealDensity(),
-			  energyBins, timeBins);
+				this.getNeutronYield(), this.getIonTemperature(),
+				Math2.full(ELECTRON_TEMPERATURE, timeAxis.length),
+				Math2.full(BULK_FLOW_VELOCITY, timeAxis.length),
+				this.getArealDensity(),
+				energyBins, timeBins);
 		this.fitDeuteronSpectrum = this.ionOptics.response(
 			  energyBins, timeBins, fitNeutronSpectrum,
 			  false, false);
@@ -470,7 +475,7 @@ public class Analysis {
 
 		endTime = System.currentTimeMillis();
 		logger.info(String.format("completed in %.2f minutes.",
-								  (endTime - startTime)/60000.));
+		                          (endTime - startTime)/60000.));
 
 		Quantity[] V = new Quantity[timeAxis.length]; // this is not really volume; it is (ρR)^(-2/3)
 		for (int j = 0; j < V.length; j ++)
@@ -561,12 +566,12 @@ public class Analysis {
 
 		// start with the simplest possible reconstruction
 		double[] naiveNeutronYield = new double[signal[0].length];
+		double efficiency = this.averageEfficiency(4, .1, 0, Double.POSITIVE_INFINITY);
 		for (int i = 0; i < signal.length; i ++) {
 			double background = this.detector.background(energyAxis[i], energyBins, timeBins, true);
-			double efficiency = this.averageEfficiency(4, .1, 0, Double.POSITIVE_INFINITY);
 			for (int j = 0; j < signal[i].length; j ++) {
 				naiveNeutronYield[j] += Math.max(
-					  0, (signal[i][j] - background)/detector.gain/efficiency)/(timeStep*1e15); // the spectrum scaled by the efficiency of the system
+						0, (signal[i][j] - background)/detector.gain/efficiency)/(timeStep*1e15); // the spectrum scaled by the efficiency of the system
 			}
 		}
 
@@ -595,7 +600,7 @@ public class Analysis {
 					electronTemperature,
 					bulkFlowVelocity,
 					finalArealDensity,
-					null, null, true, 1),
+					null, null, true, 100),
 			  naiveNeutronYield, yieldScale, lowerBound, upperBound); // 10^15/ns
 
 //				try {
@@ -634,9 +639,7 @@ public class Analysis {
 		// determine the bounds of the region that's worth optimizing
 		double[] statistics = new double[M];
 		for (int j = 0; j < M; j ++)
-			statistics[j] = neutronYield[j]*1e15
-				  *this.averageEfficiency(6, 0, MIN_E, MAX_E)
-				  *timeStep;
+			statistics[j] = neutronYield[j]*1e15*efficiency*timeStep;
 		final int peak = Math.max(1, Math.min(statistics.length - 2,
 		                                      Math2.argmax(statistics)));
 		int left = -1;
@@ -745,11 +748,11 @@ public class Analysis {
 		this.arealDensity = new Quantity[M];
 		for (int j = 0; j < timeAxis.length; j ++) {
 			this.neutronYield[j] = new Quantity(
-				  neutronYield[j], j, N*M);
+					neutronYield[j], j, N*M);
 			this.ionTemperature[j] = new Quantity(
-				  ionTemperature[j], M+j, N*M);
+					ionTemperature[j], M+j, N*M);
 			this.arealDensity[j] = new Quantity(
-				  arealDensity[j], 2*M+j, N*M);
+					arealDensity[j], 2*M+j, N*M);
 		}
 
 		if (errorMode == ErrorMode.HESSIAN) { // calculate the error bars using second-derivatives
@@ -794,9 +797,9 @@ public class Analysis {
 			covarianceMatrix = new double[N*M][N*M];
 			for (int j = 0; j < rite - left; j ++) {
 				double primaryStatistics = 1 +
-					  neutronYield[j]*1e15*
-							ionOptics.efficiency(14)*
-							timeStep; // total signal deuteron yield from this neutron time bin
+						neutronYield[j]*1e15*
+								ionOptics.efficiency(14)*
+								timeStep; // total signal deuteron yield from this neutron time bin
 				double dsStatistics = 1 + primaryStatistics*arealDensity[j]/21.;
 				covarianceMatrix[    j][    j] = Math.pow(neutronYield[j], 2)/primaryStatistics;
 				covarianceMatrix[  M+j][  M+j] = Math.pow(ionTemperature[j], 2)*2/(primaryStatistics - 1);
@@ -830,13 +833,13 @@ public class Analysis {
 				throw new IllegalArgumentException("you shouldn't be passing nan; whence did it come");
 		for (int j = 0; j < timeAxis.length; j ++)
 			if (neutronYield[j] < 0 || ionTemperature[j] < 0 ||
-				  electronTemperature[j] < 0 || bulkFlowVelocity[j] < 0 ||
-				  arealDensity[j] < 0)
+					electronTemperature[j] < 0 || bulkFlowVelocity[j] < 0 ||
+					arealDensity[j] < 0)
 				return Double.POSITIVE_INFINITY;
 
 		double[][] neutrons = SpectrumGenerator.generateSpectrum(
-			  neutronYield, ionTemperature, electronTemperature, bulkFlowVelocity, arealDensity,
-			  energyBins, timeBins); // generate the neutron spectrum based on those
+				neutronYield, ionTemperature, electronTemperature, bulkFlowVelocity, arealDensity,
+				energyBins, timeBins); // generate the neutron spectrum based on those
 		double[][] deuterons = this.ionOptics.response(
 			  energyBins, timeBins, neutrons,
 			  false, false);
@@ -865,10 +868,10 @@ public class Analysis {
 				double experNumber = (experValues[i] - backgrounds[i])/detector.gain;
 				if (variances[i] > 0) { // if this detector has significant noise
 					double variance = variances[i]
-						  + theorNumber*detector.gain // include the poisson noise of the signal electrons
-						  + theorNumber*detector.gain*detector.gain; // include pre-amplification poisson noise
+							+ theorNumber*detector.gain // include the poisson noise of the signal electrons
+							+ theorNumber*detector.gain*detector.gain; // include pre-amplification poisson noise
 					totalError += Math.pow(experValues[i] - theorValues[i], 2)/
-						  (2*variance); // and use a Gaussian approximation
+							(2*variance); // and use a Gaussian approximation
 				}
 				else { // if the detector noise is zero
 					assert !Double.isNaN(theorNumber);
@@ -899,8 +902,8 @@ public class Analysis {
 			}
 			double slope0 = (y[0] != 0 || y[1] != 0) ? (y[1] - y[0])/(y[0] + y[1]) : 0;
 			double slope1 = (y[1] != 0 || y[2] != 0) ? (y[2] - y[1])/(y[1] + y[2]) : 0;
-			totalPenalty += 1e-0/timeStep*
-				  (Math.exp(slope1 - slope0) - Math.exp((slope1 - slope0)/2)*2 + 1); // encourage a smooth burn history with no local mins
+			totalPenalty += smoothing*1e-0/timeStep*
+					(Math.exp(slope1 - slope0) - Math.exp((slope1 - slope0)/2)*2 + 1); // encourage a smooth burn history with no local mins
 		}
 		double totalYield = Math2.sum(neutronYield)*timeStep;
 		for (int j = 0; j < timeAxis.length; j ++)
@@ -915,7 +918,7 @@ public class Analysis {
 			for (int j = 0; j < timeAxis.length - 2; j ++) {
 				if (active == null || (active[j] && active[j+1] && active[j+2])) {
 					double Ψpp = (x[j] - 2*x[j+1] + x[j+2])/
-						  Math.pow(timeStep, 3);
+							Math.pow(timeStep, 3);
 					double Ψ = (x[j] + x[j+1] + x[j+2])/3;
 					totalPenalty += smoothing*1e-10*Math.pow(Ψpp/Ψ, 2); // encourage a smooth Ti and ρR
 				}
@@ -937,11 +940,11 @@ public class Analysis {
 	 * @param activeDimensions which components of the state vector are allowed to be changed
 	 */
 	private double[] optimize(Function<double[], Double> func, double[] totalGuess,
-							  double[] totalScale, double[] totalLower, double[] totalUpper,
-							  boolean... activeDimensions) {
+	                          double[] totalScale, double[] totalLower, double[] totalUpper,
+	                          boolean... activeDimensions) {
 		if (totalGuess.length != totalScale.length)
 			throw new IllegalArgumentException("Scale and guess must have the same length");
-		
+
 		final boolean[] active = new boolean[totalScale.length];
 		for (int i = 0; i < active.length; i ++) { // expand the selected dimensions into a full array
 			if (activeDimensions.length == 0)
@@ -949,13 +952,13 @@ public class Analysis {
 			else
 				active[i] = activeDimensions[i%activeDimensions.length];
 		}
-		
+
 		int numTotal = active.length; // count them
 		int numActive = 0;
 		for (boolean activeDimension: active)
 			if (activeDimension)
 				numActive ++;
-		
+
 		double[] activeGuess = new double[totalGuess.length/numTotal*numActive]; // so that you can make these arrays
 		double[] activeScale = new double[totalScale.length/numTotal*numActive];
 		double[] activeLower = new double[totalScale.length/numTotal*numActive];
@@ -976,21 +979,21 @@ public class Analysis {
 				}
 			}
 		}
-		
+
 		double[] totalParams = totalGuess.clone();
 		logger.log(Level.FINER, Double.toString(func.apply(totalGuess)));
 		activeGuess = Optimization.minimizeLBFGSB(
-			  (activeParams) -> { // when you optimize
+				(activeParams) -> { // when you optimize
 					updateArray(totalParams, activeParams, active); // only optimize a subset of the dimensions
 					return func.apply(totalParams);
 				},
-			  activeGuess,
-			  activeScale,
-			  activeLower,
-			  activeUpper,
-			  0, 1.0*1e-2);
+				activeGuess,
+				activeScale,
+				activeLower,
+				activeUpper,
+				0, 1.0*1e-2);
 		updateArray(totalParams, activeGuess, active);
-		
+
 		double oldPosterior = Double.POSITIVE_INFINITY, newPosterior = func.apply(totalParams);
 		logger.log(Level.FINER, Double.toString(newPosterior));
 		MultivariateOptimizer optimizer = new PowellOptimizer(1e-14, 0.1);
@@ -1005,7 +1008,7 @@ public class Analysis {
 					new MultiDirectionalSimplex(activeScale),
 					new MaxIter(10000),
 					new MaxEval(100000)).getPoint();
-			
+
 			oldPosterior = newPosterior;
 			updateArray(totalParams, activeGuess, active);
 			newPosterior = func.apply(totalParams);
@@ -1023,7 +1026,7 @@ public class Analysis {
 			}
 		}
 	}
-	
+
 	public double[] getTimeBins() {
 		return this.timeBins;
 	}
@@ -1109,21 +1112,21 @@ public class Analysis {
 	public double[] getNeutronYield() {
 		return Math2.modes(this.neutronYield);
 	}
-	
+
 	/**
 	 * get the neutron yield error bars in [10^15/ns]
 	 */
 	public double[] getNeutronYieldError() {
 		return Math2.stds(this.neutronYield, this.covarianceMatrix);
 	}
-	
+
 	/**
 	 * get the ion temperature mean values in [keV]
 	 */
 	public double[] getIonTemperature() {
 		return Math2.modes(this.ionTemperature);
 	}
-	
+
 	/**
 	 * get the ion temperature error bars in [keV]
 	 */
@@ -1137,15 +1140,15 @@ public class Analysis {
 	public double[] getArealDensity() {
 		return Math2.modes(this.arealDensity);
 	}
-	
+
 	/**
 	 * get the ρR error bars in [g/cm^2]
 	 */
 	public double[] getArealDensityError() {
 		return Math2.stds(this.arealDensity, this.covarianceMatrix);
 	}
-	
-	
+
+
 	private static String[] appendErrorsToHeader() {
 		String[] out = new String[2*HEADERS.length - 1];
 		for (int i = 0; i < HEADERS.length; i ++) {
@@ -1158,8 +1161,8 @@ public class Analysis {
 		}
 		return out;
 	}
-	
-	
+
+
 	/**
 	 * different methods for computing error bars: assume they are all zero, estimate a
 	 * hessian using finite differences and invert it into a covariance matrix, or calculate

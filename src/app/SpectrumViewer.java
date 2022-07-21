@@ -49,9 +49,9 @@ public class SpectrumViewer {
 	 * build the GUI and display it.
 	 */
 	public static void main(String[] args) throws NumberFormatException, IOException {
-		IonOpticConfiguration optics = IonOpticConfiguration.HIGH_EFFICIENCY;
+		IonOpticConfiguration optics = IonOpticConfiguration.MID_EFFICIENCY;
 		DetectorConfiguration detector = DetectorConfiguration.DRIFT_TUBE;
-		String simulationName = "scan/p2 p1 p4 burnoff";
+		String simulationName = "og with falling temp";//"scan/p2 p1 p4 burnoff";
 		double yieldFactor = 1;
 		boolean reuseMatrix = false;
 

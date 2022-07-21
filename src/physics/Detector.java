@@ -169,15 +169,15 @@ public abstract class Detector {
 		public static DetectorConfiguration DRIFT_TUBE =
 			  new DetectorConfiguration("MRSt_IRF_FP_70deg",
 										66.58565, Double.NaN,
-										new double[] {0},
-										new double[] {1},
-										new double[] {1});
+										new double[] {},
+										new double[] {},
+										new double[] {});
 		public static DetectorConfiguration PERFECT =
 				new DetectorConfiguration("perfect lens",
 				                          0, Double.NaN,
-				                          new double[] {0},
-				                          new double[] {1},
-				                          new double[] {1});
+				                          new double[] {},
+				                          new double[] {},
+				                          new double[] {});
 
 		public final String cosyFile;
 		public final double tiltAngle;
