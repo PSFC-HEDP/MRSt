@@ -115,7 +115,7 @@ public class PhysicsRequirer {
 								  setup.detectorConfig,
 								  setup.uncertainty*1e-2,
 								  false,
-								  setup.energyBin, setup.timeBin, setup.offset,
+								  setup.energyBin, setup.timeBin,
 								  setup.tolerance, logger); // make the simulation
 						} catch (IOException e) {
 							logger.log(Level.SEVERE, e.getMessage(), e);

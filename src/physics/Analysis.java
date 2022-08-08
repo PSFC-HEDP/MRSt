@@ -70,7 +70,7 @@ public class Analysis {
 	public static final Random NOISE_RANDOM = new Random(3);
 
 	private static final double MIN_E = 12, MAX_E = 16; // histogram bounds [MeV]
-	private static final int BUFFER = 4; // empty pixels to include simulate on each side [ns]
+	private static final int BUFFER = 5; // empty pixels to include simulate on each side [ns]
 
 //	private static final double SUBSTRATE_THICKNESS = 100; // [μm]
 //	private static final double PHOTOCATHODE_THICKNESS = .1; // [μm]
@@ -103,7 +103,6 @@ public class Analysis {
 	private final double[] energyAxis; // centers of energy bins (MeV neutron)
 	private final double[] deuteronEnergyAxis; // centers of energy bins (MeV deuteron)
 	private final double preferredTimeStep;
-	private final double forceTimeOffset;
 	private double timeStep;
 	private double[] timeAxis; // centers of time bins (ns)
 	private Quantity[] neutronYield; // 1e15/ns
@@ -142,15 +141,15 @@ public class Analysis {
 		  IonOpticConfiguration ionOpticConfiguration,
 		  DetectorConfiguration detectorConfiguration,
 		  double calibrationPrecision, boolean reuseMatrix,
-		  double eBin, double tBin, double tOffset,
-		  double analysisPrecision, Logger logger) throws IOException {
+		  double eBin, double tBin, double analysisPrecision,
+		  Logger logger) throws IOException {
 		this(new IonOptics(ionOpticConfiguration,
 						   detectorConfiguration.cosyFile,
 						   detectorConfiguration.tiltAngle,
 						   detectorConfiguration.offset,
 						   calibrationPrecision, reuseMatrix),
 			 detectorConfiguration,
-			 eBin, tBin, tOffset,
+			 eBin, tBin,
 			 analysisPrecision, logger);
 	}
 
@@ -199,12 +198,10 @@ public class Analysis {
 	 */
 	public Analysis(
 		  IonOptics ionOptics, DetectorConfiguration detectorConfiguration,
-		  double eBin, double tBin, double tOffset,
-		  double analysisPrecision, Logger logger) {
+		  double eBin, double tBin, double analysisPrecision, Logger logger) {
 		this(ionOptics,
 		     Detector.newDetector(detectorConfiguration, ionOptics),
-		     eBin, tBin, tOffset,
-		     analysisPrecision, logger);
+		     eBin, tBin, analysisPrecision, logger);
 	}
 
 	/**
@@ -213,7 +210,7 @@ public class Analysis {
 	public Analysis(
 			IonOptics ionOptics, Detector detector, Logger logger) {
 		this(ionOptics, detector,
-			 50e-3, 20e-3, 0, 0.01,
+			 50e-3, 20e-3, 0.01,
 			 logger);
 	}
 
@@ -222,8 +219,8 @@ public class Analysis {
 	 */
 	public Analysis(
 		  IonOptics ionOptics, Detector detector,
-		  double eBin, double tBin, double tOffset,
-		  double precision, Logger logger) {
+		  double eBin, double tBin, double precision,
+		  Logger logger) {
 
 		this.ionOptics = ionOptics;
 		this.detector = detector;
@@ -245,7 +242,6 @@ public class Analysis {
 		}
 
 		this.preferredTimeStep = tBin;
-		this.forceTimeOffset = tOffset;
 
 		this.logger = logger;
 	}
@@ -256,8 +252,9 @@ public class Analysis {
 	 *                         a reference
 	 */
 	private void instantiateTimeAxis(double[] spectrumTimeBins) {
-		double minT = spectrumTimeBins[0] - BUFFER*preferredTimeStep + forceTimeOffset;
-		double maxT = spectrumTimeBins[spectrumTimeBins.length-1] + BUFFER*preferredTimeStep + forceTimeOffset;
+		double timeOffset = NOISE_RANDOM.nextDouble()*preferredTimeStep;
+		double minT = spectrumTimeBins[0] - BUFFER*preferredTimeStep + timeOffset;
+		double maxT = spectrumTimeBins[spectrumTimeBins.length-1] + BUFFER*preferredTimeStep + timeOffset;
 		this.timeBins = new double[(int) ((maxT - minT)/preferredTimeStep + 1)];
 		for (int i = 0; i < timeBins.length; i ++)
 			this.timeBins[i] = minT + i*(maxT - minT)/(timeBins.length-1);
