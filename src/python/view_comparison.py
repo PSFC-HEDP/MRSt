@@ -4,11 +4,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-# filename = "../../output/comparison_high_2slits_400um_0c_18ps_200_2022-08-17.csv"
-# filename = "../../output/comparison_high_2slits_400um_0c_18ps_200_2022-08-11.csv"
-# filename = "../../output/comparison_high_2slits_400um_0c_15ps_200_2022-08-09.csv"
-# filename = "../../output/comparison_high_2slits_400um_0c_200_2022-08-08.csv"
-filename = "../../output/comparison_medium_driftt_0c_18ps_200_2022-08-11.csv"
+filename = "../../output/comparison_high_2slit_400um_0c_1x_200_2022-07-19.csv"
+# filename = "../../output/comparison_medium_"
 SIMPLE = True
 data = pd.read_csv(filename)
 
@@ -43,8 +40,7 @@ ground_truth = {
 }
 short_header = ["Total yield", "Burn width (ps)", "Burn skewness", "Burn kurtosis", "Ti at BT (keV)", "dTi/dt at BT (keV/(100ps))", "ρR at BT (g/cm^2)", "dρR/dt at BT (g/cm^2/(100ps))"]
 
-# order = {"Base case": 0, "P2": 3, "P1, P2": 4, "P1, P2, P4": 2, "P1, extra P2, P4": 5, "P1, P2, P4, burn off": 1}
-order = {"Base case": 0, "P2": 5, "P1, P2": 4, "P1, P2, P4": 3, "P1, extra P2, P4": 2, "P1, P2, P4, burn off": 1}
+order = {"Base case": 0, "P2": 3, "P1, P2": 4, "P1, P2, P4": 2, "P1, extra P2, P4": 5, "P1, P2, P4, burn off": 1}
 # for i, sim in enumerate(simulations):
 # 	case_numbers = data["Yield"].unique()
 # 	true_yield = ground_truth[sim][0]
