@@ -23,8 +23,11 @@
  */
 package util;
 
+import physics.Analysis;
 import physics.Detector.DetectorConfiguration;
 import physics.IonOptics.IonOpticConfiguration;
+
+import java.io.File;
 
 public class InputParser {
 	public String filename;
@@ -48,8 +51,8 @@ public class InputParser {
 		this.opticsConfig = null;
 		this.detectorConfig = null;
 		this.uncertainty = 0;
-		this.energyBin = 50e-3;
-		this.timeBin = 20e-3;
+		this.energyBin = Analysis.DEFAULT_ENERGY_BIN;
+		this.timeBin = Analysis.DEFAULT_TIME_BIN;
 		this.tolerance = 0.1;
 
 		for (String arg : args) {
@@ -139,6 +142,7 @@ public class InputParser {
 			}
 		}
 
+		new File("output/").mkdirs();
 		this.filename = String.format("output/%s_%tF",
 		                              filename,
 		                              System.currentTimeMillis());

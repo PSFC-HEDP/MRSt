@@ -68,7 +68,7 @@ for x, y in [("Total yield", "Burn width (ps)"),
 		if "burn off" in sim and SIMPLE:
 			continue
 		here = data["Yield"] == order[sim]
-		plt.scatter(data[here][x], data[here][y], c=f"C{i}", s=4, label=sim)
+		plt.scatter(data[here][x], data[here][y], c=f"C{i}", s=4, label=sim, zorder=10)
 		x_means.append(np.mean(data[here][x]))
 		y_means.append(np.mean(data[here][y]))
 		true_values = ground_truth[sim]
@@ -81,12 +81,13 @@ for x, y in [("Total yield", "Burn width (ps)"),
 		x_requ, y_requ = 0, 0
 		plt.errorbar(x=x_value, y=y_value, xerr=x_requ, yerr=y_requ,
 		             marker="o", markersize=6, markeredgewidth=2, markerfacecolor="white", markeredgecolor=f"C{i}",
-		             linewidth=1, zorder=10)
+		             linewidth=1, zorder=20)
 	plt.legend()
-	if np.min(data[x]) > 0 and np.max(data[x]) > np.min(x_means)*20:
+	if np.min(data[x]) > 0 and np.max(data[x]) > np.min(x_means)*50:
 		plt.xscale("log")
-	if np.min(data[y]) > 0 and np.max(data[y]) > np.min(y_means)*20:
+	if np.min(data[y]) > 0 and np.max(data[y]) > np.min(y_means)*50:
 		plt.yscale("log")
+	plt.grid()
 	plt.xlabel(x)
 	plt.ylabel(y)
 	plt.title(filename[24:-19])

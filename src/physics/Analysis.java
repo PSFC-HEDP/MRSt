@@ -66,11 +66,15 @@ public class Analysis {
 		}; // the names, units, and order of time-dependent burn parameters
 	public static final String[] HEADERS_WITH_ERRORS = appendErrorsToHeader();
 
-	public static final Random MC_RANDOM = new Random(2);
-	public static final Random NOISE_RANDOM = new Random(3);
+	public static final Random MC_RANDOM = new Random(0);
+	public static final Random NOISE_RANDOM = new Random(0);
 
 	private static final double MIN_E = 12, MAX_E = 16; // histogram bounds [MeV]
 	private static final int BUFFER = 5; // empty pixels to include simulate on each side [ns]
+
+	public static final double DEFAULT_ENERGY_BIN = 50e-3;
+	public static final double DEFAULT_TIME_BIN = 18e-3;
+	private static final double DEFAULT_PRECISION = .01;
 
 //	private static final double SUBSTRATE_THICKNESS = 100; // [μm]
 //	private static final double PHOTOCATHODE_THICKNESS = .1; // [μm]
@@ -210,7 +214,7 @@ public class Analysis {
 	public Analysis(
 			IonOptics ionOptics, Detector detector, Logger logger) {
 		this(ionOptics, detector,
-			 50e-3, 20e-3, 0.01,
+			 DEFAULT_ENERGY_BIN, DEFAULT_TIME_BIN, DEFAULT_PRECISION,
 			 logger);
 	}
 
