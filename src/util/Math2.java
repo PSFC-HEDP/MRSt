@@ -838,7 +838,20 @@ public class Math2 {
 		}
 		return y[l].times(x0.minus(x[r]).over(x[l] - x[r])).plus(y[r].times(x0.minus(x[l]).over(x[r] - x[l])));
 	}
-	
+
+	/**
+	 * take the floating-point index of an array using cubic interpolation.
+	 * @param x the array of values
+	 * @param i the partial index
+	 * @return x[i], more or less
+	 */
+	public static double quadInterp(double[] x, double i) {
+		Quantity[] xQ = new Quantity[x.length];
+		for (int j = 0; j < x.length; j ++)
+			xQ[j] = new Quantity(x[j], 0);
+		return interp(xQ, new Quantity(i, 0)).value;
+	}
+
 	/**
 	 * take the floating-point index of an array using cubic interpolation.
 	 * @param x the array of values
@@ -913,7 +926,18 @@ public class Math2 {
 		d2ydx2[x.length-1] = d2ydx2[x.length-2];
 		return d2ydx2;
 	}
-	
+
+	/**
+	 * fit to a parabola and find the nth derivative.  x must be evenly spaced.
+	 */
+	public static double derivative(double[] x, double[] y, double x0, double Δx, int n) {
+		Quantity[] y_q = new Quantity[y.length];
+		for (int j = 0; j < y.length; j ++)
+			y_q[j] = new Quantity(y[j], 0);
+		return derivative(x, y_q, new Quantity(x0, 0), Δx, n).value;
+	}
+
+
 	/**
 	 * fit to a parabola and find the nth derivative.  x must be evenly spaced.
 	 */

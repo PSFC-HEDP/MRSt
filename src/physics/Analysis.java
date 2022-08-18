@@ -903,7 +903,7 @@ public class Analysis {
 			}
 			double slope0 = (y[0] != 0 || y[1] != 0) ? (y[1] - y[0])/(y[0] + y[1]) : 0;
 			double slope1 = (y[1] != 0 || y[2] != 0) ? (y[2] - y[1])/(y[1] + y[2]) : 0;
-			totalPenalty += smoothing*1e-0/timeStep*
+			totalPenalty += smoothing*1e+1/timeStep*
 					(Math.exp(slope1 - slope0) - Math.exp((slope1 - slope0)/2)*2 + 1); // encourage a smooth burn history with no local mins
 		}
 		double totalYield = Math2.sum(neutronYield)*timeStep;
@@ -911,17 +911,22 @@ public class Analysis {
 			totalPenalty -= 0e-1*Math.pow(neutronYield[j]/totalYield, 2)*timeStep; // encourage a peaked Yn (short burn width)
 		for (int j = 0; j < timeAxis.length; j ++)
 			totalPenalty += arealDensity[j]/5.0 - Math.log(arealDensity[j])/50.0; // gamma prior on areal density
-		double expected_temperature = 4;//5.5e-4*Math.pow(totalYield*1e15, .25);
 		for (int j = 0; j < timeAxis.length; j ++)
-			totalPenalty += Math.pow((Math.log(ionTemperature[j]/expected_temperature))/2.5, 2); // log-normal prior on Ti
-//		double expected_temperature_slope = 6.0*(Math.log10(totalYield) + 15) - 100.5;
+			totalPenalty += Math.pow((Math.log(ionTemperature[j]/4))/2.5, 2)*neutronYield[j]/Math2.max(neutronYield); // log-normal prior on Ti
+		double expected_temperature = 5.5e-4*Math.pow(totalYield*1e15, .25);
+		double expected_temperature_slope = 60.0*(Math.log10(totalYield) + 15) - 1005.;
+		double iBT = Math2.quadargmax(neutronYield);
+		double observed_temperature = Math2.quadInterp(ionTemperature, iBT);
+		double observed_temperature_slope = Math2.derivative(timeAxis, ionTemperature, Math2.interp(timeAxis, iBT), .10, 1);
+		totalPenalty += Math.pow((expected_temperature - observed_temperature)/2., 2);
+		totalPenalty += Math.pow((expected_temperature_slope - observed_temperature_slope)/50., 2);
 		for (double[] x: new double[][] {ionTemperature, arealDensity}) {
 			for (int j = 0; j < timeAxis.length - 2; j ++) {
 				if (active == null || (active[j] && active[j+1] && active[j+2])) {
 					double Ψpp = (x[j] - 2*x[j+1] + x[j+2])/
 							Math.pow(timeStep, 3);
 					double Ψ = (x[j] + x[j+1] + x[j+2])/3;
-					totalPenalty += smoothing*1e-10*Math.pow(Ψpp/Ψ, 2); // encourage a smooth Ti and ρR
+					totalPenalty += smoothing*1e-9*Math.pow(Ψpp/Ψ, 2); // encourage a smooth Ti and ρR
 				}
 			}
 		}
