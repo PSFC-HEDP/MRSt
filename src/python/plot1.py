@@ -1,3 +1,4 @@
+import h5py
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
@@ -8,7 +9,7 @@ if len(sys.argv) <= 1:
 	import os
 	os.chdir('../..')
 	print(os.getcwd())
-	xlabel, ylabels, title, answer, n = 'Time (ns)', 'Yn (10^15/ns)\nTi (keV)\nρR (g/cm^2)', 'Trajectories', 'input/hot {}.csv', 3
+	xlabel, ylabels, title, answer, n = 'Time (ns)', 'Yn (10^15/ns)\nTi (keV)', 'Trajectories', 'input/og with falling temp {}.csv', 2
 	# xlabel, ylabels, title, answer, n = 'Energy (MeV)', 'Deuterons\nDeuterons\nSignal', 'Integrated spectra', '-', 3
 else:
 	xlabel, ylabels, title, answer, n = sys.argv[1:]
@@ -123,6 +124,14 @@ plt.tight_layout()
 # axis.set_xlabel("ρR (g/cm^2)")
 # axis.set_ylabel("Ti (keV)")
 
+with h5py.File("output/inferred_trajectories.h5", "w") as f:
+	for name, value in [("time true", XB), ("time fit", XA),
+	                    ("burn true", YBs[0]), ("burn fit", YAs[0]), ("burn error", ΔAs[0]),
+	                    ("Tion true", YBs[1]), ("Tion fit", YAs[1]), ("Tion error", ΔAs[1]),
+	                    # ("rhoR true", YBs[2]), ("rhoR fit", YAs[2]), ("rhoR error", ΔAs[2]),
+	                    ]:
+		dataset = f.create_dataset(name, value.shape)
+		dataset[...] = value
 plt.savefig("output/inferred_trajectories.png", dpi=300)
 plt.savefig("output/inferred_trajectories.eps")
 

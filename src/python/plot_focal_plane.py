@@ -1,3 +1,4 @@
+import h5py
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
@@ -33,6 +34,20 @@ for e, Y in zip(energies, particles):
 		y[-1].append(np.quantile(Y[:, 1], q)*1e2)
 x = np.array(x)
 y = np.array(y)
+
+with h5py.File("output/focalplane.h5", "w") as f:
+	region_group = f.create_group("region")
+	e_data = region_group.create_dataset("E (MeV)", energies.shape)
+	e_data[...] = energies
+	x_data = region_group.create_dataset("x (cm)", x.shape)
+	x_data[...] = x
+	y_data = region_group.create_dataset("y (cm)", y.shape)
+	y_data[...] = y
+	slit_group = f.create_group("slits")
+	l_data = slit_group.create_dataset("left edge (cm)", slit_positions.size)
+	l_data[:] = (slit_positions - slit_lengths/2)*1e2
+	r_data = slit_group.create_dataset("right edge (cm)", slit_positions.size)
+	r_data[:] = (slit_positions + slit_lengths/2)*1e2
 
 plt.figure(figsize=figsize)
 

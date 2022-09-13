@@ -248,6 +248,11 @@ public class Analysis {
 		this.preferredTimeStep = tBin;
 
 		this.logger = logger;
+
+		for (int i = 0; i < 10; i ++) { // flush the random number generators
+			MC_RANDOM.nextDouble();
+			NOISE_RANDOM.nextDouble();
+		}
 	}
 
 	/**
@@ -903,18 +908,17 @@ public class Analysis {
 			}
 			double slope0 = (y[0] != 0 || y[1] != 0) ? (y[1] - y[0])/(y[0] + y[1]) : 0;
 			double slope1 = (y[1] != 0 || y[2] != 0) ? (y[2] - y[1])/(y[1] + y[2]) : 0;
-			totalPenalty += smoothing*1e-0/timeStep*
+			totalPenalty += smoothing*1e-1/timeStep*
 					(Math.exp(slope1 - slope0) - Math.exp((slope1 - slope0)/2)*2 + 1); // encourage a smooth burn history with no local mins
 		}
-		double totalYield = Math2.sum(neutronYield)*timeStep;
-		for (int j = 0; j < timeAxis.length; j ++)
-			totalPenalty -= 0e-1*Math.pow(neutronYield[j]/totalYield, 2)*timeStep; // encourage a peaked Yn (short burn width)
+//		double totalYield = Math2.sum(neutronYield)*timeStep;
+//		for (int j = 0; j < timeAxis.length; j ++)
+//			totalPenalty += 1e-0*Math.pow(neutronYield[j]/totalYield, 2)*timeStep; // encourage a nonpeaked Yn (long burn width)
 		for (int j = 0; j < timeAxis.length; j ++)
 			totalPenalty += arealDensity[j]/5.0 - Math.log(arealDensity[j])/50.0; // gamma prior on areal density
-		double expected_temperature = 4;//5.5e-4*Math.pow(totalYield*1e15, .25);
+		double expected_temperature = 4;
 		for (int j = 0; j < timeAxis.length; j ++)
 			totalPenalty += Math.pow((Math.log(ionTemperature[j]/expected_temperature))/2.5, 2); // log-normal prior on Ti
-//		double expected_temperature_slope = 6.0*(Math.log10(totalYield) + 15) - 100.5;
 		for (double[] x: new double[][] {ionTemperature, arealDensity}) {
 			for (int j = 0; j < timeAxis.length - 2; j ++) {
 				if (active == null || (active[j] && active[j+1] && active[j+2])) {

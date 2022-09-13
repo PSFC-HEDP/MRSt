@@ -1,3 +1,4 @@
+import h5py
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
@@ -41,6 +42,11 @@ plt.title(title, fontsize=18)
 if "image" in title:
 	plt.arrow(X.min()*.72 + X.max()*.28, Y.min()*.85 + Y.max()*.15, 0, Y.ptp()*.2, width=.03, color="w", head_width=.15)
 	plt.text(X.min()*.95 + X.max()*.05, Y.min()*.95 + Y.max()*.05, "Sweep direction", verticalalignment="bottom", color="w")
+
+with h5py.File(f"output/{title}.h5", "w") as f:
+	for name, value in [("x", X), ("y", Y), ("z", Z)]:
+		dataset = f.create_dataset(name, value.shape)
+		dataset[...] = value
 
 plt.tight_layout()
 plt.savefig(f"output/{title}.png", dpi=300)
