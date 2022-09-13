@@ -28,6 +28,14 @@ import physics.Detector.DetectorConfiguration;
 import physics.IonOptics.IonOpticConfiguration;
 
 import java.io.File;
+import java.io.IOException;
+import java.util.logging.ConsoleHandler;
+import java.util.logging.FileHandler;
+import java.util.logging.Formatter;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 
 public class InputParser {
 	public String filename;
@@ -151,5 +159,30 @@ public class InputParser {
 			throw new IllegalArgumentException("you need to always specify the ion optic configuration from now on.");
 		if (this.detectorConfig == null)
 			throw new IllegalArgumentException("you need to always specify the detector configuration from now on.");
+	}
+
+
+	/**
+	 * idk where to put this but here is probably not correct.
+	 */
+	public static Logger setUpLogger(String filename) throws IOException {
+		System.setProperty("java.util.logging.SimpleFormatter.format",
+		                   "%1$tF %1$tT | %4$-7s | %5$s%6$s%n");
+		// (I don't know why they make this so difficult)
+		Formatter formatter = new SimpleFormatter();
+		Logger logger = Logger.getLogger("app");
+		logger.setUseParentHandlers(false);
+		logger.setLevel(Level.ALL);
+		Handler consoleHandler = new ConsoleHandler();
+		consoleHandler.setLevel(Level.FINE);
+		consoleHandler.setFormatter(formatter);
+		logger.addHandler(consoleHandler);
+		if (filename != null) {
+			Handler logfileHandler = new FileHandler(filename + ".log");
+			logfileHandler.setLevel(Level.INFO);
+			logfileHandler.setFormatter(formatter);
+			logger.addHandler(logfileHandler);
+		}
+		return logger;
 	}
 }

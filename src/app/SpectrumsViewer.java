@@ -1,18 +1,18 @@
 /**
  * MIT License
- * 
+ *
  * Copyright (c) 2020 Justin Kunimune
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -44,17 +44,17 @@ import static util.InputParser.setUpLogger;
 
 /**
  * evaluate error bars at a large number of yields
- * 
+ *
  * @author Justin Kunimune
  */
-public class ConfigurationEvaluator {
+public class SpectrumsViewer {
 	public static void main(String[] args) throws SecurityException, IOException, InterruptedException {
 
-		final InputParser setup = new InputParser("ensemble", args);
+		final InputParser setup = new InputParser("spectrums", args);
 
 		// set up the logging
 		Logger logger = setUpLogger(setup.filename);
-		logger.log(Level.INFO, "beginning "+setup.numRuns +" evaluations on "+setup.numCores+" cores");
+		logger.log(Level.INFO, "beginning "+setup.numRuns +" simulations on "+setup.numCores+" cores");
 		logger.log(Level.INFO, "results will be saved to '"+setup.filename+".csv'.");
 
 		final double[] eBins = CSV.readColumn(new File("input/energy.txt"));
@@ -65,7 +65,12 @@ public class ConfigurationEvaluator {
 		);
 
 		ExecutorService threads = Executors.newFixedThreadPool(setup.numCores);
-		double[][] results = new double[setup.numRuns][Analysis.HEADERS_WITH_ERRORS.length];
+
+		double[][] timeVectors = new double[setup.numRuns][];
+		double[][] yieldVectors = new double[setup.numRuns][];
+		double[][] temperatureVectors = new double[setup.numRuns][];
+		double[][] densityVectors = new double[setup.numRuns][];
+
 		for (int k = 0; k < setup.numRuns; k ++) {
 			final int K = k;
 
@@ -73,50 +78,44 @@ public class ConfigurationEvaluator {
 				Analysis mc;
 				try {
 					mc = new Analysis(
-						  setup.opticsConfig,
-						  setup.detectorConfig,
-						  setup.uncertainty*1e-2,
-						  false,
-						  setup.energyBin, setup.timeBin,
-						  setup.tolerance, logger); // make the simulation
+							setup.opticsConfig,
+							setup.detectorConfig,
+							setup.uncertainty*1e-2,
+							false,
+							setup.energyBin, setup.timeBin,
+							setup.tolerance, logger); // make the simulation
 				} catch (IOException e) {
 					e.printStackTrace();
 					return null;
 				}
 
-				double yield = 1e+19*Math.pow(10, -3.0*Math.random());
-				double[][] scaledSpectrum = SpectrumGenerator.modifySpectrum(
-					  spectrum, yield);
+				logger.log(Level.INFO, String.format("%d/%d",
+				                                     K, setup.numRuns));
 
-				logger.log(Level.INFO, String.format("Yn = %.4g (%d/%d)", yield,
-													 K, setup.numRuns));
-
-				double[] result;
 				try {
-					result = mc.respondAndAnalyze(
-						  eBins,
-						  tBins,
-						  scaledSpectrum,
-						  ErrorMode.HESSIAN); // and run it many times!
+					mc.respondAndAnalyze(
+							eBins,
+							tBins,
+							spectrum,
+							ErrorMode.HESSIAN); // and run it many times!
 				} catch (Exception e) {
 					logger.log(Level.SEVERE, e.getMessage(), e);
-					result = null;
 				}
 
-				try {
-					results[K][0] = yield;
-					if (result != null)
-						System.arraycopy(result, 0, results[K], 1, result.length);
-					else
-						for (int i = 1; i < results[K].length; i++)
-							results[K][i] = Double.NaN;
-				} catch (IndexOutOfBoundsException e) {
-					logger.log(Level.SEVERE, e.getMessage(), e);
+				timeVectors[K] = mc.getTimeAxis();
+				densityVectors[K] = mc.getArealDensity();
+				temperatureVectors[K] = mc.getIonTemperature();
+				yieldVectors[K] = mc.getNeutronYield();
+				if (timeVectors[K] == null) {
+					timeVectors[K] = new double[0];
+					densityVectors[K] = new double[0];
+					temperatureVectors[K] = new double[0];
+					yieldVectors[K] = new double[0];
 				}
 
 				if (K%10 == 9) {
 					try {
-						save(results, setup.filename + ".csv", logger);
+						save(timeVectors, yieldVectors, temperatureVectors, densityVectors, setup.filename, logger);
 					} catch (IOError e) {
 						logger.log(Level.SEVERE, e.getMessage(), e);
 					}
@@ -128,12 +127,17 @@ public class ConfigurationEvaluator {
 
 		threads.shutdown();
 		threads.awaitTermination(3, TimeUnit.DAYS); // wait for all threads to finish
-		save(results, setup.filename + ".csv", logger); // and then, finally, save the result
+		save(timeVectors, yieldVectors, temperatureVectors, densityVectors, setup.filename, logger); // and then, finally, save the result
 	}
-	
-	private static void save(double[][] results, String filepath, Logger logger) {
+
+	private static void save(double[][] timeVectors, double[][] yieldVectors,
+	                         double[][] temperatureVectors, double[][] densityVectors,
+	                         String filepath, Logger logger) {
 		try {
-			CSV.write(results, new File(filepath), ',', Analysis.HEADERS_WITH_ERRORS);
+			CSV.write(timeVectors, new File(filepath+"_time.csv"), ',');
+			CSV.write(yieldVectors, new File(filepath+"_yield.csv"), ',');
+			CSV.write(temperatureVectors, new File(filepath+"_temperature.csv"), ',');
+			CSV.write(densityVectors, new File(filepath+"_density.csv"), ',');
 			logger.log(Level.INFO, "Saved ensemble results to '"+filepath+"'.");
 		} catch (IOException e) {
 			logger.log(Level.SEVERE, e.getMessage(), e);

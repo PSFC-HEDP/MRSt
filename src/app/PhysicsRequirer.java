@@ -40,13 +40,10 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.ConsoleHandler;
-import java.util.logging.FileHandler;
-import java.util.logging.Formatter;
-import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.logging.SimpleFormatter;
+
+import static util.InputParser.setUpLogger;
 
 
 /**
@@ -61,21 +58,7 @@ public class PhysicsRequirer {
 		final InputParser setup = new InputParser("comparison", args);
 
 		// set up the logging
-		System.setProperty("java.util.logging.SimpleFormatter.format",
-						   "%1$tF %1$tT | %4$-7s | %5$s%6$s%n");
-		// (I don't know why they make this so difficult)
-		Formatter formatter = new SimpleFormatter();
-		Logger logger = Logger.getLogger("app");
-		logger.setUseParentHandlers(false);
-		logger.setLevel(Level.ALL);
-		Handler consoleHandler = new ConsoleHandler();
-		consoleHandler.setLevel(Level.FINE);
-		consoleHandler.setFormatter(formatter);
-		logger.addHandler(consoleHandler);
-		Handler logfileHandler = new FileHandler(setup.filename+".log");
-		logfileHandler.setLevel(Level.INFO);
-		logfileHandler.setFormatter(formatter);
-		logger.addHandler(logfileHandler);
+		Logger logger = setUpLogger(setup.filename);
 		logger.log(Level.INFO, "beginning "+setup.numRuns +" evaluations on "+setup.numCores+" cores");
 		logger.log(Level.INFO, "results will be saved to '"+setup.filename+".csv'.");
 

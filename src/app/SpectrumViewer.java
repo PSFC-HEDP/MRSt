@@ -34,9 +34,10 @@ import util.PythonPlot;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import static util.InputParser.setUpLogger;
 
 
 /**
@@ -49,20 +50,13 @@ public class SpectrumViewer {
 	 * build the GUI and display it.
 	 */
 	public static void main(String[] args) throws NumberFormatException, IOException {
-		IonOpticConfiguration optics = IonOpticConfiguration.MID_EFFICIENCY;
-		DetectorConfiguration detector = DetectorConfiguration.DRIFT_TUBE;
-		String simulationName = "og with falling temp";//"scan/p2 p1 p4 burnoff";
+		IonOpticConfiguration optics = IonOpticConfiguration.HIGH_EFFICIENCY;
+		DetectorConfiguration detector = DetectorConfiguration.DOUBLE_STREAK_CAMERA;
+		String simulationName = "scan/base";
 		double yieldFactor = 1;
 		boolean reuseMatrix = false;
 
-		System.setProperty("java.util.logging.SimpleFormatter.format",
-		                   "%1$tF %1$tT | %4$-7s | %5$s%6$s%n");
-		Logger logger = Logger.getLogger("app");
-		logger.setUseParentHandlers(false);
-		logger.setLevel(Level.ALL);
-		ConsoleHandler commandlineHandler = new ConsoleHandler();
-		commandlineHandler.setLevel(Level.ALL);
-		logger.addHandler(commandlineHandler);
+		Logger logger = setUpLogger(null);
 
 		double[] energyBins = CSV.readColumn(new File("input/energy.txt"));
 		double[] timeBins = CSV.readColumn(new File("input/" + simulationName + " time.txt"));
