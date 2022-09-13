@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-filename = "../../output/comparison_high_2slit_400um_0c_1x_200_2022-07-19.csv"
-# filename = "../../output/comparison_medium_"
+# filename = "../../output/comparison_high_2slits_400um_0c_15ps_200_2022-09-02.csv"
+filename = "../../output/comparison_medium_driftt_0c_15ps_200_2022-08-31.csv"
 SIMPLE = True
 data = pd.read_csv(filename)
 
@@ -22,31 +22,43 @@ simulations = [
 	"P1, P2, P4, burn off",
 ]
 
-# ground_truth = {
-# 	"Base case":            [4.194e+17, 64.536, -0.385, 3.548, 14.559, 23.903, 0.887, -1.529],
-# 	"P2":                   [1.749e+17, 81.188, -0.465, 3.512, 11.160, 2.098, 0.805, -0.900],
-# 	"P1, P2":               [1.642e+17, 99.101, -0.501, 3.499, 10.593, 3.082, 0.864, -1.213],
-# 	"P1, P2, P4":           [8.922e+16, 93.162, -0.882, 5.546, 9.485, 0.774, 0.945, -0.776],
-# 	"P1, extra P2, P4":     [3.04e+16, 84.297, -0.761, 4.316, 7.628, 0.656, 1.208, -0.691],
+# ground_truth_min = ground_truth_max = {
+# 	# based on the simulations
+# 	"Base case": [4.194e+17, 64.536, -0.385, 3.548, 14.559, 23.903, 0.887, -1.529],
 # 	"P1, P2, P4, burn off": [2.246e+15, 98.651, -0.376, 4.091, 4.511, -2.467, 1.379, 1.007],
-# }
-ground_truth = {
-	"Base case":            [421.3687017e15, 72.12606236,-0.2900906493,3.295152373,14.4519683,6.350179054,0.8569425781,-.9141120023],
-	"P2":                   [174.6411255e15, 90.32043049,-0.18426077,3.380619635,10.85817745,1.177295346,0.856886018,-.7814462052],
-	"P1, P2":               [164.0954218e15,109.5311861,-0.1588381968,3.168865761,10.47252618,.6080325039,0.856005883,-.7120849961],
-	"P1, P2, P4":           [88.71657896e15, 95.8515189,-0.5901396969,4.288099759,9.413961466,1.208433783,0.9520658982,-.7003857988],
-	"P1, extra P2, P4":     [30.41117331e15, 84.63526759,-0.7871359762,4.387469235,7.56604614,-.4128174512,1.20743159,-.5336200009],
-	"P1, P2, P4, burn off": [2.245892065e15,103.2708753,-0.4010667207,3.985329307,4.581542467,-1.662217588,1.329866331,.70173167],
+# 	"P1, extra P2, P4": [3.04e+16, 84.297, -0.761, 4.316, 7.628, 0.656, 1.208, -0.691],
+# 	"P1, P2, P4": [8.922e+16, 93.162, -0.882, 5.546, 9.485, 0.774, 0.945, -0.776],
+# 	"P1, P2": [1.642e+17, 99.101, -0.501, 3.499, 10.593, 3.082, 0.864, -1.213],
+# 	"P2": [1.749e+17, 81.188, -0.465, 3.512, 11.160, 2.098, 0.805, -0.900],
+ground_truth_min = {
+	# based on the model (min)
+		"Base case":            [421.3687017e15, 68.10963735071582,-0.2900906493,3.295152373,14.4519683,6.350179054,0.8569425781,-.9141120023],
+		"P2":                   [174.6411255e15, 81.57827724303338,-0.18426077,3.380619635,10.85817745,1.177295346,0.856886018,-.7814462052],
+		"P1, P2":               [164.0954218e15,100.86974049543558,-0.1588381968,3.168865761,10.47252618,.6080325039,0.856005883,-.7120849961],
+		"P1, P2, P4":           [88.71657896e15, 91.64947774226279,-0.5901396969,4.288099759,9.413961466,1.208433783,0.9520658982,-.7003857988],
+		"P1, extra P2, P4":     [30.41117331e15, 82.80405354958481,-0.7871359762,4.387469235,7.56604614,-.4128174512,1.20743159,-.5336200009],
+		"P1, P2, P4, burn off": [2.245892065e15,99.0216593136282,-0.4010667207,3.985329307,4.581542467,-1.662217588,1.329866331,.70173167],
 }
+ground_truth_max = {
+	# based on the model (max)
+		"Base case":            [4.20719e+17, 71.64003666274049,-0.290656,3.30959,14.4519683,6.350179054,0.8569425781,-.9141120023],
+		"P2":                   [174.6411255e15, 86.69302292763639,-0.18426077,3.380619635,10.85817745,1.177295346,0.856886018,-.7814462052],
+		"P1, P2":               [164.0954218e15,102.39040272449171,-0.1588381968,3.168865761,10.47252618,.6080325039,0.856005883,-.7120849961],
+		"P1, P2, P4":           [88.71657896e15, 93.21363880627495,-0.5901396969,4.288099759,9.413961466,1.208433783,0.9520658982,-.7003857988],
+		"P1, extra P2, P4":     [30.41117331e15, 86.64189694403553,-0.7871359762,4.387469235,7.56604614,-.4128174512,1.20743159,-.5336200009],
+		"P1, P2, P4, burn off": [2.245892065e15,103.96399027238204,-0.4010667207,3.985329307,4.581542467,-1.662217588,1.329866331,.70173167],
+}
+# based on the model (seed 1)
 short_header = ["Total yield", "Burn width (ps)", "Burn skewness", "Burn kurtosis", "Ti at BT (keV)", "dTi/dt at BT (keV/(100ps))", "ρR at BT (g/cm^2)", "dρR/dt at BT (g/cm^2/(100ps))"]
 
-order = {"Base case": 0, "P2": 3, "P1, P2": 4, "P1, P2, P4": 2, "P1, extra P2, P4": 5, "P1, P2, P4, burn off": 1}
-# for i, sim in enumerate(simulations):
-# 	case_numbers = data["Yield"].unique()
-# 	true_yield = ground_truth[sim][0]
-# 	residuals = [np.mean(data["Total yield"][data["Yield"] == case]) - true_yield for case in case_numbers]
-# 	nearest = case_numbers[np.argmin(np.absolute(residuals))]
-# 	order.append(nearest)
+# order = {"Base case": 0, "P2": 3, "P1, P2": 4, "P1, P2, P4": 2, "P1, extra P2, P4": 5, "P1, P2, P4, burn off": 1}
+order = {}
+for i, sim in enumerate(simulations):
+	case_numbers = data["Yield"].unique()
+	true_yield = ground_truth_max[sim][0]
+	residuals = [np.mean(data["Total yield"][data["Yield"] == case]) - true_yield for case in case_numbers]
+	nearest = case_numbers[np.argmin(np.absolute(residuals))]
+	order[sim] = nearest
 
 requirements = {"Total yield": -.05, "Burn width (ps)": 7,
                 "Burn skewness": .3, "Burn kurtosis": 3,
@@ -71,15 +83,15 @@ for x, y in [("Total yield", "Burn width (ps)"),
 		plt.scatter(data[here][x], data[here][y], c=f"C{i}", s=4, label=sim, zorder=10)
 		x_means.append(np.mean(data[here][x]))
 		y_means.append(np.mean(data[here][y]))
-		true_values = ground_truth[sim]
-		x_value = true_values[short_header.index(x)]
+		x_value = (ground_truth_min[sim][short_header.index(x)] + ground_truth_max[sim][short_header.index(x)])/2
 		# x_requ = requirements[x] if requirements[x] > 0 else -requirements[x]*x_value
-		y_value = true_values[short_header.index(y)]
+		y_value = (ground_truth_min[sim][short_header.index(y)] + ground_truth_max[sim][short_header.index(y)])/2
 		# y_requ = requirements[y] if requirements[y] > 0 else -requirements[y]*y_value
 		# if SIMPLE:
 		# 	x_requ, y_requ = 0, 0
-		x_requ, y_requ = 0, 0
-		plt.errorbar(x=x_value, y=y_value, xerr=x_requ, yerr=y_requ,
+		x_variation = (ground_truth_max[sim][short_header.index(x)] - ground_truth_min[sim][short_header.index(x)])/2
+		y_variation = (ground_truth_max[sim][short_header.index(y)] - ground_truth_min[sim][short_header.index(y)])/2
+		plt.errorbar(x=x_value, y=y_value, xerr=x_variation, yerr=y_variation,
 		             marker="o", markersize=6, markeredgewidth=2, markerfacecolor="white", markeredgecolor=f"C{i}",
 		             linewidth=1, zorder=20)
 	plt.legend()

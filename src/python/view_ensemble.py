@@ -57,8 +57,8 @@ assert not (INCLUDE_ERRORS and INCLUDE_HISTOGRAMS)
 
 
 if len(sys.argv) <= 1:
-	# FILENAME = '../../output/ensemble_high_2slits_400um_0c_1x_2022-07-18.csv'
-	FILENAME = '../../output/ensemble_medium_driftt_0c_1x_2022-07-20.csv'
+	# FILENAME = '../../output/ensemble_high_2slits_400um_0c_15ps_200_2022-09-02.csv'
+	FILENAME = '../../output/ensemble_medium_driftt_0c_15ps_200_2022-09-02.csv'
 else:
 	FILENAME = '../../output/'+sys.argv[1]
 BIN_WIDTH = 0.3 # in bels
