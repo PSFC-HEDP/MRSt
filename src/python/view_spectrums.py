@@ -4,8 +4,8 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 
-FILENAME = '../../output/spectrums_medium_driftt_10c_15ps_20_2022-09-12'
-figsize = (8, 4)
+FILENAME = '../../output/ensemble_medium_driftt_0c_15ps_20_2022-09-14'
+figsize = (8, 3.5)
 
 times = np.loadtxt(f"{FILENAME}_time.csv", delimiter=",")
 yields = np.loadtxt(f"{FILENAME}_yield.csv", delimiter=",")
@@ -15,7 +15,7 @@ densities = np.loadtxt(f"{FILENAME}_density.csv", delimiter=",")
 t0 = times[np.unravel_index(np.argmax(yields), yields.shape)]
 times = (times - t0)*1e3
 
-num_to_plot = 10
+num_to_plot = 15
 
 for i, (quantity, name) in enumerate([(yields*1e15, "Burn (ns^-1)"), (temperatures, "Ion temperature (keV)"), (densities*1e3, "ρR (mg/cm^2")]):
 	plt.figure(figsize=figsize)
@@ -25,5 +25,7 @@ for i, (quantity, name) in enumerate([(yields*1e15, "Burn (ns^-1)"), (temperatur
 	plt.ylim(0, None)
 	plt.xlabel("Time (ps)")
 	plt.ylabel(name)
+	plt.tight_layout()
+	plt.savefig(f"{FILENAME[:-11]}_{['burns', 'temps', 'rhors'][i]}.png", dpi=150)
 
 plt.show()

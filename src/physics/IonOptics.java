@@ -440,7 +440,7 @@ public class IonOptics {
 			else {
 				double energyResolutionModifier = 1 + (2*MC_RANDOM.nextDouble() - 1)*calibrationPrecision;
 				double timeResolutionModifier = 1 + (2*MC_RANDOM.nextDouble() - 1)*calibrationPrecision;
-				System.out.println("augmenting ener1gy resolution by " + energyResolutionModifier + " and time resolution by " + timeResolutionModifier);
+				System.out.println("augmenting energy resolution by " + energyResolutionModifier + " and time resolution by " + timeResolutionModifier);
 				for (int i = 0; i < 4; i++)
 					this.cosyMapping.coefficients[i][0] *= energyResolutionModifier;
 				for (int i = 0; i < 6; i++)

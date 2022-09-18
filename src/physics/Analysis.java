@@ -908,7 +908,7 @@ public class Analysis {
 			}
 			double slope0 = (y[0] != 0 || y[1] != 0) ? (y[1] - y[0])/(y[0] + y[1]) : 0;
 			double slope1 = (y[1] != 0 || y[2] != 0) ? (y[2] - y[1])/(y[1] + y[2]) : 0;
-			totalPenalty += smoothing*1e-1/timeStep*
+			totalPenalty += smoothing*1e-0/timeStep*
 					(Math.exp(slope1 - slope0) - Math.exp((slope1 - slope0)/2)*2 + 1); // encourage a smooth burn history with no local mins
 		}
 //		double totalYield = Math2.sum(neutronYield)*timeStep;
