@@ -1,5 +1,6 @@
 output/*
 src/commons-math3-3.6.1/*
+dependencies/*
 bin/*
 
 # Created by https://www.toptal.com/developers/gitignore/api/intellij,java

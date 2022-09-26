@@ -1,18 +1,18 @@
 /**
  * MIT License
- *
+ * <p>
  * Copyright (c) 2018 Justin Kunimune
- *
+ * <p>
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- *
+ * <p>
  * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
+ * copies or substantial portions of the Softwsare.
+ * <p>
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -449,7 +449,7 @@ public class Analysis {
 
 		double totalEfficiency = this.averageEfficiency(7., .8, 12, 16);
 		double opticsEfficiency = this.ionOptics.efficiency(14);
-		System.out.printf("I think the ion-optic efficiency is %.3g and detector efficiency is %.3g\n", opticsEfficiency, totalEfficiency/opticsEfficiency);
+//		System.out.printf("I think the ion-optic efficiency is %.3g and detector efficiency is %.3g\n", opticsEfficiency, totalEfficiency/opticsEfficiency);
 
 		if (Math2.max(signalDistribution) == 0) {
 			logger.log(Level.SEVERE, "There were no deuterons detected.");
@@ -667,10 +667,10 @@ public class Analysis {
 			active[j] = j >= left && j < rite;
 			if (!active[j]) neutronYield[j] = 0;
 		}
-		System.out.println("active is");
-		System.out.println(Arrays.toString(active));
-		System.out.println("because of");
-		System.out.println(Arrays.toString(statistics));
+//		System.out.println("active is");
+//		System.out.println(Arrays.toString(active));
+//		System.out.println("because of");
+//		System.out.println(Arrays.toString(statistics));
 
 		final double finalSmoothing = 1;//smoothing;
 

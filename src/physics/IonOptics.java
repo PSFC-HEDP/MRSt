@@ -438,9 +438,9 @@ public class IonOptics {
 				this.trueTransferMatrix = this.rongTransferMatrix;
 			}
 			else {
-				double energyResolutionModifier = 1 + (2*MC_RANDOM.nextDouble() - 1)*calibrationPrecision;
-				double timeResolutionModifier = 1 + (2*MC_RANDOM.nextDouble() - 1)*calibrationPrecision;
-				System.out.println("augmenting energy resolution by " + energyResolutionModifier + " and time resolution by " + timeResolutionModifier);
+				double energyResolutionModifier = 1 + calibrationPrecision;
+				double timeResolutionModifier = 1 + calibrationPrecision;
+//				System.out.println("augmenting energy resolution by " + energyResolutionModifier + " and time resolution by " + timeResolutionModifier);
 				for (int i = 0; i < 4; i++)
 					this.cosyMapping.coefficients[i][0] *= energyResolutionModifier;
 				for (int i = 0; i < 6; i++)
@@ -602,8 +602,8 @@ public class IonOptics {
 		double tanθ = Math.tan(focalPlaneAngle);
 		double tFocusing = (focalPlaneOffset + rPlane[x]*tanθ) /
 				(vFinal[z] - vFinal[x]*tanθ); // finally, account for the additional t that it takes to strike the focal plane
-		if (Math.random() < 1e-4 && focalPlaneOffset > 0)
-			System.out.println("the offset of "+focalPlaneOffset+"m gives it "+focalPlaneOffset/vFinal[z]+"s more to focus, which lets it displace in y by "+focalPlaneOffset/vFinal[z]*vFinal[y]);
+//		if (Math.random() < 1e-4 && focalPlaneOffset > 0)
+//			System.out.println("the offset of "+focalPlaneOffset+"m gives it "+focalPlaneOffset/vFinal[z]+"s more to focus, which lets it displace in y by "+focalPlaneOffset/vFinal[z]*vFinal[y]);
 
 		return new double[] {
 				(rPlane[x] + tFocusing*vFinal[x])/Math.cos(focalPlaneAngle),
