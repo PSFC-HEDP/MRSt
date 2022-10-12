@@ -64,8 +64,14 @@ public class ConfigurationEvaluator {
 				CSV.read(new File("input/"+setup.implosionName+" spectrum.txt"), '\t')
 		);
 
+		String[] parameterNames = Analysis.KeyParameterSet.EXAMPLE.getHeaderSansUnits();
+		String[] header = new String[1 + 2*parameterNames.length];
+		header[0] = "true total yield";
+		System.arraycopy(Analysis.KeyParameterSet.EXAMPLE.getHeaderWithUnitsAndError(),
+		                 0, header, 1, header.length - 1);
+		double[][] results = new double[setup.numRuns][header.length];
 		ExecutorService threads = Executors.newFixedThreadPool(setup.numCores);
-		double[][] results = new double[setup.numRuns][Analysis.HEADERS_WITH_ERRORS.length];
+
 		for (int k = 0; k < setup.numRuns; k ++) {
 			final int K = k;
 
@@ -75,6 +81,7 @@ public class ConfigurationEvaluator {
 					mc = new Analysis(
 						  setup.opticsConfig,
 						  setup.detectorConfig,
+						  setup.ion,
 						  setup.uncertainty*1e-2,
 						  false,
 						  setup.energyBin, setup.timeBin,
@@ -91,7 +98,7 @@ public class ConfigurationEvaluator {
 				logger.log(Level.INFO, String.format("Yn = %.4g (%d/%d)", yield,
 													 K, setup.numRuns));
 
-				double[] result;
+				Analysis.KeyParameterSet result;
 				try {
 					result = mc.respondAndAnalyze(
 						  eBins,
@@ -103,24 +110,24 @@ public class ConfigurationEvaluator {
 					result = null;
 				}
 
-				try {
-					results[K][0] = yield;
-					if (result != null)
-						System.arraycopy(result, 0, results[K], 1, result.length);
-					else
-						for (int i = 1; i < results[K].length; i++)
-							results[K][i] = Double.NaN;
-				} catch (IndexOutOfBoundsException e) {
-					logger.log(Level.SEVERE, e.getMessage(), e);
+				results[K][0] = yield;
+				if (result != null) {
+					for (int i = 0; i < parameterNames.length; i ++) {
+						results[K][2*i + 1] = result.getValue(parameterNames[i]);
+						results[K][2*i + 2] = Math.sqrt(result.getVariance(parameterNames[i]));
+					}
 				}
+				for (int i = 1; i < results[K].length; i++)
+					results[K][i] = Double.NaN;
 
-				if (K%10 == 9) {
+				if (K % 10 == 9) {
 					try {
-						save(results, setup.filename + ".csv", logger);
+						save(header, results, setup.filename + ".csv", logger);
 					} catch (IOError e) {
 						logger.log(Level.SEVERE, e.getMessage(), e);
 					}
 				}
+
 				return null;
 			};
 			threads.submit(task);
@@ -128,12 +135,12 @@ public class ConfigurationEvaluator {
 
 		threads.shutdown();
 		threads.awaitTermination(3, TimeUnit.DAYS); // wait for all threads to finish
-		save(results, setup.filename + ".csv", logger); // and then, finally, save the result
+		save(header, results, setup.filename + ".csv", logger); // and then, finally, save the result
 	}
 	
-	private static void save(double[][] results, String filepath, Logger logger) {
+	private static void save(String[] header, double[][] results, String filepath, Logger logger) {
 		try {
-			CSV.write(results, new File(filepath), ',', Analysis.HEADERS_WITH_ERRORS);
+			CSV.write(results, new File(filepath), ',', header);
 			logger.log(Level.INFO, "Saved ensemble results to '"+filepath+"'.");
 		} catch (IOException e) {
 			logger.log(Level.SEVERE, e.getMessage(), e);

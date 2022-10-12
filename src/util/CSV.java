@@ -144,17 +144,18 @@ public class CSV {
 			return header.split("\\s*" + delimiter + "\\s*");
 		}
 	}
-
+	
 	/**
 	 * read a COSY-generated file and return the coefficients as a double matrix along with the
-	 * exponents as an int matrix.
+	 * exponents as an int matrix, and also bundle it with some known information about the ion
+	 * species with which it will be used.
 	 * @param file the COSY file to open
 	 * @param maxOrder the desired order of the polynomial
-	 * @return the unconfigured cosy mapping object
+	 * @return the complete cosy mapping object
 	 * @throws IOException if file cannot be found or permission is denied
 	 * @throws NumberFormatException if elements are not parsable as doubles
 	 */
-	public static COSYMapping readCosyCoefficients(File file, int maxOrder)
+	public static COSYMapping readCosyCoefficients(File file, int maxOrder, Particle particle, double knockOnEnergy)
 		  throws NumberFormatException, IOException {
 		List<double[]> coefList;
 		List<int[]> expList;
@@ -179,24 +180,8 @@ public class CSV {
 			}
 		}
 		return new COSYMapping(coefList.toArray(new double[0][]),
-							   expList.toArray(new int[0][]));
-	}
-
-	/**
-	 * read a COSY-generated file and return the coefficients as a double matrix along with the
-	 * exponents as an int matrix, and also bundle it with some known information about the ion
-	 * species for which it was calculated.
-	 * @param file the COSY file to open
-	 * @param maxOrder the desired order of the polynomial
-	 * @return the complete cosy mapping object
-	 * @throws IOException if file cannot be found or permission is denied
-	 * @throws NumberFormatException if elements are not parsable as doubles
-	 */
-	public static COSYMapping readCosyCoefficients(File file, int maxOrder, Particle particle, double energy)
-			throws NumberFormatException, IOException {
-		COSYMapping map = readCosyCoefficients(file, maxOrder);
-		map.setConfig(particle, energy);
-		return map;
+							   expList.toArray(new int[0][]),
+							   particle, knockOnEnergy);
 	}
 	
 	/**

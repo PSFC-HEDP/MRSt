@@ -65,10 +65,12 @@ public class PhysicsRequirer {
 		final double[] eBins = CSV.readColumn(new File("input/energy.txt"));
 
 		ExecutorService threads = Executors.newFixedThreadPool(setup.numCores);
-
-		String[] headers = new String[Analysis.HEADERS_WITH_ERRORS.length + 1];
-		headers[0] = "Case";
-		System.arraycopy(Analysis.HEADERS_WITH_ERRORS, 0, headers, 0, Analysis.HEADERS_WITH_ERRORS.length);
+		
+		String[] parameterNames = Analysis.KeyParameterSet.EXAMPLE.getHeaderSansUnits();
+		String[] header = new String[1 + 2*parameterNames.length];
+		header[0] = "case";
+		System.arraycopy(Analysis.KeyParameterSet.EXAMPLE.getHeaderWithUnitsAndError(),
+		                 0, header, 1, header.length - 1);
 		List<double[]> results = new ArrayList<double[]>();
 
 		for (int runIndex = 0; runIndex < setup.numRuns; runIndex ++) {
@@ -96,6 +98,7 @@ public class PhysicsRequirer {
 							mc = new Analysis(
 								  setup.opticsConfig,
 								  setup.detectorConfig,
+								  setup.ion,
 								  setup.uncertainty*1e-2,
 								  false,
 								  setup.energyBin, setup.timeBin,
@@ -108,7 +111,7 @@ public class PhysicsRequirer {
 						logger.log(Level.INFO, String.format("Spectrum %d, run %d/%d",
 															 J, K, setup.numRuns));
 
-						double[] result;
+						Analysis.KeyParameterSet result;
 						try {
 							result = mc.respondAndAnalyze(
 								  eBins,
@@ -121,10 +124,14 @@ public class PhysicsRequirer {
 						}
 
 						try {
-							double[] resultVector = new double[Analysis.HEADERS_WITH_ERRORS.length];
+							double[] resultVector = new double[header.length];
 							resultVector[0] = J;
-							if (result != null)
-								System.arraycopy(result, 0, resultVector, 1, result.length);
+							if (result != null) {
+								for (int i = 0; i < parameterNames.length; i ++) {
+									resultVector[2*i + 1] = result.getValue(parameterNames[i]);
+									resultVector[2*i + 2] = Math.sqrt(result.getVariance(parameterNames[i]));
+								}
+							}
 							else
 								for (int i = 1; i < resultVector.length; i++)
 									resultVector[i] = Double.NaN;
@@ -134,7 +141,7 @@ public class PhysicsRequirer {
 						}
 						if (K%10 == 9) {
 							try {
-								save(results, setup.filename + ".csv", headers, logger);
+								save(results, setup.filename + ".csv", header, logger);
 							} catch (IOError e) {
 								logger.log(Level.SEVERE, e.getMessage(), e);
 							}
@@ -151,7 +158,7 @@ public class PhysicsRequirer {
 
 		threads.shutdown();
 		threads.awaitTermination(3, TimeUnit.DAYS); // wait for all threads to finish
-		save(results, setup.filename + ".csv", headers, logger); // then save the final result
+		save(results, setup.filename + ".csv", header, logger); // then save the final result
 	}
 
 	private static void save(List<double[]> results, String filepath, String[] headers, Logger logger) {

@@ -4,19 +4,20 @@ import matplotlib
 import matplotlib.pyplot as plt
 import sys
 matplotlib.rc('font', size=18)
+matplotlib.use("qtagg")
 
 if len(sys.argv) > 1:
 	xlabel, ylabel, title = sys.argv[1:]
 else:
 	import os
 	os.chdir('../..')
-	xlabel, ylabel, title = 'x (cm)', 'y (cm)', 'Camera 1 image'
+	xlabel, ylabel, title = "time (ns)", "energy (MeV)", "Synthetic signal distribution"
+	# xlabel, ylabel, title = 'x (cm)', 'y (cm)', 'Camera 1 image'
 
 X = np.genfromtxt('output/{}_x.csv'.format(title), delimiter=',')
 Y = np.genfromtxt('output/{}_y.csv'.format(title), delimiter=',')
 Z = np.genfromtxt('output/{}_z.csv'.format(title), delimiter=',')
 
-print(Z)
 first_nonzero = (Z.sum(axis=1) > 0).argmax()
 last_nonzero = Z.shape[0] - (Z.sum(axis=1) > 0)[::-1].argmax()
 maximum = Z.max(where=Z != 0, initial=-np.inf)

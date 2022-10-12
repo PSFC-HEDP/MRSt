@@ -51,6 +51,7 @@ public class IonOptics {
 		public static IonOpticConfiguration PERFECT =
 				new IonOpticConfiguration(0, 0, 0);
 
+		/** the thickness of the foil for deuterons (μm⋅e) */
 		public final double foilThickness;
 		public final double foilRadius;
 		public final double apertureWidth;
@@ -72,14 +73,14 @@ public class IonOptics {
 
 	private static final int TIME_CORRECTION_RESOLUTION = 50;
 	private static final int STOPPING_DISTANCE_RESOLUTION = 64;
-	private static final String STOPPING_POWER_FILENAME = "input/stopping_power_%ss_CD.csv";
+	private static final String STOPPING_POWER_FILENAME = "input/stopping_power_%ss_C%s.csv";
 
 	private static final int TRANSFER_MATRIX_TRIES = 10000; // the number of points to sample in each column of the transfer matrix
 
 	private final double foilDistance; // z coordinate of midplane of foil [m]
 	private final double foilWidth; // extent of foil in dispersion direccion [m]
 	private final double foilHeight; // extent of foil in nondispersion direccion [m]
-	private final double foilThickness; // thickness of foil [m]
+	private double foilThickness; // thickness of foil [m]
 	private final double apertureDistance; // distance from TCC to aperture [m]
 	private final double apertureWidth; // horizontal dimension of aperture [m]
 	private final double apertureHeight; // vertical dimension of aperture [m]
@@ -103,26 +104,28 @@ public class IonOptics {
 	public final DiscreteFunction energyVsPosition; // map between location on detector and energy going into lens
 
 	/**
-	 * generate an IonOptic object from a configuration preset
+	 * generate an IonOptic object from a configuration preset. the configurations are all based on
+	 * deuterons, so if protons are specified, the foil thickness will be automaticly doubled from
+	 * whatever is passed.
 	 * @param config the foil/aperture configuration
 	 * @param tiltAngle the angle of the detector (degrees)
 	 * @param precision how accurately we expect to know the resolution (ratio)
 	 * @param reuseMatrix whether to load the nominal response matrix from disk
 	 */
-	public IonOptics(IonOpticConfiguration config,
+	public IonOptics(IonOpticConfiguration config, Particle particle,
 					 String cosyFile, double tiltAngle, double offset,
 					 double precision, boolean reuseMatrix) throws IOException {
 		this(4.0e-3,
 			 2*config.foilRadius,
 			 2*config.foilRadius,
-			 config.foilThickness,
+			 config.foilThickness/particle.mass*Particle.D.mass,
 			 6.0e+0,
 			 config.apertureWidth,
 			 20.0e-3,
 			 12, 16,
 			 CSV.readCosyCoefficients(new File(String.format(
 				   "input/%s.txt", cosyFile)),
-				  3, Particle.D, 12.45),
+				  3, particle, 14),
 			 tiltAngle,
 			 offset,
 			 precision,
@@ -171,7 +174,7 @@ public class IonOptics {
 		this.reuseMatrix = reuseMatrix;
 
 		double[][] stoppingData = CSV.read(
-				new File(String.format(STOPPING_POWER_FILENAME, ion.name)),
+				new File(String.format(STOPPING_POWER_FILENAME, ion.name, ion.symbol)),
 				',');
 		for (int i = 0; i < stoppingData.length; i ++) {
 			stoppingData[i][1] = 1/(stoppingData[i][1]*keV/μm); // converting from [keV/μm]
@@ -202,6 +205,8 @@ public class IonOptics {
 		if (apertureWidth != 0) {
 			double n = 0.08e2; // I'm not sure what units this has or whence it came
 			double dσdΩ = 4.3228/Math.sqrt(energy) - 0.6523; // same with these ones
+			if (cosyMapping.ion == Particle.P)
+				dσdΩ *= .461;
 			double dΩ = apertureWidth*apertureHeight/Math.pow(apertureDistance - foilDistance, 2);
 			return probHitsFoil*n*dσdΩ*dΩ*foilThickness; // assume the foil is thin so we don't have to worry about multiple collisions
 		}
@@ -238,7 +243,7 @@ public class IonOptics {
 	public double[] computeResolution(double referenceEnergy) {
 		int nEnergies = 30;
 		int nTimes = 20;
-		double[] energyRange = {-1.1, 0.1}; // [MeV]
+		double[] energyRange = {-1.1, 1.1}; // [MeV]
 		double[] timeRange = {-.160, .160}; // [ns]
 
 		double[] energyBins = new double[nEnergies+1]; // [MeV]
@@ -261,18 +266,6 @@ public class IonOptics {
 				timeDist[j] += rongTransferMatrix[(timeBins.length-1)*i + j][iRef];
 			}
 		}
-
-		//		double[] energyAxis = new double[nEnergies];
-		//		for (int i = 0; i < nEnergies; i ++)
-		//			energyAxis[i] = (energyBins[i] + energyBins[i+1])/2.;
-		//		double[] timeAxis = new double[nTimes];
-		//		for (int j = 0; j < nTimes; j ++)
-		//			timeAxis[j] = (timeBins[j] + timeBins[j+1])/2.;
-
-		//		System.out.println(Arrays.toString(energyAxis));
-//		System.out.println(Arrays.toString(energyDist));
-//		System.out.println(Arrays.toString(timeAxis));
-//		System.out.println(Arrays.toString(timeDist));
 
 		double energyResolution = Math2.fwhm(energyBins, energyDist);
 		double timeResolution = Math2.fwhm(timeBins, timeDist);
@@ -446,12 +439,14 @@ public class IonOptics {
 				for (int i = 0; i < 6; i++)
 					if (i != 4)
 						this.cosyMapping.coefficients[i][4] *= timeResolutionModifier;
+				this.foilThickness *= timeResolutionModifier;
 				this.trueTransferMatrix = this.evaluateTransferMatrix(energyBins, timeBins);// evaluateTransferMatrix(); // now make up the actual transfer matrix
 				for (int i = 0; i < 4; i++)
 					this.cosyMapping.coefficients[i][0] /= energyResolutionModifier;
 				for (int i = 0; i < 6; i++)
 					if (i != 4)
 						this.cosyMapping.coefficients[i][4] /= timeResolutionModifier;
+				this.foilThickness /= timeResolutionModifier;
 			}
 		}
 	}

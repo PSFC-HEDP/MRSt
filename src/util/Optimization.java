@@ -713,13 +713,13 @@ public class Optimization {
 			xk = P(xk.plus(dk.times(λk)), lower, upper);
 			for (int i = 0; i < xk.getN(); i ++) {
 				if (Double.isNaN(xk.get(i, 0))) {
-					throw new IllegalArgumentException("whence did this NaN come from??");
+					throw new IllegalArgumentException("whence did this NaN come??");
 				}
 			}
 
 			Matrix gkp1 = gradMat.apply(xk);
 			double fxkp1 = funcMat.apply(xk);
-			if (Double.isNaN(fxkp1))
+			if (!Double.isFinite(fxkp1))
 				throw new IllegalArgumentException("no, no. You can't do that.");
 			if ((fxk - fxkp1)/Math.abs(fxk) <= relTol || fxk - fxkp1 <= absTol) { // STEP 5: stop condition
 				return xk.T().values[0]; // if we're into it and the energy isn't really changing, then we're done

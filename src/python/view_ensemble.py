@@ -67,9 +67,9 @@ REFERENCE_YIELDS = [3e16, 3e17, 3e18]
 X_LABEL = "Yield"
 
 Y_LABELS = [
-	("Burn width (ps)", 39, 56, 76, 7, False),
-	# ("Burn skewness", -1.6, -.698, -0.1, 3e-1, False),
-	# ("Burn kurtosis", -0.5, 4.7, 10.5, 3, False),
+	("burn width (ps)", 39, 56, 76, 7, False),
+	# ("burn skewness ()", -1.6, -.698, -0.1, 3e-1, False),
+	# ("burn kurtosis ()", -0.5, 4.7, 10.5, 3, False),
 	("Ti at BT (keV)", 6.3, 7.56, 8.7, 5e-2, True),
 	# ("Ti at stagnation (keV)", 3.8, 5.856, 7.2, 5e-2, True),
 	("dTi/dt at BT (keV/100ps)", -2.2, 1.4, 4.4, 1.4, False),
@@ -231,7 +231,7 @@ for i, (axis, y_min, y_original, y_max, presis, percent) in enumerate(Y_LABELS):
 	if y_min > 0 and y_max/y_min > 10:
 		ax.set_yscale('log')
 	ax.set_ylim(y_min, y_max)
-	ax.set_ylabel(text_wrap(axis.replace("^2", "²").replace("Ti", "Tᵢ")))
+	ax.set_ylabel(text_wrap(axis.capitalize().replace("^2", "²").replace("Ti", "Tᵢ")))
 
 	# set up the histogram axes
 	if INCLUDE_HISTOGRAMS:
@@ -337,10 +337,7 @@ for i, (axis, y_min, y_original, y_max, presis, percent) in enumerate(Y_LABELS):
 		# ax.grid(which='major', axis='y')
 		if 'ield' in X_LABEL:
 			ax.set_xscale('log')
-		if "(" in axis:
-			ax.set_ylabel(text_wrap(axis[:axis.index("(")].replace(" at BT", "").replace("^2", "²") + "error " + axis[axis.index("("):]))
-		else:
-			ax.set_ylabel(text_wrap(axis+" error"))
+		ax.set_ylabel(text_wrap(axis.capitalize()[:axis.index("(")].replace(" at BT", "").replace("^2", "²") + "error " + axis[axis.index("("):]))
 
 filename = os.path.splitext(FILENAME)[0]
 fig.savefig(f'{filename}.eps', dpi=300)

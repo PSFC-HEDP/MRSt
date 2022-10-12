@@ -364,7 +364,7 @@ public class Math2 {
 	public static double fwhm(double[] x, double[] y) {
 		Quantity[] y_q = new Quantity[y.length];
 		for (int i = 0; i < y.length; i ++)
-			y_q[i] = new Quantity(y[0], 0);
+			y_q[i] = new Quantity(y[i], 0);
 		Quantity width = fwhm(x, y_q);
 		if (width == null)
 			return Double.POSITIVE_INFINITY;
@@ -399,7 +399,7 @@ public class Math2 {
 			}
 		}
 		if (xR == null || xL == null)
-			return null;
+			return new Quantity(Double.POSITIVE_INFINITY, y[0].getN());
 		else
 			return xR.minus(xL);
 	}
@@ -759,7 +759,7 @@ public class Math2 {
 	 */
 	public static double interp(double[] x, double i) {
 		if (i < 0 || i > x.length-1)
-			throw new IndexOutOfBoundsException("Even partial indices have limits: "+i);
+			throw new IndexOutOfBoundsException("Even partial indices have limits: "+i+"/"+x.length);
 		int i0 = Math.max(0, Math.min(x.length-2, (int) i));
 		return (i0+1-i)*x[i0] + (i-i0)*x[i0+1];
 	}
@@ -799,7 +799,9 @@ public class Math2 {
 	 */
 	public static Quantity interp(Quantity[] x, Quantity i) {
 		if (i.value < 0 || i.value > x.length-1)
-			throw new IndexOutOfBoundsException("Even partial indices have limits: "+i);
+			throw new IndexOutOfBoundsException("Even partial indices have limits: "+i.value+"/"+x.length);
+		if (x.length == 1)
+			return x[0];
 		int i0 = Math.max(0, Math.min(x.length-2, (int) i.value));
 		return i.minus(i0).times(x[i0+1]).minus(i.minus(i0+1).times(x[i0]));
 	}
@@ -847,7 +849,11 @@ public class Math2 {
 	 */
 	public static Quantity quadInterp(Quantity[] x, Quantity i) {
 		if (i.value < 0 || i.value > x.length-1)
-			throw new IndexOutOfBoundsException("Even partial indices have limits: "+i);
+			throw new IndexOutOfBoundsException("Even partial indices have limits: "+i.value+"/"+x.length);
+		if (x.length == 1)
+			return x[0];
+		else if (x.length < 4)
+			throw new UnsupportedOperationException("I haven't implemented this and don't want to.");
 		int i0 = Math.max(1, Math.min(x.length-3, (int) i.value));
 		Quantity xA = x[i0-1], xB = x[i0], xC = x[i0+1], xD = x[i0+2];
 		Quantity δA = i.minus(i0 - 1), δB = i.minus(i0), δC = i.minus(i0 + 1).times(-1), δD = i.minus(i0 + 2).times(-1);
@@ -917,8 +923,11 @@ public class Math2 {
 	/**
 	 * fit to a parabola and find the nth derivative.  x must be evenly spaced.
 	 */
-	public static Quantity derivative(double[] x, Quantity[] y, Quantity x0, double Δx, int n) {
+	public static Quantity derivative(double[] x, Quantity[] y, Quantity i0, double Δx, int n) {
+		if (x.length < 2)
+			return new Quantity(Double.NaN, y[0].getN());
 		double dx = x[1] - x[0];
+		Quantity x0 = Math2.interp(x, i0);
 		Quantity[] weights = new Quantity[x.length];
 		for (int i = 0; i < x.length; i ++) {
 			if (x[i] <= x0.minus(Δx/2 + dx/2).value)
@@ -1193,7 +1202,7 @@ public class Math2 {
 	}
 
 	/**
-	 * copied from https://www.sanfoundry.com/java-program-find-inverse-matrix/
+	 * copied from <a href="https://www.sanfoundry.com/java-program-find-inverse-matrix/">sanfoundry.com</a>
 	 */
 	public static double[][] matinv(double[][] arr) {
 		double[][] a = new double[arr.length][];
@@ -1728,15 +1737,21 @@ public class Math2 {
 	
 	/**
 	 * A value that tracks its gradient in parameter space for the purpose of error bar
-	 * determination.
+	 * determination.  A unit string may also be attached, but I don't parse or convert
+	 * them at all.
 	 * @author Justin Kunimune
 	 */
 	public static class Quantity {
 		public final double value;
 		public final Vector gradient;
-		
+		public final String units;
+
 		public Quantity(double value, int n) {
-			this(value, new double[n]);
+			this(value, new double[n], "");
+		}
+
+		public Quantity(double value, int n, String units) {
+			this(value, new double[n], units);
 		}
 
 		public Quantity(double value, int i, int n) {
@@ -1744,15 +1759,21 @@ public class Math2 {
 			gradient[i] = 1;
 			this.value = value;
 			this.gradient = new Vector(gradient);
+			this.units = "";
 		}
 
-		public Quantity(double value, double[] gradient) {
-			this(value, new Vector(gradient));
+		public Quantity(double value, double[] gradient, String units) {
+			this(value, new Vector(gradient), units);
 		}
 
 		public Quantity(double value, Vector gradient) {
+			this(value, gradient, "");
+		}
+
+		public Quantity(double value, Vector gradient, String units) {
 			this.value = value;
 			this.gradient = gradient;
+			this.units = units;
 		}
 
 		public double variance(double[][] covariance) {
@@ -1786,7 +1807,7 @@ public class Math2 {
 		public Quantity plus(Quantity that) {
 			return new Quantity(this.value + that.value, this.gradient.plus(that.gradient));
 		}
-		
+
 		public Quantity minus(double constant) {
 			return new Quantity(this.value - constant, this.gradient);
 		}
@@ -1850,9 +1871,18 @@ public class Math2 {
 		public int getN() {
 			return this.gradient.getN();
 		}
+
+		public Quantity withUnits(String units) {
+			return new Quantity(this.value, this.gradient, units);
+		}
 		
 		public String toString(double[][] covariance) {
-			return String.format("%8.6g \u00B1 %8.3g", this.value, Math.sqrt(this.variance(covariance)));
+			if (this.units != null)
+				return String.format("%8.6g \u00B1 %8.3g %s",
+						this.value, Math.sqrt(this.variance(covariance)), this.units);
+			else
+				return String.format("%8.6g \u00B1 %8.3g",
+						this.value, Math.sqrt(this.variance(covariance)));
 		}
 	}
 	

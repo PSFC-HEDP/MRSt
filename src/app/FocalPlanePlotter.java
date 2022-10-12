@@ -26,6 +26,7 @@ package app;
 import physics.Detector.DetectorConfiguration;
 import physics.IonOptics;
 import physics.IonOptics.IonOpticConfiguration;
+import physics.Particle;
 import physics.SpectrumGenerator;
 import util.Math2;
 import util.PythonPlot;
@@ -39,7 +40,7 @@ public class FocalPlanePlotter {
 		// set up the simulation
 		IonOptics io = new IonOptics(
 				IonOpticConfiguration.HIGH_EFFICIENCY,
-				slits.cosyFile, slits.tiltAngle, slits.offset,
+				Particle.D, slits.cosyFile, slits.tiltAngle, slits.offset,
 				0, false);
 
 		// select the energies

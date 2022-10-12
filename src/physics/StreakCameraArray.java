@@ -60,8 +60,8 @@ public class StreakCameraArray extends Detector {
 			 config.slitWidths,
 			 config.streakTime,
 			 2.4/Math.cos(Math.toRadians(config.tiltAngle)) * 51,
-			 100./config.shielding,
-			 100.,
+			 100./config.shielding/4e17,
+			 100./4e17,
 			 40_000.,
 			 25.e-6*25.e-6,
 			 0,//1.e-6/1.4,
@@ -84,7 +84,7 @@ public class StreakCameraArray extends Detector {
 		  double sweepTime, double gain, double backgroundDensity,
 		  double noiseDensity, double saturationLimitDensity,
 		  double pixelArea, double spatialResolution, IonOptics optics) {
-		super(backgroundDensity*Math2.gamma(4, 4, MC_RANDOM),
+		super(backgroundDensity*Math2.gamma(4, 4, MC_RANDOM)/4e17,
 			  noiseDensity*Math2.gamma(4, 4, MC_RANDOM),
 			  saturationLimitDensity, gain);
 
@@ -108,9 +108,8 @@ public class StreakCameraArray extends Detector {
 			hRef[i] = 0;
 			for (int k = 0; k < 1000; k ++) {
 				double[] xyt = optics.simulate(ERef[i], 0, false);
-				if (!Double.isNaN(xyt[0])) {
+				if (!Double.isNaN(xyt[0]))
 					if (2*Math.abs(xyt[1]) > hRef[i]) hRef[i] = 2*Math.abs(xyt[1]);
-				}
 			}
 		}
 		DiscreteFunction fpPosition = new DiscreteFunction(ERef, xRef, true);
@@ -147,7 +146,7 @@ public class StreakCameraArray extends Detector {
 
 	@Override
 	public double pixelsPerBin(double energy, double[] energyBins, double[] timeBins) {
-		double binSize = (energyBins[1] - energyBins[0]) * (timeBins[1] - timeBins[0]); // (MeV*ns/bin)
+		double binSize = super.pixelsPerBin(energy, energyBins, timeBins); // (MeV*ns/bin)
 		double dispersion = dxdE.evaluate(energy)*streakSpeed*1e-9; // (m^2/(MeV*ns))
 		return binSize*dispersion/pixelArea;
 	}

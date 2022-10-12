@@ -80,6 +80,7 @@ public class SpectrumsViewer {
 					mc = new Analysis(
 							setup.opticsConfig,
 							setup.detectorConfig,
+							setup.ion,
 							setup.uncertainty*1e-2,
 							false,
 							setup.energyBin, setup.timeBin,

@@ -26,7 +26,7 @@ package physics;
 public abstract class Detector {
 
 	/**
-	 * the background level in a single space unit (signal/space)
+	 * the background level in a single space unit (signal/space/10^15neutron)
 	 */
 	private final double backgroundPerPixel;
 	/**
@@ -44,9 +44,9 @@ public abstract class Detector {
 
 	/**
 	 * supply the basic parameters for a generic Detector
-	 * @param background the background level in a single space unit (signal/space)
-	 * @param noise the background variance in a single space unit (signal^2/space)
-	 * @param saturation the signal density at which it saturates (signal/space)
+	 * @param background the background level in a single space unit (signal/(MeV*ns))
+	 * @param noise the background variance in a single space unit (signal^2/(MeV*ns))
+	 * @param saturation the signal density at which it saturates (signal/(MeV*ns))
 	 * @param gain the amount of signal generated for each deuteron that is detected (signal/deuteron)
 	 */
 	protected Detector(double background, double noise, double saturation, double gain) {
@@ -81,7 +81,7 @@ public abstract class Detector {
 	 * @return a conversion factor (space/bin^2)
 	 */
 	protected double pixelsPerBin(double energy, double[] energyBins, double[] timeBins) {
-		return 1;
+		return (energyBins[1] - energyBins[0]) * (timeBins[1] - timeBins[0]);
 	}
 
 	/**
@@ -130,8 +130,7 @@ public abstract class Detector {
 		if (!Double.isNaN(config.streakTime))
 			return new StreakCameraArray(config, optics);
 		else
-//			return new PulseDilationDriftTube(config);
-			return new PerfectDetector();
+			return new PulseDilationDriftTube();
 	}
 
 

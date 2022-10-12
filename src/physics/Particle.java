@@ -32,21 +32,23 @@ package physics;
 public enum Particle {
 	
 	/** electron */
-	E(9.10938356e-31, -1.60217662e-19, "electron"),
+	E(9.10938356e-31, -1.60217662e-19, "electron", "e"),
 	/** proton */
-	P(1.67262192e-27,  1.60217662e-19, "proton"),
+	P(1.67262192e-27,  1.60217662e-19, "proton", "H"),
 	/** neutron */
-	N(1.67492750e-27,  0.0,            "neutron"),
+	N(1.67492750e-27,  0.0,            "neutron", "n"),
 	/** deuteron */
-	D(3.34449463e-27,  1.60217662e-19, "deuteron");
+	D(3.34449463e-27,  1.60217662e-19, "deuteron", "D");
 	
 	public final double mass; // [kg]
 	public final double charge; // [C]
 	public final String name;
+	public final String symbol;
 	
-	Particle(double mass, double charge, String name) {
+	Particle(double mass, double charge, String name, String symbol) {
 		this.mass = mass;
 		this.charge = charge;
 		this.name = name;
+		this.symbol = symbol;
 	}
 }

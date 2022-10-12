@@ -27,6 +27,7 @@ import physics.Analysis;
 import physics.Analysis.ErrorMode;
 import physics.Detector.DetectorConfiguration;
 import physics.IonOptics.IonOpticConfiguration;
+import physics.Particle;
 import physics.SpectrumGenerator;
 import util.CSV;
 import util.Math2;
@@ -51,10 +52,10 @@ public class SpectrumViewer {
 	 */
 	public static void main(String[] args) throws NumberFormatException, IOException {
 		IonOpticConfiguration optics = IonOpticConfiguration.HIGH_EFFICIENCY;
-		DetectorConfiguration detector = DetectorConfiguration.DOUBLE_STREAK_CAMERA;
+		DetectorConfiguration detector = DetectorConfiguration.DRIFT_TUBE;
 		String simulationName = "scan/base";
 		double yieldFactor = 1;
-		boolean reuseMatrix = false;
+		boolean reuseMatrix = true;
 
 		Logger logger = setUpLogger(null);
 
@@ -82,6 +83,7 @@ public class SpectrumViewer {
 			mc = new Analysis(
 					optics,
 					detector,
+					Particle.D,
 					0,
 					reuseMatrix,
 					logger); // make the simulation
@@ -90,9 +92,9 @@ public class SpectrumViewer {
 			double skew = mc.computeTimeSkew();
 			logger.info(String.format("Dispersion: %.2f keV/mm", dispersion));
 			logger.info(String.format("Time skew:  %.2f ps/keV", skew));
-//			double[] res = mc.computeResolution(14.);
-//			logger.info(String.format("Energy res: %.2f keV", res[0]));
-//			logger.info(String.format("Time res:   %.2f ps", res[1]));
+			double[] res = mc.computeResolution(14.);
+			logger.info(String.format("Energy res: %.2f keV", res[0]));
+			logger.info(String.format("Time res:   %.2f ps", res[1]));
 
 			mc.respondAndAnalyze(
 					eBins,
@@ -111,10 +113,10 @@ public class SpectrumViewer {
 			                       "Time (ns)", "Energy (MeV)", "Original neutron spectrum");
 			PythonPlot.plotHeatmap(mc.getTimeBins(), mc.getDeuteronEnergyBins(), mc.getSignalDistribution(),
 			            "Time (ns)", "Energy (MeV)", "Synthetic signal distribution");
-//			PythonPlot.plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getFitNeutronSpectrum(),
-//			            "Fitted neutron spectrum");
-//			PythonPlot.plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getFitSignalDistribution(),
-//			            "Fitted signal distribution");
+			PythonPlot.plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getFitNeutronSpectrum(),
+			            "Time (ns)", "Energy (MeV)", "Fitted neutron spectrum");
+			PythonPlot.plotHeatmap(mc.getTimeBins(), mc.getEnergyBins(), mc.getFitSignalDistribution(),
+			            "Time (ns)", "Energy (MeV)", "Fitted signal distribution");
 			PythonPlot.plotLines("Trajectories", "input/" + simulationName + " {}.csv",
 					mc.getTimeAxis(), "Time (ns)",
 			        mc.getNeutronYield(), mc.getNeutronYieldError(), "Yn (10^15/ns)",

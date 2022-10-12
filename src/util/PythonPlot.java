@@ -43,6 +43,8 @@ public class PythonPlot {
 		CSV.write(z, new File(String.format("output/%s_z.csv", title)), ',');
 		ProcessBuilder plotPB = new ProcessBuilder("python", "src/python/plot2.py",
 		                                           xLabel, yLabel, title);
+		plotPB.redirectOutput(ProcessBuilder.Redirect.INHERIT);
+		plotPB.redirectError(ProcessBuilder.Redirect.INHERIT);
 		plotPB.start();
 	}
 

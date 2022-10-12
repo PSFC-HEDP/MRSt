@@ -39,7 +39,7 @@ public class SynthesizeImage {
 	public static void main(String[] args) throws IOException {
 		IonOpticConfiguration config = IonOpticConfiguration.HIGH_EFFICIENCY;
 		DetectorConfiguration detector = DetectorConfiguration.DOUBLE_STREAK_CAMERA;
-		IonOptics optics = new IonOptics(config, detector.cosyFile,
+		IonOptics optics = new IonOptics(config, Particle.D, detector.cosyFile,
 		                                 detector.tiltAngle, detector.offset,
 		                                 0.1, false);
 		int numSlits = detector.slitPositions.length;

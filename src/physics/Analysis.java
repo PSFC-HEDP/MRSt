@@ -39,8 +39,12 @@ import util.Math2.Quantity;
 import util.Optimization;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Random;
 import java.util.function.Function;
 import java.util.logging.Level;
@@ -52,19 +56,6 @@ import java.util.logging.Logger;
  * @author Justin Kunimune
  */
 public class Analysis {
-
-	public static final String[] HEADERS = {
-		  "Yield", "Computation time (s)",
-		  "Total yield (10^15)", "Bang time (ns)", "Burn width (ns)",
-		  "Burn skewness", "Burn kurtosis", "Stagnation - BT (ns)",
-		  "Burn-average Ti (keV)", "Peak Ti (keV)",
-		  "Ti at stagnation (keV)", "Ti at BT (keV)",
-		  "dTi/dt at stagnation (g/cm^2/ns)", "dTi/dt at BT (keV/ns)", "d^2Ti/dt^2 at BT (keV/ns^2)",
-		  "Burn-average \u03C1R (g/cm^2)", "\u03C1R at stagnation (g/cm^2)",
-		  "\u03C1R at BT (g/cm^2)", "d\u03C1R/dt at BT (g/cm^2/ns)",
-		  "d^2V/dt^2/V at BT (1/ns^2)",
-		}; // the names, units, and order of time-dependent burn parameters
-	public static final String[] HEADERS_WITH_ERRORS = appendErrorsToHeader();
 
 	public static final Random MC_RANDOM = new Random(0);
 	public static final Random NOISE_RANDOM = new Random(0);
@@ -117,16 +108,19 @@ public class Analysis {
 	private final Logger logger; // for logging
 
 	/**
-	 * perform some preliminary calculations for the provided configuration.
+	 * perform some preliminary calculations for the provided configuration. the configurations are
+	 * all based on deuterons, so if protons are specified, the foil thickness will be automaticly
+	 * doubled from whatever is passed.
 	 * @throws IOException if one or more of the stopping power tables cannot be
 	 *                     accessd for any reason
 	 */
 	public Analysis(
 		  IonOpticConfiguration ionOpticConfiguration,
 		  DetectorConfiguration detectorConfiguration,
-		  double calibrationPrecision, boolean reuseMatrix,
+		  Particle particle, double calibrationPrecision, boolean reuseMatrix,
 		  Logger logger) throws IOException {
 		this(new IonOptics(ionOpticConfiguration,
+						   particle,
 						   detectorConfiguration.cosyFile,
 						   detectorConfiguration.tiltAngle,
 						   detectorConfiguration.offset,
@@ -144,10 +138,11 @@ public class Analysis {
 	public Analysis(
 		  IonOpticConfiguration ionOpticConfiguration,
 		  DetectorConfiguration detectorConfiguration,
-		  double calibrationPrecision, boolean reuseMatrix,
+		  Particle particle, double calibrationPrecision, boolean reuseMatrix,
 		  double eBin, double tBin, double analysisPrecision,
 		  Logger logger) throws IOException {
 		this(new IonOptics(ionOpticConfiguration,
+						   particle,
 						   detectorConfiguration.cosyFile,
 						   detectorConfiguration.tiltAngle,
 						   detectorConfiguration.offset,
@@ -332,65 +327,6 @@ public class Analysis {
 
 
 	/**
-	 * figure out what the nonstochastic response function is when you average
-	 * over a range of energies (you know, like a low-res slit does)
-	 * @param temperature the ion temperature with which to weit it
-	 * @param arealDensity the ρR with which to weit it
-	 * @param minEnergy the lower neutron energy bound (MeV n)
-	 * @param maxEnergy the upper neutron energy bound (MeV n)
-	 * @return a dimensionless kernel that you convolve with (n/bin) to get
-	 * (signal/bin), without background
-	 */
-	public double[] averageResponse(double temperature, double arealDensity,
-	                                double minEnergy, double maxEnergy) {
-		double[] genericNeutronDistribution = SpectrumGenerator.generateSpectrum(
-			  1, temperature, temperature, 0, arealDensity,
-			  energyBins, temperature == 0);
-		double[][] genericNeutronSpectrum = new double[energyAxis.length][timeAxis.length];
-		for (int i = 0; i < energyAxis.length; i ++)
-			genericNeutronSpectrum[i][timeAxis.length/2] = genericNeutronDistribution[i];
-		double[][] typicalOpticsResponse = this.ionOptics.response(
-				energyBins, timeBins, genericNeutronSpectrum,
-				false, false);
-		double[][] fullResponse = this.detector.response(
-			  energyBins, timeBins, typicalOpticsResponse,
-			  false, false, true);
-		double[] bandResponse = new double[timeAxis.length];
-		for (int i = 0; i < energyAxis.length; i ++)
-			if (energyAxis[i] >= minEnergy && energyAxis[i] < maxEnergy)
-				for (int j = 0; j < timeAxis.length; j ++)
-					bandResponse[j] += fullResponse[i][j];
-		return bandResponse;
-	}
-
-
-	/**
-	 * compute the total amount of noise in this range
-	 * @return the variance in this region (signal^2/timebin)
-	 */
-	public double totalVariance(double minEnergy, double maxEnergy) {
-		double total = 0;
-		for (double energy: energyAxis)
-			if (energy >= minEnergy && energy <= maxEnergy)
-				total += detector.noise(energy, energyBins, timeBins, true);
-		return total;
-	}
-
-
-	/**
-	 * compute the total amount of background in this range
-	 * @return the background level in this region (signal/timebin)
-	 */
-	public double totalBackground(double minEnergy, double maxEnergy) {
-		double total = 0;
-		for (double energy: energyAxis)
-			if (energy >= minEnergy && energy <= maxEnergy)
-				total += detector.background(energy, energyBins, timeBins, true);
-		return total;
-	}
-
-
-	/**
 	 * compute the total response to an implosion with the given neutron spectrum
 	 * and save and analyze it.
 	 * @param energies the energies that describe the rows of counts [MeV]
@@ -404,7 +340,7 @@ public class Analysis {
 	 *          \< rho R \>, err, d(rho R)/dt, err, \<Ti\>, err, dTi/dt, err,
 	 *          \<vi\>, err, dvi/dt, err}
 	 */
-	public double[] respondAndAnalyze(double[] energies, double[] times,
+	public KeyParameterSet respondAndAnalyze(double[] energies, double[] times,
 	                                  double[][] neutronSpectrum,
 	                                  ErrorMode errorBars) {
 		if (neutronSpectrum.length != energies.length-1 || neutronSpectrum[0].length != times.length-1)
@@ -447,8 +383,8 @@ public class Analysis {
 			logger.info(String.format("The detector is %.2f%% of the way to saturation",
 									  saturation/1e-2));
 
-		double totalEfficiency = this.averageEfficiency(7., .8, 12, 16);
-		double opticsEfficiency = this.ionOptics.efficiency(14);
+//		double totalEfficiency = this.averageEfficiency(7., .8, 12, 16);
+//		double opticsEfficiency = this.ionOptics.efficiency(14);
 //		System.out.printf("I think the ion-optic efficiency is %.3g and detector efficiency is %.3g\n", opticsEfficiency, totalEfficiency/opticsEfficiency);
 
 		if (Math2.max(signalDistribution) == 0) {
@@ -464,8 +400,7 @@ public class Analysis {
 
 		analyze(signalDistribution, errorBars);
 
-		int dofs = covarianceMatrix.length;
-
+		// finally, generate the reconstructed spectrum
 		this.fitNeutronSpectrum = SpectrumGenerator.generateSpectrum(
 				this.getNeutronYield(), this.getIonTemperature(),
 				Math2.full(ELECTRON_TEMPERATURE, timeAxis.length),
@@ -483,74 +418,12 @@ public class Analysis {
 		logger.info(String.format("completed in %.2f minutes.",
 		                          (endTime - startTime)/60000.));
 
-		Quantity[] V = new Quantity[timeAxis.length]; // this is not really volume; it is (ρR)^(-2/3)
-		for (int j = 0; j < V.length; j ++)
-			V[j] = this.arealDensity[j].pow(-1.5);
+		// extract the key parameters
+		KeyParameterSet output = new KeyParameterSet(
+				startTime, endTime, this.timeBins, this.neutronYield, this.ionTemperature, this.arealDensity, this.covarianceMatrix);
+		for (String name: output.getHeaderSansUnits())
+			logger.info(String.format("%-18s: %s", name, output.printParameter(name)));
 
-		Quantity iBT = Math2.quadargmax(this.neutronYield); // index of max yield
-		Quantity bangTime = Math2.interp(timeAxis, iBT); // time of max yield
-
-		Quantity peak = Math2.quadInterp(this.neutronYield, iBT);
-		int left, rite;
-		for (left = 0; left + 1 < iBT.value; left ++)
-			if (neutronYield[left].value > peak.value*1e-2)
-				break;
-		for (rite = timeAxis.length; rite > iBT.value; rite --)
-			if (neutronYield[rite - 1].value > peak.value*1e-2)
-				break;
-
-		Quantity iPC = Math2.quadargmax(left, rite, this.arealDensity); // index of max compression
-		Quantity peakCompress = Math2.interp(timeAxis, iPC); // time of max compression
-		Quantity iTPeak = Math2.quadargmax(left, rite, this.ionTemperature);
-		Quantity[] moments = new Quantity[5];
-		for (int k = 0; k < moments.length; k ++)
-			moments[k] = Math2.moment(k, timeBins, this.neutronYield);
-		Quantity burnWidth = Math2.fwhm(timeBins, this.neutronYield);
-
-		Quantity[] res = {
-			  new Quantity((endTime - startTime)/1000., dofs),
-			  moments[0].times(timeStep), bangTime,
-			  burnWidth, moments[3], moments[4],
-			  peakCompress.minus(bangTime),
-			  Math2.average(this.ionTemperature, this.neutronYield, left, rite),
-			  Math2.quadInterp(this.ionTemperature, iTPeak),
-			  Math2.quadInterp(this.ionTemperature, iPC),
-			  Math2.quadInterp(this.ionTemperature, iBT),
-			  Math2.derivative(timeAxis, this.ionTemperature, iPC, .10, 1),
-			  Math2.derivative(timeAxis, this.ionTemperature, bangTime, .10, 1),
-			  Math2.derivative(timeAxis, this.ionTemperature, bangTime, .10, 2),
-			  Math2.average(this.arealDensity, this.neutronYield, left, rite),
-			  Math2.quadInterp(this.arealDensity, iPC),
-			  Math2.quadInterp(this.arealDensity, iBT),
-			  Math2.derivative(timeAxis, this.arealDensity, bangTime, .10, 1),
-			  Math2.derivative(timeAxis, V, bangTime, .12, 2).over(Math2.quadInterp(V, iBT)),
-		}; // collect the figures of merit
-
-		logger.info(String.format("Total yield (μ0):  %s", res[1].times(1e15).toString(covarianceMatrix)));
-		logger.info(String.format("Bang time:         %s ns", res[2].toString(covarianceMatrix)));
-		logger.info(String.format("Burn width (μ2):   %s ps", res[3].over(1e-3).toString(covarianceMatrix)));
-		logger.info(String.format("Burn skewness (μ3):%s", res[4].toString(covarianceMatrix)));
-		logger.info(String.format("Burn kurtosis (μ4):%s", res[5].toString(covarianceMatrix)));
-		logger.info(String.format("Peak compression:  %s ps + BT", res[6].over(1e-3).toString(covarianceMatrix)));
-		logger.info(String.format("Burn-averaged Ti:  %s keV", res[7].toString(covarianceMatrix)));
-		logger.info(String.format("Ti at peak:        %s keV", res[8].toString(covarianceMatrix)));
-		logger.info(String.format("Ti at compression: %s keV", res[9].toString(covarianceMatrix)));
-		logger.info(String.format("Ti at BT:          %s keV", res[10].toString(covarianceMatrix)));
-		logger.info(String.format("dTi/dt at compr.:  %s g/cm^2/(100 ps)", res[11].over(1e1).toString(covarianceMatrix)));
-		logger.info(String.format("dTi/dt at BT:      %s keV/(100 ps)", res[12].over(1e1).toString(covarianceMatrix)));
-		logger.info(String.format("d^2Ti/dt^2 at BT:  %s keV/ns^2", res[13].toString(covarianceMatrix)));
-		logger.info(String.format("Burn-averaged \u03C1R:  %s g/cm^2", res[14].toString(covarianceMatrix)));
-		logger.info(String.format("\u03C1R at compression: %s g/cm^2", res[15].toString(covarianceMatrix)));
-		logger.info(String.format("\u03C1R at BT:          %s g/cm^2", res[16].toString(covarianceMatrix)));
-		logger.info(String.format("d\u03C1R/dt at BT:      %s g/cm^2/(100 ps)", res[17].over(1e1).toString(covarianceMatrix)));
-		logger.info(String.format("d^2V/dt^2/V at BT: %s 1/ns^2", res[18].toString(covarianceMatrix)));
-
-		double[] output = new double[2*res.length]; // and error bars and serve
-		for (int i = 0; i < res.length; i++) {
-			output[2*i + 0] = res[i].value;
-			output[2*i + 1] = Math.sqrt(res[i].variance(covarianceMatrix));
-		}
-		assert output.length == HEADERS_WITH_ERRORS.length - 1;
 		return output;
 	}
 
@@ -565,7 +438,7 @@ public class Analysis {
 		for (double[] doubles: signal)
 			for (double value: doubles)
 				if (Double.isNaN(value))
-					throw new IllegalArgumentException("well fuck you too");
+					throw new IllegalArgumentException("there are nans present");
 
 		final int N = 3;
 		final int M = timeAxis.length;
@@ -681,7 +554,7 @@ public class Analysis {
 										neutronYield, ionTemperature, electronTemperature, bulkFlowVelocity, arealDensity,
 										energyBins, timeBins),
 								false, false),
-						false, true, true));
+						false, false, true));
 
 		double lastValue;
 		double thisValue = logPosterior(
@@ -870,30 +743,30 @@ public class Analysis {
 				}
 			}
 			for (int i = 0; i < numEnergies; i ++) {
-				double theorNumber = (theorValues[i] - backgrounds[i])/detector.gain;
-				double experNumber = (experValues[i] - backgrounds[i])/detector.gain;
-				if (variances[i] > 0) { // if this detector has significant noise
-					double variance = variances[i]
-							+ theorNumber*detector.gain // include the poisson noise of the signal electrons
-							+ theorNumber*detector.gain*detector.gain; // include pre-amplification poisson noise
+				double theorNumber = Math.max(0, (theorValues[i] - backgrounds[i])/detector.gain);
+				double experNumber = Math.max(0, (experValues[i] - backgrounds[i])/detector.gain);
+//				if (variances[i] > 0) { // if this detector has significant noise
+					double variance = variances[i] + theorNumber*detector.gain*detector.gain + 1; // include pre-amplification poisson noise
 					totalError += Math.pow(experValues[i] - theorValues[i], 2)/
 							(2*variance); // and use a Gaussian approximation
-				}
-				else { // if the detector noise is zero
-					assert !Double.isNaN(theorNumber);
-					if (theorNumber > 0) {
-						totalError += theorNumber - experNumber*Math.log(theorNumber); // use the exact Poisson distribution
-					}
-					else if (theorNumber == 0) {
-						if (experNumber == 0)
-							totalError += 0;
-						else
-							return Double.POSITIVE_INFINITY;
-					}
-					else {
-						throw new IllegalArgumentException("What to do when expected "+theorNumber+" and observed "+experNumber+"?");
-					}
-				}
+				if (Double.isInfinite(totalError) && totalError < 0)
+					throw new RuntimeException("AAAAAAAAAA");
+//				}
+//				else { // if the detector noise is zero
+//					assert !Double.isNaN(theorNumber);
+//					if (theorNumber > 0) {
+//						totalError += theorNumber - experNumber*Math.log(theorNumber); // use the exact Poisson distribution
+//					}
+//					else if (theorNumber == 0) {
+//						if (experNumber == 0)
+//							totalError += 0;
+//						else
+//							return Double.POSITIVE_INFINITY;
+//					}
+//					else {
+//						throw new IllegalArgumentException("What to do when expected "+theorNumber+" and observed "+experNumber+"?");
+//					}
+//				}
 			}
 		}
 
@@ -1154,20 +1027,6 @@ public class Analysis {
 	}
 
 
-	private static String[] appendErrorsToHeader() {
-		String[] out = new String[2*HEADERS.length - 1];
-		for (int i = 0; i < HEADERS.length; i ++) {
-			if (i < 2)
-				out[i] = HEADERS[i];
-			else {
-				out[2*(i-1)+1] = HEADERS[i];
-				out[2*(i-1)+2] = HEADERS[i] + " error";
-			}
-		}
-		return out;
-	}
-
-
 	/**
 	 * different methods for computing error bars: assume they are all zero, estimate a
 	 * hessian using finite differences and invert it into a covariance matrix, or calculate
@@ -1177,6 +1036,130 @@ public class Analysis {
 	 */
 	public enum ErrorMode {
 		NONE, HESSIAN, STATISTICS
+	}
+
+
+	public static class KeyParameterSet {
+		private final Map<String, Quantity> map;
+		private final double[][] covariance;
+		
+		public static final KeyParameterSet EXAMPLE = new KeyParameterSet(
+				0, 0, new double[] {-1, 1},
+				new Quantity[] {new Quantity(0, 0)},
+				new Quantity[] {new Quantity(0, 0)},
+				new Quantity[] {new Quantity(0, 0)},
+				new double[0][0]);
+
+		public KeyParameterSet(long startTime, long endTime,
+							   double[] timeBins, Quantity[] neutronYield,
+							   Quantity[] ionTemperature, Quantity[] arealDensity,
+							   double[][] covariance) {
+			int dofs = covariance.length;
+			double timeStep = (timeBins.length > 0) ? timeBins[1] - timeBins[0] : 0;
+			double[] timeAxis = Math2.binCenters(timeBins);
+
+			Quantity[] V = new Quantity[timeAxis.length]; // this is not really volume; it is (ρR)^(-2/3)
+			for (int j = 0; j < V.length; j ++)
+				V[j] = arealDensity[j].pow(-1.5);
+
+			Quantity jBT = Math2.quadargmax(neutronYield); // index of max yield
+			Quantity bangTime = Math2.interp(timeAxis, jBT); // time of max yield
+
+			Quantity peak = Math2.quadInterp(neutronYield, jBT);
+			int left, rite;
+			for (left = 0; left + 1 < jBT.value; left ++)
+				if (neutronYield[left].value >= peak.value*1e-2)
+					break;
+			for (rite = timeAxis.length; rite > jBT.value; rite --)
+				if (neutronYield[rite - 1].value >= peak.value*1e-2)
+					break;
+
+			Quantity jPC = Math2.quadargmax(left, rite, arealDensity); // index of max compression
+			Quantity peakCompress = Math2.interp(timeAxis, jPC); // time of max compression
+			Quantity jTPeak = Math2.quadargmax(left, rite, ionTemperature);
+			Quantity[] moments = new Quantity[5];
+			for (int k = 0; k < moments.length; k ++)
+				moments[k] = Math2.moment(k, timeBins, neutronYield);
+			Quantity burnWidth = Math2.fwhm(timeBins, neutronYield);
+
+			List<String> timeNames = new ArrayList<>(Arrays.asList("peak Ti", "compression"));
+			List<Quantity> times = new ArrayList<>(Arrays.asList(jTPeak, jPC));
+			for (double dt = -.1; dt <= .11; dt += .05) {
+				timeNames.add((dt == 0) ? "BT" : String.format("BT%+.0fps", dt*1e3));
+				times.add(jBT.plus(dt/timeStep));
+			}
+
+			this.covariance = covariance;
+			this.map = new HashMap<String, Quantity>();
+
+			map.put("computation time", new Quantity((endTime - startTime)/1000., dofs, "s"));
+			map.put("total yield", moments[0].times(timeStep).times(1e15));
+			map.put("bang time", bangTime.withUnits("ns"));
+			map.put("burn width", burnWidth.over(1e-3).withUnits("ps"));
+			map.put("burn skewness", moments[3]);
+			map.put("burn kurtosis", moments[4]);
+			map.put("peak compression", peakCompress.minus(bangTime).over(1e-3).withUnits("ps"));
+			map.put("burn-averaged Ti", Math2.average(ionTemperature, neutronYield, left, rite).withUnits("keV"));
+			map.put("burn-averaged \u03C1R", Math2.average(arealDensity, neutronYield, left, rite).withUnits("g/cm^2"));
+			for (int i = 0; i < times.size(); i ++) {
+				boolean valid = (times.get(i).value >= 0 && times.get(i).value <= timeAxis.length - 1);
+				map.put("Ti at " + timeNames.get(i),
+				        ((valid) ? Math2.quadInterp(ionTemperature, times.get(i))
+						         : new Quantity(Double.NaN, 0)).withUnits("keV"));
+				map.put("dTi/dt at " + timeNames.get(i),
+				        ((valid) ? Math2.derivative(timeAxis, ionTemperature, times.get(i), .10, 1).over(1e1)
+						         : new Quantity(Double.NaN, 0)).withUnits("keV/(100 ps)"));
+				map.put("d^2Ti/dt^2 at " + timeNames.get(i),
+				        ((valid) ? Math2.derivative(timeAxis, ionTemperature, times.get(i), .10, 2)
+						         : new Quantity(Double.NaN, 0)).withUnits("keV/ns^2"));
+				map.put("\u03C1R at " + timeNames.get(i),
+				        ((valid) ? Math2.quadInterp(arealDensity, times.get(i))
+						         : new Quantity(Double.NaN, 0)).withUnits("g/cm^2"));
+				map.put("d\u03C1R/dt at " + timeNames.get(i),
+				        ((valid) ? Math2.derivative(timeAxis, arealDensity, times.get(i), .10, 1)
+						         : new Quantity(Double.NaN, 0).over(1e1)).withUnits("g/cm^2/(100 ps)"));
+				map.put("d^2V/dt^2/V at " + timeNames.get(i),
+				        ((valid) ? Math2.derivative(timeAxis, V, times.get(i), .10, 2).over(Math2.quadInterp(V, times.get(i)))
+						         : new Quantity(Double.NaN, 0)).withUnits("1/ns^2"));
+			}
+		}
+
+		public String[] getHeaderSansUnits() {
+			return map.keySet().toArray(new String[0]);
+		}
+
+		public String[] getHeaderWithUnits() {
+			String[] header = this.getHeaderSansUnits();
+			for (int i = 0; i < header.length; i ++)
+				header[i] = String.format("%s (%s)", header[i], map.get(header[i]).units);
+			return header;
+		}
+
+		public String[] getHeaderWithUnitsAndError() {
+			String[] sansError = this.getHeaderWithUnits();
+			String[] out = new String[2*sansError.length];
+			for (int i = 0; i < sansError.length; i ++) {
+				out[2*i] = sansError[i];
+				out[2*i + 1] = sansError[i] + " error";
+			}
+			return out;
+		}
+
+		public Quantity getParameter(String name) {
+			return map.get(name);
+		}
+		
+		public String printParameter(String name) {
+			return map.get(name).toString(covariance);
+		}
+		
+		public double getValue(String name) {
+			return this.getParameter(name).value;
+		}
+		
+		public double getVariance(String name) {
+			return this.getParameter(name).variance(covariance);
+		}
 	}
 	
 	
