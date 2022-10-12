@@ -55,7 +55,7 @@ public class InputParser {
 	public InputParser(String name, String[] args) {
 		// first, parse the arguments
 		StringBuilder filename = new StringBuilder(name);
-		this.implosionName = "og with falling temp";
+		this.implosionName = "scan base";
 		this.numRuns = 1000;
 		this.numCores = Math.min(10, Runtime.getRuntime().availableProcessors());
 		this.opticsConfig = null;
@@ -64,13 +64,13 @@ public class InputParser {
 		this.uncertainty = 0;
 		this.energyBin = Analysis.DEFAULT_ENERGY_BIN;
 		this.timeBin = Analysis.DEFAULT_TIME_BIN;
-		this.tolerance = 0.1;
+		this.tolerance = 0.01;
 
 		for (String arg : args) {
 			if (arg.contains("=")) {
 				String key = arg.substring(0, arg.indexOf('='));
 				String value = arg.substring(arg.indexOf('=') + 1);
-				String tagFormat = "_%.6s";
+				String tagFormat = "_%.8s";
 				switch (key) {
 					case "implosion":
 						this.implosionName = value;

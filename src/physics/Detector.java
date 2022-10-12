@@ -130,7 +130,7 @@ public abstract class Detector {
 		if (!Double.isNaN(config.streakTime))
 			return new StreakCameraArray(config, optics);
 		else
-			return new PulseDilationDriftTube();
+			return new PulseDilationDriftTube(config);
 	}
 
 
@@ -204,7 +204,7 @@ public abstract class Detector {
 			this.slitPositions = slitPositions;
 			this.slitLengths = slitLengths;
 			this.slitWidths = slitWidths;
-			this.shielding = 1; // idk if this belongs here; maybe I'll move it later if I settle on a value
+			this.shielding = 100;
 		}
 	}
 

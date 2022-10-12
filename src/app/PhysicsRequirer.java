@@ -77,8 +77,9 @@ public class PhysicsRequirer {
 			final int K = runIndex;
 
 			int caseIndex = 0;
-			for (Path path : (Iterable<Path>)Files.walk(Paths.get("input/scan/"))::iterator) {
-				if (path.getFileName().toString().contains("trajectories")) {
+			for (Path path : (Iterable<Path>)Files.walk(Paths.get("input/"))::iterator) {
+				if (path.getFileName().toString().contains("scan") &&
+				    path.getFileName().toString().contains("trajectories")) {
 					if (runIndex == 0)
 						logger.info("Loading scenario " + caseIndex + ": " + path);
 					final int J = caseIndex;
@@ -86,10 +87,10 @@ public class PhysicsRequirer {
 					String key = path.getFileName().toString();
 					key = key.substring(0, key.length() - 17);
 
-					double[] tBins = CSV.readColumn(new File("input/scan/" + key + " time.txt"));
+					double[] tBins = CSV.readColumn(new File("input/" + key + " time.txt"));
 					double[][] spectrum = SpectrumGenerator.interpretSpectrumFile(
 							tBins, eBins,
-							CSV.read(new File("input/scan/" + key + " spectrum.txt"), '\t')
+							CSV.read(new File("input/" + key + " spectrum.txt"), '\t')
 					);
 
 					threads.submit(() -> {

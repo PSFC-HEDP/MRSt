@@ -28,9 +28,11 @@ import util.Math2;
 import static physics.Analysis.NOISE_RANDOM;
 
 public class PulseDilationDriftTube extends Detector {
-	protected PulseDilationDriftTube() {
+	protected PulseDilationDriftTube(DetectorConfiguration config) {
 		// background number comes from Wink 2016
-		super(6e5/100/3.5e16*4e17, 6e5/100/3.5e16*4e17, Double.POSITIVE_INFINITY, 1);
+		super(6e5/3.5e16*4e17/config.shielding,
+		      6e5/3.5e16*4e17/config.shielding,
+		      Double.POSITIVE_INFINITY, 1);
 	}
 
 	@Override

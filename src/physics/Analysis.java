@@ -64,7 +64,7 @@ public class Analysis {
 	private static final int BUFFER = 5; // empty pixels to include simulate on each side [ns]
 
 	public static final double DEFAULT_ENERGY_BIN = 50e-3;
-	public static final double DEFAULT_TIME_BIN = 18e-3;
+	public static final double DEFAULT_TIME_BIN = 15e-3;
 	private static final double DEFAULT_PRECISION = .01;
 
 //	private static final double SUBSTRATE_THICKNESS = 100; // [μm]

@@ -53,7 +53,7 @@ public class SpectrumViewer {
 	public static void main(String[] args) throws NumberFormatException, IOException {
 		IonOpticConfiguration optics = IonOpticConfiguration.HIGH_EFFICIENCY;
 		DetectorConfiguration detector = DetectorConfiguration.DRIFT_TUBE;
-		String simulationName = "scan/base";
+		String simulationName = "scan base";
 		double yieldFactor = 1;
 		boolean reuseMatrix = true;
 
@@ -120,8 +120,8 @@ public class SpectrumViewer {
 			PythonPlot.plotLines("Trajectories", "input/" + simulationName + " {}.csv",
 					mc.getTimeAxis(), "Time (ns)",
 			        mc.getNeutronYield(), mc.getNeutronYieldError(), "Yn (10^15/ns)",
-					mc.getIonTemperature(), mc.getIonTemperatureError(), "Ti (keV)"//,
-//					mc.getArealDensity(), mc.getArealDensityError(), "ρR (g/cm^2)"
+					mc.getIonTemperature(), mc.getIonTemperatureError(), "Ti (keV)",
+					mc.getArealDensity(), mc.getArealDensityError(), "ρR (g/cm^2)"
 			);
 			PythonPlot.compareHeatmap(mc.getTimeBins(), mc.getDeuteronEnergyBins(), mc.getSignalDistribution(), mc.getFitSignalDistribution(),
 					"Time (ns)", "Energy (MeV)", "Synthetic signal", "Fit signal");

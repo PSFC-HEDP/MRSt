@@ -9,7 +9,7 @@ if len(sys.argv) <= 1:
 	import os
 	os.chdir('../..')
 	print(os.getcwd())
-	xlabel, ylabels, title, answer, n = 'Time (ns)', 'Yn (10^15/ns)\nTi (keV)', 'Trajectories', 'input/og with falling temp {}.csv', 2
+	xlabel, ylabels, title, answer, n = 'Time (ns)', 'Yn (10^15/ns)\nTi (keV)\nρR(g/cm^2)', 'Trajectories', '-', 3
 	# xlabel, ylabels, title, answer, n = 'Energy (MeV)', 'Deuterons\nDeuterons\nSignal', 'Integrated spectra', '-', 3
 else:
 	xlabel, ylabels, title, answer, n = sys.argv[1:]
@@ -45,10 +45,10 @@ if answer != '-':
 
 	except IOError:
 		print(f"didn't find {answer}")
-		XB, YBs = None, None
+		XB, YBs = None, [None]*n
 
 else:
-	XB, YBs = None, None
+	XB, YBs = None, [None]*n
 
 # switch to a better coordinate system in x
 if "(ns)" in xlabel:
@@ -130,8 +130,9 @@ with h5py.File("output/inferred_trajectories.h5", "w") as f:
 	                    ("Tion true", YBs[1]), ("Tion fit", YAs[1]), ("Tion error", ΔAs[1]),
 	                    # ("rhoR true", YBs[2]), ("rhoR fit", YAs[2]), ("rhoR error", ΔAs[2]),
 	                    ]:
-		dataset = f.create_dataset(name, value.shape)
-		dataset[...] = value
+		if value is not None:
+			dataset = f.create_dataset(name, value.shape)
+			dataset[...] = value
 plt.savefig("output/inferred_trajectories.png", dpi=300)
 plt.savefig("output/inferred_trajectories.eps")
 
