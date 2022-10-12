@@ -78,8 +78,7 @@ public class IonOptics {
 	private static final int TRANSFER_MATRIX_TRIES = 10000; // the number of points to sample in each column of the transfer matrix
 
 	private final double foilDistance; // z coordinate of midplane of foil [m]
-	private final double foilWidth; // extent of foil in dispersion direccion [m]
-	private final double foilHeight; // extent of foil in nondispersion direccion [m]
+	private final double foilRadius; // extent of foil in radial direccion [m]
 	private double foilThickness; // thickness of foil [m]
 	private final double apertureDistance; // distance from TCC to aperture [m]
 	private final double apertureWidth; // horizontal dimension of aperture [m]
@@ -116,8 +115,7 @@ public class IonOptics {
 					 String cosyFile, double tiltAngle, double offset,
 					 double precision, boolean reuseMatrix) throws IOException {
 		this(4.0e-3,
-			 2*config.foilRadius,
-			 2*config.foilRadius,
+			 config.foilRadius,
 			 config.foilThickness/particle.mass*Particle.D.mass,
 			 6.0e+0,
 			 config.apertureWidth,
@@ -135,8 +133,7 @@ public class IonOptics {
 	/**
 	 * put together the ion optic simulacion
 	 * @param foilDistance the distance from TCC to the foil (m)
-	 * @param foilWidth the total width of the foil (m)
-	 * @param foilHeight the total hite of the foil (m)
+	 * @param foilRadius the radius of the foil (m)
 	 * @param foilThickness the thickness of the foil (m)
 	 * @param apertureDistance the distance from TCC to the aperture (m)
 	 * @param apertureWidth the width of the aperture (m)
@@ -149,7 +146,7 @@ public class IonOptics {
 	 * @throws NumberFormatException if the stopping power file accepts bribes
 	 */
 	public IonOptics(
-			double foilDistance, double foilWidth, double foilHeight, double foilThickness,
+			double foilDistance, double foilRadius, double foilThickness,
 	        double apertureDistance, double apertureWidth, double apertureHeight,
 	        double minEn, double maxEn, COSYMapping cosyMapping, double focalTilt, double offset,
 			double calibrationPrecision, boolean reuseMatrix) throws IOException {
@@ -158,8 +155,7 @@ public class IonOptics {
 		double A = ion.mass/Particle.N.mass;
 		this.energyFactor = 4*A/Math.pow(A + 1, 2);
 		this.foilDistance = foilDistance;
-		this.foilWidth = foilWidth;
-		this.foilHeight = foilHeight;
+		this.foilRadius = foilRadius;
 		this.foilThickness = foilThickness;
 		this.apertureDistance = apertureDistance;
 		this.apertureWidth = apertureWidth;
@@ -169,7 +165,7 @@ public class IonOptics {
 		this.focalPlaneAngle = Math.toRadians(focalTilt);
 		this.focalPlaneOffset = Math.toRadians(offset);
 		this.cosyMapping = cosyMapping;
-		this.probHitsFoil = foilWidth*foilHeight/(4*Math.PI*foilDistance*foilDistance);
+		this.probHitsFoil = (Math.hypot(foilRadius, foilDistance) - foilDistance)/(2*Math.hypot(foilRadius, foilDistance));
 		this.calibrationPrecision = calibrationPrecision;
 		this.reuseMatrix = reuseMatrix;
 
@@ -198,7 +194,7 @@ public class IonOptics {
 	/**
 	 * compute the probability that a given neutron released at this energy will spawn an ion
 	 * and knock that ion through the aperture.
-	 * @param energy energy of the released particles [MeV]
+	 * @param energy energy of the neutron [MeV]
 	 * @return the fraction of particles that are worth simulating
 	 */
 	public double efficiency(double energy) {
@@ -241,9 +237,9 @@ public class IonOptics {
 	 * @return {energy resolution [keV], time resolution [ps]}
 	 */
 	public double[] computeResolution(double referenceEnergy) {
-		int nEnergies = 30;
-		int nTimes = 20;
-		double[] energyRange = {-1.1, 1.1}; // [MeV]
+		int nEnergies = 50;
+		int nTimes = 50;
+		double[] energyRange = {-1.1, .6}; // [MeV]
 		double[] timeRange = {-.160, .160}; // [ns]
 
 		double[] energyBins = new double[nEnergies+1]; // [MeV]
@@ -513,8 +509,11 @@ public class IonOptics {
 	 * @return { x, y, z } [m]
 	 */
 	private double[] chooseCollisionPosition() {
-		double xF = foilWidth/2*(2*MC_RANDOM.nextDouble()-1);
-		double yF = foilHeight/2*(2*MC_RANDOM.nextDouble()-1);
+		double cosθ = 1 - 2*probHitsFoil*MC_RANDOM.nextDouble();
+		double rF = Math.hypot(foilRadius, foilDistance)*Math.sqrt(1 - cosθ*cosθ);
+		double фF = 2*Math.PI*MC_RANDOM.nextDouble();
+		double xF = rF*Math.cos(фF);
+		double yF = rF*Math.sin(фF);
 		double zF = foilDistance + foilThickness/2*(2*MC_RANDOM.nextDouble()-1); // assume foil is thin, so every z coordinate is equally likely
 		return new double[] { xF, yF, zF };
 	}

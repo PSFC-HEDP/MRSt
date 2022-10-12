@@ -51,11 +51,11 @@ public class SpectrumViewer {
 	 * build the GUI and display it.
 	 */
 	public static void main(String[] args) throws NumberFormatException, IOException {
-		IonOpticConfiguration optics = IonOpticConfiguration.HIGH_EFFICIENCY;
+		IonOpticConfiguration optics = IonOpticConfiguration.MID_EFFICIENCY;
 		DetectorConfiguration detector = DetectorConfiguration.DRIFT_TUBE;
 		String simulationName = "scan base";
 		double yieldFactor = 1;
-		boolean reuseMatrix = true;
+		boolean reuseMatrix = false;
 
 		Logger logger = setUpLogger(null);
 
@@ -92,6 +92,7 @@ public class SpectrumViewer {
 			double skew = mc.computeTimeSkew();
 			logger.info(String.format("Dispersion: %.2f keV/mm", dispersion));
 			logger.info(String.format("Time skew:  %.2f ps/keV", skew));
+			logger.info(String.format("Efficiency: %.3g", mc.efficiency(14)));
 			double[] res = mc.computeResolution(14.);
 			logger.info(String.format("Energy res: %.2f keV", res[0]));
 			logger.info(String.format("Time res:   %.2f ps", res[1]));

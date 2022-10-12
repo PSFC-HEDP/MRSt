@@ -155,8 +155,7 @@ public class Analysis {
 	/**
 	 * perform some preliminary calculations for the provided configuration.
 	 * @param foilDistance the distance from TCC to the foil [m]
-	 * @param foilWidth the total width of the foil [m]
-	 * @param foilHeight the total hite of the foil [m]
+	 * @param foilRadius the radius of the foil [m]
 	 * @param foilThickness the thickness of the foil [m]
 	 * @param apertureDistance the distance from TCC to the aperture [m]
 	 * @param apertureWidth the width of the aperture [m]
@@ -166,7 +165,7 @@ public class Analysis {
 	 *                     accessd for any reason
 	 */
 	public Analysis(
-			double foilDistance, double foilWidth, double foilHeight, double foilThickness,
+			double foilDistance, double foilRadius, double foilThickness,
 			double apertureDistance, double apertureWidth, double apertureHeight,
 			COSYMapping cosyMapping,
 			DetectorConfiguration detectorConfiguration,
@@ -174,7 +173,7 @@ public class Analysis {
 			Logger logger) throws IOException {
 
 		this(new IonOptics(
-				foilDistance, foilWidth, foilHeight, foilThickness,
+				foilDistance, foilRadius, foilThickness,
 				apertureDistance, apertureWidth, apertureHeight,
 				MIN_E, MAX_E, cosyMapping, detectorConfiguration.tiltAngle,
 				detectorConfiguration.offset, calibrationPrecision, reuseMatrix),
@@ -297,7 +296,7 @@ public class Analysis {
 
 	/**
 	 * the detection efficiency of the complete system
-	 * @param energy the energy at which to evaluate the efficiency
+	 * @param energy the neutron energy at which to evaluate the efficiency (MeV)
 	 */
 	public double efficiency(double energy) {
 		return this.ionOptics.efficiency(energy)
