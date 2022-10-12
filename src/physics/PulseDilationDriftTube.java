@@ -47,7 +47,7 @@ public class PulseDilationDriftTube extends Detector {
 				if (stochastic)
 					withBackground[i][j] = sansBackground[i][j] + Math2.poisson(level, NOISE_RANDOM);
 				else
-					withBackground[i][j] = sansBackground[i][j];
+					withBackground[i][j] = sansBackground[i][j] + level;
 			}
 		}
 		return withBackground;
