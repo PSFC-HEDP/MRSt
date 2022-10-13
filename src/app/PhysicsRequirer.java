@@ -89,15 +89,14 @@ public class PhysicsRequirer {
 					key = key.substring(0, key.length() - 17);
 
 					double[] tBins = CSV.readColumn(new File("input/" + key + " time.txt"));
-					double[][] spectrum = SpectrumGenerator.interpretSpectrumFile(
-							tBins, eBins,
-							CSV.read(new File("input/" + key + " spectrum.txt"), '\t')
+					double[][] spectrum = SpectrumGenerator.modifySpectrum(
+							SpectrumGenerator.interpretSpectrumFile(
+									tBins, eBins,
+									CSV.read(new File("input/" + key + " spectrum.txt"), '\t')),
+							setup.yieldFactor
 					);
-					
+
 					double backgroundExcess = 4e17/Math2.sum(spectrum);
-					logger.info(String.format("I'm assuming the background levels are all based on 4×10^17, and increasing " +
-					                          "the shielding by a factor of %.3g accordingly.",
-					                          backgroundExcess));
 
 					threads.submit(() -> {
 						Analysis mc;

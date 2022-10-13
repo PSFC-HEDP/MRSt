@@ -744,30 +744,27 @@ public class Analysis {
 				}
 			}
 			for (int i = 0; i < numEnergies; i ++) {
-				double theorNumber = Math.max(0, (theorValues[i] - backgrounds[i])/detector.gain);
-//				double experNumber = Math.max(0, (experValues[i] - backgrounds[i])/detector.gain);
-//				if (variances[i] > 0) { // if this detector has significant noise
+				if (detector.gain != 1) { // if this detector has some weerd noise profiles or something
+					double theorNumber = Math.max(0, (theorValues[i] - backgrounds[i])/detector.gain);
 					double variance = variances[i] + theorNumber*detector.gain*detector.gain + 1; // include pre-amplification poisson noise
 					totalError += Math.pow(experValues[i] - theorValues[i], 2)/
-							(2*variance); // and use a Gaussian approximation
-				if (Double.isInfinite(totalError) && totalError < 0)
-					throw new RuntimeException("AAAAAAAAAA");
-//				}
-//				else { // if the detector noise is zero
-//					assert !Double.isNaN(theorNumber);
-//					if (theorNumber > 0) {
-//						totalError += theorNumber - experNumber*Math.log(theorNumber); // use the exact Poisson distribution
-//					}
-//					else if (theorNumber == 0) {
-//						if (experNumber == 0)
-//							totalError += 0;
-//						else
-//							return Double.POSITIVE_INFINITY;
-//					}
-//					else {
-//						throw new IllegalArgumentException("What to do when expected "+theorNumber+" and observed "+experNumber+"?");
-//					}
-//				}
+					              (2*variance); // and use a Gaussian approximation
+				}
+				else { // otherwise assume it to be purely Poisson
+					assert !Double.isNaN(theorValues[i]);
+					if (theorValues[i] > 0) {
+						totalError += theorValues[i] - experValues[i]*Math.log(theorValues[i]); // use the exact Poisson distribution
+					}
+					else if (theorValues[i] == 0) {
+						if (experValues[i] == 0)
+							totalError += 0;
+						else
+							return Double.POSITIVE_INFINITY;
+					}
+					else {
+						throw new IllegalArgumentException("What to do when expected " + theorValues[i] + " and observed " + experValues[i] + "?");
+					}
+				}
 			}
 		}
 

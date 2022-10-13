@@ -28,18 +28,16 @@ import util.Math2;
 import static physics.Analysis.NOISE_RANDOM;
 
 public class PulseDilationDriftTube extends Detector {
-	protected PulseDilationDriftTube(double shielding) {
+	protected PulseDilationDriftTube(IonOptics optics, double shielding) {
 		// background number comes from Wink 2016
-		super(6e5/3.5e16*4e17/shielding,
-		      6e5/3.5e16*4e17/shielding,
+		super(optics.backgroundAtDetector()/shielding,
+		      optics.backgroundAtDetector()/shielding,
 		      Double.POSITIVE_INFINITY, 1);
 	}
 
 	@Override
 	public double[][] response(double[] energyBins, double[] timeBins, double[][] sansBackground,
 	                           boolean stochastic, boolean background, boolean gaps) {
-//		if (backgroundYield < 4e16 || backgroundYield > 5e18)
-//			System.out.println(backgroundYield);
 		double[][] withBackground = new double[sansBackground.length][];
 		for (int i = 0; i < sansBackground.length; i ++) {
 			withBackground[i] = new double[sansBackground[i].length];

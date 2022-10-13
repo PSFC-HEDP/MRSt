@@ -60,15 +60,13 @@ public class SpectrumsViewer {
 
 		final double[] eBins = CSV.readColumn(new File("input/energy.txt"));
 		final double[] tBins = CSV.readColumn(new File("input/"+setup.implosionName+" time.txt"));
-		final double[][] spectrum = SpectrumGenerator.interpretSpectrumFile(
-				tBins, eBins,
-				CSV.read(new File("input/"+setup.implosionName+" spectrum.txt"), '\t')
-		);
+		final double[][] spectrum = SpectrumGenerator.modifySpectrum(
+				SpectrumGenerator.interpretSpectrumFile(
+						tBins, eBins,
+						CSV.read(new File("input/"+setup.implosionName+" spectrum.txt"), '\t')),
+				setup.yieldFactor);
 		
 		double backgroundExcess = 4e17/Math2.sum(spectrum);
-		logger.info(String.format("I'm assuming the background levels are all based on 4×10^17, and increasing " +
-		                          "the shielding by a factor of %.3g accordingly.",
-		                          backgroundExcess));
 
 		ExecutorService threads = Executors.newFixedThreadPool(setup.numCores);
 

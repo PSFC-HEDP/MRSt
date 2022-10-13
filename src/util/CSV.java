@@ -155,7 +155,7 @@ public class CSV {
 	 * @throws IOException if file cannot be found or permission is denied
 	 * @throws NumberFormatException if elements are not parsable as doubles
 	 */
-	public static COSYMapping readCosyCoefficients(File file, int maxOrder, Particle particle, double knockOnEnergy)
+	public static COSYMapping readCosyCoefficients(File file, int maxOrder, Particle particle, double neutronEnergy)
 		  throws NumberFormatException, IOException {
 		List<double[]> coefList;
 		List<int[]> expList;
@@ -181,7 +181,7 @@ public class CSV {
 		}
 		return new COSYMapping(coefList.toArray(new double[0][]),
 							   expList.toArray(new int[0][]),
-							   particle, knockOnEnergy);
+							   particle, neutronEnergy);
 	}
 	
 	/**

@@ -71,7 +71,7 @@ public class SpectrumViewer {
 			tBins = timeBins.clone();
 			spec = deepClone(spectrum);
 			spec = SpectrumGenerator.interpretSpectrumFile(tBins, eBins, spec);
-			spec = SpectrumGenerator.modifySpectrum(spec, yieldFactor*Math2.sum(spec));
+			spec = SpectrumGenerator.modifySpectrum(spec, yieldFactor);
 		} catch (ArrayIndexOutOfBoundsException e) {
 			logger.severe("Invalid input spectrum file.");
 			return;
@@ -84,16 +84,17 @@ public class SpectrumViewer {
 					optics,
 					detector,
 					Particle.D,
-					100*4e17/Math2.sum(spec),
+					293*4e17/Math2.sum(spec),
 					0,
 					reuseMatrix,
 					logger); // make the simulation
 
 			double dispersion = mc.computeDispersion();
-			double skew = mc.computeTimeSkew();
 			logger.info(String.format("Dispersion: %.2f keV/mm", dispersion));
+			double skew = mc.computeTimeSkew();
 			logger.info(String.format("Time skew:  %.2f ps/keV", skew));
-			logger.info(String.format("Efficiency: %.3g", mc.efficiency(14)));
+			double efficiency = mc.efficiency(14);
+			logger.info(String.format("Efficiency: %.3g", efficiency));
 			double[] res = mc.computeResolution(14.);
 			logger.info(String.format("Energy res: %.2f keV", res[0]));
 			logger.info(String.format("Time res:   %.2f ps", res[1]));

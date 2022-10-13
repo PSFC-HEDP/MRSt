@@ -267,6 +267,15 @@ public class IonOptics {
 		double timeResolution = Math2.fwhm(timeBins, timeDist);
 		return new double[] { energyResolution/1e-3, timeResolution/1e-3};
 	}
+	
+	/**
+	 * estimate the number of counts we can expect for a PDDT at the detector given a neutron yield
+	 * of 4e17.  the numbers come from Wink 2016.
+	 * @return the background (n/ns/MeV)
+	 */
+	public double backgroundAtDetector() {
+		return ((this.cosyMapping.ion == Particle.P) ? 6e5 : 4e5)/3.5e16*4e17;
+	}
 
 	/**
 	 * compute the time-integrated response to a time-integrated neutron spectrum

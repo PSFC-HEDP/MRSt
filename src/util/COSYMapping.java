@@ -45,26 +45,18 @@ public class COSYMapping {
 	 * @param coefficients the coefficient table; each colum is a polynomial
 	 * @param exponents the exponent table; each colum is an input variable
 	 */
-	public COSYMapping(double[][] coefficients, int[][] exponents, Particle ion, double knockOnEnergy) {
+	public COSYMapping(double[][] coefficients, int[][] exponents, Particle ion, double neutronEnergy) {
 		this.coefficients = coefficients;
 		this.exponents = exponents;
 		this.ion = ion;
 		double A = ion.mass/Particle.N.mass;
-		this.K0 = knockOnEnergy*4*A/Math.pow(1 + A, 2);
+		this.K0 = neutronEnergy*4*A/Math.pow(1 + A, 2);
 		double K0_joule = K0*1e6*(-Particle.E.charge);
 		this.v0 = Math.sqrt(2*K0_joule/ion.mass); // and get the corresponding speed
 		double γ = Math.pow(1 - Math.pow(v0/SPEED_OF_LIGHT, 2), -1/2.);
 		double L = 8; // this number doesn't matter so I'm eyeballing it
 		this.t0 = L/v0; // and corresponding time
 		this.t1 = -(1+γ)/γ/v0; // and why is time measured in meters?
-		if (ion != Particle.D) {
-			System.out.println("Warning: you're setting the particle to " + ion + ", and I assume this COSY map is" +
-			                   "assuming deuterons, so I'm going to manually modify the time response now.");
-			for (int i = 0; i < this.coefficients.length; i ++)
-				if (this.exponents[i][4] == 0)
-					this.coefficients[i][4] *= (1 + ion.mass/Particle.N.mass)/
-					                           (1 + Particle.D.mass/Particle.N.mass);
-		}
 	}
 
 	private double[] cleanInput(

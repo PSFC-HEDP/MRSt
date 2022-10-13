@@ -210,16 +210,14 @@ public class SpectrumGenerator {
 	/**
 	 * modify a spectrum artificially in place.
 	 * @param spectrum array of the neutron spectrum integrated in time [#/MeV]
-	 * @param yield the new yield to which to scale it
+	 * @param yieldAmplification the amount to scale it
 	 */
 	public static double[][] modifySpectrum(double[][] spectrum,
-	                                        double yield) {
-		double modifier = yield/Math2.sum(spectrum);
-
+	                                        double yieldAmplification) {
 		double[][] output = new double[spectrum.length][spectrum[0].length];
 		for (int i = 0; i < spectrum.length; i ++) // scale the whole thing up or down to change yield
 			for (int j = 0; j < spectrum[i].length; j ++)
-				output[i][j] = modifier*spectrum[i][j];
+				output[i][j] = yieldAmplification*spectrum[i][j];
 		return output;
 	}
 

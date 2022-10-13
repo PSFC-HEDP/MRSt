@@ -52,6 +52,7 @@ public class InputParser {
 	public double timeBin;
 	public double offset;
 	public double tolerance;
+	public double yieldFactor;
 
 	public InputParser(String name, String[] args) {
 		// first, parse the arguments
@@ -62,11 +63,12 @@ public class InputParser {
 		this.opticsConfig = null;
 		this.detectorConfig = null;
 		this.ion = Particle.D;
-		this.shielding = 100;
+		this.shielding = 293; // because of Alex Sandberg's thesis
 		this.uncertainty = 0;
 		this.energyBin = Analysis.DEFAULT_ENERGY_BIN;
 		this.timeBin = Analysis.DEFAULT_TIME_BIN;
 		this.tolerance = 0.01;
+		this.yieldFactor = 1;
 
 		for (String arg : args) {
 			if (arg.contains("=")) {
@@ -99,6 +101,10 @@ public class InputParser {
 					case "tolerance":
 						this.tolerance = Double.parseDouble(value);
 						break;
+					case "yield":
+						this.yieldFactor = Double.parseDouble(value);
+						tagFormat = "_%sx";
+						break;
 					case "width":
 						if (this.detectorConfig != null)
 							for (int i = 0; i < this.detectorConfig.slitWidths.length; i ++)
@@ -112,7 +118,7 @@ public class InputParser {
 							this.shielding = Double.parseDouble(value);
 						else
 							throw new IllegalArgumentException("error! shielding was supplied before detector configuration");
-						tagFormat = "_%sx";
+						tagFormat = "_1in%s";
 						break;
 					case "ion":
 						if (value.toLowerCase().startsWith("d"))

@@ -130,7 +130,7 @@ public abstract class Detector {
 		if (!Double.isNaN(config.streakTime))
 			return new StreakCameraArray(config, optics, shielding);
 		else
-			return new PulseDilationDriftTube(shielding);
+			return new PulseDilationDriftTube(optics, shielding);
 	}
 
 

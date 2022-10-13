@@ -66,9 +66,6 @@ public class ConfigurationEvaluator {
 		);
 		
 		double backgroundExcess = 4e17/Math2.sum(spectrum);
-		logger.info(String.format("I'm assuming the background levels are all based on 4×10^17, and increasing " +
-		                          "the shielding by a factor of %.3g accordingly.",
-		                          backgroundExcess));
 
 		String[] parameterNames = Analysis.KeyParameterSet.EXAMPLE.getHeaderSansUnits();
 		String[] header = new String[1 + 2*parameterNames.length];
@@ -98,11 +95,11 @@ public class ConfigurationEvaluator {
 					return null;
 				}
 
-				double yield = 1e+19*Math.pow(10, -3.0*Math.random());
+				double newYield = 1e+19*Math.pow(10, -3.0*Math.random());
 				double[][] scaledSpectrum = SpectrumGenerator.modifySpectrum(
-					  spectrum, yield);
+					  spectrum, newYield/Math2.sum(spectrum));
 
-				logger.log(Level.INFO, String.format("Yn = %.4g (%d/%d)", yield,
+				logger.log(Level.INFO, String.format("Yn = %.4g (%d/%d)", newYield,
 													 K, setup.numRuns));
 
 				Analysis.KeyParameterSet result;
@@ -117,7 +114,7 @@ public class ConfigurationEvaluator {
 					result = null;
 				}
 
-				results[K][0] = yield;
+				results[K][0] = newYield;
 				if (result != null) {
 					for (int i = 0; i < parameterNames.length; i ++) {
 						results[K][2*i + 1] = result.getValue(parameterNames[i]);
