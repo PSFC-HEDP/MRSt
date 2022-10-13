@@ -126,11 +126,11 @@ public abstract class Detector {
 	}
 
 
-	public static Detector newDetector(DetectorConfiguration config, IonOptics optics) {
+	public static Detector newDetector(DetectorConfiguration config, IonOptics optics, double shielding) {
 		if (!Double.isNaN(config.streakTime))
-			return new StreakCameraArray(config, optics);
+			return new StreakCameraArray(config, optics, shielding);
 		else
-			return new PulseDilationDriftTube(config);
+			return new PulseDilationDriftTube(shielding);
 	}
 
 
@@ -185,7 +185,6 @@ public abstract class Detector {
 		public final double[] slitPositions;
 		public final double[] slitLengths;
 		public final double[] slitWidths;
-		public double shielding;
 
 		public DetectorConfiguration(
 			  String cosyFile, double tiltAngle, double streakTime,
@@ -204,7 +203,6 @@ public abstract class Detector {
 			this.slitPositions = slitPositions;
 			this.slitLengths = slitLengths;
 			this.slitWidths = slitWidths;
-			this.shielding = 100;
 		}
 	}
 

@@ -46,6 +46,7 @@ public class InputParser {
 	public IonOpticConfiguration opticsConfig;
 	public DetectorConfiguration detectorConfig;
 	public Particle ion;
+	public double shielding;
 	public double uncertainty;
 	public double energyBin;
 	public double timeBin;
@@ -61,6 +62,7 @@ public class InputParser {
 		this.opticsConfig = null;
 		this.detectorConfig = null;
 		this.ion = Particle.D;
+		this.shielding = 100;
 		this.uncertainty = 0;
 		this.energyBin = Analysis.DEFAULT_ENERGY_BIN;
 		this.timeBin = Analysis.DEFAULT_TIME_BIN;
@@ -107,7 +109,7 @@ public class InputParser {
 						break;
 					case "shielding":
 						if (this.detectorConfig != null)
-							this.detectorConfig.shielding = Double.parseDouble(value);
+							this.shielding = Double.parseDouble(value);
 						else
 							throw new IllegalArgumentException("error! shielding was supplied before detector configuration");
 						tagFormat = "_%sx";

@@ -117,7 +117,7 @@ public class Analysis {
 	public Analysis(
 		  IonOpticConfiguration ionOpticConfiguration,
 		  DetectorConfiguration detectorConfiguration,
-		  Particle particle, double calibrationPrecision, boolean reuseMatrix,
+		  Particle particle, double shielding, double calibrationPrecision, boolean reuseMatrix,
 		  Logger logger) throws IOException {
 		this(new IonOptics(ionOpticConfiguration,
 						   particle,
@@ -127,6 +127,7 @@ public class Analysis {
 						   calibrationPrecision,
 						   reuseMatrix),
 			 detectorConfiguration,
+			 shielding,
 			 logger);
 	}
 
@@ -138,7 +139,7 @@ public class Analysis {
 	public Analysis(
 		  IonOpticConfiguration ionOpticConfiguration,
 		  DetectorConfiguration detectorConfiguration,
-		  Particle particle, double calibrationPrecision, boolean reuseMatrix,
+		  Particle particle, double shielding, double calibrationPrecision, boolean reuseMatrix,
 		  double eBin, double tBin, double analysisPrecision,
 		  Logger logger) throws IOException {
 		this(new IonOptics(ionOpticConfiguration,
@@ -148,6 +149,7 @@ public class Analysis {
 						   detectorConfiguration.offset,
 						   calibrationPrecision, reuseMatrix),
 			 detectorConfiguration,
+			 shielding,
 			 eBin, tBin,
 			 analysisPrecision, logger);
 	}
@@ -169,7 +171,7 @@ public class Analysis {
 			double apertureDistance, double apertureWidth, double apertureHeight,
 			COSYMapping cosyMapping,
 			DetectorConfiguration detectorConfiguration,
-			double calibrationPrecision, boolean reuseMatrix,
+			double shielding, double calibrationPrecision, boolean reuseMatrix,
 			Logger logger) throws IOException {
 
 		this(new IonOptics(
@@ -177,7 +179,7 @@ public class Analysis {
 				apertureDistance, apertureWidth, apertureHeight,
 				MIN_E, MAX_E, cosyMapping, detectorConfiguration.tiltAngle,
 				detectorConfiguration.offset, calibrationPrecision, reuseMatrix),
-		     detectorConfiguration, logger);
+		     detectorConfiguration, shielding, logger);
 	}
 
 	/**
@@ -185,9 +187,9 @@ public class Analysis {
 	 */
 	public Analysis(
 			IonOptics ionOptics, DetectorConfiguration detectorConfiguration,
-			Logger logger) {
+			double shielding, Logger logger) {
 		this(ionOptics,
-		     Detector.newDetector(detectorConfiguration, ionOptics),
+		     Detector.newDetector(detectorConfiguration, ionOptics, shielding),
 		     logger);
 	}
 
@@ -196,9 +198,9 @@ public class Analysis {
 	 */
 	public Analysis(
 		  IonOptics ionOptics, DetectorConfiguration detectorConfiguration,
-		  double eBin, double tBin, double analysisPrecision, Logger logger) {
+		  double shielding, double eBin, double tBin, double analysisPrecision, Logger logger) {
 		this(ionOptics,
-		     Detector.newDetector(detectorConfiguration, ionOptics),
+		     Detector.newDetector(detectorConfiguration, ionOptics, shielding),
 		     eBin, tBin, analysisPrecision, logger);
 	}
 
@@ -743,7 +745,7 @@ public class Analysis {
 			}
 			for (int i = 0; i < numEnergies; i ++) {
 				double theorNumber = Math.max(0, (theorValues[i] - backgrounds[i])/detector.gain);
-				double experNumber = Math.max(0, (experValues[i] - backgrounds[i])/detector.gain);
+//				double experNumber = Math.max(0, (experValues[i] - backgrounds[i])/detector.gain);
 //				if (variances[i] > 0) { // if this detector has significant noise
 					double variance = variances[i] + theorNumber*detector.gain*detector.gain + 1; // include pre-amplification poisson noise
 					totalError += Math.pow(experValues[i] - theorValues[i], 2)/

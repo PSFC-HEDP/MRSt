@@ -54,14 +54,14 @@ public class StreakCameraArray extends Detector {
 	private double[][] timeResponses; // (each row sums to 1)
 
 	public StreakCameraArray(
-		  DetectorConfiguration config, IonOptics ionOptics) {
+		  DetectorConfiguration config, IonOptics ionOptics, double shielding) {
 		this(config.slitPositions,
 			 config.slitLengths,
 			 config.slitWidths,
 			 config.streakTime,
 			 2.4/Math.cos(Math.toRadians(config.tiltAngle)) * 51,
-			 100./config.shielding/4e17,
-			 100./4e17,
+			 81./shielding/4e17,
+			 81./4e17,
 			 40_000.,
 			 25.e-6*25.e-6,
 			 0,//1.e-6/1.4,

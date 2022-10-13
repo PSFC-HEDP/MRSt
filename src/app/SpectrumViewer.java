@@ -84,6 +84,7 @@ public class SpectrumViewer {
 					optics,
 					detector,
 					Particle.D,
+					100*4e17/Math2.sum(spec),
 					0,
 					reuseMatrix,
 					logger); // make the simulation

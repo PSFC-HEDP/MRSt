@@ -28,6 +28,7 @@ import physics.Analysis.ErrorMode;
 import physics.SpectrumGenerator;
 import util.CSV;
 import util.InputParser;
+import util.Math2;
 
 import java.io.File;
 import java.io.IOError;
@@ -92,6 +93,11 @@ public class PhysicsRequirer {
 							tBins, eBins,
 							CSV.read(new File("input/" + key + " spectrum.txt"), '\t')
 					);
+					
+					double backgroundExcess = 4e17/Math2.sum(spectrum);
+					logger.info(String.format("I'm assuming the background levels are all based on 4×10^17, and increasing " +
+					                          "the shielding by a factor of %.3g accordingly.",
+					                          backgroundExcess));
 
 					threads.submit(() -> {
 						Analysis mc;
@@ -100,6 +106,7 @@ public class PhysicsRequirer {
 								  setup.opticsConfig,
 								  setup.detectorConfig,
 								  setup.ion,
+								  setup.shielding*backgroundExcess,
 								  setup.uncertainty*1e-2,
 								  false,
 								  setup.energyBin, setup.timeBin,
