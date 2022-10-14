@@ -42,23 +42,31 @@ import static physics.Analysis.NOISE_RANDOM;
 public class IonOptics {
 
 	public static class IonOpticConfiguration {
-		public static IonOpticConfiguration HIGH_EFFICIENCY =
-			  new IonOpticConfiguration(90e-6, 300e-6, 5e-3);
+        public static IonOpticConfiguration HIGH_EFFICIENCY =
+			  new IonOpticConfiguration(60e-6, 400e-6, 6e-3);
 		public static IonOpticConfiguration MID_EFFICIENCY =
-			  new IonOpticConfiguration(40e-6, 200e-6, 3e-3);
+			  new IonOpticConfiguration(45e-6, 250e-6, 4e-3);
 		public static IonOpticConfiguration LOW_EFFICIENCY =
-			  new IonOpticConfiguration(25e-6, 100e-6, 2e-3);
+			  new IonOpticConfiguration(30e-6, 150e-6, 2e-3);
 		public static IonOpticConfiguration PERFECT =
 				new IonOpticConfiguration(0, 0, 0);
 
-		/** the thickness of the foil for deuterons (μm⋅e) */
-		public final double foilThickness;
+		/** the thickness of the foil for deuterons (μm⋅Da) */
+		public final double deuteronFoilThickness;
+		/** the radius of the foil for any particle (m) */
 		public final double foilRadius;
+		/** the width of the aperture for any particle (m) */
 		public final double apertureWidth;
 
+		/**
+		 *
+		 * @param deuteronFoilThickness the thickness of the foil for deuterons (μm⋅Da)
+		 * @param foilRadius the radiu sof the foil for any particle (m)
+		 * @param apertureWidth the width of the aperture for any particle (m)
+		 */
 		public IonOpticConfiguration(
-			  double foilThickness, double foilRadius, double apertureWidth) {
-			this.foilThickness = foilThickness;
+			  double deuteronFoilThickness, double foilRadius, double apertureWidth) {
+			this.deuteronFoilThickness = deuteronFoilThickness;
 			this.foilRadius = foilRadius;
 			this.apertureWidth = apertureWidth;
 		}
@@ -116,7 +124,7 @@ public class IonOptics {
 					 double precision, boolean reuseMatrix) throws IOException {
 		this(4.0e-3,
 			 config.foilRadius,
-			 config.foilThickness/particle.mass*Particle.D.mass,
+			 config.deuteronFoilThickness/particle.mass*Particle.D.mass,
 			 6.0e+0,
 			 config.apertureWidth,
 			 20.0e-3,
@@ -199,12 +207,12 @@ public class IonOptics {
 	 */
 	public double efficiency(double energy) {
 		if (apertureWidth != 0) {
-			double n = 0.08e2; // I'm not sure what units this has or whence it came
+			double density = 0.08e2; // I'm not sure whence these numbers came
 			double dσdΩ = 4.3228/Math.sqrt(energy) - 0.6523; // same with these ones
 			if (cosyMapping.ion == Particle.P)
-				dσdΩ *= .461;
+				dσdΩ *= .461; // this one comes from nds.iaea.org
 			double dΩ = apertureWidth*apertureHeight/Math.pow(apertureDistance - foilDistance, 2);
-			return probHitsFoil*n*dσdΩ*dΩ*foilThickness; // assume the foil is thin so we don't have to worry about multiple collisions
+			return probHitsFoil*density*dσdΩ*dΩ*foilThickness; // assume the foil is thin so we don't have to worry about multiple collisions
 		}
 		else {
 			return 1;
@@ -237,10 +245,10 @@ public class IonOptics {
 	 * @return {energy resolution [keV], time resolution [ps]}
 	 */
 	public double[] computeResolution(double referenceEnergy) {
-		int nEnergies = 50;
-		int nTimes = 50;
-		double[] energyRange = {-1.1, .6}; // [MeV]
-		double[] timeRange = {-.160, .160}; // [ns]
+		int nEnergies = 40;
+		int nTimes = 40;
+		double[] energyRange = {-.9, .1}; // [MeV]
+		double[] timeRange = {-.080, .080}; // [ns]
 
 		double[] energyBins = new double[nEnergies+1]; // [MeV]
 		for (int i = 0; i <= nEnergies; i ++)
