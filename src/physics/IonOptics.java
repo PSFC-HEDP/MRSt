@@ -61,7 +61,7 @@ public class IonOptics {
 		/**
 		 *
 		 * @param deuteronFoilThickness the thickness of the foil for deuterons (μm⋅Da)
-		 * @param foilRadius the radiu sof the foil for any particle (m)
+		 * @param foilRadius the radius of the foil for any particle (m)
 		 * @param apertureWidth the width of the aperture for any particle (m)
 		 */
 		public IonOpticConfiguration(

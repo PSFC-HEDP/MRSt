@@ -120,13 +120,14 @@ public class InputParser {
 							throw new IllegalArgumentException("error! shielding was supplied before detector configuration");
 						tagFormat = "_1in%s";
 						break;
+					case "particle":
 					case "ion":
 						if (value.toLowerCase().startsWith("d"))
 							this.ion = Particle.D;
 						else if (value.toLowerCase().startsWith("p"))
 							this.ion = Particle.P;
 						else
-							System.err.println("I don't know what particle '" + value + "' is.");
+							throw new IllegalArgumentException("I don't know what particle '" + value + "' is.");
 					case "optics":
 						if (value.toLowerCase().startsWith("h"))
 							this.opticsConfig = IonOpticConfiguration.HIGH_EFFICIENCY;
@@ -137,7 +138,7 @@ public class InputParser {
 						else if (value.toLowerCase().startsWith("p"))
 							this.opticsConfig = IonOpticConfiguration.PERFECT;
 						else
-							System.err.println("I don't know the '" + value + "' configuration");
+							throw new IllegalArgumentException("I don't know the '" + value + "' configuration");
 						break;
 					case "detector":
 						if (value.toLowerCase().startsWith("2"))
@@ -153,18 +154,17 @@ public class InputParser {
 						else if (value.toLowerCase().startsWith("p"))
 							this.detectorConfig = DetectorConfiguration.PERFECT;
 						else
-							System.err.println("I don't know the '" + value + "' camera");
+							throw new IllegalArgumentException("I don't know the '" + value + "' camera");
 						break;
 					default:
-						System.err.println("I don't know to what '" + key + "' refers");
-						break;
+						throw new IllegalArgumentException("I don't know to what '" + key + "' refers");
 				}
 
 				String tag = value.replace(" ", "");
 				filename.append(String.format(tagFormat, tag));
 			}
 			else {
-				System.err.println("I don't understand '"+arg+"'.");
+				throw new IllegalArgumentException("I don't understand '"+arg+"'.");
 			}
 		}
 

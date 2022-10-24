@@ -7,8 +7,8 @@ import pandas as pd
 
 matplotlib.use("tkagg")
 
-# filename = "../../output/comparison_high_2slits_400um_0c_15ps_200_2022-09-02.csv"
-filename = "../../output/comparison_low_drifttub_10c_15ps_200_2022-10-12.csv"
+filename = "../../output/comparison_medium_drifttub_5c_200_2022-10-14.csv"
+# filename = "../../output/comparison_low_drifttub_5c_10x_1in2930_200_2022-10-21.csv"
 SIMPLE = True
 data = pd.read_csv(filename)
 
