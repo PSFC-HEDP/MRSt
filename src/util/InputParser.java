@@ -61,7 +61,7 @@ public class InputParser {
 		this.numRuns = 1000;
 		this.numCores = Math.min(10, Runtime.getRuntime().availableProcessors());
 		this.opticsConfig = null;
-		this.detectorConfig = null;
+		this.detectorConfig = DetectorConfiguration.DRIFT_TUBE;
 		this.ion = Particle.D;
 		this.shielding = 293; // because of Alex Sandberg's thesis
 		this.uncertainty = 0;
@@ -87,7 +87,7 @@ public class InputParser {
 						tagFormat = "";
 						break;
 					case "uncertainty":
-						this.uncertainty = Double.parseDouble(value);
+						this.uncertainty = Double.parseDouble(value)*1e-2;
 						tagFormat = "_%sc";
 						break;
 					case "energyBin":
@@ -128,6 +128,7 @@ public class InputParser {
 							this.ion = Particle.P;
 						else
 							throw new IllegalArgumentException("I don't know what particle '" + value + "' is.");
+						break;
 					case "optics":
 						if (value.toLowerCase().startsWith("h"))
 							this.opticsConfig = IonOpticConfiguration.HIGH_EFFICIENCY;
@@ -175,8 +176,6 @@ public class InputParser {
 
 		if (this.opticsConfig == null)
 			throw new IllegalArgumentException("you need to always specify the ion optic configuration from now on.");
-		if (this.detectorConfig == null)
-			throw new IllegalArgumentException("you need to always specify the detector configuration from now on.");
 	}
 
 

@@ -34,6 +34,7 @@ import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.PowellOptimizer;
 import physics.Detector.DetectorConfiguration;
 import physics.IonOptics.IonOpticConfiguration;
 import util.COSYMapping;
+import util.InputParser;
 import util.Math2;
 import util.Math2.Quantity;
 import util.Optimization;
@@ -41,6 +42,7 @@ import util.Optimization;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -106,6 +108,20 @@ public class Analysis {
 	private double[][] covarianceMatrix; // and covariances that go with all of these
 
 	private final Logger logger; // for logging
+
+	/**
+	 * set up a basic Analysis object given the most high-level input parameters
+	 */
+	public Analysis(InputParser setup, double[][] spectrum, Logger logger) throws IOException {
+		this(setup.opticsConfig,
+		     setup.detectorConfig,
+		     setup.ion,
+		     setup.shielding*4e17/Math2.sum(spectrum),
+		     setup.uncertainty,
+		     false,
+		     setup.energyBin, setup.timeBin,
+		     setup.tolerance, logger);
+	}
 
 	/**
 	 * perform some preliminary calculations for the provided configuration. the configurations are
@@ -1114,8 +1130,8 @@ public class Analysis {
 				        ((valid) ? Math2.quadInterp(arealDensity, times.get(i))
 						         : new Quantity(Double.NaN, 0)).withUnits("g/cm^2"));
 				map.put("d\u03C1R/dt at " + timeNames.get(i),
-				        ((valid) ? Math2.derivative(timeAxis, arealDensity, times.get(i), .10, 1)
-						         : new Quantity(Double.NaN, 0).over(1e1)).withUnits("g/cm^2/(100 ps)"));
+				        ((valid) ? Math2.derivative(timeAxis, arealDensity, times.get(i), .10, 1).over(1e1)
+						         : new Quantity(Double.NaN, 0)).withUnits("g/cm^2/(100 ps)"));
 				map.put("d^2V/dt^2/V at " + timeNames.get(i),
 				        ((valid) ? Math2.derivative(timeAxis, V, times.get(i), .10, 2).over(Math2.quadInterp(V, times.get(i)))
 						         : new Quantity(Double.NaN, 0)).withUnits("1/ns^2"));
@@ -1123,7 +1139,9 @@ public class Analysis {
 		}
 
 		public String[] getHeaderSansUnits() {
-			return map.keySet().toArray(new String[0]);
+			List<String> keys = new ArrayList<String>(map.keySet());
+			Collections.sort(keys);
+			return keys.toArray(new String[0]);
 		}
 
 		public String[] getHeaderWithUnits() {

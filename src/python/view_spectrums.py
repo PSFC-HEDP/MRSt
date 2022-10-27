@@ -4,13 +4,11 @@ import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 
+plt.rcParams.update({'font.family': 'sans', 'font.size': 12})
+
 
 FILENAMES = [
-	'../../output/spectrums_medium_driftt_5c_15ps_20_base_2022-09-28',
-	# '../../output/spectrums_medium_driftt_0c_15ps_100_base_2022-10-06',
-	# '../../output/spectrums_medium_driftt_0c_15ps_100_p2_2022-10-06',
-	# '../../output/spectrums_medium_driftt_0c_15ps_100_p2p1_2022-10-06',
-	# '../../output/spectrums_medium_driftt_0c_15ps_100_p2p1p4_2022-10-06',
+	'../../output/spectrums_medium_p_5c_200_2022-10-25',
 ]
 figsize = (8, 3.5)
 num_to_plot = 15
@@ -38,7 +36,6 @@ for k, filename in enumerate(FILENAMES):
 			fig, ax = figures[name]
 		else:
 			fig, ax = plt.subplots(figsize=figsize)
-			print(f"new figure (because '{name}' not in figures)")
 			figures[name] = fig, ax
 		if len(FILENAMES) == 1:
 			colors = f"k--", f"C{i}"
@@ -52,6 +49,7 @@ for k, filename in enumerate(FILENAMES):
 		ax.set_ylim(0, None)
 		ax.set_xlabel("Time (ps)")
 		ax.set_ylabel(name)
+		ax.set_title(filename[23:-15])
 		fig.tight_layout()
 		fig.savefig(f"{FILENAMES[0][:-11]}_{['burns', 'temps', 'rhors'][i]}.png", dpi=150)
 

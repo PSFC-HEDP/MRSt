@@ -64,8 +64,6 @@ public class ConfigurationEvaluator {
 				tBins, eBins,
 				CSV.read(new File("input/"+setup.implosionName+" spectrum.txt"), '\t')
 		);
-		
-		double backgroundExcess = 4e17/Math2.sum(spectrum);
 
 		String[] parameterNames = Analysis.KeyParameterSet.EXAMPLE.getHeaderSansUnits();
 		String[] header = new String[1 + 2*parameterNames.length];
@@ -79,25 +77,17 @@ public class ConfigurationEvaluator {
 			final int K = k;
 
 			Callable<Void> task = () -> {
+				double newYield = 1e+19*Math.pow(10, -3.0*Math.random());
+				double[][] scaledSpectrum = SpectrumGenerator.modifySpectrum(
+						spectrum, newYield/Math2.sum(spectrum));
+
 				Analysis mc;
 				try {
-					mc = new Analysis(
-						  setup.opticsConfig,
-						  setup.detectorConfig,
-						  setup.ion,
-						  setup.shielding*backgroundExcess,
-						  setup.uncertainty*1e-2,
-						  false,
-						  setup.energyBin, setup.timeBin,
-						  setup.tolerance, logger); // make the simulation
+					mc = new Analysis(setup, scaledSpectrum, logger); // make the simulation
 				} catch (IOException e) {
 					e.printStackTrace();
 					return null;
 				}
-
-				double newYield = 1e+19*Math.pow(10, -3.0*Math.random());
-				double[][] scaledSpectrum = SpectrumGenerator.modifySpectrum(
-					  spectrum, newYield/Math2.sum(spectrum));
 
 				logger.log(Level.INFO, String.format("Yn = %.4g (%d/%d)", newYield,
 													 K, setup.numRuns));

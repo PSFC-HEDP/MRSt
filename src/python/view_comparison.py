@@ -1,14 +1,16 @@
 import re
 
-import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-matplotlib.use("tkagg")
+plt.rcParams.update({'font.family': 'sans', 'font.size': 12})
 
-filename = "../../output/comparison_medium_drifttub_5c_200_2022-10-14.csv"
-# filename = "../../output/comparison_low_drifttub_5c_10x_1in2930_200_2022-10-21.csv"
+
+# filename = "../../output/comparison_medium_5c_200_2022-10-14.csv"
+# filename = "../../output/comparison_medium_p_5c_200_2022-10-25.csv"
+# filename = "../../output/comparison_low_5c_10x_200_2022-10-14.csv"
+filename = "../../output/comparison_low_p_5c_10x_200_2022-10-25.csv"
 SIMPLE = True
 data = pd.read_csv(filename)
 
@@ -20,7 +22,7 @@ for title in data.columns:
 	elif "/ns" in title:
 		data[title.replace("/ns", "/(100ps)")] = data[title]*1e-1
 
-simulations = [
+case_names = [
 	"Base case", "P2", "P1, P2", "P1, P2, P4", "P1, extra P2, P4",
 	"P1, P2, P4, burn off",
 ]
@@ -64,14 +66,12 @@ for key in ground_truth_min:
 	assert key in ground_truth_max
 	assert len(ground_truth_max[key]) == len(short_header)
 
-# order = {"Base case": 0, "P2": 3, "P1, P2": 4, "P1, P2, P4": 2, "P1, extra P2, P4": 5, "P1, P2, P4, burn off": 1}
+case_numbers = data["case"].unique()
+case_yields = [-np.mean(data["total yield ()"][data["case"] == case]) for case in case_numbers]
+sorted_cases = np.argsort(case_yields)
 order = {}
-for i, sim in enumerate(simulations):
-	case_numbers = data["case"].unique()
-	true_yield = ground_truth_max[sim][0]
-	residuals = [np.mean(data["total yield ()"][data["case"] == case]) - true_yield for case in case_numbers]
-	nearest = case_numbers[np.argmin(np.absolute(residuals))]
-	order[sim] = nearest
+for i, sim in enumerate(case_names):
+	order[sim] = case_numbers[sorted_cases[i]]
 
 requirements = {"total yield ()": -.05, "burn width (ps)": 7,
                 "Burn skewness ()": .3, "burn kurtosis ()": 3,
@@ -92,11 +92,11 @@ for x, y in [("total yield ()", "burn width (ps)"),
 	]:
 	plt.figure()
 	x_means, y_means = [], []
-	for i, sim in enumerate(simulations):
+	for i, sim in enumerate(case_names):
 		if "burn off" in sim and SIMPLE:
 			continue
 		here = data["case"] == order[sim]
-		plt.scatter(data[here][x], data[here][y], c=f"C{i}", s=4, label=sim, zorder=10)
+		plt.scatter(data[here][x], data[here][y], c=f"C{i}", s=4, alpha=.5, label=sim, zorder=10)
 		x_means.append(np.mean(data[here][x]))
 		y_means.append(np.mean(data[here][y]))
 		if x in short_header and y in short_header:

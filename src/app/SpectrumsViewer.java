@@ -65,8 +65,6 @@ public class SpectrumsViewer {
 						tBins, eBins,
 						CSV.read(new File("input/"+setup.implosionName+" spectrum.txt"), '\t')),
 				setup.yieldFactor);
-		
-		double backgroundExcess = 4e17/Math2.sum(spectrum);
 
 		ExecutorService threads = Executors.newFixedThreadPool(setup.numCores);
 
@@ -81,15 +79,7 @@ public class SpectrumsViewer {
 			Callable<Void> task = () -> {
 				Analysis mc;
 				try {
-					mc = new Analysis(
-							setup.opticsConfig,
-							setup.detectorConfig,
-							setup.ion,
-							setup.shielding*backgroundExcess,
-							setup.uncertainty*1e-2,
-							false,
-							setup.energyBin, setup.timeBin,
-							setup.tolerance, logger); // make the simulation
+					mc = new Analysis(setup, spectrum, logger); // make the simulation
 				} catch (IOException e) {
 					e.printStackTrace();
 					return null;
