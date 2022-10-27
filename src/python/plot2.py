@@ -3,8 +3,10 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 import sys
+
+from cmap import CUSTOM_CMAP
+
 matplotlib.rc('font', size=18)
-matplotlib.use("qtagg")
 
 if len(sys.argv) > 1:
 	xlabel, ylabel, title = sys.argv[1:]
@@ -29,7 +31,7 @@ elif maximum / minimum > 5e1:
 	norm = matplotlib.colors.LogNorm(vmin=minimum, vmax=maximum)
 else:
 	norm = matplotlib.colors.Normalize(vmax=maximum)
-plt.pcolormesh(X, Y, Z, cmap='plasma', norm=norm, rasterized=True)
+plt.pcolormesh(X, Y, Z, cmap=CUSTOM_CMAP["coffee"], norm=norm, rasterized=True)
 plt.xlabel(xlabel, fontsize=18)
 plt.ylabel(ylabel, fontsize=18)
 plt.ylim(Y[first_nonzero], Y[last_nonzero])
@@ -41,8 +43,8 @@ cbar.set_label("Counts per bin")
 plt.title(title, fontsize=18)
 
 if "image" in title:
-	plt.arrow(X.min()*.72 + X.max()*.28, Y.min()*.85 + Y.max()*.15, 0, Y.ptp()*.2, width=.03, color="w", head_width=.15)
-	plt.text(X.min()*.95 + X.max()*.05, Y.min()*.95 + Y.max()*.05, "Sweep direction", verticalalignment="bottom", color="w")
+	plt.arrow(np.min(X)*.72 + np.max(X)*.28, np.min(Y)*.85 + np.max(Y)*.15, 0, Y.ptp()*.2, width=.03, color="w", head_width=.15)
+	plt.text(np.min(X)*.95 + np.max(X)*.05, np.min(Y)*.95 + np.max(Y)*.05, "Sweep direction", verticalalignment="bottom", color="w")
 
 with h5py.File(f"output/{title}.h5", "w") as f:
 	for name, value in [("x", X), ("y", Y), ("z", Z)]:

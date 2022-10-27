@@ -61,7 +61,7 @@ if "(ns)" in xlabel:
 		XB = (XB - x0)*1000
 	xlabel = xlabel.replace("ns", "ps")
 
-fig, host_ax = plt.subplots(figsize=(9, 5))
+fig, host_ax = plt.subplots(figsize=(9.5, 4.5))
 fig.subplots_adjust(right=1 - (0.12*(n_plots-1)))
 axes = [host_ax]
 plots = []
