@@ -131,12 +131,12 @@ public class InputParser {
 							throw new IllegalArgumentException("I don't know what particle '" + value + "' is.");
 						break;
 					case "optics":
-						if (value.toLowerCase().startsWith("h"))
-							this.opticsConfig = IonOpticConfiguration.HIGH_EFFICIENCY;
+						if (value.toLowerCase().startsWith("l"))
+							this.opticsConfig = IonOpticConfiguration.LOW_RESOLUTION;
 						else if (value.toLowerCase().startsWith("m"))
-							this.opticsConfig = IonOpticConfiguration.MID_EFFICIENCY;
-						else if (value.toLowerCase().startsWith("l"))
-							this.opticsConfig = IonOpticConfiguration.LOW_EFFICIENCY;
+							this.opticsConfig = IonOpticConfiguration.MEDIUM_RESOLUTION;
+						else if (value.toLowerCase().startsWith("h"))
+							this.opticsConfig = IonOpticConfiguration.HIGH_RESOLUTION;
 						else if (value.toLowerCase().startsWith("p"))
 							this.opticsConfig = IonOpticConfiguration.PERFECT;
 						else

@@ -51,7 +51,7 @@ public class SpectrumViewer {
 	 * build the GUI and display it.
 	 */
 	public static void main(String[] args) throws NumberFormatException, IOException {
-		IonOpticConfiguration optics = IonOpticConfiguration.MID_EFFICIENCY;
+		IonOpticConfiguration optics = IonOpticConfiguration.MEDIUM_RESOLUTION;
 		DetectorConfiguration detector = DetectorConfiguration.DRIFT_TUBE;
 		String simulationName = "scan base";
 		double yieldFactor = 1;

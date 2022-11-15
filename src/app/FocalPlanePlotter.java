@@ -39,7 +39,7 @@ public class FocalPlanePlotter {
 		DetectorConfiguration slits = DetectorConfiguration.DOUBLE_STREAK_CAMERA;
 		// set up the simulation
 		IonOptics io = new IonOptics(
-				IonOpticConfiguration.HIGH_EFFICIENCY,
+				IonOpticConfiguration.LOW_RESOLUTION,
 				Particle.D, slits.cosyFile, slits.tiltAngle, slits.offset,
 				0, false);
 

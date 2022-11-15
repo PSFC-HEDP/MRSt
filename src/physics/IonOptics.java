@@ -42,11 +42,11 @@ import static physics.Analysis.NOISE_RANDOM;
 public class IonOptics {
 
 	public static class IonOpticConfiguration {
-        public static IonOpticConfiguration HIGH_EFFICIENCY =
+        public static IonOpticConfiguration LOW_RESOLUTION =
 			  new IonOpticConfiguration(60e-6, 350e-6, 6e-3);
-		public static IonOpticConfiguration MID_EFFICIENCY =
+		public static IonOpticConfiguration MEDIUM_RESOLUTION =
 			  new IonOpticConfiguration(45e-6, 250e-6, 4e-3);
-		public static IonOpticConfiguration LOW_EFFICIENCY =
+		public static IonOpticConfiguration HIGH_RESOLUTION =
 			  new IonOpticConfiguration(30e-6, 150e-6, 2e-3);
 		public static IonOpticConfiguration PERFECT =
 				new IonOpticConfiguration(0, 0, 0);
