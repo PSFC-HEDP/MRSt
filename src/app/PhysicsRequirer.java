@@ -136,13 +136,8 @@ public class PhysicsRequirer {
 						} catch (IndexOutOfBoundsException e) {
 							logger.log(Level.SEVERE, e.getMessage(), e);
 						}
-						if (K%10 == 9) {
-							try {
-								save(results, setup.filename + ".csv", header, logger);
-							} catch (IOError e) {
-								logger.log(Level.SEVERE, e.getMessage(), e);
-							}
-						}
+						if (K%10 == 9)
+							save(results, setup.filename + ".csv", header, logger);
 					});
 
 					caseIndex ++;

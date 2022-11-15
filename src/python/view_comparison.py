@@ -9,8 +9,8 @@ plt.rcParams.update({'font.family': 'sans', 'font.size': 12})
 
 # filename = "../../output/comparison_medium_5c_200_2022-10-14.csv"
 # filename = "../../output/comparison_medium_p_5c_200_2022-10-25.csv"
-# filename = "../../output/comparison_low_5c_10x_200_2022-10-14.csv"
-filename = "../../output/comparison_low_p_5c_10x_200_2022-10-25.csv"
+filename = "../../output/comparison_low_5c_10x_200_2022-10-14.csv"
+# filename = "../../output/comparison_low_p_5c_10x_200_2022-10-25.csv"
 SIMPLE = True
 data = pd.read_csv(filename)
 
@@ -80,53 +80,87 @@ requirements = {"total yield ()": -.05, "burn width (ps)": 7,
                 "ρR at BT (keV)": -.07, "dρR/dt at BT (g/cm^2/(100 ps))": .060
                 }
 
-for x, y in [("total yield ()", "burn width (ps)"),
-             # ("burn skewness ()", "burn width (ps)"),
+for axes in [("total yield ()", "burn width (ps)"),
              ("burn skewness ()", "burn kurtosis ()"),
-             ("peak compression (ps)", "burn width (ps)"),
              ("Ti at BT (keV)", "dTi/dt at BT (keV/(100 ps))"),
              ("Ti at compression (keV)", "dTi/dt at compression (keV/(100 ps))"),
              ("Ti at BT-50ps (keV)", "dTi/dt at BT-50ps (keV/(100 ps))"),
              ("Ti at BT-100ps (keV)", "dTi/dt at BT-100ps (keV/(100 ps))"),
-             ("ρR at BT (g/cm^2)", "dρR/dt at BT (g/cm^2/(100 ps))")
+             ("ρR at BT (g/cm^2)", "dρR/dt at BT (g/cm^2/(100 ps))"),
+             ("total yield ()",),
+             ("burn width (ps)",),
+             ("burn skewness ()",),
+             ("burn kurtosis ()",),
+             ("peak compression (ps)",),
+             ("dTi/dt at BT (keV/(100 ps))",),
+             ("dρR/dt at BT (g/cm^2/(100 ps))",),
 	]:
 	plt.figure()
-	x_means, y_means = [], []
-	for i, sim in enumerate(case_names):
-		if "burn off" in sim and SIMPLE:
-			continue
-		here = data["case"] == order[sim]
-		plt.scatter(data[here][x], data[here][y], c=f"C{i}", s=4, alpha=.5, label=sim, zorder=10)
-		x_means.append(np.mean(data[here][x]))
-		y_means.append(np.mean(data[here][y]))
-		if x in short_header and y in short_header:
-			x_value = (ground_truth_min[sim][short_header.index(x)] + ground_truth_max[sim][short_header.index(x)])/2
-			# x_requ = requirements[x] if requirements[x] > 0 else -requirements[x]*x_value
-			y_value = (ground_truth_min[sim][short_header.index(y)] + ground_truth_max[sim][short_header.index(y)])/2
-			# y_requ = requirements[y] if requirements[y] > 0 else -requirements[y]*y_value
-			# if SIMPLE:
-			# 	x_requ, y_requ = 0, 0
-			x_variation = (ground_truth_max[sim][short_header.index(x)] - ground_truth_min[sim][short_header.index(x)])/2
-			y_variation = (ground_truth_max[sim][short_header.index(y)] - ground_truth_min[sim][short_header.index(y)])/2
-			plt.errorbar(x=x_value, y=y_value, xerr=x_variation, yerr=y_variation,
-			             marker="o", markersize=6, markeredgewidth=2, markerfacecolor="white", markeredgecolor=f"C{i}",
-			             linewidth=1, zorder=20)
-		else:
-			print(f"warning: I'm missing the ground truth for {x} and/or {y}")
-	plt.legend()
-	if np.min(data[x]) > 0 and np.max(data[x]) > np.min(x_means)*50:
-		plt.xscale("log")
-	if np.min(data[y]) > 0 and np.max(data[y]) > np.min(y_means)*50:
-		plt.yscale("log")
+
+	if len(axes) == 2:
+		x, y = axes
+		x_means, y_means = [], []
+		for i, sim in enumerate(case_names):
+			if "burn off" in sim and SIMPLE:
+				continue
+			here = data["case"] == order[sim]
+			plt.scatter(data[here][x], data[here][y], c=f"C{i}", s=4, alpha=.5, label=sim, zorder=10)
+			x_means.append(np.mean(data[here][x]))
+			y_means.append(np.mean(data[here][y]))
+			if x in short_header and y in short_header:
+				x_value = (ground_truth_min[sim][short_header.index(x)] + ground_truth_max[sim][short_header.index(x)])/2
+				# x_requ = requirements[x] if requirements[x] > 0 else -requirements[x]*x_value
+				y_value = (ground_truth_min[sim][short_header.index(y)] + ground_truth_max[sim][short_header.index(y)])/2
+				# y_requ = requirements[y] if requirements[y] > 0 else -requirements[y]*y_value
+				# if SIMPLE:
+				# 	x_requ, y_requ = 0, 0
+				x_variation = (ground_truth_max[sim][short_header.index(x)] - ground_truth_min[sim][short_header.index(x)])/2
+				y_variation = (ground_truth_max[sim][short_header.index(y)] - ground_truth_min[sim][short_header.index(y)])/2
+				plt.errorbar(x=x_value, y=y_value, xerr=x_variation, yerr=y_variation,
+				             marker="o", markersize=6, markeredgewidth=2, markerfacecolor="white", markeredgecolor=f"C{i}",
+				             linewidth=1, zorder=20)
+			else:
+				print(f"warning: I'm missing the ground truth for {x} and/or {y}")
+		plt.legend()
+		if np.min(data[x]) > 0 and np.max(data[x]) > np.min(x_means)*50:
+			plt.xscale("log")
+		if np.min(data[y]) > 0 and np.max(data[y]) > np.min(y_means)*50:
+			plt.yscale("log")
+		plt.xlabel(x)
+		plt.ylabel(y)
+		output_filename = "../../output/compare_{}_{}_{}".format(
+			re.sub(r'[/ ]', '', re.sub(r'\(.*\)', '', x)),
+			re.sub(r'[/ ]', '', re.sub(r'\(.*\)', '', y)),
+			filename[24:-19],
+		)
+
+	else:
+		quantity, = axes
+		for i, sim in enumerate(case_names):
+			if "burn off" in sim and SIMPLE:
+				continue
+			here = data["case"] == order[sim]
+			values = data[here][quantity]
+			bar_heights, bar_edges = np.histogram(values, bins=18, density=True)
+			x = np.repeat(bar_edges, 2)
+			y = np.concatenate([[0], np.repeat(bar_heights, 2), [0]])
+			plt.fill_between(x, 0, y, color=f"C{i}", label=sim, alpha=0.3, zorder=2*i)
+			plt.plot(x, y, f"C{i}", zorder=2*i+1)
+			if quantity in short_header:
+				x_value = (ground_truth_min[sim][short_header.index(quantity)] + ground_truth_max[sim][short_header.index(quantity)])/2
+				plt.axvline(x_value, color=f"C{i}", linestyle="dashed")
+			else:
+				print(f"warning: I'm missing the ground truth for {quantity}")
+		plt.legend()
+		plt.xlabel(quantity)
+		output_filename = "../../output/compare_{}_{}".format(
+			re.sub(r'[/ ]', '', re.sub(r'\(.*\)', '', quantity)),
+			filename[24:-19],
+		)
+
 	plt.grid()
-	plt.xlabel(x)
-	plt.ylabel(y)
 	plt.title(filename[24:-19])
 	plt.tight_layout()
-	plt.savefig("../../output/compare_{}_{}_{}".format(
-		re.sub(r'[/ ]', '', re.sub(r'\(.*\)', '', x)),
-		re.sub(r'[/ ]', '', re.sub(r'\(.*\)', '', y)),
-		filename[24:-19],
-	), dpi=300)
+	plt.savefig(output_filename, dpi=300, transparent=True)
 
 plt.show()

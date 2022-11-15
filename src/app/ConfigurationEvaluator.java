@@ -111,16 +111,9 @@ public class ConfigurationEvaluator {
 						results[K][2*i + 2] = Math.sqrt(result.getVariance(parameterNames[i]));
 					}
 				}
-				for (int i = 1; i < results[K].length; i++)
-					results[K][i] = Double.NaN;
 
-				if (K % 10 == 9) {
-					try {
-						save(header, results, setup.filename + ".csv", logger);
-					} catch (IOError e) {
-						logger.log(Level.SEVERE, e.getMessage(), e);
-					}
-				}
+				if (K % 10 == 9)
+					save(header, results, setup.filename + ".csv", logger);
 
 				return null;
 			};

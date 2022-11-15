@@ -43,7 +43,7 @@ public class IonOptics {
 
 	public static class IonOpticConfiguration {
         public static IonOpticConfiguration HIGH_EFFICIENCY =
-			  new IonOpticConfiguration(60e-6, 400e-6, 6e-3);
+			  new IonOpticConfiguration(60e-6, 350e-6, 6e-3);
 		public static IonOpticConfiguration MID_EFFICIENCY =
 			  new IonOpticConfiguration(45e-6, 250e-6, 4e-3);
 		public static IonOpticConfiguration LOW_EFFICIENCY =

@@ -89,7 +89,8 @@ public class Analysis {
 
 	private final double[] energyBins; // endpoints of E bins for inferred spectrum (MeV n)
 	private final double[] deuteronEnergyBins; // endpoints of E bins for inferred spectrum (MeV d)
-	private double[] timeBins; // endpoints of time bins for inferred spectrum [ns]
+	private double[] timeBins; // endpoints of time bins for inferred spectrum (ns)
+	private double[] dilatedTimeBins; // endpoints of time bins times ten (ns)
 	private double[][] deuteronSpectrum; // time-corrected deuteron counts
 	private double[][] signalDistribution; // 2D-resolved signal measurement
 	private double[][] idealSignalDistribution; // based on input neutron counts with no noise or gaps
@@ -277,8 +278,11 @@ public class Analysis {
 		double minT = spectrumTimeBins[0] - BUFFER*preferredTimeStep + timeOffset;
 		double maxT = spectrumTimeBins[spectrumTimeBins.length-1] + BUFFER*preferredTimeStep + timeOffset;
 		this.timeBins = new double[(int) ((maxT - minT)/preferredTimeStep + 1)];
-		for (int i = 0; i < timeBins.length; i ++)
-			this.timeBins[i] = minT + i*(maxT - minT)/(timeBins.length-1);
+		this.dilatedTimeBins = new double[(int) ((maxT - minT)/preferredTimeStep + 1)];
+		for (int i = 0; i < timeBins.length; i ++) {
+			this.timeBins[i] = minT + i*(maxT - minT)/(timeBins.length - 1);
+			this.dilatedTimeBins[i] = /*10*/this.timeBins[i];
+		}
 
 		this.timeStep = timeBins[1] - timeBins[0];
 		this.timeAxis = new double[timeBins.length-1];
@@ -923,6 +927,10 @@ public class Analysis {
 		return this.timeBins;
 	}
 
+	public double[] getDilatedTimeBins() {
+		return this.dilatedTimeBins;
+	}
+
 	public double[] getEnergyBins() {
 		return this.energyBins;
 	}
@@ -1104,7 +1112,7 @@ public class Analysis {
 			}
 
 			this.covariance = covariance;
-			this.map = new HashMap<String, Quantity>();
+			this.map = new HashMap<>();
 
 			map.put("computation time", new Quantity((endTime - startTime)/1000., dofs, "s"));
 			map.put("total yield", moments[0].times(timeStep).times(1e15));
@@ -1139,7 +1147,7 @@ public class Analysis {
 		}
 
 		public String[] getHeaderSansUnits() {
-			List<String> keys = new ArrayList<String>(map.keySet());
+			List<String> keys = new ArrayList<>(map.keySet());
 			Collections.sort(keys);
 			return keys.toArray(new String[0]);
 		}

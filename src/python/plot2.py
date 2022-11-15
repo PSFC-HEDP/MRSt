@@ -13,7 +13,7 @@ if len(sys.argv) > 1:
 else:
 	import os
 	os.chdir('../..')
-	xlabel, ylabel, title = "time (ns)", "energy (MeV)", "Synthetic signal distribution"
+	xlabel, ylabel, title = "Time (ns)", "Energy (MeV)", "Synthetic signal distribution"
 	# xlabel, ylabel, title = 'x (cm)', 'y (cm)', 'Camera 1 image'
 
 X = np.genfromtxt('output/{}_x.csv'.format(title), delimiter=',')
@@ -25,10 +25,8 @@ last_nonzero = Z.shape[0] - (Z.sum(axis=1) > 0)[::-1].argmax()
 maximum = Z.max(where=Z != 0, initial=-np.inf)
 minimum = Z.min(where=Z != 0, initial=np.inf)
 
-if maximum / minimum > 5e3:
-	norm = matplotlib.colors.SymLogNorm(vmin=0, vmax=maximum, linthresh=max(1, maximum/3e3), linscale=1/np.log(10))
-elif maximum / minimum > 5e1:
-	norm = matplotlib.colors.LogNorm(vmin=minimum, vmax=maximum)
+if maximum / minimum > 5e1:
+	norm = matplotlib.colors.SymLogNorm(vmin=0, vmax=maximum, linthresh=max(2*minimum, maximum/1e2), linscale=1/np.log(10))
 else:
 	norm = matplotlib.colors.Normalize(vmax=maximum)
 plt.pcolormesh(X, Y, Z, cmap=CUSTOM_CMAP["coffee"], norm=norm, rasterized=True)
@@ -52,6 +50,6 @@ with h5py.File(f"output/{title}.h5", "w") as f:
 		dataset[...] = value
 
 plt.tight_layout()
-plt.savefig(f"output/{title}.png", dpi=300)
+plt.savefig(f"output/{title}.png", dpi=300, transparent=True)
 plt.savefig(f"output/{title}.eps")
 plt.show()

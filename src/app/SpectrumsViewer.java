@@ -28,11 +28,10 @@ import physics.Analysis.ErrorMode;
 import physics.SpectrumGenerator;
 import util.CSV;
 import util.InputParser;
-import util.Math2;
 
 import java.io.File;
-import java.io.IOError;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -109,13 +108,8 @@ public class SpectrumsViewer {
 					yieldVectors[K] = new double[0];
 				}
 
-				if (K%10 == 9) {
-					try {
-						save(timeVectors, yieldVectors, temperatureVectors, densityVectors, setup.filename, logger);
-					} catch (IOError e) {
-						logger.log(Level.SEVERE, e.getMessage(), e);
-					}
-				}
+				if (K%10 == 9)
+					save(timeVectors, yieldVectors, temperatureVectors, densityVectors, setup.filename, logger);
 				return null;
 			};
 			threads.submit(task);
@@ -130,7 +124,9 @@ public class SpectrumsViewer {
 	                         double[][] temperatureVectors, double[][] densityVectors,
 	                         String filepath, Logger logger) {
 		try {
+			logger.log(Level.INFO, "Saving '"+filepath+"'.");
 			CSV.write(timeVectors, new File(filepath+"_time.csv"), ',');
+			logger.log(Level.INFO, "that's one (" + Arrays.deepToString(yieldVectors));
 			CSV.write(yieldVectors, new File(filepath+"_yield.csv"), ',');
 			CSV.write(temperatureVectors, new File(filepath+"_temperature.csv"), ',');
 			CSV.write(densityVectors, new File(filepath+"_density.csv"), ',');

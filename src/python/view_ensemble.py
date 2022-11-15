@@ -58,11 +58,11 @@ assert not (INCLUDE_ERRORS and INCLUDE_HISTOGRAMS)
 
 if len(sys.argv) <= 1:
 	# FILENAME = '../../output/ensemble_high_2slits_400um_0c_15ps_200_2022-09-02.csv'
-	FILENAME = '../../output/ensemble_medium_driftt_0c_15ps_200_2022-09-02.csv'
+	FILENAME = '../../output/ensemble_medium_5c_1000_2022-11-09.csv'
 else:
 	FILENAME = '../../output/'+sys.argv[1]
 BIN_WIDTH = 0.3 # in bels
-REFERENCE_YIELDS = [3e16, 3e17, 3e18]
+REFERENCE_YIELDS = [4e16, 4e17, 4e18]
 
 X_LABEL = "Yield"
 
@@ -134,14 +134,10 @@ def symexp(y):
 	return np.where(y > y0, y0*np.exp(y/y0 - 1), x)
 
 
-try:
-	simulations = pd.read_csv(FILENAME, na_values=["Infinity"])
-except FileNotFoundError:
-	print("Ese archivo no existe.")
-	quit()
+simulations = pd.read_csv(FILENAME, na_values=["Infinity"])
 
 if "Yield factor" in simulations:
-	simulations["Yield"] = simulations["Yield factor"]*4.7838e17
+	simulations["true total yield"] = simulations["Yield factor"]*4.7838e17
 simulations = simulations[simulations["Yield"] != 0]
 for parameter in simulations:
 	if '(ns)' in parameter:
@@ -340,7 +336,7 @@ for i, (axis, y_min, y_original, y_max, presis, percent) in enumerate(Y_LABELS):
 		ax.set_ylabel(text_wrap(axis.capitalize()[:axis.index("(")].replace(" at BT", "").replace("^2", "²") + "error " + axis[axis.index("("):]))
 
 filename = os.path.splitext(FILENAME)[0]
-fig.savefig(f'{filename}.eps', dpi=300)
-fig.savefig(f'{filename}.png', dpi=300)
+fig.savefig(f'{filename}.eps')
+fig.savefig(f'{filename}.png', dpi=300, transparent=True)
 
 plt.show()

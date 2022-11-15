@@ -77,7 +77,8 @@ public class InputParser {
 				String tagFormat = "_%.8s";
 				switch (key) {
 					case "implosion":
-						this.implosionName = value;
+						this.implosionName = value.replace("-", " ");
+						tagFormat = "_%s";
 						break;
 					case "runs":
 						this.numRuns = Integer.parseInt(value);
