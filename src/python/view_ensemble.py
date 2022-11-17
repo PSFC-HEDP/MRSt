@@ -58,24 +58,25 @@ assert not (INCLUDE_ERRORS and INCLUDE_HISTOGRAMS)
 
 if len(sys.argv) <= 1:
 	# FILENAME = '../../output/ensemble_high_2slits_400um_0c_15ps_200_2022-09-02.csv'
-	FILENAME = '../../output/ensemble_medium_5c_1000_2022-11-09.csv'
+	# FILENAME = '../../output/ensemble_perfect_perfect_scan-base_2022-11-16.csv'
+	FILENAME = '../../output/ensemble_medium_5c_1000_2022-11-10.csv'
 else:
 	FILENAME = '../../output/'+sys.argv[1]
 BIN_WIDTH = 0.3 # in bels
 REFERENCE_YIELDS = [4e16, 4e17, 4e18]
 
-X_LABEL = "Yield"
+X_LABEL = "true total yield"
 
 Y_LABELS = [
-	("burn width (ps)", 39, 56, 76, 7, False),
-	# ("burn skewness ()", -1.6, -.698, -0.1, 3e-1, False),
-	# ("burn kurtosis ()", -0.5, 4.7, 10.5, 3, False),
-	("Ti at BT (keV)", 6.3, 7.56, 8.7, 5e-2, True),
-	# ("Ti at stagnation (keV)", 3.8, 5.856, 7.2, 5e-2, True),
-	("dTi/dt at BT (keV/100ps)", -2.2, 1.4, 4.4, 1.4, False),
-	# ("ρR at BT (g/cm^2)", 0.77, 0.978, 1.13, 7e-2, True),
-	# ("ρR at stagnation (g/cm^2)", 1.27, 1.416, 1.63, 7e-2, True),
-	# ("dρR/dt at BT (g/cm^2/100ps)", -2.1, -1.1, 1.1, 0.95, False),
+	# ("burn width (ps)", 70.1, 16, 7, False),
+	# ("burn skewness ()", -.698, .5, 3e-1, False),
+	# ("burn kurtosis ()", 4.7, 5, 3, False),
+	("Ti at BT (keV)", 14.64, 2.2, 5e-2, True),
+	# ("Ti at stagnation (keV)", 5.856, 2.5, 5e-2, True),
+	("dTi/dt at BT (keV/(100 ps))", 6.43, 8.5, 1/2, True),
+	("ρR at BT (g/cm^2)", 0.872, .2, 7e-2, True),
+	# ("ρR at stagnation (g/cm^2)", 1.416, .2, 7e-2, True),
+	("dρR/dt at BT (g/cm^2/(100 ps))", -.947, 1.5, -1/2, True),
 ]
 
 
@@ -136,9 +137,7 @@ def symexp(y):
 
 simulations = pd.read_csv(FILENAME, na_values=["Infinity"])
 
-if "Yield factor" in simulations:
-	simulations["true total yield"] = simulations["Yield factor"]*4.7838e17
-simulations = simulations[simulations["Yield"] != 0]
+simulations = simulations[simulations["true total yield"] != 0]
 for parameter in simulations:
 	if '(ns)' in parameter:
 		simulations[parameter.replace('(ns)', '(ps)')] = simulations[parameter]*1e-9/1e-12
@@ -170,7 +169,7 @@ for reference_yield in REFERENCE_YIELDS:
 print()
 
 # first do the scatter plot
-for i, (axis, y_min, y_original, y_max, presis, percent) in enumerate(Y_LABELS): # iterate through each desired plot
+for i, (axis, y_original, y_range, presis, percent) in enumerate(Y_LABELS): # iterate through each desired plot
 	if axis is None: continue
 	if INCLUDE_ERRORS:
 		ax = axs[i//COLUMNS, i%COLUMNS * 2 + 0] # identify the corresponding axis object
@@ -181,13 +180,13 @@ for i, (axis, y_min, y_original, y_max, presis, percent) in enumerate(Y_LABELS):
 	y = simulations[axis].values
 	ɛ = simulations[axis+" error"].values
 
-	ax.set_xlim(2e16, 5e18) # set up the x axis
+	ax.set_xlim(1e16, 8e18) # set up the x axis
 	if 'ield' in X_LABEL:
 		ax.set_xscale('log')
 	if i//COLUMNS == axs.shape[0]-1:
-		ax.set_xlabel(X_LABEL)
+		ax.set_xlabel(X_LABEL.split()[-1].capitalize())
 	elif i//COLUMNS == 0:
-		ax.set_xlabel(X_LABEL)
+		ax.set_xlabel(X_LABEL.split()[-1].capitalize())
 		ax.xaxis.set_label_position('top')
 		ax.xaxis.tick_top()
 	else:
@@ -205,7 +204,7 @@ for i, (axis, y_min, y_original, y_max, presis, percent) in enumerate(Y_LABELS):
 	else:                y_true = y_original*np.ones(len(simulations.index))
 
 	order = np.argsort(x) # get some useful indices of the data
-	order = order[np.isfinite(simulations["Total yield"].values[order])]
+	order = order[np.isfinite(simulations["true total yield"].values[order])]
 
 	μ = smooth_average(y[order])
 	σ = np.sqrt(smooth_average((y[order] - μ)**2, bessel_correction=False))
@@ -224,9 +223,7 @@ for i, (axis, y_min, y_original, y_max, presis, percent) in enumerate(Y_LABELS):
 	if PLOT_ENVELOPE:
 		ax.plot(x[order], μ + σ, 'C0-', linewidth=1, zorder=1, label="1σ variation")
 		ax.plot(x[order], μ - σ, 'C0-', linewidth=1, zorder=1)
-	if y_min > 0 and y_max/y_min > 10:
-		ax.set_yscale('log')
-	ax.set_ylim(y_min, y_max)
+	ax.set_ylim(y_original - y_range, y_original + y_range)
 	ax.set_ylabel(text_wrap(axis.capitalize().replace("^2", "²").replace("Ti", "Tᵢ")))
 
 	# set up the histogram axes
@@ -234,7 +231,7 @@ for i, (axis, y_min, y_original, y_max, presis, percent) in enumerate(Y_LABELS):
 		ax = axs[i//COLUMNS, i%COLUMNS * 2 + 1]
 		ax.set_xlim(0, len(REFERENCE_YIELDS))
 		x_tick_labels = [re.sub(r'([0-9.]+)e\+([0-9]+)', r"$\1\\times10^{\2}$", f"{Yn:.1g}") for Yn in REFERENCE_YIELDS]
-		ax.set_ylim(y_min, y_max)
+		ax.set_ylim(y_original - y_range, y_original + y_range)
 		ax.axhline(y_true[0], color='C1', zorder=1.5)
 		ax.fill_between(np.linspace(0, len(REFERENCE_YIELDS) + 1, order.size),
 		                shaded_region[0], shaded_region[1], color='#F7DFC8')
@@ -262,8 +259,8 @@ for i, (axis, y_min, y_original, y_max, presis, percent) in enumerate(Y_LABELS):
 		if INCLUDE_HISTOGRAMS:
 			_, _, patches = ax.hist(
 				y[at_yield], bottom=j, color="C0", zorder=2,
-				bins=np.linspace(max(y_min, min(shaded_region[0].min(), y[at_yield].min())),
-				                 min(y_max, max(shaded_region[1].max(), y[at_yield].max())),
+				bins=np.linspace(max(y_original - y_range, min(shaded_region[0].min(), y[at_yield].min())),
+				                 min(y_original + y_range, max(shaded_region[1].max(), y[at_yield].max())),
 				                 12),
 				orientation="horizontal")
 			peak = np.max(patches.datavalues)
@@ -290,9 +287,9 @@ for i, (axis, y_min, y_original, y_max, presis, percent) in enumerate(Y_LABELS):
 		if 'ield' in X_LABEL:
 			ax.set_xscale('log')
 		if i//COLUMNS == axs.shape[0]-1:
-			ax.set_xlabel(X_LABEL)
+			ax.set_xlabel(X_LABEL.split()[-1].capitalize())
 		elif i//COLUMNS == 0:
-			ax.set_xlabel(X_LABEL)
+			ax.set_xlabel(X_LABEL.split()[-1].capitalize())
 			ax.xaxis.set_label_position('top')
 			ax.xaxis.tick_top()
 		else:

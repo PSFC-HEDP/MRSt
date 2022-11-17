@@ -53,7 +53,7 @@ public class SpectrumViewer {
 	public static void main(String[] args) throws NumberFormatException, IOException {
 		IonOpticConfiguration optics = IonOpticConfiguration.MEDIUM_RESOLUTION;
 		DetectorConfiguration detector = DetectorConfiguration.DRIFT_TUBE;
-		String simulationName = "scan base";
+		String simulationName = "scan p2";
 		double yieldFactor = 1;
 		boolean reuseMatrix = false;
 

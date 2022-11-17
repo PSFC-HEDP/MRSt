@@ -11,10 +11,9 @@ FILENAMES = [
 	'../../output/spectrums_medium_5c_100_scan-base_2022-11-09',
 	'../../output/spectrums_medium_5c_100_scan-p2_2022-11-09',
 	'../../output/spectrums_medium_5c_scan-p2-p1_100_2022-11-09',
-	'../../output/spectrums_medium_driftt_0c_15ps_100_p2p1p4_2022-10-06',
+	'../../output/spectrums_medium_5c_scan-p2-p1-p4_100_2022-11-16',
 	'../../output/spectrums_medium_5c_scan-p2-p1-p4-p2_100_2022-11-10',
-	'../../output/spectrums_medium_driftt_0c_15ps_100_p2p1p4_2022-10-06',
-	# '../../output/spectrums_medium_5c_100_scan-p2-p1-p4-burnoff_2022-11-10',
+	'../../output/spectrums_medium_5c_scan-p2-p1-p4-burnoff_100_2022-11-16',
 ]
 FANCY_COLORS = ["#E34B66", "#D3A94C", "#037F58", "#2AA4E9", "#88379D", "#594047"]
 figsize = (8, 4)
@@ -52,7 +51,7 @@ for k, filename in enumerate(FILENAMES):
 			ax.plot(times[j, :], quantity[j, :], colors[1], linewidth=.5, alpha=.5)
 		if len(FILENAMES) == 1:
 			ax.plot(anser["time(ps)"], anser[other_name], colors[0], linewidth=1)
-		ax.set_xlim(-150, 100)
+		ax.set_xlim(-100, 100)
 		ax.set_ylim(None, None)
 		ax.set_xlabel("Time (ps)")
 		ax.set_ylabel(name)
