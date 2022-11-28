@@ -68,15 +68,23 @@ REFERENCE_YIELDS = [4e16, 4e17, 4e18]
 X_LABEL = "true total yield"
 
 Y_LABELS = [
-	# ("burn width (ps)", 70.1, 16, 7, False),
-	# ("burn skewness ()", -.698, .5, 3e-1, False),
-	# ("burn kurtosis ()", 4.7, 5, 3, False),
-	("Ti at BT (keV)", 14.64, 2.2, 5e-2, True),
-	# ("Ti at stagnation (keV)", 5.856, 2.5, 5e-2, True),
-	("dTi/dt at BT (keV/(100 ps))", 6.43, 8.5, 1/2, True),
-	("ρR at BT (g/cm^2)", 0.872, .2, 7e-2, True),
-	# ("ρR at stagnation (g/cm^2)", 1.416, .2, 7e-2, True),
-	("dρR/dt at BT (g/cm^2/(100 ps))", -.947, 1.5, -1/2, True),
+	# # ("burn width (ps)", 70.1, 16, 7, False),
+	# # ("burn skewness ()", -.698, .5, 3e-1, False),
+	# # ("burn kurtosis ()", 4.7, 5, 3, False),
+	# ("Ti at BT (keV)", 14.64, 2.2, 5e-2, True),
+	# # ("Ti at stagnation (keV)", 5.856, 2.5, 5e-2, True),
+	# ("dTi/dt at BT (keV/(100 ps))", 6.43, 8.5, 1/2, True),
+	# ("ρR at BT (g/cm^2)", 0.872, .2, 7e-2, True),
+	# # ("ρR at stagnation (g/cm^2)", 1.416, .2, 7e-2, True),
+	# ("dρR/dt at BT (g/cm^2/(100 ps))", -.947, 1.5, -1/2, True),
+	# ("Ti at BT-50ps (keV)", 10.01, 2.2, 5e-2, True),
+	# ("dTi/dt at BT-50ps (keV/(100 ps))", 6.25, 8.5, 1/2, True),
+	# ("ρR at BT-50ps (g/cm^2)", 1.204, .2, 7e-2, True),
+	# ("dρR/dt at BT-50ps (g/cm^2/(100 ps))", -.424, 1.5, -1/2, True),
+	("Ti at BT+50ps (keV)", 14.45, 2.2, 5e-2, True),
+	("dTi/dt at BT+50ps (keV/(100 ps))", -10, 8.5, 1/2, True),
+	("ρR at BT+50ps (g/cm^2)", .3, .2, 7e-2, True),
+	("dρR/dt at BT+50ps (g/cm^2/(100 ps))", -.825, 1.5, -1/2, True),
 ]
 
 

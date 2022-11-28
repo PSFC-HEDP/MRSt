@@ -124,9 +124,7 @@ public class SpectrumsViewer {
 	                         double[][] temperatureVectors, double[][] densityVectors,
 	                         String filepath, Logger logger) {
 		try {
-			logger.log(Level.INFO, "Saving '"+filepath+"'.");
 			CSV.write(timeVectors, new File(filepath+"_time.csv"), ',');
-			logger.log(Level.INFO, "that's one (" + Arrays.deepToString(yieldVectors));
 			CSV.write(yieldVectors, new File(filepath+"_yield.csv"), ',');
 			CSV.write(temperatureVectors, new File(filepath+"_temperature.csv"), ',');
 			CSV.write(densityVectors, new File(filepath+"_density.csv"), ',');

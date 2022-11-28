@@ -53,7 +53,7 @@ public class SpectrumViewer {
 	public static void main(String[] args) throws NumberFormatException, IOException {
 		IonOpticConfiguration optics = IonOpticConfiguration.MEDIUM_RESOLUTION;
 		DetectorConfiguration detector = DetectorConfiguration.DRIFT_TUBE;
-		String simulationName = "scan p2";
+		String simulationName = "annie";
 		double yieldFactor = 1;
 		boolean reuseMatrix = false;
 
@@ -77,7 +77,7 @@ public class SpectrumViewer {
 			return;
 		}
 
-		logger.log(Level.INFO, "running fit on spectrum with yield factor = "+yieldFactor);
+		logger.log(Level.INFO, "running fit on spectrum with yield = "+yieldFactor+"x"+Math2.sum(spec));
 		Analysis mc;
 		try {
 			mc = new Analysis(

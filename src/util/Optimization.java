@@ -664,6 +664,9 @@ public class Optimization {
 					if (dHatU.dot(rHatC) > 0) // this part is tricky; make sure you're stepping downhill from the Cauchy point
 						dHatU = dHatU.times(-1);
 					Matrix dU = Zk.times(dHatU);
+					for (int i = 0; i < dU.getN(); i ++)
+						for (int j = 0; j < dU.getM(); j ++)
+							assert Double.isFinite(dU.get(i, j)) : dU;
 					double αStar = 1;
 					for (int i = 0; i < n; i ++) {
 						if (xC.get(i, 0) + dU.get(i, 0) > upper[i]) // the paper has an error here; you need to multiply dU by Zk before comparing to u and l
