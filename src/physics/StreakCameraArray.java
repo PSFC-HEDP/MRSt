@@ -59,7 +59,7 @@ public class StreakCameraArray extends Detector {
 			 config.slitLengths,
 			 config.slitWidths,
 			 config.streakTime,
-			 2.4/Math.cos(Math.toRadians(config.tiltAngle)) * 51,
+			 2.4/Math.cos(Math.toRadians(config.tiltAngleDeuteron)) * 51,
 			 81./shielding/4e17,
 			 81./4e17,
 			 40_000.,

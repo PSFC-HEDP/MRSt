@@ -9,8 +9,8 @@ plt.rcParams.update({'font.family': 'sans', 'font.size': 11})
 import warnings
 warnings.filterwarnings("ignore")
 
-PLOT_ENVELOPE = False
-PLOT_THEORETICAL_ERROR_BARS = False
+PLOT_ENVELOPE = True
+PLOT_THEORETICAL_ERROR_BARS = True
 
 # INCLUDE_ERRORS = False
 # COLUMNS = 3
@@ -22,10 +22,11 @@ PLOT_THEORETICAL_ERROR_BARS = False
 # SIZE = (16, 7.5/4)
 # MARGIN = dict(bottom=.07, top=.93, left=.06, right=.99, wspace=.35, hspace=.05)
 
-# INCLUDE_ERRORS = True
-# COLUMNS = 1
-# SIZE = (8, 7/4)
-# MARGIN = dict(bottom=.08, top=.92, left=.10, right=.97, wspace=.36, hspace=.05)
+INCLUDE_ERRORS = True
+INCLUDE_HISTOGRAMS = False
+COLUMNS = 1
+SIZE = (8, 7/4)
+MARGIN = dict(bottom=.08, top=.92, left=.10, right=.97, wspace=.36, hspace=.05)
 
 # INCLUDE_ERRORS = False
 # COLUMNS = 2
@@ -42,11 +43,11 @@ PLOT_THEORETICAL_ERROR_BARS = False
 # SIZE = (4.0, 5/3)
 # MARGIN = dict(bottom=.09, top=.91, left=.18, right=.95, hspace=.05)
 
-INCLUDE_ERRORS = False
-INCLUDE_HISTOGRAMS = True
-COLUMNS = 1
-SIZE = (5.2, 5/3)
-MARGIN = dict(bottom=.10, top=.90, left=.15, right=.98, hspace=.05, wspace=.04)
+# INCLUDE_ERRORS = False
+# INCLUDE_HISTOGRAMS = True
+# COLUMNS = 1
+# SIZE = (5.2, 5/3)
+# MARGIN = dict(bottom=.10, top=.90, left=.15, right=.98, hspace=.05, wspace=.04)
 
 # INCLUDE_ERRORS = True
 # COLUMNS = 1
@@ -59,7 +60,7 @@ assert not (INCLUDE_ERRORS and INCLUDE_HISTOGRAMS)
 if len(sys.argv) <= 1:
 	# FILENAME = '../../output/ensemble_high_2slits_400um_0c_15ps_200_2022-09-02.csv'
 	# FILENAME = '../../output/ensemble_perfect_perfect_scan-base_2022-11-16.csv'
-	FILENAME = '../../output/ensemble_medium_5c_1000_2022-11-10.csv'
+	FILENAME = '../../output/ensemble_medium_0c_2000_2022-11-18.csv'
 else:
 	FILENAME = '../../output/'+sys.argv[1]
 BIN_WIDTH = 0.3 # in bels
@@ -71,20 +72,20 @@ Y_LABELS = [
 	# # ("burn width (ps)", 70.1, 16, 7, False),
 	# # ("burn skewness ()", -.698, .5, 3e-1, False),
 	# # ("burn kurtosis ()", 4.7, 5, 3, False),
-	# ("Ti at BT (keV)", 14.64, 2.2, 5e-2, True),
-	# # ("Ti at stagnation (keV)", 5.856, 2.5, 5e-2, True),
-	# ("dTi/dt at BT (keV/(100 ps))", 6.43, 8.5, 1/2, True),
-	# ("ρR at BT (g/cm^2)", 0.872, .2, 7e-2, True),
-	# # ("ρR at stagnation (g/cm^2)", 1.416, .2, 7e-2, True),
-	# ("dρR/dt at BT (g/cm^2/(100 ps))", -.947, 1.5, -1/2, True),
+	("Ti at BT (keV)", 14.52, 2.2, 5e-2, True),
+	# ("Ti at stagnation (keV)", 5.856, 2.5, 5e-2, True),
+	("dTi/dt at BT (keV/(100 ps))", 6.21, 8.5, 1/2, True),
+	("ρR at BT (g/cm^2)", 0.872, .2, 7e-2, True),
+	# ("ρR at stagnation (g/cm^2)", 1.416, .2, 7e-2, True),
+	("dρR/dt at BT (g/cm^2/(100 ps))", -.778, 1.5, -1/2, True),
 	# ("Ti at BT-50ps (keV)", 10.01, 2.2, 5e-2, True),
 	# ("dTi/dt at BT-50ps (keV/(100 ps))", 6.25, 8.5, 1/2, True),
 	# ("ρR at BT-50ps (g/cm^2)", 1.204, .2, 7e-2, True),
 	# ("dρR/dt at BT-50ps (g/cm^2/(100 ps))", -.424, 1.5, -1/2, True),
-	("Ti at BT+50ps (keV)", 14.45, 2.2, 5e-2, True),
-	("dTi/dt at BT+50ps (keV/(100 ps))", -10, 8.5, 1/2, True),
-	("ρR at BT+50ps (g/cm^2)", .3, .2, 7e-2, True),
-	("dρR/dt at BT+50ps (g/cm^2/(100 ps))", -.825, 1.5, -1/2, True),
+	# ("Ti at BT+50ps (keV)", 14.45, 2.2, 5e-2, True),
+	# ("dTi/dt at BT+50ps (keV/(100 ps))", -10, 8.5, 1/2, True),
+	# ("ρR at BT+50ps (g/cm^2)", .3, .2, 7e-2, True),
+	# ("dρR/dt at BT+50ps (g/cm^2/(100 ps))", -.825, 1.5, -1/2, True),
 ]
 
 
@@ -227,7 +228,7 @@ for i, (axis, y_original, y_range, presis, percent) in enumerate(Y_LABELS): # it
 		shaded_region = (y_true[order], y_true[order])
 
 	ax.plot(x[order], y_true[order], 'C1-', zorder=1, label="Based on original data")
-	ax.scatter(x[order], y[order], s=1, zorder=2, label="Based on fit to synthetic data")
+	ax.scatter(x[order[order < 1200]], y[order[order < 1200]], s=1, zorder=2, label="Based on fit to synthetic data")
 	if PLOT_ENVELOPE:
 		ax.plot(x[order], μ + σ, 'C0-', linewidth=1, zorder=1, label="1σ variation")
 		ax.plot(x[order], μ - σ, 'C0-', linewidth=1, zorder=1)

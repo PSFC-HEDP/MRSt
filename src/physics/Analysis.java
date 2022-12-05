@@ -139,7 +139,7 @@ public class Analysis {
 		this(new IonOptics(ionOpticConfiguration,
 						   particle,
 						   detectorConfiguration.cosyFile,
-						   detectorConfiguration.tiltAngle,
+						   (particle == Particle.P) ? detectorConfiguration.tiltAngleProton : detectorConfiguration.tiltAngleDeuteron,
 						   detectorConfiguration.offset,
 						   calibrationPrecision,
 						   reuseMatrix),
@@ -162,7 +162,7 @@ public class Analysis {
 		this(new IonOptics(ionOpticConfiguration,
 						   particle,
 						   detectorConfiguration.cosyFile,
-						   detectorConfiguration.tiltAngle,
+						   (particle == Particle.P) ? detectorConfiguration.tiltAngleProton : detectorConfiguration.tiltAngleDeuteron,
 						   detectorConfiguration.offset,
 						   calibrationPrecision, reuseMatrix),
 			 detectorConfiguration,
@@ -194,7 +194,7 @@ public class Analysis {
 		this(new IonOptics(
 				foilDistance, foilRadius, foilThickness,
 				apertureDistance, apertureWidth, apertureHeight,
-				MIN_E, MAX_E, cosyMapping, detectorConfiguration.tiltAngle,
+				MIN_E, MAX_E, cosyMapping, (cosyMapping.ion == Particle.P) ? detectorConfiguration.tiltAngleProton : detectorConfiguration.tiltAngleDeuteron,
 				detectorConfiguration.offset, calibrationPrecision, reuseMatrix),
 		     detectorConfiguration, shielding, logger);
 	}

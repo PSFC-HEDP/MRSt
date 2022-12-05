@@ -10,7 +10,6 @@ plt.rcParams.update({'font.family': 'serif', 'font.size': 10})
 if "python" in os.getcwd():
 	os.chdir('../..')
 
-xlim = (-26.5, 14)
 ylim = (-1.8, 1.8)
 figsize = (9, 3.2)
 
@@ -27,13 +26,16 @@ particles = particles.reshape((particles.shape[0], -1, 3))
 quantiles = np.linspace(0, 1, 9)
 x = []
 y = []
+dx = []
 for e, Y in zip(energies, particles):
 	x.append(Y[:, 0].mean()*1e2)
 	y.append([])
 	for q in quantiles:
 		y[-1].append(np.quantile(Y[:, 1], q)*1e2)
+	dx.append(Y[:, 0].ptp()*1e2)
 x = np.array(x)
 y = np.array(y)
+dE = np.array(dx)/np.gradient(x, energies)
 
 with h5py.File("output/focalplane.h5", "w") as f:
 	region_group = f.create_group("region")
@@ -63,6 +65,8 @@ plt.fill_between(x, y[:, 0], y[:, -1], color='#D36EA9')
 # 	                 color=matplotlib.cm.get_cmap('magma')(1 - n[i]/n.max()/2))
 
 crampd = None
+xlim = (particles[0][:, 0].min()*1e2 - .5,
+        particles[-1][:, 0].max()*1e2 + .5)
 for e, Y in zip(energies, particles):
 	if round(e*2) == round(e*2, 6) or e == energies[0] or e == energies[-1]:
 		# histogram, x_bins, y_bins = np.histogram2d(Y[:,0]*1e2, Y[:,1]*1e2, bins=20)
@@ -73,9 +77,7 @@ for e, Y in zip(energies, particles):
 		if crampd is None:
 			crampd = x_min > xlim[0]/4
 		major = not crampd or (round(e) == round(e, 6))
-		# plt.plot([x_min, x_min, x_max, x_max, x_min],
-		#          [y_min, y_max, y_max, y_min, y_min],
-		#          linewidth=0.8, color='#3f558c')
+		plt.fill_between([x_min, x_max], y_min, y_max, color='#3f558c')
 		# plt.plot([(x_min + x_max)/2]*2, [ 100, y_max], color='#3f558c', linewidth=0.8)
 		# plt.plot([(x_min + x_max)/2]*2, [-100, y_min], color='#3f558c', linewidth=0.8)
 		plt.axvline((x_min + x_max)/2, color="#3f558c", linewidth=0.8)
@@ -113,4 +115,9 @@ plt.ylabel("y (cm)")
 plt.tight_layout()
 plt.savefig('output/focalplane.png', dpi=300, transparent=True)
 plt.savefig('output/focalplane.eps')
+
+plt.figure()
+plt.plot(energies, dE*1e3)
+plt.grid("on")
+plt.ylim(0, 10)
 plt.show()

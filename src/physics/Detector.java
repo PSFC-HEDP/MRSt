@@ -137,49 +137,50 @@ public abstract class Detector {
 	public static class DetectorConfiguration {
 		public static DetectorConfiguration MAXIMUM_COVERAGE =
 			  new DetectorConfiguration("MRSt_IRF_FP_00deg",
-										0.00000, 11.5e-9,
+										Double.NaN, 0.00000, 11.5e-9,
 										new double[] {-7.5e-2, 0.2e-2},
 										new double[] {2.5e-2, 2.5e-2},
 										new double[] {400e-6, 400e-6});
 		public static DetectorConfiguration SINGLE_STREAK_CAMERA =
 				new DetectorConfiguration("MRSt_IRF_FP_00deg",
-				                          0.00000, 11.5e-9,
+				                          Double.NaN, 0.00000, 11.5e-9,
 				                          new double[] {-1.2e-2},
 				                          new double[] {2.5e-2},
 				                          new double[] {400e-6});
 		public static DetectorConfiguration JOHAN =
 				new DetectorConfiguration("MRSt_IRF_FP_00deg",
-				                          0.00000, 5.0e-9,
+				                          Double.NaN, 0.00000, 5.0e-9,
 				                          new double[] {0.0e-2},
 				                          new double[] {1.1e-2},
 				                          new double[] {400e-6});
 		public static DetectorConfiguration DOUBLE_STREAK_CAMERA =
 				new DetectorConfiguration("MRSt_IRF_FP_70deg",
-				                          66.58565, 4.5e-9, 0,//1000e-3,
+				                          Double.NaN, 66.58565, 4.5e-9, 0,//1000e-3,
 				                          new double[] {-5.5e-2, 1.5e-2},
 				                          new double[] {2.5e-2, 2.5e-2},
 				                          new double[] {400e-6, 400e-6});
 		public static DetectorConfiguration LONG_LONG =
 				new DetectorConfiguration("MRSt_IRF_FP_70deg",
-				                          66.58565, 7.0e-9, 0,//1000e-3,
+				                          Double.NaN, 66.58565, 7.0e-9, 0,//1000e-3,
 				                          new double[] {-5.5e-2, 1.5e-2},
 				                          new double[] {4.0e-2, 4.0e-2},
 				                          new double[] {400e-6, 400e-6});
 		public static DetectorConfiguration DRIFT_TUBE =
 			  new DetectorConfiguration("MRSt_IRF_FP_70deg",
-										66.58565, Double.NaN,
+			                            66.72555, 66.58565, Double.NaN, 0,
 										new double[] {},
 										new double[] {},
 										new double[] {});
 		public static DetectorConfiguration PERFECT =
 				new DetectorConfiguration("perfect lens",
-				                          0, Double.NaN,
+				                          Double.NaN, 0, Double.NaN,
 				                          new double[] {},
 				                          new double[] {},
 				                          new double[] {});
 
 		public final String cosyFile;
-		public final double tiltAngle;
+		public final double tiltAngleProton;
+		public final double tiltAngleDeuteron;
 		public final double streakTime;
 		public final double offset;
 		public final double[] slitPositions;
@@ -187,17 +188,18 @@ public abstract class Detector {
 		public final double[] slitWidths;
 
 		public DetectorConfiguration(
-			  String cosyFile, double tiltAngle, double streakTime,
+			  String cosyFile, double tiltAngleProton, double tiltAngleDeuteron, double streakTime,
 			  double[] slitPositions, double[] slitLengths, double[] slitWidths) {
-			this(cosyFile, tiltAngle, streakTime, 0,
+			this(cosyFile, tiltAngleProton, tiltAngleDeuteron, streakTime, 0,
 			     slitPositions, slitLengths, slitWidths);
 		}
 
 		public DetectorConfiguration(
-				String cosyFile, double tiltAngle, double streakTime, double offset,
+				String cosyFile, double tiltAngleProton, double tiltAngleDeuteron, double streakTime, double offset,
 				double[] slitPositions, double[] slitLengths, double[] slitWidths) {
 			this.cosyFile = cosyFile;
-			this.tiltAngle = tiltAngle;
+			this.tiltAngleProton = tiltAngleProton;
+			this.tiltAngleDeuteron = tiltAngleDeuteron;
 			this.streakTime = streakTime;
 			this.offset = offset;
 			this.slitPositions = slitPositions;

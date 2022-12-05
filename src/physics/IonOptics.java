@@ -130,7 +130,7 @@ public class IonOptics {
 			 20.0e-3,
 			 12, 16,
 			 CSV.readCosyCoefficients(new File(String.format(
-				   "input/%s.txt", cosyFile)),
+				   "input/%s_%s.txt", cosyFile, particle.name)),
 				  3, particle, 14),
 			 tiltAngle,
 			 offset,
@@ -170,7 +170,7 @@ public class IonOptics {
 		this.apertureHeight = apertureHeight;
 		this.minEd = energyFactor*minEn*MeV;
 		this.maxEd = energyFactor*maxEn*MeV;
-		this.focalPlaneAngle = Math.toRadians(focalTilt);
+		this.focalPlaneAngle = Math.toRadians(focalTilt); // TODO: ideally, it should calculate the focal plane angle from the mapping.  but there's no way I'm going to do that.
 		this.focalPlaneOffset = Math.toRadians(offset);
 		this.cosyMapping = cosyMapping;
 		this.probHitsFoil = (Math.hypot(foilRadius, foilDistance) - foilDistance)/(2*Math.hypot(foilRadius, foilDistance));
@@ -248,7 +248,7 @@ public class IonOptics {
 		int nEnergies = 40;
 		int nTimes = 40;
 		double[] energyRange = {-.9, .1}; // [MeV]
-		double[] timeRange = {-.080, .080}; // [ns]
+		double[] timeRange = {-.060, .060}; // [ns]
 
 		double[] energyBins = new double[nEnergies+1]; // [MeV]
 		for (int i = 0; i <= nEnergies; i ++)

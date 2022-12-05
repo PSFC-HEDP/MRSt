@@ -36,11 +36,11 @@ import java.io.IOException;
 public class FocalPlanePlotter {
 	public static void main(String[] args) throws IOException {
 		// select constants
-		DetectorConfiguration slits = DetectorConfiguration.DOUBLE_STREAK_CAMERA;
+		DetectorConfiguration slits = DetectorConfiguration.DRIFT_TUBE;
 		// set up the simulation
 		IonOptics io = new IonOptics(
 				IonOpticConfiguration.LOW_RESOLUTION,
-				Particle.D, slits.cosyFile, slits.tiltAngle, slits.offset,
+				Particle.P, slits.cosyFile, slits.tiltAngleProton, slits.offset,
 				0, false);
 
 		// select the energies

@@ -400,8 +400,11 @@ public class Math2 {
 		}
 		if (xR == null || xL == null)
 			return new Quantity(Double.POSITIVE_INFINITY, y[0].getN());
-		else
+		else {
+			if (xR.minus(xL).value < (x[1] - x[0])*4)
+				System.err.println("Warning: this FWHM estimate isn't binned enuff.");
 			return xR.minus(xL);
+		}
 	}
 
 	/**
