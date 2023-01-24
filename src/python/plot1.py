@@ -37,6 +37,8 @@ if answer != '-':
 			YBs = [data[:, 1], data[:, 4], data[:, 3], np.zeros(XB.shape)] # extract the relevant info from them
 		elif "rhor" in data_header[1].lower():
 			YBs = [data[:, 3], data[:, 4], data[:, 1], np.zeros(XB.shape)]
+		elif "dsr" in data_header[2].lower():
+			YBs = [data[:, 1], data[:, 3], data[:, 2]*20.4]
 		else:
 			raise Exception(f"do I have to actually read this format?: {data_header}")
 

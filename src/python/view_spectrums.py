@@ -10,10 +10,10 @@ FILENAMES = [
 	# '../../output/spectrums_medium_5c_100_2022-11-09',
 	'../../output/spectrums_medium_5c_100_scan-base_2022-11-09',
 	'../../output/spectrums_medium_5c_100_scan-p2_2022-11-09',
-	'../../output/spectrums_medium_5c_scan-p2-p1_100_2022-11-09',
+	# '../../output/spectrums_medium_5c_scan-p2-p1_100_2022-11-09',
 	'../../output/spectrums_medium_5c_scan-p2-p1-p4_100_2022-11-16',
-	'../../output/spectrums_medium_5c_scan-p2-p1-p4-p2_100_2022-11-10',
-	'../../output/spectrums_medium_5c_scan-p2-p1-p4-burnoff_100_2022-11-16',
+	# '../../output/spectrums_medium_5c_scan-p2-p1-p4-p2_100_2022-11-10',
+	# '../../output/spectrums_medium_5c_scan-p2-p1-p4-burnoff_100_2022-11-16',
 ]
 FANCY_COLORS = ["#E34B66", "#D3A94C", "#037F58", "#2AA4E9", "#88379D", "#594047"]
 figsize = (8, 4)

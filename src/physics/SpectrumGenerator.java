@@ -128,7 +128,7 @@ public class SpectrumGenerator {
 		double ΔEth = 5.30509e-3/(1 + 2.4736e-3*Math.pow(Ti, 1.84))*Math.pow(Ti, 2/3.) + 1.3818e-3*Ti;
 		double μ = Math.max(0, 14.029 + ΔEth + .54e-3*vi); // primary peak (see paper) [MeV]
 		double σ2 = Math.abs(.4034*μ*Ti/1e3); // primary width [MeV^2]
-		double downscat = 1 - Math.exp(-.255184*ρR); // probability of a neutron being scattered down by DT
+		double downscat = 1 - Math.exp(-.2107*ρR); // probability of a neutron being scattered down by DT
 		double upscat = (1 - Math.exp(-8.6670e-5*Math.pow(Te, 2.5149)))*(1 - downscat); // probability of a neutron being scattered up by an alpha
 		double primary = 1 - upscat - downscat; // probability of a neutron escaping unscatterd
 		double total = Yn/Math.max(primary, 0.1); // total yield (here's a weerd edge case: if the ρR is huge, don’t correct this by more than ×10)
@@ -254,11 +254,11 @@ public class SpectrumGenerator {
 					String head = header[i].toLowerCase();
 					if (head.contains("time"))
 						timeIndex = i;
-					else if (head.contains("burn") || head.contains("eprod"))
+					else if (head.contains("burn") || head.contains("eprod") || head.contains("neut"))
 						burnIndex = i;
 					else if (head.contains("tion"))
 						tionIndex = i;
-					else if (head.contains("total") && head.contains("rhor"))
+					else if ((head.contains("total") && head.contains("rhor")) || head.contains("dsr"))
 						totalDensityIndex = i;
 				}
 				double timeUnit;
@@ -271,14 +271,21 @@ public class SpectrumGenerator {
 				double burnUnit;
 				if (header[burnIndex].contains("us^-1"))
 					burnUnit = 1e+6;
-				else if (header[timeIndex].contains("ns^-1"))
+				else if (header[burnIndex].contains("ns^-1"))
 					burnUnit = 1e+9;
-				else if (header[timeIndex].contains("ps^-1"))
+				else if (header[burnIndex].contains("ps^-1"))
 					burnUnit = 1e+12;
-				else if (header[timeIndex].contains("kJ/ps") || header[timeIndex].contains("MJ/ns"))
+				else if (header[burnIndex].contains("kJ/ps") || header[timeIndex].contains("MJ/ns"))
 					burnUnit = 1e+15/(14e6*1.6e-19);
 				else // 0.1MJ/μs
 					burnUnit = .1*1e+12/(14e6*1.6e-19);
+				double ρRUnit;
+				if (header[totalDensityIndex].toLowerCase().contains("dsr"))
+					ρRUnit = 20.4;
+				else if (header[totalDensityIndex].contains("mg"))
+					ρRUnit = 1e-3;
+				else
+					ρRUnit = 1e-0;
 
 				double[] time = new double[thing.length];
 				double[] ρR = new double[thing.length];
@@ -289,7 +296,8 @@ public class SpectrumGenerator {
 					time[i] = thing[i][timeIndex]*timeUnit/1e-9; // convert to ns
 					Yn[i] = thing[i][burnIndex]*burnUnit/(1e15/1e-9); // convert to (1e15/ns)
 					Ti[i] = thing[i][tionIndex];
-					ρR[i] = thing[i][totalDensityIndex];
+					ρR[i] = thing[i][totalDensityIndex]*ρRUnit; // convert to g/cm^2
+					System.out.println(ρR[i]);
 					zero[i] = 0;
 				}
 				double[] tBins = new double[time.length + 1];
@@ -299,7 +307,6 @@ public class SpectrumGenerator {
 				tBins[time.length] = (3*time[time.length - 1] - time[time.length - 2])/2.;
 
 				double[][] spectrum = generateSpectrum(Yn, Ti, zero, zero, ρR, eBins, tBins);
-				System.out.println("  Y = " + Math2.sum(spectrum));
 
 				CSV.writeColumn(tBins, new File(file.toString()
 						.replace("trajectories", "time").replace(".csv", ".txt")));

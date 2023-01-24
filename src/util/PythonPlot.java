@@ -78,6 +78,8 @@ public class PythonPlot {
 		ProcessBuilder plotPB = new ProcessBuilder("python", "src/python/plot1.py",
 		                                           xLabel, String.join("\n", yLabels),
 		                                           title, name, Integer.toString(ys.length));
+		plotPB.redirectOutput(ProcessBuilder.Redirect.INHERIT);
+		plotPB.redirectError(ProcessBuilder.Redirect.INHERIT);
 		plotPB.start();
 	}
 
@@ -95,6 +97,8 @@ public class PythonPlot {
 		CSV.write(z1, new File(String.format("output/%s_z.csv", title1)), ',');
 		ProcessBuilder plotPB = new ProcessBuilder("python", "src/python/compare2.py",
 		                                           xLabel, yLabel, title0, title1);
+		plotPB.redirectOutput(ProcessBuilder.Redirect.INHERIT);
+		plotPB.redirectError(ProcessBuilder.Redirect.INHERIT);
 		plotPB.start();
 	}
 
@@ -115,6 +119,8 @@ public class PythonPlot {
 		CSV.write(z2, new File(String.format("output/%s_z.csv", title2)), ',');
 		ProcessBuilder plotPB = new ProcessBuilder("python", "src/python/compare2.py",
 		                                           xLabel, yLabel, title0, title1, title2);
+		plotPB.redirectOutput(ProcessBuilder.Redirect.INHERIT);
+		plotPB.redirectError(ProcessBuilder.Redirect.INHERIT);
 		plotPB.start();
 	}
 
@@ -140,6 +146,8 @@ public class PythonPlot {
 		CSV.writeColumn(slitWidths, new File("output/focal plane widths.csv"));
 		CSV.writeColumn(slitPositions, new File("output/focal plane positions.csv"));
 		ProcessBuilder plotPB = new ProcessBuilder("python", "src/python/plot_focal_plane.py");
+		plotPB.redirectOutput(ProcessBuilder.Redirect.INHERIT);
+		plotPB.redirectError(ProcessBuilder.Redirect.INHERIT);
 		plotPB.start();
 	}
 }

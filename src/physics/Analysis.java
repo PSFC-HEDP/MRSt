@@ -60,7 +60,7 @@ import java.util.logging.Logger;
 public class Analysis {
 
 	public static final Random MC_RANDOM = new Random(0);
-	public static final Random NOISE_RANDOM = new Random(0);
+	public static final Random NOISE_RANDOM = new Random(2);
 
 	private static final double MIN_E = 12, MAX_E = 16; // histogram bounds [MeV]
 	private static final int BUFFER = 5; // empty pixels to include simulate on each side [ns]
@@ -799,7 +799,7 @@ public class Analysis {
 			}
 			double slope0 = (y[0] != 0 || y[1] != 0) ? (y[1] - y[0])/(y[0] + y[1]) : 0;
 			double slope1 = (y[1] != 0 || y[2] != 0) ? (y[2] - y[1])/(y[1] + y[2]) : 0;
-			totalPenalty += smoothing*1e-0/timeStep*
+			totalPenalty += smoothing*5e-0/timeStep*
 					(Math.exp(slope1 - slope0) - Math.exp((slope1 - slope0)/2)*2 + 1); // encourage a smooth burn history with no local mins
 		}
 //		double totalYield = Math2.sum(neutronYield)*timeStep;
@@ -816,7 +816,7 @@ public class Analysis {
 					double Ψpp = (x[j] - 2*x[j+1] + x[j+2])/
 							Math.pow(timeStep, 3);
 					double Ψ = (x[j] + x[j+1] + x[j+2])/3;
-					totalPenalty += smoothing*1e-10*Math.pow(Ψpp/Ψ, 2); // encourage a smooth Ti and ρR
+					totalPenalty += smoothing*2e-10*Math.pow(Ψpp/Ψ, 2); // encourage a smooth Ti and ρR
 				}
 			}
 		}

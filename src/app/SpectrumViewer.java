@@ -51,9 +51,10 @@ public class SpectrumViewer {
 	 * build the GUI and display it.
 	 */
 	public static void main(String[] args) throws NumberFormatException, IOException {
+		Particle ion = Particle.D;
 		IonOpticConfiguration optics = IonOpticConfiguration.MEDIUM_RESOLUTION;
 		DetectorConfiguration detector = DetectorConfiguration.DRIFT_TUBE;
-		String simulationName = "annie";
+		String simulationName = "haan";
 		double yieldFactor = 1;
 		boolean reuseMatrix = false;
 
@@ -83,9 +84,9 @@ public class SpectrumViewer {
 			mc = new Analysis(
 					optics,
 					detector,
-					Particle.D,
+					ion,
 					293*4e17/Math2.sum(spec),
-					.05,
+					0,
 					reuseMatrix,
 					logger); // make the simulation
 
