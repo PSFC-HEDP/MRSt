@@ -40,7 +40,7 @@ public class FocalPlanePlotter {
 		// set up the simulation
 		IonOptics io = new IonOptics(
 				IonOpticConfiguration.LOW_RESOLUTION,
-				Particle.P, slits.cosyFile, slits.tiltAngleProton, slits.offset,
+				Particle.P, slits.cosyFile, slits.tiltAngleProton,
 				0, false);
 
 		// select the energies

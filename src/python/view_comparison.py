@@ -103,11 +103,10 @@ for axes in [
 	if len(axes) == 2:
 		x, y = axes
 		x_means, y_means = [], []
-		for i, sim in enumerate(case_names):
-			if sim not in CASES:
-				continue
+		for i, sim in enumerate(CASES):
 			here = data["case"] == order[sim]
-			plt.scatter(data[here][x], data[here][y], c=COLORS[i], s=8, alpha=1, edgecolors="none", label=sim, zorder=10)
+			plt.scatter(data[here][x], data[here][y], c=COLORS[i],
+			            s=8, alpha=1, edgecolors="none", label=sim, zorder=10)
 			x_means.append(np.mean(data[here][x]))
 			y_means.append(np.mean(data[here][y]))
 			if x in short_header and y in short_header:
@@ -139,9 +138,7 @@ for axes in [
 
 	else:
 		quantity, = axes
-		for i, sim in enumerate(case_names):
-			if sim not in CASES:
-				continue
+		for i, sim in enumerate(CASES):
 			here = data["case"] == order[sim]
 			values = data[here][quantity]
 			bar_heights, bar_edges = np.histogram(values, bins=18, density=True)

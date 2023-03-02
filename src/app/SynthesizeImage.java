@@ -40,7 +40,7 @@ public class SynthesizeImage {
 		IonOpticConfiguration config = IonOpticConfiguration.LOW_RESOLUTION;
 		DetectorConfiguration detector = DetectorConfiguration.DOUBLE_STREAK_CAMERA;
 		IonOptics optics = new IonOptics(config, Particle.D, detector.cosyFile,
-		                                 detector.tiltAngleDeuteron, detector.offset,
+		                                 detector.tiltAngleDeuteron,
 		                                 0.1, false);
 		int numSlits = detector.slitPositions.length;
 

@@ -153,6 +153,8 @@ public class InputParser {
 							this.detectorConfig = DetectorConfiguration.LONG_LONG;
 						else if (value.toLowerCase().startsWith("d"))
 							this.detectorConfig = DetectorConfiguration.DRIFT_TUBE;
+						else if (value.toLowerCase().startsWith("c"))
+							this.detectorConfig = DetectorConfiguration.CLEMENT;
 						else if (value.toLowerCase().startsWith("p"))
 							this.detectorConfig = DetectorConfiguration.PERFECT;
 						else
