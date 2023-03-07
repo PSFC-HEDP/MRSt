@@ -59,9 +59,9 @@ assert not (INCLUDE_ERRORS and INCLUDE_HISTOGRAMS)
 
 
 if len(sys.argv) <= 1:
-	# FILENAME = '../../output/ensemble_high_2slits_400um_0c_15ps_200_2022-09-02.csv'
 	# FILENAME = '../../output/ensemble_perfect_perfect_15ps_1000_2022-12-05.csv'
-	FILENAME = '../../output/ensemble_medium_p_15ps_.001_1000_2022-12-06.csv'
+	FILENAME = "../../output/ensemble_high_0.001_2000_haan-shockmerge_2023-03-02.csv"
+	# FILENAME = '../../output/ensemble_medium_0.001_2000_haan-shockmerge_2023-03-02.csv'
 else:
 	FILENAME = '../../output/'+sys.argv[1]
 BIN_WIDTH = 0.3 # in bels
@@ -70,15 +70,15 @@ REFERENCE_YIELDS = [4e16, 4e17, 4e18]
 X_LABEL = "true total yield"
 
 Y_LABELS = [
-	# # ("burn width (ps)", 70.1, 16, 7, False),
+	("burn width (ps)", 80.4, 16, 7, False), # haan: 70.1
 	# # ("burn skewness ()", -.698, .5, 3e-1, False),
 	# # ("burn kurtosis ()", 4.7, 5, 3, False),
-	("Ti at BT (keV)", 14.57, 2.2, 5e-2, True),
+	("Ti at BT (keV)", 9.31, 2.2, 5e-2, True), # haan: 11.18
 	# ("Ti at stagnation (keV)", 5.856, 2.5, 5e-2, True),
-	("dTi/dt at BT (keV/(100 ps))", 6.3, 8.5, 1.9, False),
-	("ρR at BT (g/cm^2)", 0.868, .2, 7e-2, True),
+	("dTi/dt at BT (keV/(100 ps))", 7.85, 8.5, 1.9, False), # haan: 8.91
+	("ρR at BT (g/cm^2)", 0.632, .2, 7e-2, True), # haan: .552
 	# ("ρR at stagnation (g/cm^2)", 1.416, .2, 7e-2, True),
-	("dρR/dt at BT (g/cm^2/(100 ps))", -.778, 1.5, 0.6, False),
+	("dρR/dt at BT (g/cm^2/(100 ps))", -.516, 1.5, 0.6, False), # haan: -.566
 	# ("Ti at BT-50ps (keV)", 10.01, 2.2, 5e-2, True),
 	# ("dTi/dt at BT-50ps (keV/(100 ps))", 6.25, 8.5, 1/2, True),
 	# ("ρR at BT-50ps (g/cm^2)", 1.204, .2, 7e-2, True),

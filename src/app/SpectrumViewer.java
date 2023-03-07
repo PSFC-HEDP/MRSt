@@ -54,7 +54,7 @@ public class SpectrumViewer {
 		Particle ion = Particle.D;
 		IonOpticConfiguration optics = IonOpticConfiguration.MEDIUM_RESOLUTION;
 		DetectorConfiguration detector = DetectorConfiguration.DRIFT_TUBE;
-		String simulationName = "haan";
+		String simulationName = "haan shockmerge";
 		double yieldFactor = 1;
 		boolean reuseMatrix = false;
 
@@ -78,7 +78,8 @@ public class SpectrumViewer {
 			return;
 		}
 
-		logger.log(Level.INFO, "running fit on spectrum with yield = "+yieldFactor+"x"+Math2.sum(spec));
+		logger.log(Level.INFO, String.format("running fit on spectrum with yield = %.4g × %.4g = %.4g",
+		                                     yieldFactor, Math2.sum(spec)/yieldFactor, Math2.sum(spec)));
 		Analysis mc;
 		try {
 			mc = new Analysis(
