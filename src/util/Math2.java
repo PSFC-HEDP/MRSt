@@ -87,7 +87,7 @@ public class Math2 {
 		else if (λ < 2e+9)
 			return (int) Math.max(0., Math.round(normal(λ, Math.sqrt(λ), random)));
 		else
-			throw new IllegalArgumentException("this method will hit runoff issues if you go so hi.");
+			throw new IllegalArgumentException("this method will hit runoff issues if you go so hi ("+λ+").");
 	}
 
 	/**

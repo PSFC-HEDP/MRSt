@@ -61,7 +61,7 @@ public class SpectrumGenerator {
 	public static double primaryCutoff(double Ti, double ρR) {
 		double[] energy = new double[201];
 		for (int i = 0; i < energy.length; i ++)
-			energy[i] = 12 + 2.*i/(energy.length - 1);
+			energy[i] = 12. + 2.*i/(energy.length - 1);
 		double[] total = generateSpectrum(1, Ti, 0, 0, ρR, energy, false);
 		double[] secondary = generateSpectrum(1, Ti, 0, 0, ρR, energy, true);
 		for (int i = 0; i < energy.length - 1; i ++)
@@ -269,11 +269,11 @@ public class SpectrumGenerator {
 				else
 					timeUnit = 1e-15;
 				double burnUnit;
-				if (header[burnIndex].contains("us^-1"))
+				if (header[burnIndex].contains("us^-1") || header[burnIndex].contains("per us"))
 					burnUnit = 1e+6;
-				else if (header[burnIndex].contains("ns^-1"))
+				else if (header[burnIndex].contains("ns^-1") || header[burnIndex].contains("per ns"))
 					burnUnit = 1e+9;
-				else if (header[burnIndex].contains("ps^-1"))
+				else if (header[burnIndex].contains("ps^-1") || header[burnIndex].contains("per ps"))
 					burnUnit = 1e+12;
 				else if (header[burnIndex].contains("kJ/ps") || header[timeIndex].contains("MJ/ns"))
 					burnUnit = 1e+15/(14e6*1.6e-19);

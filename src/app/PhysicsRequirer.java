@@ -28,10 +28,8 @@ import physics.Analysis.ErrorMode;
 import physics.SpectrumGenerator;
 import util.CSV;
 import util.InputParser;
-import util.Math2;
 
 import java.io.File;
-import java.io.IOError;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -79,7 +77,7 @@ public class PhysicsRequirer {
 
 			int caseIndex = 0;
 			for (Path path : (Iterable<Path>)Files.walk(Paths.get("input/"))::iterator) {
-				if (path.getFileName().toString().contains("scan") &&
+				if (path.getFileName().toString().contains("sm") &&
 				    path.getFileName().toString().contains("trajectories")) {
 					if (runIndex == 0)
 						logger.info("Loading scenario " + caseIndex + ": " + path);
