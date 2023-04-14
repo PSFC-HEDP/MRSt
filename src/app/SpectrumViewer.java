@@ -54,7 +54,7 @@ public class SpectrumViewer {
 		Particle ion = Particle.D;
 		IonOpticConfiguration optics = IonOpticConfiguration.HIGH_RESOLUTION;
 		DetectorConfiguration detector = DetectorConfiguration.DRIFT_TUBE;
-		String simulationName = "sm 023";
+		String simulationName = "rby 001";
 		double yieldFactor = 1;
 		boolean reuseMatrix = false;
 

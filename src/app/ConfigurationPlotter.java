@@ -42,7 +42,7 @@ public class ConfigurationPlotter {
 						continue;
 
 					Analysis mc = new Analysis(
-							new IonOpticConfiguration(tFoil, rFoil, wAperture),
+							new IonOpticConfiguration(4e-3, tFoil, rFoil, 6, 20e-3, wAperture),
 							DetectorConfiguration.DRIFT_TUBE,
 							Particle.P,
 							293,

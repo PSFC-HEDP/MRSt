@@ -9,7 +9,7 @@ if len(sys.argv) <= 1:
 	import os
 	os.chdir('../..')
 	print(os.getcwd())
-	xlabel, ylabels, title, answer, n = 'Time (ns)', 'Yn (10^15/ns)\nTi (keV)\nρR(g/cm^2)', 'Trajectories', '-', 3
+	xlabel, ylabels, title, answer, n = 'Time (ns)', 'Yn (10^15/ns)\nTi (keV)\nρR(g/cm^2)', 'Trajectories', 'input/rby 001 {}.csv', 3
 	# xlabel, ylabels, title, answer, n = 'Energy (MeV)', 'Deuterons\nDeuterons\nSignal', 'Integrated spectra', '-', 3
 else:
 	xlabel, ylabels, title, answer, n = sys.argv[1:]
@@ -28,9 +28,14 @@ YAs = [np.loadtxt(f'output/{title}_y_{i}.csv', delimiter=',') for i in range(n_c
 
 # if an implosion name was given, load that as the B data
 if answer != '-':
+	filename = answer.format("trajectories")
 	try:
-		with open(answer.format("trajectories"), "r") as f:
+		with open(filename, "r") as f:
 			data_header = f.readline().split(",")
+	except IOError:
+		print(f"didn't find {filename}")
+		XB, YBs = None, [None]*n_curves
+	else:
 		data = np.loadtxt(answer.format("trajectories"), delimiter=',', skiprows=1) # get the true curves
 		XB = data[:, 0]
 		if "rhor" in data_header[3].lower():
@@ -45,10 +50,6 @@ if answer != '-':
 		while np.ptp(XB) < np.ptp(XA)/100:
 			XB *= 1e+3
 		YBs[0] *= np.sum(YAs[0]*np.gradient(XA))/np.sum(YBs[0]*np.gradient(XB))
-
-	except IOError:
-		print(f"didn't find {answer}")
-		XB, YBs = None, [None]*n
 
 else:
 	XB, YBs = None, [None]*n

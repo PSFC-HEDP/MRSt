@@ -80,7 +80,7 @@ requirements = {"total yield ()": -.05, "burn width (ps)": 7,
 COLORS = ["#E34B66", "#D3A94C", "#037F58", "#2AA4E9", "#88379D", "#594047"]
 
 for axes in [
-	# ("total yield ()", "burn width (ps)"),
+	("total yield ()",),
 	("burn skewness ()", "burn kurtosis ()"),
 	("Ti at BT (keV)", "dTi/dt at BT (keV/(100 ps))"),
 	# ("Ti at compression (keV)", "dTi/dt at compression (keV/(100 ps))"),

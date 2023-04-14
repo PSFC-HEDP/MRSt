@@ -42,19 +42,27 @@ import static physics.Analysis.NOISE_RANDOM;
 public class IonOptics {
 
 	public static class IonOpticConfiguration {
-        public static IonOpticConfiguration LOW_RESOLUTION =
-			  new IonOpticConfiguration(75e-6, 400e-6, 6e-3);
-		public static IonOpticConfiguration MEDIUM_RESOLUTION =
-			  new IonOpticConfiguration(45e-6, 250e-6, 4e-3);
-		public static IonOpticConfiguration HIGH_RESOLUTION =
-			  new IonOpticConfiguration(25e-6, 150e-6, 1.5e-3);
-		public static IonOpticConfiguration PERFECT =
-				new IonOpticConfiguration(0, 0, 0);
+        public static IonOpticConfiguration LOW_RESOLUTION = new IonOpticConfiguration(
+				4.0e-3, 75e-6, 400e-6, 6.0e-0, 20e-3, 6e-3);
+		public static IonOpticConfiguration MEDIUM_RESOLUTION = new IonOpticConfiguration(
+				4.0e-3, 45e-6, 250e-6, 6.0e-0, 20e-3, 4e-3);
+		public static IonOpticConfiguration HIGH_RESOLUTION = new IonOpticConfiguration(
+				4.0e-3, 25e-6, 150e-6, 6.0e-0, 20e-3, 1.5e-3);
+		public static IonOpticConfiguration OMEGA = new IonOpticConfiguration(
+				10.e-2, 75e-6, 400e-6, 2.0e-0, 6e-3, 1.5e-3);
+		public static IonOpticConfiguration PERFECT = new IonOpticConfiguration(
+				4.0e-3, 0, 0, 6.0e-0, 20e-3, 0);
 
-		/** the thickness of the foil for deuterons (μm⋅Da) */
+		/** the distance from the foil to TCC for any particle (m) */
+		public final double foilDistance;
+		/** the thickness of the foil for protons (μm⋅Da) */
 		public final double deuteronFoilThickness;
 		/** the radius of the foil for any particle (m) */
 		public final double foilRadius;
+		/** the distance from the foil to the aperture for any particle (m) */
+		public final double apertureDistance;
+		/** the height of the aperture for any particle (m) */
+		public final double apertureHeight;
 		/** the width of the aperture for any particle (m) */
 		public final double apertureWidth;
 
@@ -65,9 +73,13 @@ public class IonOptics {
 		 * @param apertureWidth the width of the aperture for any particle (m)
 		 */
 		public IonOpticConfiguration(
-			  double deuteronFoilThickness, double foilRadius, double apertureWidth) {
+			  double foilDistance, double deuteronFoilThickness, double foilRadius,
+			  double apertureDistance, double apertureHeight, double apertureWidth) {
+			this.foilDistance = foilDistance;
 			this.deuteronFoilThickness = deuteronFoilThickness;
 			this.foilRadius = foilRadius;
+			this.apertureDistance = apertureDistance;
+			this.apertureHeight = apertureHeight;
 			this.apertureWidth = apertureWidth;
 		}
 	}

@@ -171,6 +171,12 @@ public abstract class Detector {
 				                          new double[] {},
 				                          new double[] {},
 				                          new double[] {});
+		public static DetectorConfiguration OMEGA =
+				new DetectorConfiguration("MRSt_IRF_OMEGA",
+				                          63.36917, 63.36917, 0, Double.NaN,
+				                          new double[] {},
+				                          new double[] {},
+				                          new double[] {});
 		public static DetectorConfiguration CLEMENT =
 				new DetectorConfiguration("MRSt_IRF_FP_70deg",
 				                          66.72555, 66.58565, 50e-3, Double.NaN,

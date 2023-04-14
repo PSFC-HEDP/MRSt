@@ -77,7 +77,7 @@ public class PhysicsRequirer {
 
 			int caseIndex = 0;
 			for (Path path : (Iterable<Path>)Files.walk(Paths.get("input/"))::iterator) {
-				if (path.getFileName().toString().contains("sm") &&
+				if (path.getFileName().toString().contains("rby") &&
 				    path.getFileName().toString().contains("trajectories")) {
 					if (runIndex == 0)
 						logger.info("Loading scenario " + caseIndex + ": " + path);
