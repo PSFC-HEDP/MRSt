@@ -1,10 +1,22 @@
+import warnings
+import os
+import re
+import sys
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import re
-import sys
-plt.rcParams.update({'font.family': 'sans', 'font.size': 12})
+plt.rcParams.update({'font.family': 'sans', 'font.size': 11})
 # plt.rcParams.update({'font.family': 'serif', 'font.size': 12})
+warnings.filterwarnings("ignore")
+
+PLOT_ENVELOPE = False
+PLOT_THEORETICAL_ERROR_BARS = True
+
+# INCLUDE_ERRORS = False
+# COLUMNS = 3
+# SIZE = (12, 3.5/1)
+# MARGIN = dict(bottom=.15, top=.97, left=.07, right=.99, wspace=.40, hspace=.05)
 
 INCLUDE_ERRORS = False
 COLUMNS = 3
@@ -12,54 +24,73 @@ SIZE = (12, 3.5)
 MARGIN = dict(bottom=.15, top=.97, left=.07, right=.99, wspace=.40, hspace=.05)
 # INCLUDE_ERRORS = True
 # COLUMNS = 2
-# SIZE = (16, 8)
-# MARGIN = dict(bottom=.06, top=.94, left=.06, right=.99, wspace=.42, hspace=.05)
+# SIZE = (16, 7.5/4)
+# MARGIN = dict(bottom=.07, top=.93, left=.06, right=.99, wspace=.35, hspace=.05)
+
+# INCLUDE_ERRORS = True
+# INCLUDE_HISTOGRAMS = False
+# COLUMNS = 1
+# SIZE = (8, 7/4)
+# MARGIN = dict(bottom=.08, top=.92, left=.10, right=.97, wspace=.36, hspace=.05)
+
 # INCLUDE_ERRORS = False
 # COLUMNS = 2
-# SIZE = (7.5, 9.0)
+# SIZE = (7.5, 9.0/5)
 # MARGIN = dict(bottom=.06, top=.94, left=.12, right=.99, wspace=.30, hspace=.05)
+
 # INCLUDE_ERRORS = False
 # COLUMNS = 2
-# SIZE = (10, 6)
+# SIZE = (10, 6/4)
 # MARGIN = dict(bottom=.11, top=.89, left=.13, right=.99, wspace=.30, hspace=.05)
+
 # INCLUDE_ERRORS = False
 # COLUMNS = 1
-# SIZE = (5, 7)
-# MARGIN = dict(bottom=.08, top=.92, left=.23, right=.99, wspace=.25, hspace=.05)
-# INCLUDE_ERRORS = False
+# SIZE = (4.0, 5/3)
+# MARGIN = dict(bottom=.09, top=.91, left=.18, right=.95, hspace=.05)
+
+INCLUDE_ERRORS = False
+INCLUDE_HISTOGRAMS = True
+COLUMNS = 1
+SIZE = (5.2, 5/3)
+MARGIN = dict(bottom=.10, top=.90, left=.15, right=.98, hspace=.05, wspace=.04)
+
+# INCLUDE_ERRORS = True
 # COLUMNS = 1
-# SIZE = (6, 4)
-# MARGIN = dict(bottom=.15, top=.95, left=.15, right=.95)
+# SIZE = (7, 5/3)
+# MARGIN = dict(bottom=.10, top=.90, left=.11, right=.97, wspace=.37, hspace=.05)
+
+assert not (INCLUDE_ERRORS and INCLUDE_HISTOGRAMS)
 
 
 if len(sys.argv) <= 1:
-	# FILENAME = '../../working/ensemble with Linux adjustments and strong smoothing.csv'
-	FILENAME = '../../working/ensemble_4_10_5_2_1000_2021-02-26.csv'
+	# FILENAME = '../../output/ensemble_perfect_perfect_15ps_1000_2022-12-05.csv'
+	FILENAME = "../../output/ensemble_high_0.001_2000_haan-shockmerge_2023-03-02.csv"
+	# FILENAME = '../../output/ensemble_medium_0.001_2000_haan-shockmerge_2023-03-02.csv'
 else:
-	FILENAME = '../../working/'+sys.argv[1]
+	FILENAME = '../../output/'+sys.argv[1]
 BIN_WIDTH = 0.3 # in bels
-REFERENCE_YIELD = 1e16
+REFERENCE_YIELDS = [4e16, 4e17, 4e18]
 
-X_LABEL = "Yield"
+X_LABEL = "true total yield"
 
 Y_LABELS = [
-	# (None, 0, 0, 0, 0, False),
-	# ("Total yield", 2e14, 4.36508e17, 9e17, 5e-2, True),
-	# ("Bang time (ns)", 16.23, 16.258, 16.29, 1e-2, False),
-	# ("Burn width (ps)", 53, 67.7, 82, 7, False),
-	# ("Burn skewness", -1.6, -.698, -0.1, 3e-1, False),
-	# ("Burn kurtosis", -0.5, 4.7, 10.5, 3, False),
-	# ("dρR/dt at BT (g/cm^2/(100ps))", -1.2, -1.040, -.65, .060, False),
-	# ("dTi/dt at BT (keV/(100ps))", -2.3, 2.3, 6.3, 1.9, False),
-	# ("Burn-average vi (km/s)", -15.2, 0, 15.2, 20, False), ("dvi/dt at BT (km/s/(100ps))", -110, 0, 110, 8, False),
-	# ("Bang time (ns)", 16.344, 16.2596, 16.386, 1e-2, False), ("Burn width (ps)", 53, 66.16, 82, 7, False),
-	# ("Burn skewness", -1.8, -.7690, -0.4, 3e-1, False),
-	# ("Burn-average Ti (keV)", 6.5, 7.342, 11.5, 7e-2, True),
-	# ("Burn-average ρR (g/cm^2)", 0.55, .9959, 1.25, 7e-2, True),
-	# ("dTi/dt at BT (keV/(100ps))", 1.5, 2.3, 12, 1.9, False),
-	("dTi/dt at BT (keV/(100ps))", -2.5, 2.3, 6.3, 1.9, False),
-	("d^2Ti/dt^2 at BT (keV/ns^2)", -2200, -500, 1200, 400, False),#("dTi/dt at stagnation (keV/(100ps))", -20, 30.20, 40, 1.9, False),
-	("d^2V/dt^2/V at BT (1/ns^2)", -60, 24.18, 110, 50, False),
+	("burn width (ps)", 80.4, 16, 7, False), # haan: 70.1
+	# # ("burn skewness ()", -.698, .5, 3e-1, False),
+	# # ("burn kurtosis ()", 4.7, 5, 3, False),
+	("Ti at BT (keV)", 9.31, 2.2, 5e-2, True), # haan: 11.18
+	# ("Ti at stagnation (keV)", 5.856, 2.5, 5e-2, True),
+	("dTi/dt at BT (keV/(100 ps))", 7.85, 8.5, 1.9, False), # haan: 8.91
+	("ρR at BT (g/cm^2)", 0.632, .2, 7e-2, True), # haan: .552
+	# ("ρR at stagnation (g/cm^2)", 1.416, .2, 7e-2, True),
+	("dρR/dt at BT (g/cm^2/(100 ps))", -.516, 1.5, 0.6, False), # haan: -.566
+	# ("Ti at BT-50ps (keV)", 10.01, 2.2, 5e-2, True),
+	# ("dTi/dt at BT-50ps (keV/(100 ps))", 6.25, 8.5, 1/2, True),
+	# ("ρR at BT-50ps (g/cm^2)", 1.204, .2, 7e-2, True),
+	# ("dρR/dt at BT-50ps (g/cm^2/(100 ps))", -.424, 1.5, -1/2, True),
+	# ("Ti at BT+50ps (keV)", 14.45, 2.2, 5e-2, True),
+	# ("dTi/dt at BT+50ps (keV/(100 ps))", -10, 8.5, 1/2, True),
+	# ("ρR at BT+50ps (g/cm^2)", .3, .2, 7e-2, True),
+	# ("dρR/dt at BT+50ps (g/cm^2/(100 ps))", -.825, 1.5, -1/2, True),
 ]
 
 
@@ -73,69 +104,108 @@ def text_wrap(s):
 				return s[:i-j] + '\n' + s[i-j+1:]
 	return s
 
-def rolling_average(y, n):
+def hide_ticks(axis):
+	"""
+		hide the ticks on an axis without hiding the entire
+		axis (this way the grid won't go away)
+	"""
+	for tick in axis.get_major_ticks() + axis.get_minor_ticks():
+		tick.tick1line.set_visible(False)
+		tick.tick2line.set_visible(False)
+		tick.label1.set_visible(False)
+		tick.label2.set_visible(False)
+
+def rolling_average(y, n, bessel_correction=False):
 	""" rolling average of y, using n neighbors in each direction """
 	if n > (y.size-1)//2:
 		raise IndexError("n is too big")
+	c = -1 if bessel_correction else 0
 	Σy = np.concatenate([[0], np.cumsum(y)])
 	return np.concatenate([
-		Σy[n+1:2*n+1]/np.arange(n+1, 2*n+1),
-		(Σy[2*n+1:] - Σy[:-2*n-1])/(2*n + 1),
-		(Σy[-1] - Σy[-2*n-1:-n-1])/np.arange(2*n, n, -1),
+		Σy[n+1:2*n+1]/(np.arange(n+1, 2*n+1) + c),
+		(Σy[2*n+1:] - Σy[:-2*n-1])/(2*n+1 + c),
+		(Σy[-1] - Σy[-2*n-1:-n-1])/(np.arange(2*n, n, -1) + c),
 	])
+
+def smooth_average(y, bessel_correction=False):
+	""" double rolling average that automatically handles nans """
+	valid = np.isfinite(y)
+	output = y[:]
+	output[valid] = rolling_average(
+		rolling_average(
+			y[valid],
+			n=min((np.sum(valid)-1)//2, 36),
+			bessel_correction=bessel_correction),
+		n=min((np.sum(valid)-1)//2, 36))
+	output[~valid] = (output[np.roll(~valid, 1)] + output[np.roll(~valid, -1)])/2
+	return output
+
+def symlog(x):
+	x0 = np.median(x)
+	return np.where(x > x0, x0*(np.log(x/x0) + 1), x)
+
+def symexp(y):
+	y0 = np.median(y)
+	return np.where(y > y0, y0*np.exp(y/y0 - 1), x)
 
 
 simulations = pd.read_csv(FILENAME, na_values=["Infinity"])
-simulations = simulations[simulations["Yield factor"] != 0]
-simulations["Yield"] = simulations["Yield factor"]*4.7838e17
+
+simulations = simulations[simulations["true total yield"] != 0]
 for parameter in simulations:
 	if '(ns)' in parameter:
 		simulations[parameter.replace('(ns)', '(ps)')] = simulations[parameter]*1e-9/1e-12
 	if '/ns' in parameter:
-		simulations[parameter.replace('/ns', '/(100ps)')] = simulations[parameter]/1e-9*100e-12
+		simulations[parameter.replace('/ns', '/100ps')] = simulations[parameter]/1e-9*100e-12
 	if ' (10^15)' in parameter:
 		simulations[parameter.replace(' (10^15)', '')] = simulations[parameter]*1e15
 for parameter in simulations:
 	if '(g/' in parameter:
 		simulations[parameter.replace('(g/', '(mg/')] = simulations[parameter]/1e-3
 
+num_rows = (len(Y_LABELS) + COLUMNS - 1)//COLUMNS
 if INCLUDE_ERRORS:
-	fig, axs = plt.subplots((len(Y_LABELS) + COLUMNS-1)//COLUMNS, COLUMNS*2, figsize=SIZE)
+	num_columns = COLUMNS*2
+	gridspec_keywords = dict()
+elif INCLUDE_HISTOGRAMS:
+	num_columns = COLUMNS*2
+	gridspec_keywords = dict(width_ratios=[2, 1]*COLUMNS)
 else:
-	fig, axs = plt.subplots((len(Y_LABELS) + COLUMNS-1)//COLUMNS, COLUMNS, figsize=SIZE)
-try:
-	if len(axs.shape) == 1: # force the axis matrix to be 2D since Matplotlib apparently automatically reduces any array where one of the dimensions is 1
-		axs = axs[:, np.newaxis]
-except AttributeError:
-	axs = np.array([[axs]])
-if axs.shape[1] != COLUMNS: # and force it to be correct since Matplotlib apparently automatically transposes any array with one row‽‽
-	axs = axs.T
+	num_columns = COLUMNS
+	gridspec_keywords = dict()
+fig, axs = plt.subplots(num_rows, num_columns, figsize=(SIZE[0], SIZE[1]*num_rows), gridspec_kw=gridspec_keywords, squeeze=False)
 
 fig.subplots_adjust(**MARGIN)
-bins = np.geomspace(simulations[X_LABEL].min(), simulations[X_LABEL].max(), max(3, 1 + int(np.ptp(np.log10(simulations[X_LABEL]))/BIN_WIDTH)))
 
-for i, (axis, y_min, y_true, y_max, presis, percent) in enumerate(Y_LABELS): # iterate through each desired plot
+print("               reference yields:", end='')
+for reference_yield in REFERENCE_YIELDS:
+	print(f"  {reference_yield:< 17.2e}", end='')
+print()
+
+# first do the scatter plot
+for i, (axis, y_original, y_range, presis, percent) in enumerate(Y_LABELS): # iterate through each desired plot
 	if axis is None: continue
 	if INCLUDE_ERRORS:
 		ax = axs[i//COLUMNS, i%COLUMNS * 2 + 0] # identify the corresponding axis object
 	else:
 		ax = axs[i//COLUMNS, i%COLUMNS]
 
-	x = simulations[X_LABEL] # and the corresponding data
-	y = simulations[axis]
-	ɛ = simulations[axis+" error"]
+	x = simulations[X_LABEL].values # and the corresponding data
+	y = simulations[axis].values
+	ɛ = simulations[axis+" error"].values
 
-	ax.set_xlim(x.min(), x.max()) # set up the x axis
+	ax.set_xlim(1e16, 8e18) # set up the x axis
 	if 'ield' in X_LABEL:
 		ax.set_xscale('log')
 	if i//COLUMNS == axs.shape[0]-1:
-		ax.set_xlabel(X_LABEL)
+		ax.set_xlabel(X_LABEL.split()[-1].capitalize())
 	elif i//COLUMNS == 0:
-		ax.set_xlabel(X_LABEL)
+		ax.set_xlabel(X_LABEL.split()[-1].capitalize())
 		ax.xaxis.set_label_position('top')
 		ax.xaxis.tick_top()
 	else:
-		ax.xaxis.set_visible(False)
+		hide_ticks(ax.xaxis)
+	ax.grid()
 
 	if axis is None: # add a legend if there is space
 		ax.plot([], [], 'C1--', label="Original data")
@@ -144,108 +214,140 @@ for i, (axis, y_min, y_true, y_max, presis, percent) in enumerate(Y_LABELS): # i
 		ax.yaxis.set_visible(False)
 		continue
 
-	if 'keV' in axis:      y_factor = simulations["Temperature factor"] # automatically determine the relevant scaling factor
-	elif 'g/cm^2' in axis: y_factor = simulations["Down-scatter factor"]
-	elif 'yield' in axis:  y_factor = simulations["Yield factor"]
-	else:                  y_factor = np.ones(len(simulations.index))
+	if 'yield' in axis:  y_true = simulations["Yield"].values # automatically determine the relevant scaling factor
+	else:                y_true = y_original*np.ones(len(simulations.index))
 
 	order = np.argsort(x) # get some useful indices of the data
-	order = order[np.isfinite(simulations["Total yield"].values[order])].values
+	order = order[np.isfinite(simulations["true total yield"].values[order])]
 
-	μ = rolling_average(y[order], n=min(72, (y.size-1)//2))
-	σ = np.sqrt(rolling_average((y[order] - μ)**2, n=min(72, (y.size-1)//2)))
+	μ = smooth_average(y[order])
+	σ = np.sqrt(smooth_average((y[order] - μ)**2, bessel_correction=False))
 
-	if not percent: # plot the actual stuff
-		ax.fill_between(x[order],
-			y_factor[order]*y_true - presis, y_factor[order]*y_true + presis, color='#F7DFC8')
+	if presis is not None:
+		if not percent:
+			shaded_region = (y_true[order] - presis, y_true[order] + presis)
+		else:
+			shaded_region = (y_true[order]*(1 - presis), y_true[order]*(1 + presis))
+		ax.fill_between(x[order], shaded_region[0], shaded_region[1], color='#F7DFC8')
 	else:
-		ax.fill_between(x[order],
-			y_factor[order]*y_true*(1 - presis), y_factor[order]*y_true*(1 + presis), color='#F7DFC8')
-	ax.plot(x[order], y_factor[order]*y_true, 'C1-', zorder=1, label="Based on original data")
-	ax.scatter(x[order], y[order], s=1, zorder=2, label="Based on fit to synthetic data")
-	# ax.plot(x[order], μ + σ, 'C3-', zorder=1, label="1σ variation")
-	# ax.plot(x[order], μ - σ, 'C3-', zorder=1)
-	if y_min > 0 and y_max/y_min >= 10:
-		ax.set_yscale('log')
-	ax.set_ylim(y_min, y_max)
-	ax.set_ylabel(text_wrap(axis.replace("^2", "²")))
+		shaded_region = (y_true[order], y_true[order])
 
-if INCLUDE_ERRORS:
-	for i, (axis, y_min, y_true, y_max, presis, percent) in enumerate(Y_LABELS):
-		if axis is None: continue
+	ax.plot(x[order], y_true[order], 'C1-', zorder=1, label="Based on original data")
+	ax.scatter(x[order[order < 1200]], y[order[order < 1200]], s=1, zorder=2, label="Based on fit to synthetic data")
+	if PLOT_ENVELOPE:
+		ax.plot(x[order], μ + σ, 'C0-', linewidth=1, zorder=1, label="1σ variation")
+		ax.plot(x[order], μ - σ, 'C0-', linewidth=1, zorder=1)
+	ax.set_ylim(y_original - y_range, y_original + y_range)
+	ax.set_ylabel(text_wrap(axis.replace("^2", "²").replace("Ti", "Tᵢ")))
+
+	# set up the histogram axes
+	if INCLUDE_HISTOGRAMS:
 		ax = axs[i//COLUMNS, i%COLUMNS * 2 + 1]
-
-		x = simulations[X_LABEL] # and the corresponding data
-		y = simulations[axis]
-		ɛ = simulations[axis+" error"]
-
-		ax.set_xlim(x.min(), x.max())
-		if 'ield' in X_LABEL:
-			ax.set_xscale('log')
+		ax.set_xlim(0, len(REFERENCE_YIELDS))
+		x_tick_labels = [re.sub(r'([0-9.]+)e\+([0-9]+)', r"$\1\\times10^{\2}$", f"{Yn:.1g}") for Yn in REFERENCE_YIELDS]
+		ax.set_ylim(y_original - y_range, y_original + y_range)
+		ax.axhline(y_true[0], color='C1', zorder=1.5)
+		ax.fill_between(np.linspace(0, len(REFERENCE_YIELDS) + 1, order.size),
+		                shaded_region[0], shaded_region[1], color='#F7DFC8')
 		if i//COLUMNS == axs.shape[0]-1:
-			ax.set_xlabel(X_LABEL)
+			ax.set_xticks(np.arange(len(REFERENCE_YIELDS)), labels=x_tick_labels, rotation=-30, ha="left", rotation_mode='anchor')
+			ax.tick_params(axis='x', which='major', pad=-0)
 		elif i//COLUMNS == 0:
-			ax.set_xlabel(X_LABEL)
+			ax.set_xticks(np.arange(len(REFERENCE_YIELDS)), labels=x_tick_labels, rotation=30, ha="left", rotation_mode='anchor')
+			ax.tick_params(axis='x', which='major', pad=-0)
 			ax.xaxis.set_label_position('top')
 			ax.xaxis.tick_top()
 		else:
-			ax.xaxis.set_visible(False)
+			hide_ticks(ax.xaxis)
+		hide_ticks(ax.yaxis)
+		ax.grid()
+
+	dy = y - y_true
+	print(f"{axis:>25s} error:", end='')
+	for j, reference_yield in enumerate(REFERENCE_YIELDS):
+		at_yield = (~np.isnan(y)) & (np.absolute(np.log10(x/reference_yield)) <= 0.15)
+		error_at_yield = np.sqrt(np.mean(np.square(dy[at_yield])))
+		number_at_yield = np.sum(at_yield)
+		print(f"  {error_at_yield:7.4f} ± {error_at_yield*np.sqrt(2/number_at_yield):7.4f}", end='')
+
+		if INCLUDE_HISTOGRAMS:
+			_, _, patches = ax.hist(
+				y[at_yield], bottom=j, color="C0", zorder=2,
+				bins=np.linspace(max(y_original - y_range, min(shaded_region[0].min(), y[at_yield].min())),
+				                 min(y_original + y_range, max(shaded_region[1].max(), y[at_yield].max())),
+				                 12),
+				orientation="horizontal")
+			peak = np.max(patches.datavalues)
+			for rectangle in patches.patches:
+				rectangle.set_width(rectangle.get_width()/peak*0.8)
+			deviation = np.std(y[at_yield])
+			mean = np.mean(y[at_yield])
+			for sign in [-1, 1]:
+				ax.arrow(j + .85, mean,
+				         0, sign*deviation,
+				         length_includes_head=True, zorder=2,
+				         head_width=.2, head_length=0, color="#000")
+			# ax.plot([j + 0.50, j + 0.50], [mean - deviation, mean + deviation], "k", zorder=5)
+			# ax.plot([j + 0.42, j + 0.50, j + 0.58], [mean - deviation + arrow_hite, mean - deviation, mean - deviation + arrow_hite], "k", zorder=5)
+			# ax.plot([j + 0.42, j + 0.50, j + 0.58], [mean + deviation - arrow_hite, mean + deviation, mean + deviation - arrow_hite], "k", zorder=5)
+
+	print()
+
+	if INCLUDE_ERRORS:
+		ax = axs[i//COLUMNS, i%COLUMNS * 2 + 1]
+
+		ax.set_xlim(10**round(np.log10(x.min())),
+		            10**round(np.log10(x.max()))) # set up the x axis
+		if 'ield' in X_LABEL:
+			ax.set_xscale('log')
+		if i//COLUMNS == axs.shape[0]-1:
+			ax.set_xlabel(X_LABEL.split()[-1].capitalize())
+		elif i//COLUMNS == 0:
+			ax.set_xlabel(X_LABEL.split()[-1].capitalize())
+			ax.xaxis.set_label_position('top')
+			ax.xaxis.tick_top()
+		else:
+			hide_ticks(ax.xaxis)
+		ax.grid()
 
 		if axis is None:
 			ax.plot([], [], 'C1--', label="Required accuracy")
 			ax.plot([], [], 'C0-', label="Standard deviation from actuality")
-			ax.plot([], [], 'C3--', label="Reported error bar size")
+			if PLOT_THEORETICAL_ERROR_BARS:
+				ax.plot([], [], 'C3--', label="Reported error bar size")
 			ax.legend()
 			ax.yaxis.set_visible(False)
 			continue
 
-		if 'keV' in axis:      y_factor = simulations["Temperature factor"]
-		elif 'g/cm^2' in axis: y_factor = simulations["Down-scatter factor"]
-		elif 'yield' in axis:  y_factor = simulations["Yield factor"]
-		else:                  y_factor = np.ones(len(simulations.index))
-
-		# if presis <= 1e-2 and "(n" in axis:
-		# 	axis = axis.replace("(n", "(p")
-		# 	presis *= 1e3
-		# 	y_true *= 1e3
-
-		point_errors = y - y_factor*y_true
-		if percent:
-			point_errors /= y_factor*y_true
-		error_at_yield = np.sqrt(np.mean(np.square(point_errors[np.absolute(np.log10(x/REFERENCE_YIELD)) <= 0.15])))
-		number_at_yield = np.sum(np.absolute(np.log10(x/REFERENCE_YIELD)) <= 0.15)
-		print(f"{axis} error:    {error_at_yield} ± {error_at_yield*np.sqrt(2/number_at_yield)}")
-
-		stds, errs = [], []
-		for j in range(1, len(bins)):
-			stds.append(
-				np.sqrt(np.mean(np.square(point_errors[(x >= bins[j-1]) & (x < bins[j])]))))
-			errs.append(
-				np.mean(ɛ[(x >= bins[j-1]) & (x < bins[j])]))
-		bin_centers = np.sqrt(bins[1:]*bins[:-1])
-		y_factor = np.interp(bin_centers, x[order], y_factor[order])
-		if not percent:
-			ax.plot(bin_centers, stds, 'C0-', label="Standard deviation from actuality")
-			ax.plot(bin_centers, y_factor*presis, 'C1--', label="Required accuracy")
-			ax.plot(bin_centers, errs, 'C3--', label="Reported error bar size")
-		else:
-			ax.plot(bin_centers, stds, 'C0-', label="Standard deviation from actuality")
-			ax.plot(bin_centers, np.full(bin_centers.shape, presis), 'C1--', label="Required accuracy")
-			ax.plot(bin_centers, errs/(y_factor*y_true), 'C3--', label="Reported error bar size")
+		stds = np.sqrt(smooth_average(np.square(dy[order]), bessel_correction=True))
+		errs = smooth_average(ɛ[order])
+		ax.plot(x[order], stds, 'C0-', label="Standard deviation from actuality")
+		if presis is not None:
+			if percent:
+				presis *= y_true[order]
+			ax.plot(x[order], np.full(order.shape, presis), 'C1--', label="Required accuracy")
+		if PLOT_THEORETICAL_ERROR_BARS:
+			ax.plot(x[order], errs, 'C3--', label="Reported error bar size")
 		ax.set_yscale('log')
+
+		# figure out the best y limits
+		y_min = np.min(presis)*1e-1
+		y_max = np.max(presis)*1e+1
+		if np.median(stds) < y_min:
+			y_max *= np.median(stds)/y_min
+			y_min = np.median(stds)
+		if np.min(presis) > y_max:
+			y_min *= np.min(presis)/y_max
+			y_max = np.min(presis)
+		ax.set_ylim(y_min, y_max)
+
+		# ax.grid(which='major', axis='y')
 		if 'ield' in X_LABEL:
 			ax.set_xscale('log')
-		ax.set_ylim(presis*3.2e-2, presis*5)
-		if not percent:
-			if "(" in axis:
-				ax.set_ylabel(text_wrap(axis[:axis.index("(")].replace(" at BT", "").replace("^2", "²") + "error " + axis[axis.index("("):]))
-			else:
-				ax.set_ylabel(text_wrap(axis+" error"))
-		else:
-			ax.set_ylabel(text_wrap(re.sub(r'(\([^)]+\))?$', '', axis) + " error"))
+		ax.set_ylabel(text_wrap(axis[:axis.index("(")].replace(" at BT", "").replace("^2", "²") + "error " + axis[axis.index("("):]))
 
-config = '-'+FILENAME[23:36] if len(FILENAME) > 23 else ''
-fig.savefig('../../working/mrst{}.eps'.format(config))
-fig.savefig('../../working/mrst{}.png'.format(config))
+filename = os.path.splitext(FILENAME)[0]
+fig.savefig(f'{filename}.eps')
+fig.savefig(f'{filename}.png', dpi=300, transparent=True)
 
 plt.show()

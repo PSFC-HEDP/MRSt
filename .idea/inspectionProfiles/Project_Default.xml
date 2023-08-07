@@ -1,0 +1,85 @@
+<component name="InspectionProjectProfileManager">
+  <profile version="1.0">
+    <option name="myName" value="Project Default" />
+    <inspection_tool class="AndroidLintWrongRegion" enabled="false" level="WARNING" enabled_by_default="false" />
+    <inspection_tool class="AnonymousHasLambdaAlternative" enabled="false" level="WARNING" enabled_by_default="false" />
+    <inspection_tool class="ArrayEquality" enabled="true" level="WARNING" enabled_by_default="true" />
+    <inspection_tool class="CodeBlock2Expr" enabled="false" level="WARNING" enabled_by_default="false" />
+    <inspection_tool class="CommentedOutCode" enabled="false" level="WEAK WARNING" enabled_by_default="false" />
+    <inspection_tool class="ComparatorCombinators" enabled="false" level="WARNING" enabled_by_default="false" />
+    <inspection_tool class="Convert2Diamond" enabled="true" level="WEAK WARNING" enabled_by_default="true" editorAttributes="INFO_ATTRIBUTES" />
+    <inspection_tool class="Convert2Lambda" enabled="false" level="WARNING" enabled_by_default="false" />
+    <inspection_tool class="Convert2MethodRef" enabled="false" level="WARNING" enabled_by_default="false" />
+    <inspection_tool class="DanglingJavadoc" enabled="false" level="WARNING" enabled_by_default="false" />
+    <inspection_tool class="DiamondCanBeReplacedWithExplicitTypeArguments" enabled="false" level="WEAK WARNING" enabled_by_default="false" />
+    <inspection_tool class="ForCanBeForeach" enabled="false" level="WARNING" enabled_by_default="false">
+      <option name="REPORT_INDEXED_LOOP" value="true" />
+      <option name="ignoreUntypedCollections" value="false" />
+    </inspection_tool>
+    <inspection_tool class="IgnoreResultOfCall" enabled="true" level="WEAK WARNING" enabled_by_default="true">
+      <option name="m_reportAllNonLibraryCalls" value="false" />
+      <option name="callCheckString" value="java.io.File,.*,java.io.InputStream,read|skip|available|markSupported,java.io.Reader,read|skip|ready|markSupported,java.lang.Boolean,.*,java.lang.Byte,.*,java.lang.Character,.*,java.lang.Double,.*,java.lang.Float,.*,java.lang.Integer,.*,java.lang.Long,.*,java.lang.Math,.*,java.lang.Object,equals|hashCode|toString,java.lang.Short,.*,java.lang.StrictMath,.*,java.lang.String,.*,java.lang.Thread,interrupted,java.math.BigInteger,.*,java.math.BigDecimal,.*,java.net.InetAddress,.*,java.net.URI,.*,java.util.Arrays,.*,java.util.List,of,java.util.Set,of,java.util.Map,of|ofEntries|entry,java.util.Collections,(?!addAll).*,java.util.UUID,.*,java.util.regex.Matcher,pattern|toMatchResult|start|end|group|groupCount|matches|find|lookingAt|quoteReplacement|replaceAll|replaceFirst|regionStart|regionEnd|hasTransparentBounds|hasAnchoringBounds|hitEnd|requireEnd,java.util.regex.Pattern,.*,java.util.stream.BaseStream,.*" />
+    </inspection_tool>
+    <inspection_tool class="JSSuspiciousNameCombination" enabled="true" level="WARNING" enabled_by_default="true">
+      <group names="width,left,right" />
+      <group names="height,top,bottom" />
+      <exclude classes="Math" />
+    </inspection_tool>
+    <inspection_tool class="Java8MapApi" enabled="false" level="WARNING" enabled_by_default="false" />
+    <inspection_tool class="JavaLangImport" enabled="true" level="WARNING" enabled_by_default="true" />
+    <inspection_tool class="JavadocBlankLines" enabled="false" level="WARNING" enabled_by_default="false" />
+    <inspection_tool class="LambdaCanBeMethodCall" enabled="false" level="INFORMATION" enabled_by_default="false" />
+    <inspection_tool class="ManualArrayCopy" enabled="false" level="WARNING" enabled_by_default="false" />
+    <inspection_tool class="MultipleVariablesInDeclaration" enabled="true" level="INFORMATION" enabled_by_default="true">
+      <option name="ignoreForLoopDeclarations" value="false" />
+      <option name="onlyWarnArrayDimensions" value="true" />
+    </inspection_tool>
+    <inspection_tool class="NonAsciiCharacters" enabled="true" level="WARNING" enabled_by_default="true">
+      <option name="CHECK_FOR_NOT_ASCII_IDENTIFIER_NAME" value="false" />
+      <option name="CHECK_FOR_DIFFERENT_LANGUAGES_IN_IDENTIFIER_NAME" value="false" />
+      <option name="CHECK_FOR_FILES_CONTAINING_BOM" value="true" />
+    </inspection_tool>
+    <inspection_tool class="OnDemandImport" enabled="true" level="WARNING" enabled_by_default="true" />
+    <inspection_tool class="PointlessArithmeticExpression" enabled="false" level="WARNING" enabled_by_default="false">
+      <option name="m_ignoreExpressionsContainingConstants" value="true" />
+    </inspection_tool>
+    <inspection_tool class="PyPep8Inspection" enabled="true" level="WEAK WARNING" enabled_by_default="true">
+      <option name="ignoredErrors">
+        <list>
+          <option value="E101" />
+          <option value="E261" />
+          <option value="E501" />
+          <option value="E225" />
+          <option value="E201" />
+          <option value="E221" />
+          <option value="E228" />
+          <option value="E122" />
+        </list>
+      </option>
+    </inspection_tool>
+    <inspection_tool class="SamePackageImport" enabled="true" level="WARNING" enabled_by_default="true" />
+    <inspection_tool class="SuspiciousNameCombination" enabled="true" level="WARNING" enabled_by_default="true">
+      <group names="width,left,right" />
+      <group names="height,top,bottom" />
+      <ignored>
+        <option name="METHOD_MATCHER_CONFIG" value="java.io.PrintStream,println,java.io.PrintWriter,println,java.lang.System,identityHashCode,java.sql.PreparedStatement,set.*,java.sql.ResultSet,update.*,java.sql.SQLOutput,write.*,java.lang.Integer,compare.*,java.lang.Long,compare.*,java.lang.Short,compare,java.lang.Byte,compare,java.lang.Character,compare,java.lang.Boolean,compare,java.lang.Math,.*,java.lang.StrictMath,.*" />
+      </ignored>
+    </inspection_tool>
+    <inspection_tool class="UnnecessaryLocalVariable" enabled="false" level="WARNING" enabled_by_default="false">
+      <option name="m_ignoreImmediatelyReturnedVariables" value="false" />
+      <option name="m_ignoreAnnotatedVariables" value="false" />
+    </inspection_tool>
+    <inspection_tool class="unused" enabled="true" level="WARNING" enabled_by_default="true" field="protected" method="protected" parameter="protected" ignoreAccessors="true" checkParameterExcludingHierarchy="false">
+      <option name="LOCAL_VARIABLE" value="true" />
+      <option name="FIELD" value="true" />
+      <option name="METHOD" value="true" />
+      <option name="CLASS" value="true" />
+      <option name="PARAMETER" value="true" />
+      <option name="REPORT_PARAMETER_FOR_PUBLIC_METHODS" value="false" />
+      <option name="ADD_MAINS_TO_ENTRIES" value="true" />
+      <option name="ADD_APPLET_TO_ENTRIES" value="true" />
+      <option name="ADD_SERVLET_TO_ENTRIES" value="true" />
+      <option name="ADD_NONJAVA_TO_ENTRIES" value="true" />
+    </inspection_tool>
+  </profile>
+</component>
